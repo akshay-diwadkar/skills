@@ -15,6 +15,22 @@ skill-name/
   agents/            # Sub-agent configs (e.g., openai.yaml)
 ```
 
+## Installation
+
+```bash
+git clone https://github.com/akshay-diwadkar/skills.git
+cd skills
+
+# Symlink individual skills into your agent's skills directory
+mkdir -p ~/.agents/skills
+ln -s "$PWD/create-diagram" ~/.agents/skills/
+ln -s "$PWD/plan-with-senior-dev" ~/.agents/skills/
+
+# Or copy instead of symlink:
+# cp -r create-diagram ~/.agents/skills/
+# cp -r plan-with-senior-dev ~/.agents/skills/
+```
+
 ## Usage
 
 Skills in `~/.agents/skills/` are auto-discovered by the agent. To use a skill:
