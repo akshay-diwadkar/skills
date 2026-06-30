@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Diagram — Excalidraw-Style Diagram</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "roughjs": "https://unpkg.com/roughjs@4.6.6/bundled/rough.esm.js"
+  }
+}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#faf6f0;font-family:'Caveat',cursive;overflow:hidden;user-select:none}
+body[data-theme="dark"]{background:#121216}
+#canvas-container{width:100vw;height:100vh;position:relative}
+#canvas{width:100%;height:100%;display:block;cursor:grab}
+#canvas:active{cursor:grabbing}
+svg text{font-family:'Caveat',cursive;pointer-events:none}
+  #toolbar{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100;display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:12px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+body[data-theme="dark"] #toolbar{background:rgba(18,18,22,0.9);border-color:#2a2820;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+#toolbar button{background:#fff;border:1px solid #d4c9b8;border-radius:8px;padding:4px 12px;cursor:pointer;font-family:'Caveat',cursive;font-size:18px;color:#5a4e3e;transition:background 0.15s}
+body[data-theme="dark"] #toolbar button{background:#1a1916;border-color:#2a2820;color:#c4a46c}
+  #toolbar button:hover{background:#f0ebe4}
+  body[data-theme="dark"] #toolbar button:hover{background:#2a2820}
+  #toolbar button:active{background:#e5ddd2}
+  body[data-theme="dark"] #toolbar button:active{background:#3a3528}
+  #toolbar input{width:180px;background:#fff;border:1px solid #d4c9b8;border-radius:8px;padding:4px 10px;font-family:'Caveat',cursive;font-size:18px;color:#5a4e3e;outline:none}
+  body[data-theme="dark"] #toolbar input{background:#1a1916;border-color:#2a2820;color:#d4cfc4}
+  #toolbar input::placeholder{color:#a99f90}
+  body[data-theme="dark"] #toolbar input::placeholder{color:#6d6355}
+  .toolbar-sep{height:24px;width:1px;background:#d4c9b8;margin:0 4px}
+  body[data-theme="dark"] .toolbar-sep{background:#2a2820}
+#title-display{font-size:18px;font-weight:600;color:#5a4e3e;padding:0 12px;border-right:1px solid #d4c9b8;margin-right:4px}
+body[data-theme="dark"] #title-display{color:#c4a46c;border-right-color:#2a2820}
+#zoom-level{color:#8a7e6e}
+body[data-theme="dark"] #zoom-level{color:#7a7060}
+#instructions{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(4px);border:1px solid #d4c9b8;border-radius:20px;padding:6px 16px;font-size:15px;color:#8a7e6e;white-space:nowrap}
+body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-color:#2a2820;color:#7a7060}
+  #warnings{position:fixed;right:16px;bottom:16px;z-index:110;max-width:min(360px,calc(100vw - 32px));display:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid #d4a037;border-radius:10px;padding:10px 14px;font-size:16px;line-height:1.2;color:#6f4a00;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+  body[data-theme="dark"] #warnings{background:rgba(24,20,14,0.94);border-color:#8a6418;color:#d7b15a}
+  #warnings strong{display:block;font-size:18px;margin-bottom:4px}
+  #details-panel{position:fixed;right:16px;top:86px;z-index:105;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 132px);overflow:auto;display:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:12px;padding:12px 14px;color:#5a4e3e;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+  body[data-theme="dark"] #details-panel{background:rgba(18,18,22,0.92);border-color:#2a2820;color:#d4cfc4;box-shadow:0 2px 12px rgba(0,0,0,0.38)}
+  #details-panel h2{font-size:25px;line-height:1.05;margin:0 28px 4px 0;color:#3d3429}
+  body[data-theme="dark"] #details-panel h2{color:#d7b15a}
+  #details-panel .panel-close{position:absolute;right:10px;top:8px;border:0;background:transparent;font-family:'Caveat',cursive;font-size:24px;color:inherit;cursor:pointer}
+  #details-panel .meta{font-size:17px;color:#8a7e6e;margin-bottom:8px}
+  body[data-theme="dark"] #details-panel .meta{color:#8f826c}
+  #details-panel p{font-size:19px;line-height:1.12;margin:8px 0}
+  #details-panel ul{padding-left:18px;margin:6px 0}
+  #details-panel li{font-size:17px;line-height:1.15;margin:3px 0}
+  #details-panel .tag{display:inline-block;border:1px solid #d4c9b8;border-radius:999px;padding:1px 8px;margin:2px 4px 2px 0;font-size:16px;background:rgba(255,255,255,0.55)}
+  body[data-theme="dark"] #details-panel .tag{border-color:#3a3528;background:rgba(255,255,255,0.04)}
+  #brief-panel{position:fixed;left:16px;top:86px;z-index:104;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 132px);overflow:auto;display:none;background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:12px;padding:12px 14px;color:#5a4e3e;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+  body[data-theme="dark"] #brief-panel{background:rgba(18,18,22,0.92);border-color:#2a2820;color:#d4cfc4;box-shadow:0 2px 12px rgba(0,0,0,0.38)}
+  #brief-panel h2{font-size:24px;line-height:1.05;margin:0 0 4px;color:#3d3429}
+  body[data-theme="dark"] #brief-panel h2{color:#d7b15a}
+  #brief-panel .brief-meta{font-size:17px;color:#8a7e6e;margin:2px 0 8px}
+  body[data-theme="dark"] #brief-panel .brief-meta{color:#8f826c}
+  #brief-panel p{font-size:19px;line-height:1.12;margin:8px 0}
+  #brief-panel ul{padding-left:18px;margin:6px 0 0}
+  #brief-panel li{font-size:17px;line-height:1.15;margin:3px 0}
+  .node-group{cursor:move;transition:filter 0.1s}
+  .node-group:hover{filter:drop-shadow(0 2px 8px rgba(0,0,0,0.15))}
+  body[data-theme="dark"] .node-group:hover{filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4))}
+  .node-group.dimmed,.edge-group.dimmed{opacity:0.18}
+  .node-group.selected,.node-group.search-match{filter:drop-shadow(0 3px 12px rgba(26,122,191,0.42))}
+  body[data-theme="dark"] .node-group.selected,body[data-theme="dark"] .node-group.search-match{filter:drop-shadow(0 3px 12px rgba(196,164,108,0.42))}
+  .edge-group{cursor:pointer;transition:opacity 0.1s}
+  .edge-group.selected,.edge-group.search-match{filter:drop-shadow(0 1px 4px rgba(26,122,191,0.35))}
+  .edge-label{font-size:20px;text-anchor:middle;dominant-baseline:central}
+  .legend-group{cursor:default}
+  .legend-toggle{cursor:pointer}
+  .cluster-label{font-size:26px;font-weight:600;text-anchor:middle}
+</style>
+</head>
+<body data-theme="light">
+
+<div id="canvas-container">
+  <div id="toolbar">
+    <span id="title-display">Diagram</span>
+    <button id="zoom-out" title="Zoom out">−</button>
+    <span id="zoom-level" style="font-size:15px;min-width:36px;text-align:center">100%</span>
+    <button id="zoom-in" title="Zoom in">+</button>
+    <button id="zoom-readable" title="Readable fit">Fit</button>
+    <button id="zoom-fit-all" title="Fit whole diagram">All</button>
+    <button id="reset-layout" title="Reset saved node positions">Reset</button>
+    <span class="toolbar-sep" aria-hidden="true"></span>
+    <input id="diagram-search" type="search" placeholder="Search" aria-label="Search diagram">
+    <button id="theme-toggle" title="Toggle dark mode" style="font-size:20px;border:none;background:none;cursor:pointer;padding:2px 6px">☀️</button>
+  </div>
+  <svg id="canvas">
+    <defs>
+      <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <circle id="grid-dot" cx="10" cy="10" r="0.8" fill="#d4c9b8" opacity="0.4"/>
+      </pattern>
+    </defs>
+    <rect id="bg-grid" width="100%" height="100%" fill="url(#grid)"/>
+    <g id="viewport-group">
+      <g id="clusters-layer"></g>
+      <g id="edges-layer"></g>
+      <g id="nodes-layer"></g>
+    </g>
+    <g id="overlay-layer"></g>
+  </svg>
+  <div id="instructions">Drag nodes · Scroll to zoom · Drag background to pan</div>
+  <aside id="brief-panel" aria-live="polite"></aside>
+  <div id="warnings" role="status" aria-live="polite"></div>
+  <aside id="details-panel" aria-live="polite"></aside>
+</div>
+
+<script>
+/* ========== POPULATE THIS DATA ========== */
+const DIAGRAM_DATA = {
+  title: "Stakeholder Narrative Architecture",
+  storageKey: "stakeholder-narrative-example-v1",
+  audience: "Stakeholders, developers, and managers",
+  purpose: "Explain how a customer request becomes a governed, observable platform outcome",
+  fidelity: "narrative-architecture",
+  takeaways: [
+    "The gateway owns entry and policy checks before work reaches internal services",
+    "The workflow service coordinates decisions, async work, and durable state",
+    "Failure handling and human review keep risky outcomes visible instead of hidden"
+  ],
+  nodes: [
+    { id: "customer", label: "Customer", type: "actor", description: "Starts a request and receives the final outcome" },
+    { id: "manager", label: "Manager", type: "actor", description: "Reviews risk, ownership, and delivery impact" },
+    { id: "gateway", label: "API Gateway", type: "service", description: "Receives requests and applies entry policies" },
+    { id: "policy", label: "Policy Decision", type: "decision", description: "Routes safe, risky, or invalid requests" },
+    { id: "workflow", label: "Workflow Service", type: "service", description: "Coordinates business steps and system handoffs" },
+    { id: "queue", label: "Work Queue", type: "queue", description: "Buffers async work when processing takes time" },
+    { id: "worker", label: "Worker Process", type: "process", description: "Transforms queued work into durable outcomes" },
+    { id: "db", label: "System Database", type: "database", description: "Stores request state, decisions, and results" },
+    { id: "audit", label: "Audit Log", type: "document", description: "Explains what happened and why it happened" },
+    { id: "review", label: "Human Review", type: "actor", description: "Approves ambiguous or high-risk outcomes" },
+    { id: "fallback", label: "Fallback Handler", type: "failure-state", description: "Returns safe partial results on downstream failure" },
+    { id: "metrics", label: "Metrics Pipeline", type: "event", description: "Reports latency, failure, and quality signals" },
+    { id: "response", label: "Customer Response", type: "document", description: "Summarizes the result and next action" }
+  ],
+  edges: [
+    { sourceId: "customer", targetId: "gateway", label: "starts", evidence: "stakeholder-brief:1", confidence: "stated" },
+    { sourceId: "manager", targetId: "policy", label: "cares about", evidence: "stakeholder-brief:2", confidence: "stated" },
+    { sourceId: "gateway", targetId: "policy", label: "checks", evidence: "stakeholder-brief:3", confidence: "stated" },
+    { sourceId: "policy", targetId: "workflow", label: "allows", evidence: "stakeholder-brief:4", confidence: "stated" },
+    { sourceId: "policy", targetId: "fallback", label: "rejects", evidence: "stakeholder-brief:5", confidence: "stated" },
+    { sourceId: "workflow", targetId: "queue", label: "enqueues", evidence: "stakeholder-brief:6", confidence: "stated" },
+    { sourceId: "queue", targetId: "worker", label: "feeds", evidence: "stakeholder-brief:7", confidence: "stated" },
+    { sourceId: "worker", targetId: "db", label: "writes", evidence: "stakeholder-brief:8", confidence: "stated" },
+    { sourceId: "worker", targetId: "audit", label: "records", evidence: "stakeholder-brief:9", confidence: "stated" },
+    { sourceId: "worker", targetId: "review", label: "escalates", evidence: "stakeholder-brief:10", confidence: "stated" },
+    { sourceId: "review", targetId: "workflow", label: "approves", evidence: "stakeholder-brief:11", confidence: "stated" },
+    { sourceId: "worker", targetId: "metrics", label: "emits", evidence: "stakeholder-brief:12", confidence: "stated" },
+    { sourceId: "worker", targetId: "response", label: "produces", evidence: "stakeholder-brief:13", confidence: "stated" },
+    { sourceId: "fallback", targetId: "response", label: "returns", evidence: "stakeholder-brief:14", confidence: "stated" },
+    { sourceId: "response", targetId: "customer", label: "answers", evidence: "stakeholder-brief:15", confidence: "stated" }
+  ],
+  clusters: [
+    { id: "entry", label: "Entry & Governance", nodeIds: ["customer", "manager", "gateway", "policy"] },
+    { id: "execution", label: "Execution", nodeIds: ["workflow", "queue", "worker", "db"] },
+    { id: "outcomes", label: "Outcomes & Oversight", nodeIds: ["audit", "review", "fallback", "metrics", "response"] }
+  ]
+};
+</script>
+
+<script type="module">
+import rough from 'roughjs';
+
+/* ---------- theme ---------- */
+const THEMES = {
+  light: {
+    nodeText: '#333', edgeStroke: '#5a4e3e', edgeLabel: '#5a4e3e',
+    clusterFill: 'rgba(200,200,200,0.12)', clusterStroke: '#b8ae9e', clusterLabel: '#5a4e3e',
+    legendBg: 'rgba(255,255,255,0.85)', legendBorder: '#d4c9b8', legendText: '#5a4e3e',
+    gridDot: '#d4c9b8',
+    nodeTypes: {
+      service:           { fill: '#d0e8ff', stroke: '#1a7abf', label: 'Service', shape: 'service' },
+      'external-system': { fill: '#ffe0b2', stroke: '#bf7a1a', label: 'External System', shape: 'cloud' },
+      database:          { fill: '#d4f5d2', stroke: '#1abf4a', label: 'Database', shape: 'database' },
+      queue:             { fill: '#d8f0ff', stroke: '#2b7fb8', label: 'Queue', shape: 'queue' },
+      file:              { fill: '#fff2c7', stroke: '#b7831d', label: 'File', shape: 'file' },
+      document:          { fill: '#fff8df', stroke: '#9a7a2f', label: 'Document', shape: 'document' },
+      'object-store':    { fill: '#d9f7ef', stroke: '#16856b', label: 'Object Store', shape: 'bucket' },
+      actor:             { fill: '#f8e0ff', stroke: '#9a43b8', label: 'Actor', shape: 'actor' },
+      process:           { fill: '#dff0ff', stroke: '#3b78a8', label: 'Process', shape: 'process' },
+      decision:          { fill: '#ffe6d1', stroke: '#bf6b1a', label: 'Decision', shape: 'decision' },
+      event:             { fill: '#e5e7ff', stroke: '#5961bf', label: 'Event', shape: 'event' },
+      concept:           { fill: '#e8d5ff', stroke: '#7a1abf', label: 'Concept', shape: 'note' },
+      'failure-state':   { fill: '#ffd6e0', stroke: '#bf1a3a', label: 'Failure State', shape: 'warning' },
+    },
+  },
+  dark: {
+    nodeText: '#d4cfc4', edgeStroke: '#5a5044', edgeLabel: '#c4a46c',
+    clusterFill: 'rgba(196,164,108,0.06)', clusterStroke: '#3a3528', clusterLabel: '#c4a46c',
+    legendBg: 'rgba(18,18,22,0.92)', legendBorder: '#3a3528', legendText: '#d4cfc4',
+    gridDot: '#1f1d18',
+    nodeTypes: {
+      service:           { fill: '#111a22', stroke: '#6aa3d8', label: 'Service', shape: 'service' },
+      'external-system': { fill: '#1f1410', stroke: '#e8602c', label: 'External System', shape: 'cloud' },
+      database:          { fill: '#101a1a', stroke: '#2a9a88', label: 'Database', shape: 'database' },
+      queue:             { fill: '#101722', stroke: '#4e93c8', label: 'Queue', shape: 'queue' },
+      file:              { fill: '#211c10', stroke: '#d0a142', label: 'File', shape: 'file' },
+      document:          { fill: '#211f14', stroke: '#c8ac66', label: 'Document', shape: 'document' },
+      'object-store':    { fill: '#101c18', stroke: '#37a887', label: 'Object Store', shape: 'bucket' },
+      actor:             { fill: '#1d1222', stroke: '#b66ad4', label: 'Actor', shape: 'actor' },
+      process:           { fill: '#111824', stroke: '#6f9fca', label: 'Process', shape: 'process' },
+      decision:          { fill: '#20160f', stroke: '#e08936', label: 'Decision', shape: 'decision' },
+      event:             { fill: '#15162a', stroke: '#7e86df', label: 'Event', shape: 'event' },
+      concept:           { fill: '#14121a', stroke: '#9d6fd0', label: 'Concept', shape: 'note' },
+      'failure-state':   { fill: '#1a1010', stroke: '#d65e5e', label: 'Failure State', shape: 'warning' },
+    },
+  },
+};
+function th() { return THEMES[currentTheme]; }
+
+let currentTheme = localStorage.getItem('diagram-theme') || 'light';
+let NODE_TYPES = th().nodeTypes;
+
+const NODE_W = 280, NODE_H = 112;
+const NODE_H_DESC = 180, TITLE_FONT_SIZE = 28, DESCRIPTION_FONT_SIZE = 19, MAX_DESC_CHARS = 96, MAX_DESC_LINES = 3;
+const CLUSTER_PAD = 56, CLUSTER_LABEL_H = 44, LAYER_GAP_X = 400, LAYER_GAP_Y = 240;
+const EDGE_END_PAD = 8;
+const MIN_READABLE_SCALE = 0.42;
+const VERSION = 5;
+
+const canvas = document.getElementById('canvas');
+const $ = id => document.getElementById(id);
+const rc = rough.svg(canvas);
+
+/* ---------- state ---------- */
+let state = {
+  nodes: [], edges: [], clusters: [],
+  viewX: 0, viewY: 0, viewScale: 1,
+  isDragging: false, isPanning: false,
+  dragNodeId: null, dragOffX: 0, dragOffY: 0,
+  panStartX: 0, panStartY: 0, panStartVX: 0, panStartVY: 0,
+  edgeElements: [], warnings: [],
+  selectedNodeId: null, selectedEdgeIndex: null,
+  searchQuery: '', searchIndex: -1, searchTimer: null,
+  legendExpanded: false,
+};
+
+const el = { nodes: {}, edgeGroups: [], clusters: {} };
+
+/* ---------- helpers ---------- */
+function nodeW(label, desc) {
+  const labelW = label.length * 14 + 72;
+  const descW = desc ? Math.min(desc.length, MAX_DESC_CHARS) * 8.8 + 64 : 0;
+  return Math.max(NODE_W, labelW, descW);
+}
+function nodeH(node) {
+  if (!node.description) return NODE_H;
+  const approxLines = Math.ceil(node.description.length / 28);
+  const lines = Math.min(approxLines, MAX_DESC_LINES);
+  return NODE_H_DESC + (lines - 1) * 26;
+}
+function truncate(str, max) { return str && str.length > max ? str.slice(0, max) + '\u2026' : str; }
+function wrapText(text, maxCharsPerLine) {
+  if (!text) return [];
+  const words = text.split(' ');
+  const lines = [];
+  let curLine = '';
+  for (const word of words) {
+    const test = curLine ? curLine + ' ' + word : word;
+    if (test.length > maxCharsPerLine && curLine) {
+      lines.push(curLine);
+      if (lines.length >= MAX_DESC_LINES) {
+        lines[lines.length - 1] = lines[lines.length - 1].replace(/\s*\S*$/, '\u2026');
+        return lines;
+      }
+      curLine = word;
+    } else {
+      curLine = test;
+    }
+  }
+  if (curLine) lines.push(curLine);
+  return lines;
+}
+const TYPE_ALIASES = {
+  'internal-service': 'service',
+  'data-store': 'database',
+};
+
+function normalizeType(type) {
+  return TYPE_ALIASES[type] || type || 'service';
+}
+
+function nodeTypeDef(type) {
+  return NODE_TYPES[normalizeType(type)] || NODE_TYPES.service;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function validateDiagramData(data) {
+  const warnings = [];
+  const validFidelity = new Set(['narrative-architecture', 'exact-code-graph', 'executive-concept-map']);
+  if (data.fidelity && !validFidelity.has(data.fidelity)) warnings.push(`Unknown fidelity "${data.fidelity}".`);
+  if (Array.isArray(data.takeaways) && data.takeaways.length > 3) warnings.push('Brief panel should use no more than 3 takeaways.');
+  const ids = new Set();
+  const dupes = new Set();
+  (data.nodes || []).forEach(n => {
+    if (!n.id) warnings.push('A node is missing an id.');
+    if (ids.has(n.id)) dupes.add(n.id);
+    ids.add(n.id);
+    if (!NODE_TYPES[normalizeType(n.type)]) warnings.push(`Unknown node type "${n.type}" on "${n.label || n.id}".`);
+  });
+  dupes.forEach(id => warnings.push(`Duplicate node id "${id}".`));
+  if (!(data.nodes || []).length) warnings.push('Diagram has no nodes.');
+  (data.edges || []).forEach(e => {
+    if (!ids.has(e.sourceId)) warnings.push(`Dangling edge source "${e.sourceId}" for "${e.label || 'unlabeled'}".`);
+    if (!ids.has(e.targetId)) warnings.push(`Dangling edge target "${e.targetId}" for "${e.label || 'unlabeled'}".`);
+  });
+  (data.clusters || []).forEach(c => {
+    (c.nodeIds || []).forEach(id => {
+      if (!ids.has(id)) warnings.push(`Cluster "${c.label || c.id}" references missing node "${id}".`);
+    });
+  });
+  return warnings;
+}
+
+function renderWarnings() {
+  const box = document.getElementById('warnings');
+  if (!box) return;
+  if (!state.warnings.length) {
+    box.style.display = 'none';
+    box.textContent = '';
+    return;
+  }
+  box.innerHTML = `<strong>Diagram warnings</strong>${state.warnings.slice(0, 4).map(w => `<div>${escapeHtml(w)}</div>`).join('')}`;
+  if (state.warnings.length > 4) box.innerHTML += `<div>+${state.warnings.length - 4} more in console</div>`;
+  box.style.display = 'block';
+  console.warn('Diagram warnings:', state.warnings);
+}
+
+const nodeMap = {};
+
+/* ---------- auto-layout ---------- */
+function autoLayout(nodes, edges) {
+  if (nodes.some(n => n.x != null)) return;
+  Object.keys(nodeMap).forEach(k => delete nodeMap[k]);
+  nodes.forEach(n => { nodeMap[n.id] = n; });
+  const adj = {}, inDeg = {};
+  nodes.forEach(n => { adj[n.id] = []; inDeg[n.id] = 0; });
+  edges.forEach(e => { adj[e.sourceId]?.push(e.targetId); if (inDeg[e.targetId] != null) inDeg[e.targetId]++; });
+  const layers = [];
+  let q = nodes.filter(n => inDeg[n.id] === 0).map(n => n.id);
+  const visited = new Set(q);
+  while (q.length) {
+    layers.push([...q]);
+    const next = [];
+    q.forEach(src => {
+      adj[src]?.forEach(tgt => {
+        if (!visited.has(tgt)) { visited.add(tgt); next.push(tgt); }
+      });
+    });
+    q = next;
+  }
+  nodes.filter(n => !visited.has(n.id)).forEach(n => { layers.push([n.id]); visited.add(n.id); });
+  /* ---------- barycenter crossing minimization ---------- */
+  for (let i = 1; i < layers.length; i++) {
+    const prevIdx = {};
+    layers[i - 1].forEach((id, idx) => { prevIdx[id] = idx; });
+    const bc = {};
+    layers[i].forEach(id => {
+      let sum = 0, cnt = 0;
+      edges.forEach(e => {
+        if (e.targetId === id && prevIdx[e.sourceId] != null) { sum += prevIdx[e.sourceId]; cnt++; }
+        if (e.sourceId === id && prevIdx[e.targetId] != null) { sum += prevIdx[e.targetId]; cnt++; }
+      });
+      bc[id] = cnt > 0 ? sum / cnt : null;
+    });
+    const connected = layers[i].filter(id => bc[id] != null).sort((a, b) => bc[a] - bc[b]);
+    const unconnected = layers[i].filter(id => bc[id] == null);
+    layers[i] = [...connected, ...unconnected];
+  }
+  /* ---------- compute per-layer max widths ---------- */
+  const layerW = layers.map(layer => {
+    let mx = 0;
+    layer.forEach(id => { const n = nodeMap[id]; if (n) mx = Math.max(mx, nodeW(n.label, n.description)); });
+    return mx;
+  });
+  /* ---------- node positioning with dynamic layer gaps ---------- */
+  let xPos = 60;
+  layers.forEach((layer, li) => {
+    let layerNodes = [];
+    layer.forEach(id => { const n = nodeMap[id]; if (n) layerNodes.push(n); });
+    const hValues = layerNodes.map(n => nodeH(n));
+    const totalH = hValues.reduce((a, b) => a + b + 20, -20);
+    const startY = Math.max(80, (800 - totalH) / 2);
+    let curY = startY;
+    layerNodes.forEach((n, ni) => {
+      n.x = xPos;
+      n.y = curY;
+      curY += hValues[ni] + 20;
+    });
+    const gap = li < layers.length - 1 ? Math.max(LAYER_GAP_X, layerW[li] * 0.4 + layerW[li + 1] * 0.4 + 100) : 0;
+    xPos += layerW[li] + gap;
+  });
+  /* ---------- force-directed refinement within layers ---------- */
+  if (layers.length < 2) return;
+  const ITER = 60;
+  const K_REP = 8000;
+  const K_ATT = 0.05;
+  const REST_LEN = 200;
+  const DAMP = 0.85;
+  const canMove = {};
+  nodes.forEach(n => { canMove[n.id] = true; });
+  for (let iter = 0; iter < ITER; iter++) {
+    const forces = {};
+    nodes.forEach(n => { forces[n.id] = 0; });
+    layers.forEach(layer => {
+      const ids = layer.filter(id => canMove[id]);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = nodeMap[ids[i]], b = nodeMap[ids[j]];
+          if (!a || !b) continue;
+          const dy = b.y - a.y;
+          const dist = Math.max(dy, 1);
+          const f = K_REP / (dist * dist);
+          forces[a.id] -= f;
+          forces[b.id] += f;
+        }
+      }
+    });
+    edges.forEach(e => {
+      const a = nodeMap[e.sourceId], b = nodeMap[e.targetId];
+      if (!a || !b) return;
+      const dy = b.y - a.y;
+      const dist = Math.max(Math.abs(dy), 1);
+      const f = K_ATT * (dist - REST_LEN);
+      const dir = dy >= 0 ? 1 : -1;
+      forces[a.id] += f * dir * 0.3;
+      forces[b.id] -= f * dir * 0.3;
+    });
+    const cooling = DAMP * (1 - iter / ITER * 0.5);
+    nodes.forEach(n => {
+      if (!canMove[n.id]) return;
+      n.y += forces[n.id] * cooling;
+    });
+  }
+  /* ---------- overlap resolution ---------- */
+  layers.forEach(layer => {
+    for (let pass = 0; pass < 10; pass++) {
+      const ids = layer
+        .filter(id => canMove[id] && nodeMap[id])
+        .sort((a, b) => nodeMap[a].y - nodeMap[b].y);
+      let anyOverlap = false;
+      for (let i = 0; i < ids.length - 1; i++) {
+        const a = nodeMap[ids[i]], b = nodeMap[ids[i + 1]];
+        const hA = nodeH(a);
+        const gap = b.y - (a.y + hA);
+        if (gap < 34) {
+          const push = (34 - gap) / 2;
+          a.y -= push;
+          b.y += push;
+          anyOverlap = true;
+        }
+      }
+      if (!anyOverlap) break;
+    }
+  });
+  /* ---------- cross-layer vertical overlap resolution ---------- */
+  for (let li = 0; li < layers.length - 1; li++) {
+    for (let pass = 0; pass < 4; pass++) {
+      let anyOverlap = false;
+      for (const leftId of layers[li]) {
+        for (const rightId of layers[li + 1]) {
+          const a = nodeMap[leftId], b = nodeMap[rightId];
+          if (!a || !b) continue;
+          const hA = nodeH(a), hB = nodeH(b);
+          const aTop = a.y, aBot = a.y + hA;
+          const bTop = b.y, bBot = b.y + hB;
+          const overlap = Math.min(aBot, bBot) - Math.max(aTop, bTop);
+          if (overlap > 0) {
+            const push = overlap / 2 + 5;
+            if (aTop - push >= 40 && bBot + push <= 8000) {
+              a.y -= push;
+              b.y += push;
+            } else {
+              b.y += overlap + 10;
+            }
+            anyOverlap = true;
+          }
+        }
+      }
+      if (!anyOverlap) break;
+    }
+  }
+  for (let pass = 0; pass < 24; pass++) {
+    let anyOverlap = false;
+    const ordered = [...nodes].sort((a, b) => a.y - b.y);
+    for (let i = 0; i < ordered.length; i++) {
+      for (let j = i + 1; j < ordered.length; j++) {
+        const a = ordered[i], b = ordered[j];
+        const ax2 = a.x + nodeW(a.label, a.description);
+        const bx2 = b.x + nodeW(b.label, b.description);
+        const overlapX = Math.min(ax2, bx2) - Math.max(a.x, b.x);
+        if (overlapX <= 8) continue;
+        const ay2 = a.y + nodeH(a);
+        const overlapY = ay2 - b.y;
+        if (overlapY > -34) {
+          b.y += overlapY + 34;
+          anyOverlap = true;
+        }
+      }
+    }
+    if (!anyOverlap) break;
+  }
+}
+
+/* ---------- viewport ---------- */
+function applyViewport() {
+  const g = document.getElementById('viewport-group');
+  g.setAttribute('transform', `translate(${state.viewX},${state.viewY}) scale(${state.viewScale})`);
+  document.getElementById('zoom-level').textContent = Math.round(state.viewScale * 100) + '%';
+}
+
+function screenToLogical(sx, sy) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (sx - r.left - state.viewX) / state.viewScale, y: (sy - r.top - state.viewY) / state.viewScale };
+}
+
+function zoomAt(px, py, factor) {
+  const old = state.viewScale;
+  state.viewScale = Math.max(0.15, Math.min(5, state.viewScale * factor));
+  const ratio = state.viewScale / old;
+  state.viewX = px - ratio * (px - state.viewX);
+  state.viewY = py - ratio * (py - state.viewY);
+  applyViewport();
+}
+
+function diagramBounds() {
+  const nodes = state.nodes;
+  if (!nodes.length) return null;
+  const minX = Math.min(...nodes.map(n => n.x)) - 60;
+  const minY = Math.min(...nodes.map(n => n.y)) - 60;
+  const maxX = Math.max(...nodes.map(n => n.x + nodeW(n.label, n.description) + 30)) + 60;
+  const maxY = Math.max(...nodes.map(n => n.y + nodeH(n) + 30)) + 60;
+  return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+function fitToScreen({ readable = true } = {}) {
+  const bounds = diagramBounds();
+  if (!bounds) return;
+  const r = canvas.getBoundingClientRect();
+  const cw = bounds.w, ch = bounds.h;
+  if (cw < 1 || ch < 1) return;
+  const fitScale = Math.min(r.width / cw * 0.85, r.height / ch * 0.85, 2);
+  state.viewScale = readable ? Math.max(MIN_READABLE_SCALE, fitScale) : Math.max(0.08, fitScale);
+  state.viewX = (r.width - cw * state.viewScale) / 2 - bounds.minX * state.viewScale;
+  state.viewY = (r.height - ch * state.viewScale) / 2 - bounds.minY * state.viewScale;
+  applyViewport();
+}
+
+function fitAll() {
+  fitToScreen({ readable: false });
+}
+
+function resetLayout() {
+  try { localStorage.removeItem(getStorageKey()); } catch { /* ignore unavailable storage */ }
+  state.nodes = (DIAGRAM_DATA.nodes || []).map(n => ({ ...n }));
+  state.edges = (DIAGRAM_DATA.edges || []).map(e => ({ ...e }));
+  state.clusters = (DIAGRAM_DATA.clusters || []).map(c => ({ ...c }));
+  autoLayout(state.nodes, state.edges);
+  state.selectedNodeId = null;
+  state.selectedEdgeIndex = null;
+  closeDetailsPanel();
+  renderAll();
+  fitToScreen();
+}
+
+/* ---------- theme ---------- */
+function setTheme(name) {
+  currentTheme = name;
+  NODE_TYPES = th().nodeTypes;
+  document.body.dataset.theme = name;
+  const dot = document.getElementById('grid-dot');
+  if (dot) dot.setAttribute('fill', th().gridDot);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = name === 'dark' ? '🌙' : '☀️';
+  localStorage.setItem('diagram-theme', name);
+  renderAll();
+}
+
+/* ---------- rendering ---------- */
+function clearEdges() {
+  state.edgeElements.forEach(e => e.remove());
+  state.edgeElements = [];
+}
+
+function clearClusters() {
+  document.querySelectorAll('#clusters-layer > .cluster-group').forEach(el => el.remove());
+}
+
+function connectedEdgeIndexes(nodeId) {
+  return state.edges
+    .map((edge, index) => ({ edge, index }))
+    .filter(({ edge }) => edge.sourceId === nodeId || edge.targetId === nodeId)
+    .map(({ index }) => index);
+}
+
+function selectedNodeIds() {
+  const ids = new Set();
+  if (state.selectedNodeId) {
+    ids.add(state.selectedNodeId);
+    state.edges.forEach(edge => {
+      if (edge.sourceId === state.selectedNodeId) ids.add(edge.targetId);
+      if (edge.targetId === state.selectedNodeId) ids.add(edge.sourceId);
+    });
+  }
+  if (state.selectedEdgeIndex != null) {
+    const edge = state.edges[state.selectedEdgeIndex];
+    if (edge) {
+      ids.add(edge.sourceId);
+      ids.add(edge.targetId);
+    }
+  }
+  return ids;
+}
+
+function edgeMatchesQuery(edge, query) {
+  const haystack = [edge.label, edge.evidence, edge.confidence].filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
+function nodeMatchesQuery(node, query) {
+  const haystack = [node.label, node.type, node.description].filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+
+function searchMatches() {
+  const query = state.searchQuery.trim().toLowerCase();
+  if (!query) return { nodes: new Set(), edges: new Set(), ordered: [] };
+  const nodes = new Set();
+  const edges = new Set();
+  const ordered = [];
+  state.nodes.forEach(node => {
+    if (nodeMatchesQuery(node, query)) {
+      nodes.add(node.id);
+      ordered.push({ kind: 'node', id: node.id });
+    }
+  });
+  state.edges.forEach((edge, index) => {
+    if (edgeMatchesQuery(edge, query)) {
+      edges.add(index);
+      ordered.push({ kind: 'edge', index });
+    }
+  });
+  return { nodes, edges, ordered };
+}
+
+function applyHighlights() {
+  const selectedNodes = selectedNodeIds();
+  const connectedEdges = state.selectedNodeId ? new Set(connectedEdgeIndexes(state.selectedNodeId)) : new Set();
+  if (state.selectedEdgeIndex != null) connectedEdges.add(state.selectedEdgeIndex);
+  const matches = searchMatches();
+  const hasFocus = !!state.selectedNodeId || state.selectedEdgeIndex != null || !!state.searchQuery.trim();
+
+  Object.entries(el.nodes).forEach(([id, group]) => {
+    group.classList.toggle('selected', selectedNodes.has(id) || state.selectedNodeId === id);
+    group.classList.toggle('search-match', matches.nodes.has(id));
+    group.classList.toggle('dimmed', hasFocus && !selectedNodes.has(id) && state.selectedNodeId !== id && !matches.nodes.has(id));
+  });
+
+  el.edgeGroups.forEach((group, index) => {
+    const isSelected = state.selectedEdgeIndex === index || connectedEdges.has(index);
+    const isMatch = matches.edges.has(index);
+    group.classList.toggle('selected', isSelected);
+    group.classList.toggle('search-match', isMatch);
+    group.classList.toggle('dimmed', hasFocus && !isSelected && !isMatch);
+  });
+}
+
+function closeDetailsPanel() {
+  const panel = $('details-panel');
+  panel.style.display = 'none';
+  panel.innerHTML = '';
+}
+
+function fidelityLabel(value) {
+  const labels = {
+    'narrative-architecture': 'Narrative architecture',
+    'exact-code-graph': 'Exact code graph',
+    'executive-concept-map': 'Executive concept map',
+  };
+  return labels[value] || value || '';
+}
+
+function renderBriefPanel() {
+  const panel = $('brief-panel');
+  if (!panel) return;
+  const hasBrief = DIAGRAM_DATA.audience || DIAGRAM_DATA.purpose || DIAGRAM_DATA.fidelity || (Array.isArray(DIAGRAM_DATA.takeaways) && DIAGRAM_DATA.takeaways.length);
+  if (!hasBrief) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  const takeaways = Array.isArray(DIAGRAM_DATA.takeaways) ? DIAGRAM_DATA.takeaways.slice(0, 3) : [];
+  const meta = [DIAGRAM_DATA.audience, fidelityLabel(DIAGRAM_DATA.fidelity)].filter(Boolean).join(' | ');
+  panel.innerHTML = `
+    <h2>Brief</h2>
+    ${meta ? `<div class="brief-meta">${escapeHtml(meta)}</div>` : ''}
+    ${DIAGRAM_DATA.purpose ? `<p>${escapeHtml(DIAGRAM_DATA.purpose)}</p>` : ''}
+    ${takeaways.length ? `<ul>${takeaways.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+  `;
+  panel.style.display = 'block';
+}
+
+function relationshipText(edge) {
+  const src = state.nodes.find(n => n.id === edge.sourceId);
+  const tgt = state.nodes.find(n => n.id === edge.targetId);
+  return `${src?.label || edge.sourceId} -> ${tgt?.label || edge.targetId}`;
+}
+
+function showNodeDetails(node) {
+  const panel = $('details-panel');
+  const type = nodeTypeDef(node.type);
+  const incident = connectedEdgeIndexes(node.id).map(index => state.edges[index]);
+  panel.innerHTML = `
+    <button class="panel-close" title="Close" aria-label="Close details">x</button>
+    <h2>${escapeHtml(node.label)}</h2>
+    <div class="meta">${escapeHtml(type.label)} <span class="tag">${escapeHtml(normalizeType(node.type))}</span></div>
+    ${node.description ? `<p>${escapeHtml(node.description)}</p>` : ''}
+    <p><strong>Connected relationships</strong></p>
+    <ul>${incident.map(edge => `<li>${escapeHtml(relationshipText(edge))}: ${escapeHtml(edge.label || 'related')}</li>`).join('') || '<li>No connected relationships.</li>'}</ul>
+  `;
+  panel.querySelector('.panel-close').addEventListener('click', () => {
+    state.selectedNodeId = null;
+    state.selectedEdgeIndex = null;
+    closeDetailsPanel();
+    applyHighlights();
+  });
+  panel.style.display = 'block';
+}
+
+function showEdgeDetails(edge, index) {
+  const panel = $('details-panel');
+  panel.innerHTML = `
+    <button class="panel-close" title="Close" aria-label="Close details">x</button>
+    <h2>${escapeHtml(edge.label || 'Relationship')}</h2>
+    <div class="meta">${escapeHtml(relationshipText(edge))}</div>
+    ${edge.evidence ? `<p><strong>Evidence:</strong> ${escapeHtml(edge.evidence)}</p>` : ''}
+    ${edge.confidence ? `<p><strong>Confidence:</strong> ${escapeHtml(edge.confidence)}</p>` : ''}
+    <p><span class="tag">Edge ${index + 1}</span></p>
+  `;
+  panel.querySelector('.panel-close').addEventListener('click', () => {
+    state.selectedNodeId = null;
+    state.selectedEdgeIndex = null;
+    closeDetailsPanel();
+    applyHighlights();
+  });
+  panel.style.display = 'block';
+}
+
+function selectNode(nodeId) {
+  const node = state.nodes.find(n => n.id === nodeId);
+  if (!node) return;
+  state.selectedNodeId = nodeId;
+  state.selectedEdgeIndex = null;
+  showNodeDetails(node);
+  applyHighlights();
+}
+
+function selectEdge(index) {
+  const edge = state.edges[index];
+  if (!edge) return;
+  state.selectedNodeId = null;
+  state.selectedEdgeIndex = index;
+  showEdgeDetails(edge, index);
+  applyHighlights();
+}
+
+function setSearchQuery(query) {
+  state.searchQuery = query;
+  state.searchIndex = -1;
+  applyHighlights();
+}
+
+function cycleSearchResult() {
+  const matches = searchMatches().ordered;
+  if (!matches.length) return;
+  state.searchIndex = (state.searchIndex + 1) % matches.length;
+  const match = matches[state.searchIndex];
+  if (match.kind === 'node') selectNode(match.id);
+  if (match.kind === 'edge') selectEdge(match.index);
+}
+
+function roughOpts(def, extra = {}) {
+  return {
+    fill: def.fill,
+    stroke: def.stroke,
+    strokeWidth: 2.2,
+    roughness: 1.7,
+    fillStyle: 'solid',
+    ...extra,
+  };
+}
+
+function drawNodeShape(g, def, x, y, w, h, scale = 1) {
+  const pad = 3 * scale;
+  const x0 = x + pad, y0 = y + pad, ww = w - pad * 2, hh = h - pad * 2;
+  const r = Math.min(28 * scale, ww * 0.12, hh * 0.18);
+  const opt = roughOpts(def);
+  let shape;
+  switch (def.shape) {
+    case 'database':
+      shape = rc.rectangle(x0, y0 + hh * 0.12, ww, hh * 0.76, opt);
+      g.appendChild(shape);
+      g.appendChild(rc.ellipse(x0 + ww / 2, y0 + hh * 0.13, ww, hh * 0.22, opt));
+      g.appendChild(rc.ellipse(x0 + ww / 2, y0 + hh * 0.88, ww, hh * 0.20, {
+        stroke: def.stroke, strokeWidth: 1.4, roughness: 1.3, fill: 'none',
+      }));
+      break;
+    case 'queue':
+      g.appendChild(rc.rectangle(x0 + 18 * scale, y0 + 18 * scale, ww - 24 * scale, hh - 22 * scale, roughOpts(def, { strokeWidth: 1.5 })));
+      g.appendChild(rc.rectangle(x0 + 9 * scale, y0 + 9 * scale, ww - 18 * scale, hh - 18 * scale, roughOpts(def, { strokeWidth: 1.7 })));
+      g.appendChild(rc.rectangle(x0, y0, ww - 12 * scale, hh - 14 * scale, opt));
+      break;
+    case 'file':
+    case 'document': {
+      const fold = Math.min(34 * scale, ww * 0.18, hh * 0.24);
+      const path = `M ${x0} ${y0} L ${x0 + ww - fold} ${y0} L ${x0 + ww} ${y0 + fold} L ${x0 + ww} ${y0 + hh} L ${x0} ${y0 + hh} Z`;
+      g.appendChild(rc.path(path, opt));
+      g.appendChild(rc.path(`M ${x0 + ww - fold} ${y0} L ${x0 + ww - fold} ${y0 + fold} L ${x0 + ww} ${y0 + fold}`, {
+        stroke: def.stroke, strokeWidth: 1.4, roughness: 1.1, fill: 'none',
+      }));
+      if (def.shape === 'document') {
+        for (let i = 0; i < 3; i++) {
+          const yy = y0 + hh * 0.62 + i * 14 * scale;
+          g.appendChild(rc.line(x0 + ww * 0.20, yy, x0 + ww * 0.78, yy, { stroke: def.stroke, strokeWidth: 0.8, roughness: 1.2 }));
+        }
+      }
+      break;
+    }
+    case 'bucket': {
+      const path = `M ${x0 + ww * 0.12} ${y0 + hh * 0.20} L ${x0 + ww * 0.88} ${y0 + hh * 0.20} L ${x0 + ww * 0.78} ${y0 + hh * 0.92} L ${x0 + ww * 0.22} ${y0 + hh * 0.92} Z`;
+      g.appendChild(rc.path(path, opt));
+      g.appendChild(rc.ellipse(x0 + ww / 2, y0 + hh * 0.20, ww * 0.76, hh * 0.18, {
+        stroke: def.stroke, strokeWidth: 1.4, roughness: 1.3, fill: 'none',
+      }));
+      break;
+    }
+    case 'actor': {
+      g.appendChild(rc.rectangle(x0, y0, ww, hh, roughOpts(def, { roughness: 1.3 })));
+      const cx = x0 + ww * 0.16;
+      const cy = y0 + hh * 0.34;
+      g.appendChild(rc.ellipse(cx, cy, 25 * scale, 25 * scale, { stroke: def.stroke, strokeWidth: 1.6, roughness: 1.4, fill: 'none' }));
+      g.appendChild(rc.line(cx, cy + 14 * scale, cx, cy + 48 * scale, { stroke: def.stroke, strokeWidth: 1.6, roughness: 1.4 }));
+      g.appendChild(rc.line(cx - 18 * scale, cy + 28 * scale, cx + 18 * scale, cy + 28 * scale, { stroke: def.stroke, strokeWidth: 1.4, roughness: 1.4 }));
+      g.appendChild(rc.line(cx, cy + 48 * scale, cx - 16 * scale, cy + 72 * scale, { stroke: def.stroke, strokeWidth: 1.4, roughness: 1.4 }));
+      g.appendChild(rc.line(cx, cy + 48 * scale, cx + 16 * scale, cy + 72 * scale, { stroke: def.stroke, strokeWidth: 1.4, roughness: 1.4 }));
+      break;
+    }
+    case 'decision':
+      g.appendChild(rc.polygon([[x0 + ww / 2, y0], [x0 + ww, y0 + hh / 2], [x0 + ww / 2, y0 + hh], [x0, y0 + hh / 2]], opt));
+      break;
+    case 'event':
+      g.appendChild(rc.polygon([[x0 + ww * 0.13, y0], [x0 + ww * 0.87, y0], [x0 + ww, y0 + hh / 2], [x0 + ww * 0.87, y0 + hh], [x0 + ww * 0.13, y0 + hh], [x0, y0 + hh / 2]], opt));
+      break;
+    case 'warning':
+      g.appendChild(rc.polygon([[x0 + ww * 0.24, y0], [x0 + ww * 0.76, y0], [x0 + ww, y0 + hh * 0.24], [x0 + ww, y0 + hh * 0.76], [x0 + ww * 0.76, y0 + hh], [x0 + ww * 0.24, y0 + hh], [x0, y0 + hh * 0.76], [x0, y0 + hh * 0.24]], opt));
+      break;
+    case 'cloud': {
+      const path = `M ${x0 + ww * 0.18} ${y0 + hh * 0.67} C ${x0 + ww * 0.04} ${y0 + hh * 0.63}, ${x0 + ww * 0.05} ${y0 + hh * 0.42}, ${x0 + ww * 0.22} ${y0 + hh * 0.40} C ${x0 + ww * 0.27} ${y0 + hh * 0.20}, ${x0 + ww * 0.52} ${y0 + hh * 0.17}, ${x0 + ww * 0.62} ${y0 + hh * 0.34} C ${x0 + ww * 0.82} ${y0 + hh * 0.30}, ${x0 + ww * 0.96} ${y0 + hh * 0.45}, ${x0 + ww * 0.88} ${y0 + hh * 0.65} C ${x0 + ww * 0.74} ${y0 + hh * 0.80}, ${x0 + ww * 0.36} ${y0 + hh * 0.80}, ${x0 + ww * 0.18} ${y0 + hh * 0.67} Z`;
+      g.appendChild(rc.path(path, opt));
+      break;
+    }
+    case 'note': {
+      const fold = Math.min(28 * scale, ww * 0.12, hh * 0.18);
+      const path = `M ${x0} ${y0} L ${x0 + ww} ${y0} L ${x0 + ww} ${y0 + hh - fold} L ${x0 + ww - fold} ${y0 + hh} L ${x0} ${y0 + hh} Z`;
+      g.appendChild(rc.path(path, opt));
+      g.appendChild(rc.path(`M ${x0 + ww} ${y0 + hh - fold} L ${x0 + ww - fold} ${y0 + hh - fold} L ${x0 + ww - fold} ${y0 + hh}`, {
+        stroke: def.stroke, strokeWidth: 1.2, roughness: 1.1, fill: 'none',
+      }));
+      break;
+    }
+    case 'process':
+    case 'service':
+    default:
+      g.appendChild(rc.path(`M ${x0 + r} ${y0} L ${x0 + ww - r} ${y0} Q ${x0 + ww} ${y0} ${x0 + ww} ${y0 + r} L ${x0 + ww} ${y0 + hh - r} Q ${x0 + ww} ${y0 + hh} ${x0 + ww - r} ${y0 + hh} L ${x0 + r} ${y0 + hh} Q ${x0} ${y0 + hh} ${x0} ${y0 + hh - r} L ${x0} ${y0 + r} Q ${x0} ${y0} ${x0 + r} ${y0} Z`, opt));
+      if (def.shape === 'service') {
+        g.appendChild(rc.rectangle(x0 + 16 * scale, y0 + 16 * scale, 18 * scale, 18 * scale, { fill: def.stroke, stroke: def.stroke, roughness: 0.8, fillStyle: 'solid' }));
+        g.appendChild(rc.rectangle(x0 + 16 * scale, y0 + 42 * scale, 18 * scale, 18 * scale, { fill: def.stroke, stroke: def.stroke, roughness: 0.8, fillStyle: 'solid' }));
+      }
+      break;
+  }
+}
+
+function drawNodeContent(n, g) {
+  g.innerHTML = '';
+  const def = nodeTypeDef(n.type);
+  const w = nodeW(n.label, n.description);
+  const h = nodeH(n);
+  drawNodeShape(g, def, n.x, n.y, w, h);
+  const hasDesc = !!n.description;
+  const titleY = hasDesc ? n.y + h * 0.24 : n.y + h / 2;
+  const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  t.setAttribute('x', n.x + w / 2); t.setAttribute('y', titleY + 4);
+  t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central');
+  t.setAttribute('font-size', TITLE_FONT_SIZE + 'px'); t.setAttribute('fill', th().nodeText);
+  t.textContent = n.label;
+  g.appendChild(t);
+  if (hasDesc) {
+    /* ---------- separator line ---------- */
+    const sep = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    sep.setAttribute('x1', n.x + 26); sep.setAttribute('y1', titleY + 34);
+    sep.setAttribute('x2', n.x + w - 26); sep.setAttribute('y2', titleY + 34);
+    sep.setAttribute('stroke', def.stroke); sep.setAttribute('stroke-width', '1.2');
+    sep.setAttribute('opacity', '0.25');
+    g.appendChild(sep);
+    /* ---------- multi-line description ---------- */
+    const maxChars = Math.floor((w - 44) / 9.4);
+    const lines = wrapText(n.description, maxChars);
+    const d = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    d.setAttribute('x', n.x + w / 2); d.setAttribute('y', titleY + 56);
+    d.setAttribute('text-anchor', 'middle'); d.setAttribute('dominant-baseline', 'central');
+    d.setAttribute('font-size', DESCRIPTION_FONT_SIZE + 'px'); d.setAttribute('fill', th().nodeText);
+    d.setAttribute('opacity', '0.75');
+    lines.forEach((line, i) => {
+      const tsp = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tsp.setAttribute('x', n.x + w / 2);
+      tsp.setAttribute('dy', i === 0 ? '0' : '26');
+      tsp.textContent = line;
+      d.appendChild(tsp);
+    });
+    g.appendChild(d);
+    /* ---------- hover tooltip ---------- */
+    const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    titleEl.textContent = n.description;
+    g.appendChild(titleEl);
+  }
+}
+
+function renderNode(n) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('node-group');
+  g.dataset.nodeId = n.id;
+  drawNodeContent(n, g);
+  const w = nodeW(n.label, n.description);
+  return { group: g, w };
+}
+
+function nodeBox(n) {
+  return { x: n.x, y: n.y, w: nodeW(n.label, n.description), h: nodeH(n) };
+}
+
+function nodeCenter(n) {
+  const b = nodeBox(n);
+  return { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+}
+
+function edgeAnchor(from, to) {
+  const a = nodeBox(from), ac = nodeCenter(from), bc = nodeCenter(to);
+  const dx = bc.x - ac.x, dy = bc.y - ac.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? { x: a.x + a.w + EDGE_END_PAD, y: ac.y } : { x: a.x - EDGE_END_PAD, y: ac.y };
+  }
+  return dy >= 0 ? { x: ac.x, y: a.y + a.h + EDGE_END_PAD } : { x: ac.x, y: a.y - EDGE_END_PAD };
+}
+
+function parallelEdgeOffset(edge, edgeIndex) {
+  const samePair = state.edges
+    .map((candidate, index) => ({ candidate, index }))
+    .filter(({ candidate }) => candidate.sourceId === edge.sourceId && candidate.targetId === edge.targetId);
+  const pairIndex = Math.max(0, samePair.findIndex(({ index }) => index === edgeIndex));
+  const pairOffset = (pairIndex - (samePair.length - 1) / 2) * 28;
+  const key = `${edge.sourceId}->${edge.targetId}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  const sign = hash % 2 === 0 ? 1 : -1;
+  return pairOffset + sign * 18;
+}
+
+function buildEdgeContent(e, g, edgeIndex = 0) {
+  const src = state.nodes.find(n => n.id === e.sourceId);
+  const tgt = state.nodes.find(n => n.id === e.targetId);
+  if (!src || !tgt) return;
+  if (src.id === tgt.id) {
+    const b = nodeBox(src);
+    const x1 = b.x + b.w + EDGE_END_PAD, y1 = b.y + b.h * 0.35;
+    const x2 = b.x + b.w + EDGE_END_PAD, y2 = b.y + b.h * 0.65;
+    const loopX = b.x + b.w + 72;
+    const pts = [[x1,y1],[loopX,b.y - 26],[loopX,b.y + b.h + 26],[x2,y2]];
+    g.appendChild(rc.curve(pts, { stroke: th().edgeStroke, strokeWidth: 1.8, roughness: 0.8 }));
+    drawArrow(g, x2, y2, Math.PI / 2);
+    drawEdgeLabel(e, g, loopX, b.y + b.h / 2);
+    appendEdgeTooltip(e, g, src, tgt);
+    return;
+  }
+  const start = edgeAnchor(src, tgt);
+  const end = edgeAnchor(tgt, src);
+  const x1 = start.x, y1 = start.y;
+  const x2 = end.x, y2 = end.y;
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1) return;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const off = Math.max(-80, Math.min(80, parallelEdgeOffset(e, edgeIndex) + Math.min(dist * 0.08, 32)));
+  const cpx = mx + dy / dist * off, cpy = my - dx / dist * off;
+  const pts = [[x1,y1],[cpx,cpy],[x2,y2]];
+  g.appendChild(rc.curve(pts, { stroke: th().edgeStroke, strokeWidth: 1.8, roughness: 0.8 }));
+  const ang = Math.atan2(y2 - cpy, x2 - cpx);
+  drawArrow(g, x2, y2, ang);
+  drawEdgeLabel(e, g, cpx, cpy);
+  appendEdgeTooltip(e, g, src, tgt);
+}
+
+function drawArrow(g, x2, y2, ang) {
+  const aLen = 10, aAng = 0.5;
+  const ax1 = x2 - aLen * Math.cos(ang - aAng), ay1 = y2 - aLen * Math.sin(ang - aAng);
+  const ax2 = x2 - aLen * Math.cos(ang + aAng), ay2 = y2 - aLen * Math.sin(ang + aAng);
+  g.appendChild(rc.polygon([[x2,y2],[ax1,ay1],[ax2,ay2]], {
+    fill: th().edgeStroke, stroke: th().edgeStroke, roughness: 0.5,
+  }));
+}
+
+function drawEdgeLabel(e, g, x, y) {
+  if (e.label) {
+    const labelW = Math.max(44, e.label.length * 10.5 + 22);
+    const labelH = 28;
+    const pill = rc.rectangle(x - labelW / 2, y - labelH / 2 - 10, labelW, labelH, {
+      fill: th().legendBg, stroke: th().legendBorder, strokeWidth: 0.8, roughness: 0.5, fillStyle: 'solid',
+    });
+    g.appendChild(pill);
+    const lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    lt.setAttribute('x', x); lt.setAttribute('y', y - 10);
+    lt.setAttribute('class', 'edge-label');
+    lt.setAttribute('fill', th().edgeLabel);
+    lt.textContent = e.label;
+    g.appendChild(lt);
+  }
+}
+
+function appendEdgeTooltip(e, g, src, tgt) {
+  const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+  const srcLabel = src.label, tgtLabel = tgt.label;
+  const confMap = { observed: 'Observed', inferred: 'Inferred', stated: 'Stated' };
+  const confLabel = e.confidence ? 'Confidence: ' + (confMap[e.confidence] || e.confidence) : '';
+  const parts = [srcLabel + ' \u2192 ' + tgtLabel + ': ' + (e.label || '')];
+  if (e.evidence) parts.push('Evidence: ' + e.evidence);
+  if (confLabel) parts.push(confLabel);
+  titleEl.textContent = parts.join('\n');
+  g.appendChild(titleEl);
+}
+
+function renderEdge(e, edgeIndex = 0) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('edge-group');
+  g.dataset.edgeIndex = String(edgeIndex);
+  buildEdgeContent(e, g, edgeIndex);
+  return g;
+}
+
+function renderCluster(c) {
+  const mems = c.nodeIds.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
+  if (!mems.length) return null;
+  const minX = Math.min(...mems.map(n => n.x)) - CLUSTER_PAD;
+  const minY = Math.min(...mems.map(n => n.y)) - CLUSTER_PAD - CLUSTER_LABEL_H;
+  const maxX = Math.max(...mems.map(n => n.x + nodeW(n.label, n.description) + 10)) + CLUSTER_PAD;
+  const maxY = Math.max(...mems.map(n => n.y + nodeH(n) + 10)) + CLUSTER_PAD;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('cluster-group');
+  const bx = rc.rectangle(minX, minY, maxX - minX, maxY - minY, {
+    fill: th().clusterFill, stroke: th().clusterStroke, strokeWidth: 1.5, roughness: 2.5, fillStyle: 'solid',
+  });
+  g.appendChild(bx);
+  if (c.label) {
+    const ct = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ct.setAttribute('x', minX + (maxX - minX) / 2); ct.setAttribute('y', minY + 30);
+    ct.setAttribute('class', 'cluster-label');
+    ct.setAttribute('fill', th().clusterLabel);
+    ct.textContent = c.label;
+    g.appendChild(ct);
+  }
+  return g;
+}
+
+function renderLegend() {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('legend-group');
+  const usedTypes = new Set(state.nodes.map(n => normalizeType(n.type)));
+  const types = Object.entries(NODE_TYPES).filter(([key]) => state.legendExpanded || usedTypes.has(key));
+  const lx = 20, ly = 20, ls = state.legendExpanded ? 34 : 24, lgap = state.legendExpanded ? 44 : 30;
+  const bw = state.legendExpanded ? 310 : 210;
+  const bh = 42 + types.length * lgap + 12;
+  const bg = rc.rectangle(lx, ly, bw, bh, {
+    fill: th().legendBg, stroke: th().legendBorder, strokeWidth: 1.2, roughness: 1, fillStyle: 'solid',
+  });
+  g.appendChild(bg);
+  const toggle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  toggle.setAttribute('x', lx + 14); toggle.setAttribute('y', ly + 26);
+  toggle.setAttribute('font-size', '20px'); toggle.setAttribute('fill', th().legendText);
+  toggle.setAttribute('class', 'legend-toggle');
+  toggle.textContent = state.legendExpanded ? 'Legend - collapse' : 'Legend - expand';
+  g.appendChild(toggle);
+  types.forEach(([key, val], i) => {
+    const y = ly + 52 + i * lgap;
+    drawNodeShape(g, val, lx + 14, y - ls / 2, ls, ls, state.legendExpanded ? 0.42 : 0.32);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', lx + (state.legendExpanded ? 62 : 50)); t.setAttribute('y', y + 7);
+    t.setAttribute('font-size', state.legendExpanded ? '22px' : '18px'); t.setAttribute('fill', th().legendText);
+    t.textContent = val.label;
+    g.appendChild(t);
+  });
+  g.addEventListener('click', e => {
+    e.stopPropagation();
+    state.legendExpanded = !state.legendExpanded;
+    renderAll();
+  });
+  return g;
+}
+
+function renderAll() {
+  document.getElementById('nodes-layer').innerHTML = '';
+  document.getElementById('edges-layer').innerHTML = '';
+  document.getElementById('clusters-layer').innerHTML = '';
+  document.getElementById('overlay-layer').innerHTML = '';
+  state.edgeElements = [];
+  el.nodes = {}; el.edgeGroups = []; el.clusters = {};
+
+  // clusters first (behind)
+  state.clusters.forEach(c => { const g = renderCluster(c); if (g) { document.getElementById('clusters-layer').appendChild(g); el.clusters[c.id] = g; } });
+  // edges
+  state.edges.forEach((e, i) => {
+    const g = renderEdge(e, i);
+    if (g) { document.getElementById('edges-layer').appendChild(g); state.edgeElements.push(g); el.edgeGroups.push(g); }
+  });
+  // nodes (on top)
+  state.nodes.forEach(n => {
+    const { group } = renderNode(n);
+    document.getElementById('nodes-layer').appendChild(group);
+    el.nodes[n.id] = group;
+  });
+  // legend
+  const legendG = renderLegend();
+  document.getElementById('overlay-layer').appendChild(legendG);
+  renderWarnings();
+  applyHighlights();
+}
+
+/* ---------- interactions ---------- */
+let dragState = null;
+
+function onPointerDown(e) {
+  const t = e.target.closest('.node-group');
+  if (t) {
+    const id = t.dataset.nodeId;
+    const node = state.nodes.find(n => n.id === id);
+    if (!node) return;
+    selectNode(id);
+    const r = canvas.getBoundingClientRect();
+    const l = screenToLogical(e.clientX, e.clientY);
+    dragState = { nodeId: id, offX: l.x - node.x, offY: l.y - node.y, origX: node.x, origY: node.y };
+    t.style.filter = 'drop-shadow(0 4px 16px rgba(0,0,0,0.2))';
+    return;
+  }
+  const edgeGroup = e.target.closest('.edge-group');
+  if (edgeGroup) {
+    const index = Number(edgeGroup.dataset.edgeIndex);
+    selectEdge(index);
+    dragState = null;
+    return;
+  }
+  dragState = { pan: true, startX: e.clientX, startY: e.clientY, vx: state.viewX, vy: state.viewY };
+}
+
+function onPointerMove(e) {
+  if (!dragState) return;
+  if (dragState.pan) {
+    state.viewX = dragState.vx + (e.clientX - dragState.startX);
+    state.viewY = dragState.vy + (e.clientY - dragState.startY);
+    applyViewport();
+    return;
+  }
+  const node = state.nodes.find(n => n.id === dragState.nodeId);
+  if (!node) return;
+  const l = screenToLogical(e.clientX, e.clientY);
+  node.x = l.x - dragState.offX;
+  node.y = l.y - dragState.offY;
+  const g = el.nodes[node.id];
+  if (g) g.setAttribute('transform', `translate(${node.x - dragState.origX},${node.y - dragState.origY})`);
+  // Update edge content in-place (reuse existing group containers)
+  state.edges.forEach((edge, i) => {
+    const group = el.edgeGroups[i];
+    if (group) {
+      while (group.firstChild) group.removeChild(group.firstChild);
+      buildEdgeContent(edge, group, i);
+    }
+  });
+  // Re-render clusters so their bounds follow node positions
+  clearClusters();
+  state.clusters.forEach(c => {
+    const cg = renderCluster(c);
+    if (cg) document.getElementById('clusters-layer').appendChild(cg);
+  });
+  applyHighlights();
+}
+
+function onPointerUp() {
+  if (dragState && !dragState.pan && dragState.nodeId) {
+    const node = state.nodes.find(n => n.id === dragState.nodeId);
+    const g = el.nodes[dragState.nodeId];
+    if (g && node) {
+      g.setAttribute('transform', '');
+      drawNodeContent(node, g);
+      g.style.filter = '';
+    }
+    // Rebuild edges and clusters at final positions
+    clearEdges();
+    state.edgeElements = [];
+    state.edges.forEach((edge, i) => {
+      const g2 = renderEdge(edge, i);
+      if (g2) { document.getElementById('edges-layer').appendChild(g2); state.edgeElements.push(g2); el.edgeGroups[i] = g2; }
+    });
+    clearClusters();
+    state.clusters.forEach(c => {
+      const cg = renderCluster(c);
+      if (cg) document.getElementById('clusters-layer').appendChild(cg);
+    });
+    applyHighlights();
+  }
+  savePositions();
+  dragState = null;
+}
+
+/* ---------- position persistence ---------- */
+function getStorageKey() {
+  return 'diagram-positions-' + (DIAGRAM_DATA.storageKey || DIAGRAM_DATA.title || 'diagram');
+}
+
+function savePositions() {
+  try {
+    const posMap = {};
+    state.nodes.forEach(n => { posMap[n.id] = { x: n.x, y: n.y }; });
+    const data = { version: VERSION, positions: posMap };
+    localStorage.setItem(getStorageKey(), JSON.stringify(data));
+  } catch (e) { /* localStorage unavailable or full — silently ignore */ }
+}
+
+function restorePositions() {
+  try {
+    const saved = localStorage.getItem(getStorageKey());
+    if (!saved) return false;
+    const data = JSON.parse(saved);
+    const posMap = data.version === VERSION ? data.positions : null;
+    if (!posMap) return false;
+    const nodes = state.nodes;
+    if (!nodes.every(n => posMap[n.id] != null)) return false;
+    nodes.forEach(n => { n.x = posMap[n.id].x; n.y = posMap[n.id].y; });
+    return true;
+  } catch { return false; }
+}
+
+/* ---------- init ---------- */
+function init() {
+  state.warnings = validateDiagramData(DIAGRAM_DATA);
+  state.nodes = (DIAGRAM_DATA.nodes || []).map(n => ({ ...n }));
+  state.edges = (DIAGRAM_DATA.edges || []).map(e => ({ ...e }));
+  state.clusters = (DIAGRAM_DATA.clusters || []).map(c => ({ ...c }));
+  if (DIAGRAM_DATA.title) document.getElementById('title-display').textContent = DIAGRAM_DATA.title;
+  if (!restorePositions()) {
+    autoLayout(state.nodes, state.edges);
+  }
+  // Apply saved theme
+  document.body.dataset.theme = currentTheme;
+  const dot = document.getElementById('grid-dot');
+  if (dot) dot.setAttribute('fill', th().gridDot);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+  renderAll();
+  renderBriefPanel();
+  setTimeout(() => fitToScreen(), 50);
+
+  // events
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointerleave', onPointerUp);
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY > 0 ? 0.9 : 1.1);
+  }, { passive: false });
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    const r = canvas.getBoundingClientRect();
+    zoomAt(r.width / 2, r.height / 2, 1.25);
+  });
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    const r = canvas.getBoundingClientRect();
+    zoomAt(r.width / 2, r.height / 2, 0.8);
+  });
+  document.getElementById('zoom-readable').addEventListener('click', () => fitToScreen());
+  document.getElementById('zoom-fit-all').addEventListener('click', fitAll);
+  document.getElementById('reset-layout').addEventListener('click', resetLayout);
+  document.getElementById('diagram-search').addEventListener('input', e => {
+    window.clearTimeout(state.searchTimer);
+    state.searchTimer = window.setTimeout(() => setSearchQuery(e.target.value), 120);
+  });
+  document.getElementById('diagram-search').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      window.clearTimeout(state.searchTimer);
+      setSearchQuery(e.currentTarget.value);
+      cycleSearchResult();
+    }
+  });
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    setTheme(currentTheme === 'light' ? 'dark' : 'light');
+  });
+  window.addEventListener('resize', () => fitToScreen());
+}
+
+init();
+</script>
+
+<!-- AGENT METADATA (invisible to human viewers, embedded for agent parsing) -->
+<script type="application/json" id="agent-metadata">
+{
+  "audience": "Stakeholders, developers, and managers",
+  "purpose": "Explain how a customer request becomes a governed, observable platform outcome.",
+  "fidelity": "narrative-architecture",
+  "entities": [
+    { "id": "customer", "name": "Customer", "type": "actor", "description": "Starts a request and receives the final outcome", "evidence": "stakeholder-brief:1" },
+    { "id": "manager", "name": "Manager", "type": "actor", "description": "Reviews risk, ownership, and delivery impact", "evidence": "stakeholder-brief:2" },
+    { "id": "gateway", "name": "API Gateway", "type": "service", "description": "Receives requests and applies entry policies", "evidence": "stakeholder-brief:3" },
+    { "id": "policy", "name": "Policy Decision", "type": "decision", "description": "Routes safe, risky, or invalid requests", "evidence": "stakeholder-brief:4-5" },
+    { "id": "workflow", "name": "Workflow Service", "type": "service", "description": "Coordinates business steps and system handoffs", "evidence": "stakeholder-brief:6" },
+    { "id": "queue", "name": "Work Queue", "type": "queue", "description": "Buffers async work when processing takes time", "evidence": "stakeholder-brief:7" },
+    { "id": "worker", "name": "Worker Process", "type": "process", "description": "Transforms queued work into durable outcomes", "evidence": "stakeholder-brief:8-13" },
+    { "id": "db", "name": "System Database", "type": "database", "description": "Stores request state, decisions, and results", "evidence": "stakeholder-brief:8" },
+    { "id": "audit", "name": "Audit Log", "type": "document", "description": "Explains what happened and why it happened", "evidence": "stakeholder-brief:9" },
+    { "id": "review", "name": "Human Review", "type": "actor", "description": "Approves ambiguous or high-risk outcomes", "evidence": "stakeholder-brief:10-11" },
+    { "id": "fallback", "name": "Fallback Handler", "type": "failure-state", "description": "Returns safe partial results on downstream failure", "evidence": "stakeholder-brief:5,14" },
+    { "id": "metrics", "name": "Metrics Pipeline", "type": "event", "description": "Reports latency, failure, and quality signals", "evidence": "stakeholder-brief:12" },
+    { "id": "response", "name": "Customer Response", "type": "document", "description": "Summarizes the result and next action", "evidence": "stakeholder-brief:13-15" }
+  ],
+  "relationships": [
+    { "sourceId": "customer", "targetId": "gateway", "label": "starts", "direction": "Customer -> API Gateway", "confidence": "stated", "evidence": "stakeholder-brief:1" },
+    { "sourceId": "manager", "targetId": "policy", "label": "cares about", "direction": "Manager -> Policy Decision", "confidence": "stated", "evidence": "stakeholder-brief:2" },
+    { "sourceId": "gateway", "targetId": "policy", "label": "checks", "direction": "API Gateway -> Policy Decision", "confidence": "stated", "evidence": "stakeholder-brief:3" },
+    { "sourceId": "policy", "targetId": "workflow", "label": "allows", "direction": "Policy Decision -> Workflow Service", "confidence": "stated", "evidence": "stakeholder-brief:4" },
+    { "sourceId": "policy", "targetId": "fallback", "label": "rejects", "direction": "Policy Decision -> Fallback Handler", "confidence": "stated", "evidence": "stakeholder-brief:5" },
+    { "sourceId": "workflow", "targetId": "queue", "label": "enqueues", "direction": "Workflow Service -> Work Queue", "confidence": "stated", "evidence": "stakeholder-brief:6" },
+    { "sourceId": "queue", "targetId": "worker", "label": "feeds", "direction": "Work Queue -> Worker Process", "confidence": "stated", "evidence": "stakeholder-brief:7" },
+    { "sourceId": "worker", "targetId": "db", "label": "writes", "direction": "Worker Process -> System Database", "confidence": "stated", "evidence": "stakeholder-brief:8" },
+    { "sourceId": "worker", "targetId": "audit", "label": "records", "direction": "Worker Process -> Audit Log", "confidence": "stated", "evidence": "stakeholder-brief:9" },
+    { "sourceId": "worker", "targetId": "review", "label": "escalates", "direction": "Worker Process -> Human Review", "confidence": "stated", "evidence": "stakeholder-brief:10" },
+    { "sourceId": "review", "targetId": "workflow", "label": "approves", "direction": "Human Review -> Workflow Service", "confidence": "stated", "evidence": "stakeholder-brief:11" },
+    { "sourceId": "worker", "targetId": "metrics", "label": "emits", "direction": "Worker Process -> Metrics Pipeline", "confidence": "stated", "evidence": "stakeholder-brief:12" },
+    { "sourceId": "worker", "targetId": "response", "label": "produces", "direction": "Worker Process -> Customer Response", "confidence": "stated", "evidence": "stakeholder-brief:13" },
+    { "sourceId": "fallback", "targetId": "response", "label": "returns", "direction": "Fallback Handler -> Customer Response", "confidence": "stated", "evidence": "stakeholder-brief:14" },
+    { "sourceId": "response", "targetId": "customer", "label": "answers", "direction": "Customer Response -> Customer", "confidence": "stated", "evidence": "stakeholder-brief:15" }
+  ],
+  "assumptions": [
+    "This fixture is a synthetic stakeholder narrative, not a code-observed architecture."
+  ],
+  "omissions": [
+    "Low-level files, classes, deployment topology, and exhaustive dependency edges are omitted to preserve stakeholder readability."
+  ],
+  "openQuestions": [],
+  "agentInstructions": [
+    "Keep entity `id` values stable across diagram updates.",
+    "Match node `id` in DIAGRAM_DATA with `id` in agent-metadata entities.",
+    "Use this file as the canonical stakeholder narrative example when changing presentation brief behavior.",
+    "Add new entities only when supported by stated, inferred, or observed evidence."
+  ]
+}
+</script>
+
+</body>
+</html>

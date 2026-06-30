@@ -1,0 +1,9 @@
+# Ignore everything
+*
+
+# But not these files/directories
+!create-diagram/
+!plan-with-senior-dev/
+
+# But exclude cache/build artifacts within those directories
+**/__pycache__/

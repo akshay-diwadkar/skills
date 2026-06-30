@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan with Senior Dev"
+  short_description: "Senior planning with docs alignment"
+  default_prompt: "Use $plan-with-senior-dev to explore the repo, challenge my assumptions, align docs when needed, and produce a decision-complete implementation plan."
