@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create Diagram — Excalidraw-Style Diagram</title>
-<link href="https://fonts.googleapis.com/css2?family=Mynerve&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap" rel="stylesheet">
 <script type="importmap">
 {
@@ -14,7 +13,7 @@
 }
 </script>
 <style>
-:root{--diagram-font:'Mynerve','Indie Flower',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{--diagram-font:'Indie Flower',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#faf6f0;font-family:var(--diagram-font);overflow:hidden;user-select:none}
 body[data-theme="dark"]{background:#121216}
@@ -347,13 +346,13 @@ function renderWarnings() {
 async function verifyDiagramFont() {
   if (!document.fonts) return;
   try {
-    await document.fonts.load('16px "Mynerve"');
-    if (!document.fonts.check('16px "Mynerve"')) {
-      state.warnings.push('Mynerve failed to load; diagram text may use a fallback font.');
+    await document.fonts.load('16px "Indie Flower"');
+    if (!document.fonts.check('16px "Indie Flower"')) {
+      state.warnings.push('Indie Flower failed to load; diagram text may use a fallback font.');
       renderWarnings();
     }
   } catch {
-    state.warnings.push('Mynerve failed to load; diagram text may use a fallback font.');
+    state.warnings.push('Indie Flower failed to load; diagram text may use a fallback font.');
     renderWarnings();
   }
 }
@@ -852,7 +851,7 @@ function showNodeDetails(node) {
   panel.innerHTML = `
     <button class="panel-close" title="Close" aria-label="Close details">x</button>
     <h2>${escapeHtml(node.label)}</h2>
-    <div class="meta">${escapeHtml(type.label)} <span class="tag">${escapeHtml(normalizeType(node.type))}</span></div>
+    <div class="meta"><span class="tag">${escapeHtml(normalizeType(node.type))}</span></div>
     ${node.description ? `<p>${escapeHtml(node.description)}</p>` : ''}
     <p><strong>Connected relationships</strong></p>
     <ul>${incident.map(edge => `<li>${escapeHtml(relationshipText(edge))}: ${escapeHtml(edge.label || 'related')}</li>`).join('') || '<li>No connected relationships.</li>'}</ul>

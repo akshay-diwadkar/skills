@@ -726,7 +726,7 @@ function showNodeDetails(node) {
   panel.innerHTML = `
     <button class="panel-close" title="Close" aria-label="Close details">x</button>
     <h2>${escapeHtml(node.label)}</h2>
-    <div class="meta">${escapeHtml(type.label)} <span class="tag">${escapeHtml(normalizeType(node.type))}</span></div>
+    <div class="meta"><span class="tag">${escapeHtml(normalizeType(node.type))}</span></div>
     ${node.description ? `<p>${escapeHtml(node.description)}</p>` : ''}
     <p><strong>Connected relationships</strong></p>
     <ul>${incident.map(edge => `<li>${escapeHtml(relationshipText(edge))}: ${escapeHtml(edge.label || 'related')}</li>`).join('') || '<li>No connected relationships.</li>'}</ul>
