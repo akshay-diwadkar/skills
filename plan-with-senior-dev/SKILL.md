@@ -15,7 +15,7 @@ Read these files only when they match the task risk or ambiguity:
 
 - `references/exploration-protocol.md`: before asking questions on non-trivial codebase work, or when current-state evidence is thin.
 - `references/question-strategy.md`: when the prompt has unresolved product, scope, interface, migration, terminology, or test choices.
-- `references/grilling-protocol.md`: when the user asks to stress-test a plan or the design tree has several dependent decisions.
+- `references/grilling-protocol.md`: compact pressure-test and exit-criteria checklist used during §2.
 - `references/plan-quality-rubric.md`: before finalizing plans, choosing plan length, or running `scripts/check_plan.py`.
 - `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive changes, or plans that feel optimistic.
 - `references/anti-patterns.md`: when the plan feels vague, overbuilt, under-evidenced, or likely to leave choices to the implementer.
@@ -57,20 +57,15 @@ Check, as relevant:
 
 Do not over-map tiny changes. For a single-file local change, one cited current-state finding plus the relevant test command is enough.
 
-### 2. Clarify
+### 2. Grill to Shared Understanding
 
-Ask after exploration, not before, unless the request cannot be interpreted.
+After exploration, run a design-tree walk before planning. The goal is shared understanding of every decision branch, not a large transcript of questions.
 
-Ask when the answer changes:
+**Procedure:**
 
-- User-facing behavior or success criteria.
-- Scope boundaries or out-of-scope exclusions.
-- Public APIs, schemas, commands, events, types, or data shapes.
-- Migration, compatibility, rollout, or rollback policy.
-- Domain terminology that affects names or behavior.
-- Test depth or acceptance criteria.
-
-Use concise questions with a recommended answer:
+1. State the current hypothesis in one paragraph.
+2. Identify the root decision that determines the next branch.
+3. Ask one question at a time with this format:
 
 ```text
 Question: [specific decision]
@@ -78,7 +73,23 @@ Recommended answer: [default], because [repo evidence or risk]
 Why it matters: [what changes if the answer differs]
 ```
 
-Batch broad intent questions when the user's request is non-trivial and ambiguous. Stop asking when remaining choices are implementation details that follow from repo patterns.
+4. After the user answers, update the hypothesis and move to the next dependent decision.
+5. For each major decision, test at least one concrete scenario: happy path, boundary, failure, and compatibility — preferring scenarios that force a boundary between two domain concepts or architectural responsibilities.
+6. Stop when every branch has an owner decision, a repo-backed default, or an explicit out-of-scope call.
+
+**Shared-Understanding Exit Criteria:**
+
+The grilling session is done when all are true:
+- Goal and success criteria are concrete.
+- Important terms have agreed meanings and clear boundaries.
+- Referenced docs or prior decisions have been checked or marked as assumptions.
+- In-scope and out-of-scope behavior are named.
+- Public interfaces and data shapes are decided or explicitly unchanged.
+- Edge cases have expected behavior.
+- Migration, compatibility, rollback, and docs decisions are settled when relevant.
+- The test strategy proves the risky behavior.
+
+If any item remains unresolved and matters to implementation, do not proceed to planning.
 
 ### 3. Plan
 
