@@ -73,6 +73,20 @@ const DIAGRAM_DATA = {
     "Durable state lives in User DB; operational recovery is documented in the runbook",
     "External payment risk is isolated behind Stripe integration boundaries"
   ],
+  walkthrough: [
+    {
+      id: "entry",
+      title: "Request entry",
+      description: "External requests enter through the API Gateway before state is touched.",
+      nodeIds: ["api"]
+    },
+    {
+      id: "state",
+      title: "Durable state",
+      description: "The API reads and writes user profile and session data.",
+      nodeIds: ["api", "users"]
+    }
+  ],
   nodes: [
     { id: "api", label: "API Gateway", type: "service", description: "Entry point for external requests" },
     { id: "users", label: "User DB", type: "database", description: "Stores user profiles and sessions" },
@@ -93,6 +107,9 @@ const DIAGRAM_DATA = {
 - `purpose` is optional but recommended. When present, it appears in the visible brief panel and should state what decision or understanding the diagram supports.
 - `fidelity` is optional and must be one of `narrative-architecture`, `exact-code-graph`, or `executive-concept-map`. Default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences.
 - `takeaways` is optional. Use 1-3 short sentences; more than 3 takeaways makes the brief panel harder to scan.
+- `walkthrough` is optional. Use it when the diagram has a meaningful narrative sequence. Each step needs a stable `id`, a human-readable `title`, an optional `description`, and `nodeIds` for the nodes to focus. During the guided walkthrough, the renderer dims unrelated nodes and edges, highlights edges whose source and target are both in the current step, and pans to the focused nodes without changing the user's zoom level or saved node positions.
+- If `walkthrough` is absent or empty, the renderer infers a basic walkthrough from clusters first, then remaining nodes in layout order. Prefer explicit steps for stakeholder-facing artifacts because inferred steps cannot explain why each focus matters.
+- Runtime validation warns about duplicate walkthrough IDs, empty walkthrough steps, and walkthrough steps that reference missing node IDs.
 - Node positions (`x`, `y`) are optional. For best results, omit them and let the template auto-layout the diagram. Use clusters to define readable horizontal lanes for phases, regions, ownership boundaries, or narrative sections. Auto-layout may shift generated node `y` positions to reduce visible edge overlap while preserving short routes.
 - `type` must match one of the canonical types in Section A; legacy aliases still render but should not be used for new diagrams.
 - `label` on an edge is required and must be the verb describing the relationship.
@@ -100,7 +117,7 @@ const DIAGRAM_DATA = {
 - `evidence` and `confidence` are required on edges. They are shown in the edge hover tooltip. `confidence` must be `observed`, `inferred`, or `stated`. Use `file:line` or `file:start-end` for code/doc claims; use explicit conversation evidence such as `user-stated` for user-stated relationships.
 - `storageKey` is optional. When set, node positions persist in `localStorage`; changing the diagram shape or size may require changing the key to avoid restoring old positions.
 - The renderer prioritizes readable text and clear routes over fitting every dense diagram into one tiny viewport. `Fit` clamps to a readable scale and relies on pan/zoom for very large graphs.
-- Runtime validation warns about duplicate node IDs, unknown node types, dangling edges, missing edge labels, invalid confidence values, missing edge evidence, inconsistent visible/hidden metadata, missing metadata entity IDs, missing cluster members, and empty diagrams. Warnings render in the lower-right panel and are logged to the console.
+- Runtime validation warns about duplicate node IDs, unknown node types, dangling edges, missing edge labels, invalid confidence values, missing edge evidence, inconsistent visible/hidden metadata, missing metadata entity IDs, missing cluster members, invalid walkthrough steps, and empty diagrams. Warnings render in the lower-right panel and are logged to the console.
 - Keep renderer code from the shared template intact. Generated diagram files should differ only in `DIAGRAM_DATA` and the hidden `#agent-metadata` JSON unless the user explicitly asks to change the renderer itself.
 
 ### 2. `#agent-metadata`
@@ -168,5 +185,6 @@ Use this checklist before saving a stakeholder-facing diagram:
 - Exact code graphs are opt-in; use `exact-code-graph` only when the user asks for file/class/function-level dependency fidelity.
 - Executive concept maps are opt-in; use `executive-concept-map` only when business concepts, ownership, outcomes, and risks matter more than implementation detail.
 - The graph shows decision-relevant actors, systems, data flow, ownership, handoffs, and failure paths without exhaustively mapping every low-level dependency.
+- Guided walkthrough steps focus the intended narrative path when the diagram has a natural sequence, especially for onboarding, architecture reviews, demos, and incident walkthroughs.
 - Omissions are explicit in `#agent-metadata.omissions`, especially when noisy implementation details are intentionally compressed.
-- The diagram is readable at the default `Fit` scale and still navigable with pan, zoom, details, theme toggle, and reset controls.
+- The diagram is readable at the default `Fit` scale and still navigable with pan, zoom, details, guided walkthrough, node dragging, theme toggle, and reset controls.
