@@ -16,7 +16,7 @@ Read these files only when they match the task risk or ambiguity:
 - `references/exploration-protocol.md`: before asking questions on non-trivial codebase work, or when current-state evidence is thin.
 - `references/question-strategy.md`: when the prompt has unresolved product, scope, interface, migration, terminology, or test choices.
 - `references/grilling-protocol.md`: when the user asks to stress-test a plan or the design tree has several dependent decisions.
-- `references/plan-quality-rubric.md`: before finalizing plans, choosing plan length, or running `scripts/check_plan_shape.py` and `scripts/check_plan_rubric.py`.
+- `references/plan-quality-rubric.md`: before finalizing plans, choosing plan length, or running `scripts/check_plan.py`.
 - `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive changes, or plans that feel optimistic.
 - `references/anti-patterns.md`: when the plan feels vague, overbuilt, under-evidenced, or likely to leave choices to the implementer.
 

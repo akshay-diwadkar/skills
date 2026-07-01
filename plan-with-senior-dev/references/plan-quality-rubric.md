@@ -65,27 +65,22 @@ Use the lower end when the repo evidence is simple and the change is obvious. Us
 
 ## Script Check
 
-Before finalizing a plan, run the shape checker when the plan exists as a draft file or can be piped through stdin:
+Before finalizing a plan, run the combined plan checker when the plan exists as a draft file or can be piped through stdin:
 
 ```bash
-python scripts/check_plan_shape.py --tier tiny plan.md
-python scripts/check_plan_shape.py --tier standard plan.md
-python scripts/check_plan_shape.py --tier high-risk plan.md
+python scripts/check_plan.py --tier tiny plan.md
+python scripts/check_plan.py --tier standard plan.md
+python scripts/check_plan.py --tier high-risk plan.md
 ```
 
-The checker validates a specific H1 title, tier-specific section headings, reasonable line count, deferred decisions, vague work, weak verification, placeholders, underspecified interfaces, soft commitments, and basic evidence signals. Passing the script is necessary but not sufficient; still apply the rubric below for judgment-heavy issues.
+You can optionally separate warnings from errors by passing `--warn` (which exits 0 for warnings), or get structured JSON output using `--format json`.
 
-## Rubric Script Check
+The script runs both the shape checker (`check_plan_shape.py`) and the rubric checker (`check_plan_rubric.py`) in sequence:
+- The shape checker validates the H1 title, tier-specific sections, reasonable line count, deferred decisions, vague work, weak verification, placeholders, soft commitments, and basic evidence signals.
+- The rubric checker looks for evidence, scope boundaries, local-pattern grounding, ordered changes, expected test results, rollback detail, assumption quality, risk handling, compatibility, migration, and pre-mortem actionability.
 
-After `check_plan_shape.py` passes, run the rubric checker when the plan exists as a draft file or can be piped through stdin:
+Passing the script is necessary but not sufficient; still apply the rubric below for judgment-heavy issues.
 
-```bash
-python scripts/check_plan_rubric.py --tier tiny plan.md
-python scripts/check_plan_rubric.py --tier standard plan.md
-python scripts/check_plan_rubric.py --tier high-risk plan.md
-```
-
-The rubric checker looks for evidence, scope boundaries, local-pattern grounding, ordered changes, expected test results, rollback detail, assumption quality, risk handling, compatibility, migration, and pre-mortem actionability. It is heuristic and necessary-but-not-sufficient; use failures as prompts to tighten the plan, not as a replacement for engineering judgment.
 
 ## Final Self-Audit
 

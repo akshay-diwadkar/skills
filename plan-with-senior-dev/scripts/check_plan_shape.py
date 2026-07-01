@@ -8,6 +8,10 @@ import re
 import sys
 from pathlib import Path
 
+# Add parent directory to path so we can import _plan_utils
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
+
 
 TIERS = {
     "tiny": {
@@ -35,8 +39,10 @@ TIERS = {
             "Rollback Plan",
             "Assumptions",
         ],
-        "one_of": [
-            ("Tracer Bullet", "Failure Modes"),
+        "optional_warn": [
+            "Doc Updates",
+            "Tracer Bullet",
+            "Failure Modes",
         ],
     },
     "high-risk": {
@@ -56,6 +62,10 @@ TIERS = {
             "Migration",
             "Risk",
         ],
+        "optional_warn": [
+            "Doc Updates",
+            "Pre-Mortem Findings",
+        ]
     },
 }
 
@@ -109,8 +119,28 @@ UNCERTAINTY_RULES = {
         r"\bprobably\b",
         r"\bif needed\b",
         r"\bwhere appropriate\b",
+        r"\bas appropriate\b",
+        r"\bwhen suitable\b",
+        r"\bif applicable\b",
+        r"\bwhere relevant\b",
+        r"\boptionally\b",
     ],
 }
+
+OVER_ABSTRACTION_PATTERNS = [
+    r"\bcreate a provider\b",
+    r"\badd a factory\b",
+    r"\bintroduce an adapter\b",
+    r"\bbuild a registry\b",
+]
+
+PERMISSION_TO_PROCEED_PATTERNS = [
+    r"\bshall I proceed\b",
+    r"\bready to implement\b",
+    r"\bwant me to start\b",
+    r"\blet me know if\b",
+    r"\bawaiting your approval\b",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -126,21 +156,18 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         help="Plan markdown file. Reads stdin when omitted or set to '-'.",
     )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Output format (default: text).",
+    )
+    parser.add_argument(
+        "--warn",
+        action="store_true",
+        help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
+    )
     return parser.parse_args()
-
-
-def read_plan(path: str | None) -> str:
-    if not path or path == "-":
-        return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
-
-
-def headings(text: str) -> set[str]:
-    found: set[str] = set()
-    for match in re.finditer(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE):
-        heading = re.sub(r"\s*\([^)]*\)\s*$", "", match.group(1)).strip()
-        found.add(heading)
-    return found
 
 
 def line_count(text: str) -> int:
@@ -154,112 +181,228 @@ def first_non_empty_line(text: str) -> tuple[int, str] | None:
     return None
 
 
-def title_failures(text: str) -> list[str]:
+def title_failures(text: str) -> list[Diagnostic]:
     first_line = first_non_empty_line(text)
     if first_line is None:
-        return ["missing title: plan is empty"]
+        return [Diagnostic(code="shape.title.empty", message="missing title: plan is empty")]
 
     line_number, line = first_line
     if not line.startswith("# "):
-        return [f"missing H1 title on first non-empty line {line_number}: {line!r}"]
+        return [Diagnostic(code="shape.title.not_h1", message=f"missing H1 title on first non-empty line: {line!r}", line=line_number)]
     if line.startswith("##"):
-        return [f"title must be exactly one H1 heading on line {line_number}: {line!r}"]
+        return [Diagnostic(code="shape.title.multiple_h1", message=f"title must be exactly one H1 heading: {line!r}", line=line_number)]
 
     title = line[2:].strip()
     if not title:
-        return [f"title is empty on line {line_number}"]
+        return [Diagnostic(code="shape.title.empty", message="title is empty", line=line_number)]
 
     normalized = re.sub(r"\s+", " ", title.casefold()).strip()
     if normalized in GENERIC_TITLES:
-        return [f"title on line {line_number} is too generic: {title!r}"]
+        return [Diagnostic(code="shape.title.generic", message=f"title is too generic: {title!r}", line=line_number)]
 
     words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", title)
     if len(words) < 4 or len(words) > 12:
-        return [
-            f"title on line {line_number} has {len(words)} words; expected 4 to 12"
-        ]
+        return [Diagnostic(
+            code="shape.title.word_count",
+            message=f"title has {len(words)} words; expected 4 to 12",
+            line=line_number
+        )]
 
-    if not re.search(r"\b(add|fix|remove|replace|migrate|split|merge|rename|update|introduce|enforce|validate|support|prevent|restore|document|wire|route)\b", title, flags=re.IGNORECASE):
-        return [
-            f"title on line {line_number} should name a concrete behavior or change: {title!r}"
-        ]
+    if not re.search(
+        r"\b(add|fix|remove|replace|migrate|split|merge|rename|update|introduce|enforce|validate|support|prevent|restore|document|wire|route|refactor|extract|deprecate|implement|enable|disable|create|delete|handle|configure|optimize|normalize|decouple|consolidate|restrict)\b",
+        title,
+        flags=re.IGNORECASE
+    ):
+        return [Diagnostic(
+            code="shape.title.no_verb",
+            message=f"title should name a concrete behavior or change with an action verb: {title!r}",
+            line=line_number
+        )]
 
     return []
 
 
-def strip_fenced_code_blocks(text: str) -> str:
+def validate(text: str, tier: str) -> list[Diagnostic]:
+    rules = TIERS[tier]
+    diagnostics: list[Diagnostic] = []
+
+    # 1. Line count check
+    count = line_count(text)
+    if count < rules["min_lines"]:
+        diagnostics.append(Diagnostic(
+            code="shape.line_count.under",
+            message=f"{tier} plan has {count} non-empty lines; expected at least {rules['min_lines']}"
+        ))
+    if count > rules["max_lines"]:
+        diagnostics.append(Diagnostic(
+            code="shape.line_count.over",
+            message=f"{tier} plan has {count} non-empty lines; expected at most {rules['max_lines']}"
+        ))
+
+    # 2. Title check
+    diagnostics.extend(title_failures(text))
+
+    # 3. Duplicate heading check
+    found_headings: list[tuple[str, int]] = []
     lines = text.splitlines()
-    output: list[str] = []
-    in_fence = False
-    for line in lines:
-        if re.match(r"^\s*```", line):
-            in_fence = not in_fence
-            output.append("")
-            continue
-        output.append("" if in_fence else line)
-    return "\n".join(output)
+    for index, line in enumerate(lines, start=1):
+        match = re.match(r"^##\s+(.+?)\s*$", line)
+        if match:
+            heading = re.sub(r"\s*\([^)]*\)\s*$", "", match.group(1)).strip()
+            found_headings.append((heading, index))
 
+    heading_counts: dict[str, int] = {}
+    for heading, _ in found_headings:
+        heading_counts[heading] = heading_counts.get(heading, 0) + 1
 
-def uncertainty_failures(text: str) -> list[str]:
-    failures: list[str] = []
+    for heading, count_val in heading_counts.items():
+        if count_val > 1:
+            first_line = next(line_num for h, line_num in found_headings if h == heading)
+            diagnostics.append(Diagnostic(
+                code="shape.heading.duplicate",
+                message=f"Duplicate heading found: {heading!r} appears {count_val} times",
+                line=first_line
+            ))
+
+    # 4 & 5. Required and optional sections
+    found_names = {h for h, _ in found_headings}
+
+    # Required sections
+    for section in rules["sections"]:
+        if not any(heading == section or heading.startswith(section + " ") for heading in found_names):
+            diagnostics.append(Diagnostic(
+                code="shape.section.missing_required",
+                message=f"Missing required section: {section}"
+            ))
+
+    # Optional warnings sections
+    for section in rules.get("optional_warn", []):
+        if not any(heading == section or heading.startswith(section + " ") for heading in found_names):
+            diagnostics.append(Diagnostic(
+                code="shape.section.missing_optional",
+                message=f"Missing optional section: {section}",
+                is_warning=True
+            ))
+
+    # 6. Empty section check
+    heading_indices: list[int] = []
+    for i, line in enumerate(lines):
+        if re.match(r"^#{1,6}\s+", line):
+            heading_indices.append(i)
+
+    for idx, start_idx in enumerate(heading_indices):
+        end_idx = heading_indices[idx + 1] if idx + 1 < len(heading_indices) else len(lines)
+        content = "\n".join(lines[start_idx + 1 : end_idx]).strip()
+        clean_content = strip_fenced_code_blocks(content)
+        non_empty_lines = [l for l in clean_content.splitlines() if l.strip()]
+
+        if not non_empty_lines:
+            heading_text = lines[start_idx].strip()
+            heading_level = len(re.match(r"^#+", heading_text).group(0))
+            heading_name = re.sub(r"^#{1,6}\s+", "", heading_text)
+            heading_name_clean = re.sub(r"\s*\([^)]*\)\s*$", "", heading_name).strip()
+
+            is_required = heading_name_clean in rules["sections"] or any(heading_name_clean.startswith(s + " ") for s in rules["sections"])
+            is_optional = heading_name_clean in rules.get("optional_warn", []) or any(heading_name_clean.startswith(s + " ") for s in rules.get("optional_warn", []))
+
+            if heading_level == 2 or is_required or is_optional:
+                is_warn = is_optional and not is_required
+                diagnostics.append(Diagnostic(
+                    code="shape.section.empty",
+                    message=f"Section {heading_name_clean!r} is empty (has no body content)",
+                    line=start_idx + 1,
+                    is_warning=is_warn
+                ))
+
+    # 7. Uncertainty checks
     scan_text = strip_fenced_code_blocks(text)
     for line_number, line in enumerate(scan_text.splitlines(), start=1):
         for rule_name, patterns in UNCERTAINTY_RULES.items():
             for pattern in patterns:
                 match = re.search(pattern, line, flags=re.IGNORECASE)
                 if match:
-                    failures.append(
-                        f"{rule_name} on line {line_number}: {match.group(0)!r}"
-                    )
+                    diagnostics.append(Diagnostic(
+                        code=f"shape.uncertainty.{rule_name}",
+                        message=f"Uncertainty pattern {match.group(0)!r} matches rule {rule_name}",
+                        line=line_number
+                    ))
                     break
-    return failures
 
+    # Over-abstraction check
+    has_pattern_ref = bool(re.search(
+        r"\b(existing|current|local|nearby|analogous|precedent|pattern|exception|follow)\b",
+        text,
+        flags=re.IGNORECASE
+    ))
+    if not has_pattern_ref:
+        for line_number, line in enumerate(scan_text.splitlines(), start=1):
+            for pattern in OVER_ABSTRACTION_PATTERNS:
+                match = re.search(pattern, line, flags=re.IGNORECASE)
+                if match:
+                    diagnostics.append(Diagnostic(
+                        code="shape.uncertainty.over_abstraction",
+                        message=f"Over-abstraction pattern {match.group(0)!r} found without existing pattern reference",
+                        line=line_number
+                    ))
+                    break
 
-def validate(text: str, tier: str) -> list[str]:
-    rules = TIERS[tier]
-    failures: list[str] = []
-    count = line_count(text)
-    if count < rules["min_lines"]:
-        failures.append(
-            f"{tier} plan has {count} non-empty lines; expected at least {rules['min_lines']}"
-        )
-    if count > rules["max_lines"]:
-        failures.append(
-            f"{tier} plan has {count} non-empty lines; expected at most {rules['max_lines']}"
-        )
+    # 8. Permission to proceed check (last 5 non-empty lines)
+    non_empty_scan_lines = [(line_num, line) for line_num, line in enumerate(scan_text.splitlines(), start=1) if line.strip()]
+    last_5_lines = non_empty_scan_lines[-5:] if len(non_empty_scan_lines) >= 5 else non_empty_scan_lines
+    for line_num, line in last_5_lines:
+        for pattern in PERMISSION_TO_PROCEED_PATTERNS:
+            match = re.search(pattern, line, flags=re.IGNORECASE)
+            if match:
+                diagnostics.append(Diagnostic(
+                    code="shape.uncertainty.permission_to_proceed",
+                    message=f"Plan asks for permission to proceed: {match.group(0)!r} near end of document",
+                    line=line_num
+                ))
+                break
 
-    failures.extend(title_failures(text))
-
-    found = headings(text)
-    for section in rules["sections"]:
-        if not any(heading == section or heading.startswith(section + " ") for heading in found):
-            failures.append(f"missing required section: {section}")
-
-    for group in rules.get("one_of", []):
-        if not any(
-            any(heading == option or heading.startswith(option + " ") for heading in found)
-            for option in group
-        ):
-            failures.append(f"missing one of required sections: {', '.join(group)}")
-
-    failures.extend(uncertainty_failures(text))
-
+    # 9. Evidence check
     if tier in {"standard", "high-risk"} and not re.search(r"`[^`]+`|[\w./\\-]+:\d+", text):
-        failures.append("no obvious command, code path, or file:line citation found")
+        diagnostics.append(Diagnostic(
+            code="shape.evidence.missing",
+            message="No obvious command, code path, or file:line citation found"
+        ))
 
-    return failures
+    return diagnostics
 
 
 def main() -> int:
     args = parse_args()
-    text = read_plan(args.path)
-    failures = validate(text, args.tier)
-    if failures:
-        print("Plan shape check failed:")
-        for failure in failures:
-            print(f"- {failure}")
+    try:
+        text = read_plan(args.path)
+    except Exception as e:
+        print(f"Error reading plan: {e}", file=sys.stderr)
         return 1
-    print("Plan shape check passed.")
+
+    diagnostics = validate(text, args.tier)
+
+    errors = [d for d in diagnostics if not d.is_warning]
+    warnings = [d for d in diagnostics if d.is_warning]
+
+    if args.format == "json":
+        import json
+        output = {
+            "errors": [e.to_dict() for e in errors],
+            "warnings": [w.to_dict() for w in warnings],
+            "passed": len(errors) == 0 and (args.warn or len(warnings) == 0),
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if diagnostics:
+            print("Plan shape check findings:")
+            for d in diagnostics:
+                print(f"- {d}")
+        else:
+            print("Plan shape check passed.")
+
+    if errors:
+        return 1
+    if warnings and not args.warn:
+        return 1
     return 0
 
 

@@ -9,6 +9,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+# Add parent directory to path so we can import _plan_utils
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
+
 
 SECTION_ALIASES = {
     "Test Strategy": ("Test Strategy", "Test/Verification"),
@@ -26,6 +30,12 @@ EXPECTED_WORDS = (
     "verifies",
     "with no",
     "zero",
+)
+
+MEASURABLE_VERBS = (
+    "returns", "return", "displays", "display", "rejects", "reject",
+    "emits", "emit", "logs", "log", "creates", "create", "deletes", "delete",
+    "responds", "respond", "shows", "show", "verifies", "verify", "asserts", "assert",
 )
 
 
@@ -49,44 +59,52 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         help="Plan markdown file. Reads stdin when omitted or set to '-'.",
     )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Output format (default: text).",
+    )
+    parser.add_argument(
+        "--warn",
+        action="store_true",
+        help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
+    )
     return parser.parse_args()
 
 
-def read_plan(path: str | None) -> str:
-    if not path or path == "-":
-        return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
-
-
-def strip_fenced_code_blocks(text: str) -> str:
-    lines = text.splitlines()
-    output: list[str] = []
-    in_fence = False
-    for line in lines:
-        if re.match(r"^\s*```", line):
-            in_fence = not in_fence
-            output.append("")
-            continue
-        output.append("" if in_fence else line)
-    return "\n".join(output)
-
-
-def parse_sections(text: str) -> dict[str, Section]:
+def parse_sections(text: str) -> tuple[dict[str, Section], list[Diagnostic]]:
     scan_text = strip_fenced_code_blocks(text)
     lines = scan_text.splitlines()
     headings: list[tuple[str, int, int]] = []
+    
+    diagnostics: list[Diagnostic] = []
+    seen_headings: dict[str, int] = {}
+    
     for index, line in enumerate(lines):
         match = re.match(r"^##\s+(.+?)\s*$", line)
         if match:
             name = re.sub(r"\s*\([^)]*\)\s*$", "", match.group(1)).strip()
-            headings.append((name, index + 1, index))
+            line_number = index + 1
+            if name in seen_headings:
+                diagnostics.append(Diagnostic(
+                    code="rubric.section.duplicate",
+                    message=f"Duplicate section {name!r} parsed in rubric checker",
+                    line=line_number
+                ))
+            else:
+                seen_headings[name] = line_number
+            headings.append((name, line_number, index))
 
     sections: dict[str, Section] = {}
     for position, (name, line_number, line_index) in enumerate(headings):
         end_index = headings[position + 1][2] if position + 1 < len(headings) else len(lines)
         body = "\n".join(lines[line_index + 1 : end_index]).strip()
-        sections[name] = Section(name=name, line=line_number, body=body)
-    return sections
+        # Avoid overwriting with duplicates if we want to preserve the first one
+        if name not in sections:
+            sections[name] = Section(name=name, line=line_number, body=body)
+            
+    return sections, diagnostics
 
 
 def section(sections: dict[str, Section], name: str) -> Section | None:
@@ -96,17 +114,22 @@ def section(sections: dict[str, Section], name: str) -> Section | None:
     return None
 
 
-def fail(code: str, message: str, section_obj: Section | None = None) -> str:
-    if section_obj is None:
-        return f"{code}: {message}"
-    return f"{code} on line {section_obj.line}: {message}"
+def fail(code: str, message: str, section_obj: Section | None = None, is_warning: bool = False) -> Diagnostic:
+    line = section_obj.line if section_obj is not None else None
+    return Diagnostic(code=code, message=message, line=line, is_warning=is_warning)
 
 
-def has_repo_evidence(body: str) -> bool:
-    if re.search(r"[\w./\\-]+\.\w+:\d+", body):
-        return True
-    if re.search(r"`[^`]*(?:/|\\|\.ts|\.tsx|\.js|\.jsx|\.py|\.go|\.rs|\.java|\.md|\.json|\.ya?ml)[^`]*`", body):
-        return True
+def has_repo_evidence(body: str, tier: str) -> bool:
+    if tier == "tiny":
+        if re.search(r"[\w./\\-]+\.\w+:\d+", body):
+            return True
+        if re.search(r"`[^`]*(?:/|\\|\.ts|\.tsx|\.js|\.jsx|\.py|\.go|\.rs|\.java|\.md|\.json|\.ya?ml)[^`]*`", body):
+            return True
+    else:
+        # Standard and high-risk require line numbers in citations
+        if re.search(r"[\w./\\-]+\.\w+:\d+", body):
+            return True
+            
     if re.search(r"\bN/A\b.*\b(low-risk|not applicable|no repo change|no code change|single-file|docs-only)\b", body, flags=re.IGNORECASE):
         return True
     return False
@@ -206,112 +229,210 @@ def pre_mortem_findings_are_actionable(section_obj: Section | None) -> bool:
     return all("Action:" in line for line in finding_lines)
 
 
-def require_section(sections: dict[str, Section], failures: list[str], name: str) -> Section | None:
+def require_section(sections: dict[str, Section], diagnostics: list[Diagnostic], name: str) -> Section | None:
     found = section(sections, name)
     if found is None:
-        failures.append(f"rubric.section.missing: Missing section {name!r}")
+        diagnostics.append(Diagnostic(code="rubric.section.missing", message=f"Missing section {name!r}"))
     return found
 
 
-def validate_tiny(sections: dict[str, Section]) -> list[str]:
-    failures: list[str] = []
-    current = require_section(sections, failures, "Current State")
-    change = require_section(sections, failures, "Change")
-    tests = require_section(sections, failures, "Test Strategy")
-    assumptions = require_section(sections, failures, "Assumptions")
+def validate_tiny(sections: dict[str, Section]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    current = require_section(sections, diagnostics, "Current State")
+    change = require_section(sections, diagnostics, "Change")
+    tests = require_section(sections, diagnostics, "Test Strategy")
+    assumptions = require_section(sections, diagnostics, "Assumptions")
 
-    if current and not has_repo_evidence(current.body):
-        failures.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence or justify N/A", current))
+    if current and not has_repo_evidence(current.body, "tiny"):
+        diagnostics.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence or justify N/A", current))
     if change and (not change.body.strip() or has_generic_work(change.body)):
-        failures.append(fail("rubric.change.concrete", "Change must name concrete behavior, not generic work", change))
+        diagnostics.append(fail("rubric.change.concrete", "Change must name concrete behavior, not generic work", change))
     if tests:
         if not has_command_or_manual_check(tests.body):
-            failures.append(fail("rubric.test_strategy.command", "Test/Verification must include an exact command or explicit manual check", tests))
+            diagnostics.append(fail("rubric.test_strategy.command", "Test/Verification must include an exact command or explicit manual check", tests))
         if not has_expected_result(tests.body):
-            failures.append(fail("rubric.test_strategy.expected_result", "Test/Verification must include expected passing result", tests))
+            diagnostics.append(fail("rubric.test_strategy.expected_result", "Test/Verification must include expected passing result", tests))
     if assumptions and not assumptions.body.strip():
-        failures.append(fail("rubric.assumptions.non_empty", "Assumptions must not be empty", assumptions))
+        diagnostics.append(fail("rubric.assumptions.non_empty", "Assumptions must not be empty", assumptions))
 
-    return failures
+    return diagnostics
 
 
-def validate_standard(sections: dict[str, Section], full_text: str) -> list[str]:
-    failures: list[str] = []
-    current = require_section(sections, failures, "Current State")
-    scope = require_section(sections, failures, "Scope")
-    approach = require_section(sections, failures, "Approach")
-    changes = require_section(sections, failures, "Changes")
-    tests = require_section(sections, failures, "Test Strategy")
-    rollback = require_section(sections, failures, "Rollback Plan")
-    assumptions = require_section(sections, failures, "Assumptions")
+def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    current = require_section(sections, diagnostics, "Current State")
+    scope = require_section(sections, diagnostics, "Scope")
+    approach = require_section(sections, diagnostics, "Approach")
+    changes = require_section(sections, diagnostics, "Changes")
+    tests = require_section(sections, diagnostics, "Test Strategy")
+    rollback = require_section(sections, diagnostics, "Rollback Plan")
+    assumptions = require_section(sections, diagnostics, "Assumptions")
 
-    if current and not has_repo_evidence(current.body):
-        failures.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence or justify N/A", current))
+    if current and not has_repo_evidence(current.body, "standard"):
+        diagnostics.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence with file:line or justify N/A", current))
     if scope and not has_scope_boundaries(scope.body):
-        failures.append(fail("rubric.scope.boundaries", "Scope must include in-scope and out-of-scope or unchanged behavior", scope))
+        diagnostics.append(fail("rubric.scope.boundaries", "Scope must include in-scope and out-of-scope or unchanged behavior", scope))
     if approach and not references_existing_pattern(approach.body):
-        failures.append(fail("rubric.approach.pattern", "Approach must reference an existing pattern, local precedent, or explicit exception", approach))
+        diagnostics.append(fail("rubric.approach.pattern", "Approach must reference an existing pattern, local precedent, or explicit exception", approach))
     if changes and not is_ordered(changes.body):
-        failures.append(fail("rubric.changes.order", "Changes must be dependency-ordered with numbered steps or ordered bullets", changes))
+        diagnostics.append(fail("rubric.changes.order", "Changes must be dependency-ordered with numbered steps or ordered bullets", changes))
     if tests:
         if not has_scenario_language(tests.body):
-            failures.append(fail("rubric.test_strategy.scenarios", "Test Strategy must name scenarios or cases", tests))
+            diagnostics.append(fail("rubric.test_strategy.scenarios", "Test Strategy must name scenarios or cases", tests))
         if not has_command_or_manual_check(tests.body):
-            failures.append(fail("rubric.test_strategy.command", "Test Strategy must include exact commands or explicit manual checks", tests))
+            diagnostics.append(fail("rubric.test_strategy.command", "Test Strategy must include exact commands or explicit manual checks", tests))
         if not has_expected_result(tests.body):
-            failures.append(fail("rubric.test_strategy.expected_result", "Test Strategy must include expected passing result", tests))
+            diagnostics.append(fail("rubric.test_strategy.expected_result", "Test Strategy must include expected passing result", tests))
     if rollback and not has_concrete_rollback(rollback.body):
-        failures.append(fail("rubric.rollback.concrete", "Rollback Plan must state concrete steps or trivial rollback reason", rollback))
+        diagnostics.append(fail("rubric.rollback.concrete", "Rollback Plan must state concrete steps or trivial rollback reason", rollback))
     if assumptions and not distinguishes_assumptions(assumptions.body):
-        failures.append(fail("rubric.assumptions.classified", "Assumptions must distinguish low-impact, accepted, or blocking assumptions", assumptions))
+        diagnostics.append(fail("rubric.assumptions.classified", "Assumptions must distinguish low-impact, accepted, or blocking assumptions", assumptions))
     if has_risk_language(full_text) and not has_mitigation(full_text):
-        failures.append("rubric.risk.mitigation: Risk language requires mitigation or Pre-Mortem Findings")
+        diagnostics.append(fail("rubric.risk.mitigation", "Risk language requires mitigation or Pre-Mortem Findings"))
 
-    return failures
+    # New validation checks:
+    
+    # 1. Interface-specification check
+    # Check if Changes or Approach mentions API/schema/type/event/command
+    has_interface_keywords = False
+    for sec_obj in (changes, approach):
+        if sec_obj and any(kw in sec_obj.body.lower() for kw in ("api", "schema", "type", "event", "command")):
+            has_interface_keywords = True
+            break
+    if has_interface_keywords:
+        # Check if the full text has any code block defining a shape (e.g. ```typescript, ```json, etc.)
+        # Simply checking if there is a code block at all in the full text (we stripped fenced blocks for analysis,
+        # so let's check the original raw text)
+        if not re.search(r"```", full_text):
+            diagnostics.append(fail(
+                "rubric.interface.specification",
+                "Changes or Approach mentions interface (API/schema/type/event/command) but no code block defining its shape was found"
+            ))
+
+    # 2. Doc Updates awareness (Warning)
+    has_doc_signals = bool(re.search(r"\b(glossary|context\.md|adr|adrs|context-map\.md)\b", full_text, flags=re.IGNORECASE))
+    # Capitalized multi-word concepts (not starting a line)
+    has_multiword_cap = bool(re.search(r"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+\b", full_text))
+    if (has_doc_signals or has_multiword_cap) and "Doc Updates" not in sections:
+        diagnostics.append(fail(
+            "rubric.docs.missing_section",
+            "Plan contains domain terminology or documentation references, but missing 'Doc Updates' section",
+            is_warning=True
+        ))
+
+    # 3. Failure-mode check (Warning)
+    has_failure_keywords = bool(re.search(r"\b(error|failure|exception|fail|timeout|fallback|retry)\b", full_text, flags=re.IGNORECASE))
+    if "Failure Modes" not in sections and not has_failure_keywords:
+        diagnostics.append(fail(
+            "rubric.failure_modes.missing",
+            "Missing 'Failure Modes' section and no error/failure scenarios found in plan body",
+            is_warning=True
+        ))
+
+    # 4. Success criteria specificity check (Warning)
+    success_criteria = section(sections, "Success Criteria")
+    if success_criteria:
+        has_measurable = any(verb in success_criteria.body.lower() for verb in MEASURABLE_VERBS)
+        if not has_measurable:
+            diagnostics.append(fail(
+                "rubric.success_criteria.vague",
+                "Success Criteria does not use measurable verbs (e.g., returns, displays, rejects, emits)",
+                success_criteria,
+                is_warning=True
+            ))
+
+    # 5. Tracer Bullet validation
+    tracer_bullet = section(sections, "Tracer Bullet")
+    if tracer_bullet:
+        # Check if tracer bullet has repo evidence (standard/high-risk level requiring file:line or specific path)
+        if not has_repo_evidence(tracer_bullet.body, "standard") and not re.search(r"`[^`]+`", tracer_bullet.body):
+            diagnostics.append(fail(
+                "rubric.tracer_bullet.vague",
+                "Tracer Bullet section does not reference specific files, endpoints, or commands",
+                tracer_bullet
+            ))
+
+    # 6. Warn on missing pre-mortem (Warning)
+    pre_mortem = section(sections, "Pre-Mortem Findings")
+    if not pre_mortem and not has_risk_language(full_text):
+        diagnostics.append(fail(
+            "rubric.pre_mortem.missing",
+            "No pre-mortem findings or risk language found in Standard plan",
+            is_warning=True
+        ))
+
+    return diagnostics
 
 
-def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[str]:
-    failures = validate_standard(sections, full_text)
-    compatibility = require_section(sections, failures, "Compatibility")
-    migration = require_section(sections, failures, "Migration")
-    risk = require_section(sections, failures, "Risk")
+def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Diagnostic]:
+    diagnostics = validate_standard(sections, full_text)
+    compatibility = require_section(sections, diagnostics, "Compatibility")
+    migration = require_section(sections, diagnostics, "Migration")
+    risk = require_section(sections, diagnostics, "Risk")
     pre_mortem = section(sections, "Pre-Mortem Findings")
 
     if compatibility and not compatibility_is_specific(compatibility.body):
-        failures.append(fail("rubric.compatibility.specific", "Compatibility must cover old/new clients, data, or contracts", compatibility))
+        diagnostics.append(fail("rubric.compatibility.specific", "Compatibility must cover old/new clients, data, or contracts", compatibility))
     if migration and not migration_is_specific(migration.body):
-        failures.append(fail("rubric.migration.specific", "Migration must include validation, dry-run, backfill, dual-read, or rollback detail", migration))
+        diagnostics.append(fail("rubric.migration.specific", "Migration must include validation, dry-run, backfill, dual-read, or rollback detail", migration))
     if risk:
         if not has_risk_tiers(risk.body):
-            failures.append(fail("rubric.risk.tiers", "Risk must use P0, P1, and P2 language", risk))
+            diagnostics.append(fail("rubric.risk.tiers", "Risk must use P0, P1, and P2 language", risk))
         if has_unresolved_p0(risk.body):
-            failures.append(fail("rubric.risk.unresolved_p0", "Risk must not leave P0 unresolved", risk))
+            diagnostics.append(fail("rubric.risk.unresolved_p0", "Risk must not leave P0 unresolved", risk))
     if not pre_mortem_findings_are_actionable(pre_mortem):
-        failures.append(fail("rubric.pre_mortem.action", "Pre-Mortem Findings must include tiered findings with Action:", pre_mortem))
+        diagnostics.append(fail("rubric.pre_mortem.action", "Pre-Mortem Findings must include tiered findings with Action:", pre_mortem))
 
-    return failures
+    return diagnostics
 
 
-def validate(text: str, tier: str) -> list[str]:
+def validate(text: str, tier: str) -> list[Diagnostic]:
+    sections, parse_diags = parse_sections(text)
     clean_text = strip_fenced_code_blocks(text)
-    sections = parse_sections(clean_text)
+    
     if tier == "tiny":
-        return validate_tiny(sections)
-    if tier == "standard":
-        return validate_standard(sections, clean_text)
-    return validate_high_risk(sections, clean_text)
+        diags = validate_tiny(sections)
+    elif tier == "standard":
+        diags = validate_standard(sections, text) # pass original text to check code blocks
+    else:
+        diags = validate_high_risk(sections, text)
+        
+    return parse_diags + diags
 
 
 def main() -> int:
     args = parse_args()
-    text = read_plan(args.path)
-    failures = validate(text, args.tier)
-    if failures:
-        print("Rubric check failed:")
-        for failure in failures:
-            print(f"- {failure}")
+    try:
+        text = read_plan(args.path)
+    except Exception as e:
+        print(f"Error reading plan: {e}", file=sys.stderr)
         return 1
-    print("Rubric check passed.")
+
+    diagnostics = validate(text, args.tier)
+
+    errors = [d for d in diagnostics if not d.is_warning]
+    warnings = [d for d in diagnostics if d.is_warning]
+
+    if args.format == "json":
+        import json
+        output = {
+            "errors": [e.to_dict() for e in errors],
+            "warnings": [w.to_dict() for w in warnings],
+            "passed": len(errors) == 0 and (args.warn or len(warnings) == 0),
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        if diagnostics:
+            print("Plan rubric check findings:")
+            for d in diagnostics:
+                print(f"- {d}")
+        else:
+            print("Plan rubric check passed.")
+
+    if errors:
+        return 1
+    if warnings and not args.warn:
+        return 1
     return 0
 
 
