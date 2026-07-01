@@ -227,6 +227,7 @@ const NODE_H_DESC = 205, TITLE_FONT_SIZE = 36, DESCRIPTION_FONT_SIZE = 24, MAX_D
 const CLUSTER_PAD = 56, CLUSTER_LABEL_H = 44, LAYER_GAP_X = 400, LAYER_GAP_Y = 240;
 const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, LANE_GAP_Y = 220;
 const EDGE_END_PAD = 8;
+const EDGE_MIN_SEPARATION = 52, EDGE_LAYOUT_STEP = 46, EDGE_LAYOUT_LIMIT = 184, EDGE_LAYOUT_PASSES = 4;
 const MIN_READABLE_SCALE = 0.58;
 const VERSION = 10;
 
@@ -492,6 +493,201 @@ function resolveClusterCollisions(nodes, clusters) {
   }
 }
 
+/* ---------- edge-aware layout ---------- */
+function distance(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function distancePointToSegment(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return distance(p, a);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+  return distance(p, { x: a.x + t * dx, y: a.y + t * dy });
+}
+
+function segmentDistance(a1, a2, b1, b2) {
+  if (segmentsIntersect(a1, a2, b1, b2)) return 0;
+  return Math.min(
+    distancePointToSegment(a1, b1, b2),
+    distancePointToSegment(a2, b1, b2),
+    distancePointToSegment(b1, a1, a2),
+    distancePointToSegment(b2, a1, a2)
+  );
+}
+
+function orientation(a, b, c) {
+  const v = (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+  return Math.abs(v) < 0.001 ? 0 : v > 0 ? 1 : 2;
+}
+
+function onSegment(a, b, c) {
+  return b.x <= Math.max(a.x, c.x) && b.x >= Math.min(a.x, c.x) &&
+    b.y <= Math.max(a.y, c.y) && b.y >= Math.min(a.y, c.y);
+}
+
+function segmentsIntersect(a1, a2, b1, b2) {
+  const o1 = orientation(a1, a2, b1);
+  const o2 = orientation(a1, a2, b2);
+  const o3 = orientation(b1, b2, a1);
+  const o4 = orientation(b1, b2, a2);
+  if (o1 !== o2 && o3 !== o4) return true;
+  return (o1 === 0 && onSegment(a1, b1, a2)) ||
+    (o2 === 0 && onSegment(a1, b2, a2)) ||
+    (o3 === 0 && onSegment(b1, a1, b2)) ||
+    (o4 === 0 && onSegment(b1, a2, b2));
+}
+
+function expandBox(box, pad) {
+  return { x: box.x - pad, y: box.y - pad, w: box.w + pad * 2, h: box.h + pad * 2 };
+}
+
+function pointInBox(point, box) {
+  return point.x >= box.x && point.x <= box.x + box.w && point.y >= box.y && point.y <= box.y + box.h;
+}
+
+function sampleCurve(points, steps = 12) {
+  if (points.length < 3) return points;
+  const [a, c, b] = points;
+  const samples = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const mt = 1 - t;
+    samples.push({
+      x: mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x,
+      y: mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y,
+    });
+  }
+  return samples;
+}
+
+function edgeLabelBox(edge, x, y) {
+  const labelW = Math.max(64, (edge.label || '').length * 13.2 + 30);
+  const labelH = 34;
+  const labelY = y - 12;
+  return { x: x - labelW / 2, y: labelY - labelH / 2, w: labelW, h: labelH };
+}
+
+function edgeRoute(edge, edgeIndex, nodes = state.nodes, edges = state.edges) {
+  const src = nodes.find(n => n.id === edge.sourceId);
+  const tgt = nodes.find(n => n.id === edge.targetId);
+  if (!src || !tgt) return null;
+  if (src.id === tgt.id) {
+    const b = nodeBox(src);
+    const x1 = b.x + b.w + EDGE_END_PAD, y1 = b.y + b.h * 0.35;
+    const x2 = b.x + b.w + EDGE_END_PAD, y2 = b.y + b.h * 0.65;
+    const loopX = b.x + b.w + 72;
+    const points = [{ x: x1, y: y1 }, { x: loopX, y: b.y - 26 }, { x: loopX, y: b.y + b.h + 26 }, { x: x2, y: y2 }];
+    return { edge, src, tgt, points, samples: points, labelPoint: { x: loopX, y: b.y + b.h / 2 }, labelBox: edgeLabelBox(edge, loopX, b.y + b.h / 2) };
+  }
+  const start = edgeAnchor(src, tgt);
+  const end = edgeAnchor(tgt, src);
+  const dx = end.x - start.x, dy = end.y - start.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1) return null;
+  const mx = (start.x + end.x) / 2, my = (start.y + end.y) / 2;
+  const off = Math.max(-80, Math.min(80, parallelEdgeOffset(edge, edgeIndex, edges) + Math.min(dist * 0.08, 32)));
+  const control = { x: mx + dy / dist * off, y: my - dx / dist * off };
+  const points = [start, control, end];
+  return { edge, src, tgt, points, samples: sampleCurve(points), labelPoint: control, labelBox: edgeLabelBox(edge, control.x, control.y) };
+}
+
+function routeLength(route) {
+  return route.samples.slice(1).reduce((total, point, index) => total + distance(route.samples[index], point), 0);
+}
+
+function routeProximityPenalty(a, b) {
+  if (!a || !b) return 0;
+  const incident = a.edge.sourceId === b.edge.sourceId || a.edge.sourceId === b.edge.targetId ||
+    a.edge.targetId === b.edge.sourceId || a.edge.targetId === b.edge.targetId;
+  let minDist = Infinity;
+  for (let i = 1; i < a.samples.length; i++) {
+    for (let j = 1; j < b.samples.length; j++) {
+      minDist = Math.min(minDist, segmentDistance(a.samples[i - 1], a.samples[i], b.samples[j - 1], b.samples[j]));
+    }
+  }
+  if (incident) return minDist < EDGE_MIN_SEPARATION * 0.45 ? (EDGE_MIN_SEPARATION * 0.45 - minDist) * 6 : 0;
+  const crossingPenalty = minDist < 1 ? 2600 : 0;
+  const proximityPenalty = minDist < EDGE_MIN_SEPARATION ? (EDGE_MIN_SEPARATION - minDist) * 36 : 0;
+  return crossingPenalty + proximityPenalty;
+}
+
+function routeNodePenalty(route, nodes) {
+  let penalty = 0;
+  const endpointIds = new Set([route.edge.sourceId, route.edge.targetId]);
+  nodes.forEach(node => {
+    if (endpointIds.has(node.id)) return;
+    const box = expandBox(nodeBox(node), 8);
+    route.samples.slice(1, -1).forEach(point => {
+      if (pointInBox(point, box)) penalty += 420;
+    });
+    if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 10))) penalty += 900;
+  });
+  return penalty;
+}
+
+function scoreEdgeLayout(nodes, edges, initialY = {}) {
+  const routes = edges.map((edge, index) => edgeRoute(edge, index, nodes, edges)).filter(Boolean);
+  let score = 0;
+  routes.forEach(route => {
+    score += routeLength(route) * 0.035;
+    score += routeNodePenalty(route, nodes);
+    const dy = Math.abs((initialY[route.edge.sourceId] ?? route.src.y) - route.src.y) +
+      Math.abs((initialY[route.edge.targetId] ?? route.tgt.y) - route.tgt.y);
+    score += dy * 0.08;
+  });
+  for (let i = 0; i < routes.length; i++) {
+    for (let j = i + 1; j < routes.length; j++) {
+      score += routeProximityPenalty(routes[i], routes[j]);
+      if (boxesOverlap(routes[i].labelBox, routes[j].labelBox, 8)) score += 1300;
+    }
+  }
+  return score;
+}
+
+function wouldOverlapAnyNode(node, nodes) {
+  const movedBox = nodeBox(node);
+  return nodes.some(other => other !== node && boxesOverlap(movedBox, nodeBox(other), COLLISION_GAP));
+}
+
+function resolveEdgeOverlaps(nodes, edges, clusters = []) {
+  if (edges.length < 2 || nodes.length < 3) return;
+  const initialY = {};
+  nodes.forEach(node => { initialY[node.id] = node.y; });
+  let bestScore = scoreEdgeLayout(nodes, edges, initialY);
+  const ordered = [...nodes].sort((a, b) =>
+    connectedEdgeIndexes(b.id).length - connectedEdgeIndexes(a.id).length ||
+    a.y - b.y
+  );
+  for (let pass = 0; pass < EDGE_LAYOUT_PASSES; pass++) {
+    let improved = false;
+    for (const node of ordered) {
+      const originalY = node.y;
+      const candidates = [-2, -1, 1, 2].map(mult => originalY + mult * EDGE_LAYOUT_STEP)
+        .filter(y => y >= 40 && Math.abs(y - initialY[node.id]) <= EDGE_LAYOUT_LIMIT);
+      let chosenY = originalY;
+      for (const candidateY of candidates) {
+        node.y = candidateY;
+        if (wouldOverlapAnyNode(node, nodes)) continue;
+        const score = scoreEdgeLayout(nodes, edges, initialY);
+        if (score + 0.5 < bestScore) {
+          bestScore = score;
+          chosenY = candidateY;
+        }
+      }
+      node.y = chosenY;
+      if (chosenY !== originalY) {
+        improved = true;
+        resolveNodeCollisions(nodes, COLLISION_GAP, 20);
+        validateClusterSeparation(nodes, clusters);
+        bestScore = scoreEdgeLayout(nodes, edges, initialY);
+      }
+    }
+    if (!improved) break;
+  }
+}
+
 /* ---------- auto-layout ---------- */
 function buildTopologicalLayers(nodes, edges) {
   const adj = {}, inDeg = {};
@@ -695,6 +891,9 @@ function autoLayout(nodes, edges, clusters = []) {
   placeClusterLayouts(layouts, edges);
   positionNodesInLayouts(layouts, layers, layerX);
   resolveNodeCollisions(nodes, COLLISION_GAP, 40);
+  validateClusterSeparation(nodes, clusters);
+  resolveEdgeOverlaps(nodes, edges, clusters);
+  resolveNodeCollisions(nodes, COLLISION_GAP, 20);
   validateClusterSeparation(nodes, clusters);
 }
 
@@ -1115,8 +1314,8 @@ function edgeAnchor(from, to) {
   return dy >= 0 ? { x: ac.x, y: a.y + a.h + EDGE_END_PAD } : { x: ac.x, y: a.y - EDGE_END_PAD };
 }
 
-function parallelEdgeOffset(edge, edgeIndex) {
-  const samePair = state.edges
+function parallelEdgeOffset(edge, edgeIndex, edges = state.edges) {
+  const samePair = edges
     .map((candidate, index) => ({ candidate, index }))
     .filter(({ candidate }) => candidate.sourceId === edge.sourceId && candidate.targetId === edge.targetId);
   const pairIndex = Math.max(0, samePair.findIndex(({ index }) => index === edgeIndex));
@@ -1129,36 +1328,24 @@ function parallelEdgeOffset(edge, edgeIndex) {
 }
 
 function buildEdgeContent(e, g, edgeIndex = 0) {
-  const src = state.nodes.find(n => n.id === e.sourceId);
-  const tgt = state.nodes.find(n => n.id === e.targetId);
-  if (!src || !tgt) return;
+  const route = edgeRoute(e, edgeIndex, state.nodes, state.edges);
+  if (!route) return;
+  const { src, tgt } = route;
   if (src.id === tgt.id) {
-    const b = nodeBox(src);
-    const x1 = b.x + b.w + EDGE_END_PAD, y1 = b.y + b.h * 0.35;
-    const x2 = b.x + b.w + EDGE_END_PAD, y2 = b.y + b.h * 0.65;
-    const loopX = b.x + b.w + 72;
-    const pts = [[x1,y1],[loopX,b.y - 26],[loopX,b.y + b.h + 26],[x2,y2]];
+    const pts = route.points.map(point => [point.x, point.y]);
     g.appendChild(rc.curve(pts, { stroke: th().edgeStroke, strokeWidth: 1.8, roughness: 0.8 }));
-    drawArrow(g, x2, y2, Math.PI / 2);
-    drawEdgeLabel(e, g, loopX, b.y + b.h / 2);
+    const end = route.points[route.points.length - 1];
+    drawArrow(g, end.x, end.y, Math.PI / 2);
+    drawEdgeLabel(e, g, route.labelPoint.x, route.labelPoint.y);
     appendEdgeTooltip(e, g, src, tgt);
     return;
   }
-  const start = edgeAnchor(src, tgt);
-  const end = edgeAnchor(tgt, src);
-  const x1 = start.x, y1 = start.y;
-  const x2 = end.x, y2 = end.y;
-  const dx = x2 - x1, dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist < 1) return;
-  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-  const off = Math.max(-80, Math.min(80, parallelEdgeOffset(e, edgeIndex) + Math.min(dist * 0.08, 32)));
-  const cpx = mx + dy / dist * off, cpy = my - dx / dist * off;
-  const pts = [[x1,y1],[cpx,cpy],[x2,y2]];
+  const pts = route.points.map(point => [point.x, point.y]);
   g.appendChild(rc.curve(pts, { stroke: th().edgeStroke, strokeWidth: 1.8, roughness: 0.8 }));
-  const ang = Math.atan2(y2 - cpy, x2 - cpx);
-  drawArrow(g, x2, y2, ang);
-  drawEdgeLabel(e, g, cpx, cpy);
+  const end = route.points[2], control = route.points[1];
+  const ang = Math.atan2(end.y - control.y, end.x - control.x);
+  drawArrow(g, end.x, end.y, ang);
+  drawEdgeLabel(e, g, route.labelPoint.x, route.labelPoint.y);
   appendEdgeTooltip(e, g, src, tgt);
 }
 

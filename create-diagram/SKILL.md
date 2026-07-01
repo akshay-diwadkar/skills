@@ -27,8 +27,6 @@ Use this skill to grill the user with questions until the model is understood, t
 
 4. **Verify:** Open the HTML file in a browser. Confirm the brief panel renders when presentation fields exist, entity-specific node shapes render, text is readable at initial fit, edges have labels, legend is visible, and drag/pan/zoom/details/theme/reset work.
 
-5. **Validate skill package edits:** After changing this skill package, run `node scripts/validate-skill.js` from the skill root. The validator checks Markdown links, the OpenAI config prompt, template JavaScript syntax, `DIAGRAM_DATA`, hidden metadata JSON, and the core diagram contract.
-
 ## Rules
 
 - One question at a time. Each must include why it matters, your recommendation, and trade-offs.

@@ -93,13 +93,13 @@ const DIAGRAM_DATA = {
 - `purpose` is optional but recommended. When present, it appears in the visible brief panel and should state what decision or understanding the diagram supports.
 - `fidelity` is optional and must be one of `narrative-architecture`, `exact-code-graph`, or `executive-concept-map`. Default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences.
 - `takeaways` is optional. Use 1-3 short sentences; more than 3 takeaways makes the brief panel harder to scan.
-- Node positions (`x`, `y`) are optional. For best results, omit them and let the template auto-layout the diagram. Use clusters to define readable horizontal lanes for phases, regions, ownership boundaries, or narrative sections.
+- Node positions (`x`, `y`) are optional. For best results, omit them and let the template auto-layout the diagram. Use clusters to define readable horizontal lanes for phases, regions, ownership boundaries, or narrative sections. Auto-layout may shift generated node `y` positions to reduce visible edge overlap while preserving short routes.
 - `type` must match one of the canonical types in Section A; legacy aliases still render but should not be used for new diagrams.
 - `label` on an edge is required and must be the verb describing the relationship.
 - `description` is recommended on nodes. It is shown as a readable multi-line subtitle below a separator line, with the full text available in the hover tooltip. Recommended length: 15-96 characters.
 - `evidence` and `confidence` are required on edges. They are shown in the edge hover tooltip. `confidence` must be `observed`, `inferred`, or `stated`. Use `file:line` or `file:start-end` for code/doc claims; use explicit conversation evidence such as `user-stated` for user-stated relationships.
 - `storageKey` is optional. When set, node positions persist in `localStorage`; changing the diagram shape or size may require changing the key to avoid restoring old positions.
-- The renderer prioritizes readable text over fitting every dense diagram into one tiny viewport. `Fit` clamps to a readable scale and relies on pan/zoom for very large graphs.
+- The renderer prioritizes readable text and clear routes over fitting every dense diagram into one tiny viewport. `Fit` clamps to a readable scale and relies on pan/zoom for very large graphs.
 - Runtime validation warns about duplicate node IDs, unknown node types, dangling edges, missing edge labels, invalid confidence values, missing edge evidence, inconsistent visible/hidden metadata, missing metadata entity IDs, missing cluster members, and empty diagrams. Warnings render in the lower-right panel and are logged to the console.
 - Keep renderer code from the shared template intact. Generated diagram files should differ only in `DIAGRAM_DATA` and the hidden `#agent-metadata` JSON unless the user explicitly asks to change the renderer itself.
 

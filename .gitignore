@@ -3,8 +3,6 @@
 
 # But not these files/directories
 !create-diagram/
-!create-diagram/scripts/
-!create-diagram/scripts/validate-skill.js
 !plan-with-senior-dev/
 !README.md
 
