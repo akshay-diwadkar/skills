@@ -143,7 +143,7 @@ const DIAGRAM_DATA = {
   title: "Architecture Overview",
   storageKey: "arch-overview-v1",
   audience: "Stakeholders, developers, and managers",
-  purpose: "Show how requests move through auth, data, cache, and payment boundaries",
+  purpose: "Architecture overview of the platform services and their relationships.",
   fidelity: "narrative-architecture",
   takeaways: [
     "API Gateway is the external entry point for platform requests",
@@ -296,10 +296,22 @@ function nodeTypeDef(type) {
   return NODE_TYPES[normalizeType(type)] || NODE_TYPES.service;
 }
 
+const VALID_CONFIDENCE = new Set(['observed', 'inferred', 'stated']);
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
+}
+
+function readAgentMetadata() {
+  const metadataEl = document.getElementById('agent-metadata');
+  if (!metadataEl) return { metadata: null, error: 'Missing #agent-metadata JSON block.' };
+  try {
+    return { metadata: JSON.parse(metadataEl.textContent || '{}'), error: null };
+  } catch (err) {
+    return { metadata: null, error: 'Invalid #agent-metadata JSON: ' + err.message };
+  }
 }
 
 function validateDiagramData(data) {
@@ -318,14 +330,40 @@ function validateDiagramData(data) {
   dupes.forEach(id => warnings.push(`Duplicate node id "${id}".`));
   if (!(data.nodes || []).length) warnings.push('Diagram has no nodes.');
   (data.edges || []).forEach(e => {
-    if (!ids.has(e.sourceId)) warnings.push(`Dangling edge source "${e.sourceId}" for "${e.label || 'unlabeled'}".`);
-    if (!ids.has(e.targetId)) warnings.push(`Dangling edge target "${e.targetId}" for "${e.label || 'unlabeled'}".`);
+    const edgeName = e.label || 'unlabeled';
+    if (!e.label) warnings.push(`Missing edge label for "${e.sourceId || 'unknown'}" -> "${e.targetId || 'unknown'}".`);
+    if (!VALID_CONFIDENCE.has(e.confidence)) warnings.push(`Invalid confidence "${e.confidence || 'missing'}" for edge "${edgeName}".`);
+    if (!e.evidence) warnings.push(`Missing evidence for edge "${edgeName}".`);
+    if (!ids.has(e.sourceId)) warnings.push(`Dangling edge source "${e.sourceId}" for "${edgeName}".`);
+    if (!ids.has(e.targetId)) warnings.push(`Dangling edge target "${e.targetId}" for "${edgeName}".`);
   });
   (data.clusters || []).forEach(c => {
     (c.nodeIds || []).forEach(id => {
       if (!ids.has(id)) warnings.push(`Cluster "${c.label || c.id}" references missing node "${id}".`);
     });
   });
+  const { metadata, error } = readAgentMetadata();
+  if (error) warnings.push(error);
+  if (metadata) {
+    ['audience', 'purpose', 'fidelity'].forEach(field => {
+      if (data[field] && metadata[field] !== data[field]) warnings.push(`#agent-metadata.${field} does not match DIAGRAM_DATA.${field}.`);
+    });
+    const entityIds = new Set((metadata.entities || []).map(entity => entity.id));
+    ids.forEach(id => {
+      if (!entityIds.has(id)) warnings.push(`#agent-metadata.entities is missing node id "${id}".`);
+    });
+    (metadata.entities || []).forEach(entity => {
+      if (!ids.has(entity.id)) warnings.push(`#agent-metadata.entities references missing DIAGRAM_DATA node id "${entity.id}".`);
+    });
+    (metadata.relationships || []).forEach(rel => {
+      const relName = rel.label || 'unlabeled';
+      if (!rel.label) warnings.push(`Missing metadata relationship label for "${rel.sourceId || 'unknown'}" -> "${rel.targetId || 'unknown'}".`);
+      if (!VALID_CONFIDENCE.has(rel.confidence)) warnings.push(`Invalid metadata confidence "${rel.confidence || 'missing'}" for relationship "${relName}".`);
+      if (!rel.evidence) warnings.push(`Missing metadata evidence for relationship "${relName}".`);
+      if (!ids.has(rel.sourceId)) warnings.push(`#agent-metadata.relationships has dangling source "${rel.sourceId}" for "${relName}".`);
+      if (!ids.has(rel.targetId)) warnings.push(`#agent-metadata.relationships has dangling target "${rel.targetId}" for "${relName}".`);
+    });
+  }
   return warnings;
 }
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Diagram"
   short_description: "Interrogate systems before diagramming them"
-  default_prompt: "Use $create-diagram to deeply understand this system before creating a Mermaid diagram."
+  default_prompt: "Use $create-diagram to deeply understand this system before creating an Excalidraw-style HTML diagram."

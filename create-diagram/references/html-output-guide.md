@@ -95,12 +95,12 @@ const DIAGRAM_DATA = {
 - `takeaways` is optional. Use 1-3 short sentences; more than 3 takeaways makes the brief panel harder to scan.
 - Node positions (`x`, `y`) are optional. For best results, omit them and let the template auto-layout the diagram. Use clusters to define readable horizontal lanes for phases, regions, ownership boundaries, or narrative sections.
 - `type` must match one of the canonical types in Section A; legacy aliases still render but should not be used for new diagrams.
-- `label` on an edge is the verb describing the relationship.
+- `label` on an edge is required and must be the verb describing the relationship.
 - `description` is recommended on nodes. It is shown as a readable multi-line subtitle below a separator line, with the full text available in the hover tooltip. Recommended length: 15-96 characters.
-- `evidence` and `confidence` are optional on edges. They are shown in the edge hover tooltip. `confidence` must be `observed`, `inferred`, or `stated`. `evidence` should cite `file:line`.
+- `evidence` and `confidence` are required on edges. They are shown in the edge hover tooltip. `confidence` must be `observed`, `inferred`, or `stated`. Use `file:line` or `file:start-end` for code/doc claims; use explicit conversation evidence such as `user-stated` for user-stated relationships.
 - `storageKey` is optional. When set, node positions persist in `localStorage`; changing the diagram shape or size may require changing the key to avoid restoring old positions.
 - The renderer prioritizes readable text over fitting every dense diagram into one tiny viewport. `Fit` clamps to a readable scale and relies on pan/zoom for very large graphs.
-- Runtime validation warns about duplicate node IDs, unknown node types, dangling edges, missing cluster members, and empty diagrams. Warnings render in the lower-right panel and are logged to the console.
+- Runtime validation warns about duplicate node IDs, unknown node types, dangling edges, missing edge labels, invalid confidence values, missing edge evidence, inconsistent visible/hidden metadata, missing metadata entity IDs, missing cluster members, and empty diagrams. Warnings render in the lower-right panel and are logged to the console.
 - Keep renderer code from the shared template intact. Generated diagram files should differ only in `DIAGRAM_DATA` and the hidden `#agent-metadata` JSON unless the user explicitly asks to change the renderer itself.
 
 ### 2. `#agent-metadata`
@@ -155,7 +155,7 @@ Populate the hidden `<script type="application/json" id="agent-metadata">` tag w
 - Every entity `id` must match the corresponding `id` in `DIAGRAM_DATA.nodes`.
 - `audience`, `purpose`, and `fidelity` in `#agent-metadata` must match `DIAGRAM_DATA` when those visible fields are present.
 - `confidence` must be one of: `observed` (directly in code), `inferred` (from naming/structure), or `stated` (from user conversation).
-- `evidence` must cite `file:line` or `file:start-end` whenever the claim comes from code.
+- `evidence` must cite `file:line` or `file:start-end` whenever the claim comes from code or docs. Use explicit conversation evidence such as `user-stated` when the relationship is supplied by the user rather than observed in files.
 - Empty arrays are allowed for trivial diagrams; add a brief note explaining why.
 
 ## Section E: Presentation Readiness
