@@ -30,7 +30,13 @@ Use this skill to grill the user with questions until the model is understood, t
    - Populate the rest of the hidden metadata with the structured JSON schema (entities, relationships with evidence and confidence, assumptions, omissions, agent instructions).
    - Save the file only at the user-confirmed output location.
 
-5. **Verify after building:** Open the HTML file in a browser. Confirm the brief panel renders when presentation fields exist, entity-specific node shapes render, text is readable at initial fit, edges have labels, legend is visible, guided walkthrough starts and advances without changing zoom, and drag/pan/zoom/details/node-drag/theme/reset work during and after walkthrough.
+5. **Validate before verifying:** Run the validation script before opening the file:
+   ```bash
+   python scripts/validate_diagram.py <path-to-output.html>
+   ```
+   Fix all reported errors (exit code 1) before proceeding. Warnings should be reviewed but do not block verification.
+
+6. **Verify after building:** Open the HTML file in a browser. Confirm the brief panel renders when presentation fields exist, entity-specific node shapes render, text is readable at initial fit, edges have labels, legend is visible, guided walkthrough starts and advances without changing zoom, and drag/pan/zoom/details/node-drag/theme/reset work during and after walkthrough.
 
 ## Rules
 

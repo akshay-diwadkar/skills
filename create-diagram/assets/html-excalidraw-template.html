@@ -43,6 +43,26 @@ body[data-theme="dark"] #zoom-level{color:#7a7060}
 body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-color:#2a2820;color:#7a7060}
   #warnings{position:fixed;right:16px;bottom:16px;z-index:110;max-width:min(360px,calc(100vw - 32px));display:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);border:1px solid #d4a037;border-radius:10px;padding:10px 14px;font-size:16px;line-height:1.2;color:#6f4a00;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
   body[data-theme="dark"] #warnings{background:rgba(24,20,14,0.94);border-color:#8a6418;color:#d7b15a}
+  #walkthrough-btn{display:none}
+  #walkthrough-btn.active{background:#d0e8ff;border-color:#1a7abf;color:#1a7abf}
+  body[data-theme="dark"] #walkthrough-btn.active{background:#111a22;border-color:#6aa3d8;color:#6aa3d8}
+  #walkthrough-card{display:none;position:fixed;right:16px;top:80px;z-index:108;width:min(320px,calc(100vw - 32px));max-height:calc(100vh - 170px);overflow-y:auto;background:rgba(255,255,255,0.96);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:12px;padding:16px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.12);color:#5a4e3e;font-family:var(--diagram-font)}
+  body[data-theme="dark"] #walkthrough-card{background:rgba(18,18,22,0.96);border-color:#2a2820;color:#d4cfc4;box-shadow:0 4px 20px rgba(0,0,0,0.45)}
+  #wt-card-count{font-size:15px;color:#8a7e6e;margin-bottom:2px;display:block}
+  body[data-theme="dark"] #wt-card-count{color:#7a7060}
+  #wt-card-title{font-size:27px;line-height:1.1;margin:0 28px 0 0;color:#3d3429}
+  body[data-theme="dark"] #wt-card-title{color:#d7b15a}
+  #wt-card-desc{font-size:20px;line-height:1.2;margin:8px 0 14px;color:#5a4e3e}
+  body[data-theme="dark"] #wt-card-desc{color:#c8c0b4}
+  #wt-card-nav{display:flex;gap:8px;justify-content:flex-end}
+  #wt-card-nav button{width:40px;height:40px;background:#fff;border:1px solid #d4c9b8;border-radius:8px;cursor:pointer;font-family:var(--diagram-font);font-size:22px;font-weight:600;color:#5a4e3e;transition:background 0.15s;display:flex;align-items:center;justify-content:center}
+  body[data-theme="dark"] #wt-card-nav button{background:#1a1916;border-color:#2a2820;color:#c4a46c}
+  #wt-card-nav button:hover{background:#f0ebe4}
+  body[data-theme="dark"] #wt-card-nav button:hover{background:#2a2820}
+  #wt-card-nav button:active{background:#e5ddd2}
+  body[data-theme="dark"] #wt-card-nav button:active{background:#3a3528}
+  #wt-card-nav button:disabled{opacity:0.3;cursor:default}
+  #wt-card-close{position:absolute;right:10px;top:8px;border:0;background:transparent;font-family:var(--diagram-font);font-size:22px;font-weight:650;color:inherit;cursor:pointer}
   #warnings strong{display:block;font-size:18px;margin-bottom:4px}
   #details-panel{position:fixed;right:16px;top:112px;z-index:105;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 158px);overflow:auto;display:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:12px;padding:12px 14px;color:#5a4e3e;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
   body[data-theme="dark"] #details-panel{background:rgba(18,18,22,0.92);border-color:#2a2820;color:#d4cfc4;box-shadow:0 2px 12px rgba(0,0,0,0.38)}
@@ -111,8 +131,19 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
     <button id="zoom-readable" title="Readable fit">Fit</button>
     <button id="zoom-fit-all" title="Fit whole diagram">All</button>
     <button id="reset-layout" title="Reset saved node positions">Reset</button>
+    <button id="walkthrough-btn" title="Guided walkthrough">Walk</button>
     <button id="theme-toggle" title="Toggle dark mode" style="font-size:20px;border:none;background:none;cursor:pointer;padding:2px 6px">☀️</button>
   </div>
+  <aside id="walkthrough-card" aria-label="Walkthrough step">
+    <button id="wt-card-close" class="panel-close" title="Close walkthrough">x</button>
+    <span id="wt-card-count">1/4</span>
+    <h2 id="wt-card-title">Step title</h2>
+    <p id="wt-card-desc">Step description</p>
+    <div id="wt-card-nav">
+      <button id="wt-card-prev" title="Previous step">←</button>
+      <button id="wt-card-next" title="Next step">→</button>
+    </div>
+  </aside>
   <svg id="canvas">
     <defs>
       <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -140,31 +171,102 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
 <script>
 /* ========== POPULATE THIS DATA ========== */
 const DIAGRAM_DATA = {
-  title: "Architecture Overview",
-  storageKey: "arch-overview-v1",
-  audience: "Stakeholders, developers, and managers",
-  purpose: "Architecture overview of the platform services and their relationships.",
+  title: "plan-with-senior-dev Flow",
+  storageKey: "plan-with-senior-dev-flow-v1",
+  audience: "AI agents and developers",
+  purpose: "Show the 4-stage runtime flow, decision gates, reference-doc routing, and task-tier branching at a glance.",
   fidelity: "narrative-architecture",
   takeaways: [
-    "API Gateway is the external entry point for platform requests",
-    "Auth Service owns session decisions and durable user state",
-    "Stripe is isolated as an external payment dependency"
+    "Explore \u2192 Grill \u2192 Plan \u2192 Verify is the canonical flow; feedback loops at contradiction, exit-criteria, and quality gates",
+    "Task tier (Tiny/Standard/High-Risk) controls plan length, risk detail, and reference-doc routing",
+    "Six reference documents gate specific decisions; pre-mortem and anti-patterns apply only at higher tiers"
   ],
   nodes: [
-    { id: "n1", label: "Auth Service", type: "service", description: "Handles user authentication and session management" },
-    { id: "n2", label: "User DB", type: "database", description: "Primary user data store" },
-    { id: "n3", label: "Redis Cache", type: "database", description: "In-memory cache for sessions" },
-    { id: "n4", label: "API Gateway", type: "service", description: "Entry point for all external requests" },
-    { id: "n5", label: "Stripe", type: "external-system", description: "Payment processing provider" },
+    { id: "user", label: "User", type: "actor", description: "Person with an ambiguous implementation request" },
+    { id: "agent", label: "Skill Runner", type: "actor", description: "AI agent executing the plan-with-senior-dev workflow" },
+    { id: "explore", label: "Explore Stage", type: "process", description: "Build current-state evidence from entrypoints, patterns, tests, and contradictions" },
+    { id: "contradiction", label: "Contradictions?", type: "decision", description: "Does the request conflict with code, tests, or established conventions?" },
+    { id: "grill", label: "Grill to Shared Understanding", type: "process", description: "Design-tree walk: one question at a time with concrete scenario probes" },
+    { id: "exit-criteria", label: "Exit Criteria Met?", type: "decision", description: "Goals concrete? Terms agreed? Interfaces decided? Edge cases settled?" },
+    { id: "plan", label: "Plan", type: "process", description: "Produce decision-complete plan in dependency order with tracer bullet for higher tiers" },
+    { id: "tier", label: "Tier Decision", type: "decision", description: "Size the work: Tiny, Standard, or High-Risk controls plan length and risk detail" },
+    { id: "verify", label: "Verify", type: "process", description: "Check current-state claims, scope, patterns, failure modes, tests, and rollback" },
+    { id: "quality-pass", label: "Quality Pass?", type: "decision", description: "Decision-complete? No hedging? Implementation can start immediately?" },
+    { id: "artifact", label: "Plan Artifact", type: "file", description: "Final decision-complete implementation plan delivered to the user" },
+    { id: "exploration-protocol", label: "Exploration Protocol", type: "document", description: "Reference doc for gathering codebase evidence before asking questions" },
+    { id: "question-strategy", label: "Question Strategy", type: "document", description: "Reference doc for asking blocking versus non-blocking questions" },
+    { id: "grilling-protocol", label: "Grilling Protocol", type: "document", description: "Reference doc for pressure-test checklist and exit criteria" },
+    { id: "quality-rubric", label: "Quality Rubric", type: "document", description: "Reference doc for required plan qualities per task tier" },
+    { id: "pre-mortem", label: "Pre-Mortem", type: "document", description: "Reference doc for finding plan-breaking blind spots before finalizing" },
+    { id: "anti-patterns", label: "Anti-Patterns", type: "document", description: "Reference doc for common plan mistakes and how to fix them" },
+    { id: "check-script", label: "Check Plan Script", type: "file", description: "Python validation script combining shape checker and rubric checker" },
+    { id: "domain-docs", label: "Domain Docs", type: "document", description: "CONTEXT.md glossary and ADRs for durable tradeoffs" }
   ],
   edges: [
-    { sourceId: "n4", targetId: "n1", label: "forwards", evidence: "src/gateway/routes.ts:22", confidence: "observed" },
-    { sourceId: "n1", targetId: "n2", label: "reads/writes", evidence: "src/auth/service.ts:30", confidence: "observed" },
-    { sourceId: "n1", targetId: "n3", label: "caches", evidence: "src/auth/session.ts:15", confidence: "observed" },
-    { sourceId: "n1", targetId: "n5", label: "charges", evidence: "src/payments/stripe.ts:8", confidence: "inferred" },
+    { sourceId: "user", targetId: "agent", label: "requests", evidence: "SKILL.md:8", confidence: "observed" },
+    { sourceId: "agent", targetId: "explore", label: "executes", evidence: "SKILL.md:44", confidence: "observed" },
+    { sourceId: "explore", targetId: "exploration-protocol", label: "reads", evidence: "SKILL.md:16", confidence: "observed" },
+    { sourceId: "explore", targetId: "contradiction", label: "checks", evidence: "SKILL.md:56", confidence: "observed" },
+    { sourceId: "contradiction", targetId: "explore", label: "conflicts", evidence: "SKILL.md:56-58", confidence: "observed" },
+    { sourceId: "contradiction", targetId: "grill", label: "resolved", evidence: "user-stated", confidence: "stated" },
+    { sourceId: "explore", targetId: "grill", label: "proceeds", evidence: "SKILL.md:62", confidence: "observed" },
+    { sourceId: "grill", targetId: "question-strategy", label: "follows", evidence: "SKILL.md:17", confidence: "observed" },
+    { sourceId: "grill", targetId: "grilling-protocol", label: "applies", evidence: "SKILL.md:18", confidence: "observed" },
+    { sourceId: "grill", targetId: "exit-criteria", label: "evaluates", evidence: "SKILL.md:80-91", confidence: "observed" },
+    { sourceId: "exit-criteria", targetId: "grill", label: "not-met", evidence: "SKILL.md:92", confidence: "observed" },
+    { sourceId: "exit-criteria", targetId: "plan", label: "met", evidence: "SKILL.md:92", confidence: "observed" },
+    { sourceId: "plan", targetId: "quality-rubric", label: "references", evidence: "SKILL.md:19", confidence: "observed" },
+    { sourceId: "plan", targetId: "anti-patterns", label: "checks", evidence: "SKILL.md:21", confidence: "observed" },
+    { sourceId: "plan", targetId: "tier", label: "sizes", evidence: "SKILL.md:123-187", confidence: "observed" },
+    { sourceId: "plan", targetId: "domain-docs", label: "aligns", evidence: "SKILL.md:188-201", confidence: "observed" },
+    { sourceId: "plan", targetId: "pre-mortem", label: "runs", evidence: "SKILL.md:20", confidence: "observed" },
+    { sourceId: "plan", targetId: "verify", label: "outputs", evidence: "SKILL.md:108", confidence: "observed" },
+    { sourceId: "verify", targetId: "check-script", label: "executes", evidence: "SKILL.md:67-81", confidence: "observed" },
+    { sourceId: "verify", targetId: "quality-pass", label: "evaluates", evidence: "SKILL.md:110-121", confidence: "observed" },
+    { sourceId: "quality-pass", targetId: "verify", label: "fails", evidence: "SKILL.md:121", confidence: "observed" },
+    { sourceId: "quality-pass", targetId: "artifact", label: "passes", evidence: "user-stated", confidence: "stated" },
+    { sourceId: "artifact", targetId: "user", label: "delivers", evidence: "user-stated", confidence: "stated" }
+  ],
+  walkthrough: [
+    {
+      id: "request",
+      title: "Request arrives",
+      description: "User brings an ambiguous implementation request to the Skill Runner agent.",
+      nodeIds: ["user", "agent"]
+    },
+    {
+      id: "explore",
+      title: "Explore and check contradictions",
+      description: "Agent reads the codebase and Exploration Protocol, then checks for contradictions with the request.",
+      nodeIds: ["agent", "explore", "exploration-protocol", "contradiction"]
+    },
+    {
+      id: "grill",
+      title: "Grill to shared understanding",
+      description: "Design-tree walk with scenario probes until exit criteria are all met, following Question Strategy and Grilling Protocol.",
+      nodeIds: ["grill", "question-strategy", "grilling-protocol", "exit-criteria"]
+    },
+    {
+      id: "plan",
+      title: "Plan with tiering",
+      description: "Size the work, write changes in dependency order, run pre-mortem for higher tiers, and align with domain docs.",
+      nodeIds: ["plan", "tier", "quality-rubric", "anti-patterns", "pre-mortem", "domain-docs"]
+    },
+    {
+      id: "verify",
+      title: "Verify and deliver",
+      description: "Run the check script, evaluate against quality rubric, and deliver the final plan artifact to the user.",
+      nodeIds: ["verify", "check-script", "quality-pass", "artifact", "user"]
+    }
   ],
   clusters: [
-    { id: "c1", label: "Platform", nodeIds: ["n1","n2","n3","n4"] }
+    { id: "c-initiation", label: "Initiation", nodeIds: ["user", "agent"] },
+    { id: "c-exploration", label: "Exploration Zone", nodeIds: ["explore", "contradiction", "exploration-protocol"] },
+    { id: "c-grilling", label: "Grilling Zone", nodeIds: ["grill", "exit-criteria", "question-strategy", "grilling-protocol"] },
+    { id: "c-planning", label: "Planning Zone", nodeIds: ["plan", "tier", "quality-rubric", "anti-patterns", "pre-mortem"] },
+    { id: "c-verification", label: "Verification Zone", nodeIds: ["verify", "quality-pass", "check-script"] },
+    { id: "c-knowledge", label: "Domain Knowledge", nodeIds: ["domain-docs"] },
+    { id: "c-output", label: "Delivery", nodeIds: ["artifact"] }
   ]
 };
 </script>
@@ -229,7 +331,7 @@ const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, LANE_GAP_
 const EDGE_END_PAD = 8;
 const EDGE_MIN_SEPARATION = 52, EDGE_LAYOUT_STEP = 46, EDGE_LAYOUT_LIMIT = 184, EDGE_LAYOUT_PASSES = 4;
 const MIN_READABLE_SCALE = 0.58;
-const VERSION = 10;
+const VERSION = 11;
 
 const canvas = document.getElementById('canvas');
 const $ = id => document.getElementById(id);
@@ -246,6 +348,9 @@ let state = {
   selectedNodeId: null, selectedEdgeIndex: null,
   legendExpanded: false,
   briefExpanded: false,
+  walkthroughActive: false,
+  walkthroughSteps: [],
+  walkthroughCurrentStep: -1,
 };
 
 const el = { nodes: {}, edgeGroups: [], clusters: {} };
@@ -343,6 +448,17 @@ function validateDiagramData(data) {
       if (!ids.has(id)) warnings.push(`Cluster "${c.label || c.id}" references missing node "${id}".`);
     });
   });
+  if (Array.isArray(data.walkthrough)) {
+    const wtIds = new Set();
+    data.walkthrough.forEach((step, i) => {
+      if (!step.id) warnings.push(`Walkthrough step ${i} is missing an id.`);
+      if (step.id && wtIds.has(step.id)) warnings.push(`Duplicate walkthrough step id "${step.id}".`);
+      if (step.id) wtIds.add(step.id);
+      if (!step.title) warnings.push(`Walkthrough step "${step.id || i}" is missing a title.`);
+      if (!Array.isArray(step.nodeIds) || !step.nodeIds.length) warnings.push(`Walkthrough step "${step.id || i}" has no nodeIds.`);
+      (step.nodeIds || []).forEach(id => { if (!ids.has(id)) warnings.push(`Walkthrough step "${step.id || i}" references missing node "${id}".`); });
+    });
+  }
   const { metadata, error } = readAgentMetadata();
   if (error) warnings.push(error);
   if (metadata) {
@@ -1099,6 +1215,7 @@ function showNodeDetails(node) {
     closeDetailsPanel();
     applyHighlights();
   });
+  positionDetailsPanel();
   panel.style.display = 'block';
 }
 
@@ -1118,6 +1235,7 @@ function showEdgeDetails(edge, index) {
     closeDetailsPanel();
     applyHighlights();
   });
+  positionDetailsPanel();
   panel.style.display = 'block';
 }
 
@@ -1473,6 +1591,7 @@ function renderAll() {
   renderLegend();
   renderWarnings();
   applyHighlights();
+  applyWalkthrough();
 }
 
 /* ---------- interactions ---------- */
@@ -1588,6 +1707,177 @@ function restorePositions() {
   } catch { return false; }
 }
 
+/* ---------- walkthrough ---------- */
+function initWalkthrough() {
+  const wt = DIAGRAM_DATA.walkthrough;
+  state.walkthroughActive = false;
+  state.walkthroughCurrentStep = -1;
+  if (Array.isArray(wt) && wt.length) {
+    const valid = wt.filter(s => Array.isArray(s.nodeIds) && s.nodeIds.length && s.nodeIds.some(id => state.nodes.find(n => n.id === id)));
+    if (valid.length) {
+      state.walkthroughSteps = valid;
+      showWalkthroughButton();
+      return;
+    }
+  }
+  const inferred = inferWalkthroughSteps();
+  if (inferred.length) {
+    state.walkthroughSteps = inferred;
+    showWalkthroughButton();
+  }
+}
+
+function inferWalkthroughSteps() {
+  const steps = [];
+  const assigned = new Set();
+  (DIAGRAM_DATA.clusters || []).forEach(c => {
+    const ids = (c.nodeIds || []).filter(id => state.nodes.find(n => n.id === id));
+    const unassigned = ids.filter(id => !assigned.has(id));
+    if (unassigned.length) {
+      steps.push({ id: 'cluster-' + (c.id || 'c' + steps.length), title: c.label || 'Cluster', nodeIds: unassigned });
+      unassigned.forEach(id => assigned.add(id));
+    }
+  });
+  state.nodes.forEach(n => {
+    if (!assigned.has(n.id)) {
+      steps.push({ id: 'node-' + n.id, title: n.label || n.id, nodeIds: [n.id] });
+      assigned.add(n.id);
+    }
+  });
+  return steps;
+}
+
+function showWalkthroughButton() {
+  const btn = document.getElementById('walkthrough-btn');
+  if (btn) btn.style.display = 'inline-block';
+}
+
+function isWalkthroughEdgeHighlighted(edge, stepNodeIds) {
+  const set = new Set(stepNodeIds);
+  return set.has(edge.sourceId) && set.has(edge.targetId);
+}
+
+function applyWalkthrough() {
+  if (!state.walkthroughActive || state.walkthroughCurrentStep < 0) {
+    document.querySelectorAll('.node-group.dimmed, .edge-group.dimmed').forEach(g => g.classList.remove('dimmed'));
+    return;
+  }
+  const step = state.walkthroughSteps[state.walkthroughCurrentStep];
+  if (!step) return;
+  const focusIds = new Set(step.nodeIds);
+  Object.entries(el.nodes).forEach(([id, group]) => {
+    group.classList.toggle('dimmed', !focusIds.has(id));
+  });
+  el.edgeGroups.forEach(group => {
+    const idx = Number(group.dataset.edgeIndex);
+    const edge = state.edges[idx];
+    if (!edge) return;
+    group.classList.toggle('dimmed', !isWalkthroughEdgeHighlighted(edge, focusIds));
+  });
+}
+
+function panToWalkthroughStep() {
+  const step = state.walkthroughSteps[state.walkthroughCurrentStep];
+  if (!step || !step.nodeIds.length) return;
+  const nodes = step.nodeIds.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
+  if (!nodes.length) return;
+  const cx = nodes.reduce((s, n) => s + n.x + nodeW(n.label, n.description) / 2, 0) / nodes.length;
+  const cy = nodes.reduce((s, n) => s + n.y + nodeH(n) / 2, 0) / nodes.length;
+  const r = canvas.getBoundingClientRect();
+  state.viewX = r.width / 2 - cx * state.viewScale;
+  state.viewY = r.height / 2 - cy * state.viewScale;
+  applyViewport();
+}
+
+function renderWalkthroughCard() {
+  const card = document.getElementById('walkthrough-card');
+  const count = document.getElementById('wt-card-count');
+  const title = document.getElementById('wt-card-title');
+  const desc = document.getElementById('wt-card-desc');
+  if (!card) return;
+  if (!state.walkthroughActive) {
+    card.style.display = 'none';
+    return;
+  }
+  const total = state.walkthroughSteps.length;
+  const step = state.walkthroughSteps[state.walkthroughCurrentStep];
+  count.textContent = (state.walkthroughCurrentStep + 1) + '/' + total;
+  title.textContent = step ? step.title : '';
+  if (step && step.description) {
+    desc.textContent = step.description;
+    desc.style.display = '';
+  } else {
+    desc.style.display = 'none';
+  }
+  const isLast = state.walkthroughCurrentStep >= total - 1;
+  document.getElementById('wt-card-prev').disabled = state.walkthroughCurrentStep <= 0;
+  const nextBtn = document.getElementById('wt-card-next');
+  nextBtn.textContent = isLast ? '\u2713' : '\u2192';
+  nextBtn.disabled = false;
+  card.style.display = 'block';
+}
+
+function positionDetailsPanel() {
+  const panel = document.getElementById('details-panel');
+  if (!panel) return;
+  if (state.walkthroughActive) {
+    const card = document.getElementById('walkthrough-card');
+    if (card && card.style.display !== 'none') {
+      const cardRect = card.getBoundingClientRect();
+      panel.style.top = (cardRect.bottom + 8) + 'px';
+      panel.style.maxHeight = (window.innerHeight - cardRect.bottom - 24) + 'px';
+      panel.style.right = '16px';
+      panel.style.left = 'auto';
+      panel.style.transform = 'none';
+      return;
+    }
+  }
+  panel.style.top = '';
+  panel.style.right = '';
+  panel.style.left = '';
+  panel.style.transform = '';
+  panel.style.maxHeight = '';
+}
+
+function startWalkthrough() {
+  if (!state.walkthroughSteps.length) return;
+  state.walkthroughActive = true;
+  state.walkthroughCurrentStep = 0;
+  document.getElementById('walkthrough-btn').classList.add('active');
+  applyWalkthrough();
+  panToWalkthroughStep();
+  renderWalkthroughCard();
+}
+
+function stopWalkthrough() {
+  state.walkthroughActive = false;
+  state.walkthroughCurrentStep = -1;
+  document.getElementById('walkthrough-btn').classList.remove('active');
+  document.querySelectorAll('.node-group.dimmed, .edge-group.dimmed').forEach(g => g.classList.remove('dimmed'));
+  renderWalkthroughCard();
+  positionDetailsPanel();
+}
+
+function nextWalkthroughStep() {
+  if (state.walkthroughCurrentStep >= state.walkthroughSteps.length - 1) {
+    stopWalkthrough();
+    return;
+  }
+  state.walkthroughCurrentStep++;
+  applyWalkthrough();
+  panToWalkthroughStep();
+  renderWalkthroughCard();
+}
+
+function prevWalkthroughStep() {
+  if (state.walkthroughCurrentStep > 0) {
+    state.walkthroughCurrentStep--;
+    applyWalkthrough();
+    panToWalkthroughStep();
+    renderWalkthroughCard();
+  }
+}
+
 /* ---------- init ---------- */
 function init() {
   state.warnings = validateDiagramData(DIAGRAM_DATA);
@@ -1603,6 +1893,7 @@ function init() {
   if (!restorePositions()) {
     autoLayout(state.nodes, state.edges, state.clusters);
   }
+  initWalkthrough();
   // Apply saved theme
   document.body.dataset.theme = currentTheme;
   const dot = document.getElementById('grid-dot');
@@ -1642,6 +1933,18 @@ function init() {
   document.getElementById('theme-toggle').addEventListener('click', () => {
     setTheme(currentTheme === 'light' ? 'dark' : 'light');
   });
+  document.getElementById('walkthrough-btn').addEventListener('click', () => {
+    if (state.walkthroughActive) stopWalkthrough();
+    else startWalkthrough();
+  });
+  document.getElementById('wt-card-next').addEventListener('click', nextWalkthroughStep);
+  document.getElementById('wt-card-prev').addEventListener('click', prevWalkthroughStep);
+  document.getElementById('wt-card-close').addEventListener('click', stopWalkthrough);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && state.walkthroughActive) stopWalkthrough();
+    if (e.key === 'ArrowRight' && state.walkthroughActive) nextWalkthroughStep();
+    if (e.key === 'ArrowLeft' && state.walkthroughActive) prevWalkthroughStep();
+  });
   window.addEventListener('resize', () => fitToScreen());
 }
 
@@ -1651,38 +1954,74 @@ init();
 <!-- AGENT METADATA (invisible to human viewers, embedded for agent parsing) -->
 <script type="application/json" id="agent-metadata">
 {
-  "audience": "Stakeholders, developers, and managers",
-  "purpose": "Architecture overview of the platform services and their relationships.",
+  "audience": "AI agents and developers",
+  "purpose": "Show the 4-stage runtime flow, decision gates, reference-doc routing, and task-tier branching at a glance.",
   "fidelity": "narrative-architecture",
   "entities": [
-    { "id": "n1", "name": "Auth Service", "type": "service", "description": "Handles user authentication and session management", "evidence": "src/auth/service.ts:10-45" },
-    { "id": "n2", "name": "User DB", "type": "database", "description": "Primary user data store", "evidence": "src/db/schema.ts:5-30" },
-    { "id": "n3", "name": "Redis Cache", "type": "database", "description": "In-memory cache for sessions", "evidence": "src/cache/redis.ts:12-25" },
-    { "id": "n4", "name": "API Gateway", "type": "service", "description": "Entry point for all external requests", "evidence": "src/gateway/routes.ts:3-50" },
-    { "id": "n5", "name": "Stripe", "type": "external-system", "description": "Payment processing provider", "evidence": "src/payments/stripe.ts:8-35" }
+    { "id": "user", "name": "User", "type": "actor", "description": "Person with an ambiguous implementation request", "evidence": "SKILL.md:8" },
+    { "id": "agent", "name": "Skill Runner", "type": "actor", "description": "AI agent executing the plan-with-senior-dev workflow", "evidence": "SKILL.md:6-8" },
+    { "id": "explore", "name": "Explore Stage", "type": "process", "description": "Build current-state evidence from entrypoints, patterns, tests, and contradictions", "evidence": "SKILL.md:44-58" },
+    { "id": "contradiction", "name": "Contradictions?", "type": "decision", "description": "Does the request conflict with code, tests, or established conventions?", "evidence": "SKILL.md:56-58" },
+    { "id": "grill", "name": "Grill to Shared Understanding", "type": "process", "description": "Design-tree walk: one question at a time with concrete scenario probes", "evidence": "SKILL.md:60-92" },
+    { "id": "exit-criteria", "name": "Exit Criteria Met?", "type": "decision", "description": "Goals concrete? Terms agreed? Interfaces decided? Edge cases settled?", "evidence": "SKILL.md:80-92" },
+    { "id": "plan", "name": "Plan", "type": "process", "description": "Produce decision-complete plan in dependency order with tracer bullet for higher tiers", "evidence": "SKILL.md:94-108" },
+    { "id": "tier", "name": "Tier Decision", "type": "decision", "description": "Size the work: Tiny, Standard, or High-Risk controls plan length and risk detail", "evidence": "SKILL.md:123-187" },
+    { "id": "verify", "name": "Verify", "type": "process", "description": "Check current-state claims, scope, patterns, failure modes, tests, and rollback", "evidence": "SKILL.md:108-121" },
+    { "id": "quality-pass", "name": "Quality Pass?", "type": "decision", "description": "Decision-complete? No hedging? Implementation can start immediately?", "evidence": "SKILL.md:110-121" },
+    { "id": "artifact", "name": "Plan Artifact", "type": "file", "description": "Final decision-complete implementation plan delivered to the user", "evidence": "SKILL.md:94-108" },
+    { "id": "exploration-protocol", "name": "Exploration Protocol", "type": "document", "description": "Reference doc for gathering codebase evidence before asking questions", "evidence": "references/exploration-protocol.md" },
+    { "id": "question-strategy", "name": "Question Strategy", "type": "document", "description": "Reference doc for asking blocking versus non-blocking questions", "evidence": "references/question-strategy.md" },
+    { "id": "grilling-protocol", "name": "Grilling Protocol", "type": "document", "description": "Reference doc for pressure-test checklist and exit criteria", "evidence": "references/grilling-protocol.md" },
+    { "id": "quality-rubric", "name": "Quality Rubric", "type": "document", "description": "Reference doc for required plan qualities per task tier", "evidence": "references/plan-quality-rubric.md" },
+    { "id": "pre-mortem", "name": "Pre-Mortem", "type": "document", "description": "Reference doc for finding plan-breaking blind spots before finalizing", "evidence": "references/pre-mortem.md" },
+    { "id": "anti-patterns", "name": "Anti-Patterns", "type": "document", "description": "Reference doc for common plan mistakes and how to fix them", "evidence": "references/anti-patterns.md" },
+    { "id": "check-script", "name": "Check Plan Script", "type": "file", "description": "Python validation script combining shape checker and rubric checker", "evidence": "scripts/check_plan.py" },
+    { "id": "domain-docs", "name": "Domain Docs", "type": "document", "description": "CONTEXT.md glossary and ADRs for durable tradeoffs", "evidence": "SKILL.md:188-201" }
   ],
   "relationships": [
-    { "sourceId": "n4", "targetId": "n1", "label": "forwards", "direction": "API Gateway → Auth Service", "confidence": "observed", "evidence": "src/gateway/routes.ts:22" },
-    { "sourceId": "n1", "targetId": "n2", "label": "reads/writes", "direction": "Auth Service → User DB", "confidence": "observed", "evidence": "src/auth/service.ts:30" },
-    { "sourceId": "n1", "targetId": "n3", "label": "caches", "direction": "Auth Service → Redis Cache", "confidence": "observed", "evidence": "src/auth/session.ts:15" },
-    { "sourceId": "n1", "targetId": "n5", "label": "charges", "direction": "Auth Service → Stripe", "confidence": "inferred", "evidence": "src/payments/stripe.ts:8" }
+    { "sourceId": "user", "targetId": "agent", "label": "requests", "direction": "User \u2192 Skill Runner", "confidence": "observed", "evidence": "SKILL.md:8" },
+    { "sourceId": "agent", "targetId": "explore", "label": "executes", "direction": "Skill Runner \u2192 Explore Stage", "confidence": "observed", "evidence": "SKILL.md:44" },
+    { "sourceId": "explore", "targetId": "exploration-protocol", "label": "reads", "direction": "Explore Stage \u2192 Exploration Protocol", "confidence": "observed", "evidence": "SKILL.md:16" },
+    { "sourceId": "explore", "targetId": "contradiction", "label": "checks", "direction": "Explore Stage \u2192 Contradictions?", "confidence": "observed", "evidence": "SKILL.md:56" },
+    { "sourceId": "contradiction", "targetId": "explore", "label": "conflicts", "direction": "Contradictions? \u2192 Explore Stage", "confidence": "observed", "evidence": "SKILL.md:56-58" },
+    { "sourceId": "contradiction", "targetId": "grill", "label": "resolved", "direction": "Contradictions? \u2192 Grill", "confidence": "stated", "evidence": "user-stated" },
+    { "sourceId": "explore", "targetId": "grill", "label": "proceeds", "direction": "Explore Stage \u2192 Grill", "confidence": "observed", "evidence": "SKILL.md:62" },
+    { "sourceId": "grill", "targetId": "question-strategy", "label": "follows", "direction": "Grill \u2192 Question Strategy", "confidence": "observed", "evidence": "SKILL.md:17" },
+    { "sourceId": "grill", "targetId": "grilling-protocol", "label": "applies", "direction": "Grill \u2192 Grilling Protocol", "confidence": "observed", "evidence": "SKILL.md:18" },
+    { "sourceId": "grill", "targetId": "exit-criteria", "label": "evaluates", "direction": "Grill \u2192 Exit Criteria", "confidence": "observed", "evidence": "SKILL.md:80-91" },
+    { "sourceId": "exit-criteria", "targetId": "grill", "label": "not-met", "direction": "Exit Criteria \u2192 Grill", "confidence": "observed", "evidence": "SKILL.md:92" },
+    { "sourceId": "exit-criteria", "targetId": "plan", "label": "met", "direction": "Exit Criteria \u2192 Plan", "confidence": "observed", "evidence": "SKILL.md:92" },
+    { "sourceId": "plan", "targetId": "quality-rubric", "label": "references", "direction": "Plan \u2192 Quality Rubric", "confidence": "observed", "evidence": "SKILL.md:19" },
+    { "sourceId": "plan", "targetId": "anti-patterns", "label": "checks", "direction": "Plan \u2192 Anti-Patterns", "confidence": "observed", "evidence": "SKILL.md:21" },
+    { "sourceId": "plan", "targetId": "tier", "label": "sizes", "direction": "Plan \u2192 Tier Decision", "confidence": "observed", "evidence": "SKILL.md:123-187" },
+    { "sourceId": "plan", "targetId": "domain-docs", "label": "aligns", "direction": "Plan \u2192 Domain Docs", "confidence": "observed", "evidence": "SKILL.md:188-201" },
+    { "sourceId": "plan", "targetId": "pre-mortem", "label": "runs", "direction": "Plan \u2192 Pre-Mortem", "confidence": "observed", "evidence": "SKILL.md:20" },
+    { "sourceId": "plan", "targetId": "verify", "label": "outputs", "direction": "Plan \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:108" },
+    { "sourceId": "verify", "targetId": "check-script", "label": "executes", "direction": "Verify \u2192 Check Plan Script", "confidence": "observed", "evidence": "SKILL.md:67-81" },
+    { "sourceId": "verify", "targetId": "quality-pass", "label": "evaluates", "direction": "Verify \u2192 Quality Pass?", "confidence": "observed", "evidence": "SKILL.md:110-121" },
+    { "sourceId": "quality-pass", "targetId": "verify", "label": "fails", "direction": "Quality Pass? \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:121" },
+    { "sourceId": "quality-pass", "targetId": "artifact", "label": "passes", "direction": "Quality Pass? \u2192 Plan Artifact", "confidence": "stated", "evidence": "user-stated" },
+    { "sourceId": "artifact", "targetId": "user", "label": "delivers", "direction": "Plan Artifact \u2192 User", "confidence": "stated", "evidence": "user-stated" }
   ],
   "assumptions": [
-    "All services communicate synchronously via HTTP",
-    "Stripe is the only payment provider"
+    "The diagram shows the canonical flow; agents may fast-path tiny changes by skipping the grilling loop",
+    "Reference docs are shown at their gate; they are read only when the task risk matches the doc's purpose"
   ],
   "omissions": [
-    "Health check endpoints — not relevant to architecture flow",
-    "Database replicas — single instance shown for clarity"
+    "Individual file paths and line-level evidence are in agent-metadata only",
+    "check_plan_shape.py and check_plan_rubric.py internals are compressed into Check Plan Script node",
+    "agents/openai.yaml surface contract is omitted",
+    "scripts/_plan_utils.py helper is omitted as implementation detail"
   ],
   "openQuestions": [
-    "Should Redis be clustered for high availability?"
+    "Should the pre-mortem node connect to a specific stage (plan) or also to verify?"
   ],
   "agentInstructions": [
     "Keep entity `id` values stable across diagram updates",
     "Match node `id` in DIAGRAM_DATA with `id` in agent-metadata entities",
-    "Do not remove entities without updating both DIAGRAM_DATA and agent-metadata",
-    "Add new entities only when supported by code evidence"
+    "Add new entities only when supported by SKILL.md evidence",
+    "Ensure feedback-loop edges (contradiction->explore, exit-criteria->grill, quality-pass->verify) stay visible",
+    "The walkthrough follows left-to-right flow through the 4 stages"
   ]
 }
 </script>

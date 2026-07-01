@@ -124,6 +124,26 @@ const DIAGRAM_DATA = {
 
 Populate the hidden `<script type="application/json" id="agent-metadata">` tag with the JSON schema from Section D. This is invisible to human viewers; only agents reading the HTML source see it.
 
+### 3. Validate before presenting
+
+Before opening the file in a browser or presenting it, run the validation script:
+
+```bash
+python scripts/validate_diagram.py <path-to-output.html>
+```
+
+The script checks:
+- `DIAGRAM_DATA` is valid JSON with all required fields
+- All node `type` values are from the canonical taxonomy (Section A)
+- No duplicate node or walkthrough step IDs
+- All edge `sourceId`/`targetId` reference existing nodes
+- Every edge has `label`, `evidence`, and valid `confidence`
+- Clusters and walkthrough steps reference existing node IDs
+- `#agent-metadata` is consistent with `DIAGRAM_DATA` when present
+- Agent-metadata entities cover all diagram nodes (and vice versa)
+
+If the script exits with code 1, fix all reported errors before presenting. Warnings should be reviewed but do not need to block presentation.
+
 ## Section D: Agent JSON Metadata
 
 ```json
