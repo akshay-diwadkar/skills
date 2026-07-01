@@ -96,11 +96,12 @@ const DIAGRAM_DATA = {
     { sourceId: "api", targetId: "users", label: "reads/writes", evidence: "src/path.ts:10", confidence: "observed" },
   ],
   clusters: [
-    { id: "platform", label: "Platform", nodeIds: ["api", "users"] },
+    { id: "platform", label: "Platform", layout: "vertical", nodeIds: ["api", "users"] },
   ]
 };
 ```
 
+- `layout` on a cluster is optional. Use `"vertical"` (default) to stack nodes top-to-bottom in topological order (sources top, sinks bottom). Use `"circular"` for peer groups — nodes orbit a center at equal angular intervals. Falls back to vertical when a cluster has ≤ 2 nodes. Choose based on the cluster's internal topology: sequential edges → vertical, no directional edges or star shape → circular.
 - `id` values must be unique within the diagram.
 - `title` should be short enough to scan in the fixed toolbar. The renderer truncates only the toolbar display when space is tight; the full `DIAGRAM_DATA.title` remains available for metadata, tooltips, and generated filenames.
 - `audience` is optional. When present, it appears in the visible brief panel and should name the humans this diagram is for.

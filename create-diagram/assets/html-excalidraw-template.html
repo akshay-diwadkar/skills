@@ -326,8 +326,9 @@ let NODE_TYPES = th().nodeTypes;
 
 const NODE_W = 340, NODE_H = 124;
 const NODE_H_DESC = 205, TITLE_FONT_SIZE = 36, DESCRIPTION_FONT_SIZE = 24, MAX_DESC_CHARS = 96, MAX_DESC_LINES = 3;
-const CLUSTER_PAD = 56, CLUSTER_LABEL_H = 44, LAYER_GAP_X = 400, LAYER_GAP_Y = 240;
-const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, LANE_GAP_Y = 220;
+const CLUSTER_PAD = 56, CLUSTER_LABEL_H = 44;
+const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, CLUSTER_GAP_X = 100;
+const CIRCULAR_RADIUS_FACTOR = 80, CIRCULAR_MIN_RADIUS = 200;
 const EDGE_END_PAD = 8;
 const EDGE_MIN_SEPARATION = 52, EDGE_LAYOUT_STEP = 46, EDGE_LAYOUT_LIMIT = 184, EDGE_LAYOUT_PASSES = 4;
 const MIN_READABLE_SCALE = 0.58;
@@ -563,6 +564,7 @@ function resolveClusterIntrusions(nodes, clusters) {
         if (memberIds.has(node.id)) continue;
         const nBox = nodeBox(node);
         if (!boxesOverlap(cBox, nBox, CLUSTER_INTRUSION_GAP)) continue;
+        if (nBox.x + nBox.w <= cBox.x || nBox.x >= cBox.x + cBox.w) continue;
         const clusterCenter = cBox.y + cBox.h / 2;
         const nodeCenterY = nBox.y + nBox.h / 2;
         if (nodeCenterY < clusterCenter && cBox.y - nBox.h - CLUSTER_INTRUSION_GAP >= 40) {
@@ -738,17 +740,55 @@ function routeNodePenalty(route, nodes) {
     route.samples.slice(1, -1).forEach(point => {
       if (pointInBox(point, box)) penalty += 420;
     });
-    if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 10))) penalty += 900;
+    if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 20))) penalty += 900;
   });
   return penalty;
 }
 
-function scoreEdgeLayout(nodes, edges, initialY = {}) {
+function routeClusterPenalty(route, clusters, nodes) {
+  let penalty = 0;
+  const endpointIds = new Set([route.edge.sourceId, route.edge.targetId]);
+  clusters.forEach(cluster => {
+    const memberIds = new Set(cluster.nodeIds || []);
+    if ([...endpointIds].some(id => memberIds.has(id))) return;
+    const cBox = clusterBox(cluster, nodes);
+    if (!cBox) return;
+    if (boxesOverlap(route.labelBox, expandBox(cBox, 8))) penalty += 50000;
+    route.samples.forEach(point => {
+      if (pointInBox(point, expandBox(cBox, 4))) penalty += 25000;
+    });
+  });
+  return penalty;
+}
+
+function routeIntraClusterNodePenalty(route, clusters, nodes) {
+  let penalty = 0;
+  const endpointIds = new Set([route.edge.sourceId, route.edge.targetId]);
+  clusters.forEach(cluster => {
+    const memberIds = new Set(cluster.nodeIds || []);
+    if (!memberIds.has(route.edge.sourceId) || !memberIds.has(route.edge.targetId)) return;
+    cluster.nodeIds.forEach(nid => {
+      if (endpointIds.has(nid)) return;
+      const node = nodes.find(n => n.id === nid);
+      if (!node) return;
+      const box = expandBox(nodeBox(node), 8);
+      route.samples.slice(1, -1).forEach(point => {
+        if (pointInBox(point, box)) penalty += 50000;
+      });
+      if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 20))) penalty += 50000;
+    });
+  });
+  return penalty;
+}
+
+function scoreEdgeLayout(nodes, edges, initialY = {}, clusters = []) {
   const routes = edges.map((edge, index) => edgeRoute(edge, index, nodes, edges)).filter(Boolean);
   let score = 0;
   routes.forEach(route => {
     score += routeLength(route) * 0.035;
     score += routeNodePenalty(route, nodes);
+    score += routeClusterPenalty(route, clusters, nodes);
+    score += routeIntraClusterNodePenalty(route, clusters, nodes);
     const dy = Math.abs((initialY[route.edge.sourceId] ?? route.src.y) - route.src.y) +
       Math.abs((initialY[route.edge.targetId] ?? route.tgt.y) - route.tgt.y);
     score += dy * 0.08;
@@ -771,7 +811,7 @@ function resolveEdgeOverlaps(nodes, edges, clusters = []) {
   if (edges.length < 2 || nodes.length < 3) return;
   const initialY = {};
   nodes.forEach(node => { initialY[node.id] = node.y; });
-  let bestScore = scoreEdgeLayout(nodes, edges, initialY);
+  let bestScore = scoreEdgeLayout(nodes, edges, initialY, clusters);
   const ordered = [...nodes].sort((a, b) =>
     connectedEdgeIndexes(b.id).length - connectedEdgeIndexes(a.id).length ||
     a.y - b.y
@@ -786,7 +826,7 @@ function resolveEdgeOverlaps(nodes, edges, clusters = []) {
       for (const candidateY of candidates) {
         node.y = candidateY;
         if (wouldOverlapAnyNode(node, nodes)) continue;
-        const score = scoreEdgeLayout(nodes, edges, initialY);
+        const score = scoreEdgeLayout(nodes, edges, initialY, clusters);
         if (score + 0.5 < bestScore) {
           bestScore = score;
           chosenY = candidateY;
@@ -797,7 +837,7 @@ function resolveEdgeOverlaps(nodes, edges, clusters = []) {
         improved = true;
         resolveNodeCollisions(nodes, COLLISION_GAP, 20);
         validateClusterSeparation(nodes, clusters);
-        bestScore = scoreEdgeLayout(nodes, edges, initialY);
+        bestScore = scoreEdgeLayout(nodes, edges, initialY, clusters);
       }
     }
     if (!improved) break;
@@ -859,7 +899,31 @@ function stackHeight(items) {
   return items.reduce((total, n, index) => total + nodeH(n) + (index ? NODE_GAP_Y : 0), 0);
 }
 
-function buildClusterLayouts(nodes, clusters, layerIndex, layers, layerX, edges) {
+function topologicalOrderInCluster(members, edges) {
+  const memberSet = new Set(members.map(n => n.id));
+  const adj = {}, inDeg = {};
+  members.forEach(n => { adj[n.id] = []; inDeg[n.id] = 0; });
+  edges.forEach(e => {
+    if (memberSet.has(e.sourceId) && memberSet.has(e.targetId)) {
+      adj[e.sourceId].push(e.targetId);
+      inDeg[e.targetId]++;
+    }
+  });
+  const q = members.filter(n => inDeg[n.id] === 0).map(n => n.id);
+  const result = [];
+  while (q.length) {
+    const id = q.shift();
+    result.push(id);
+    adj[id].forEach(tgt => {
+      inDeg[tgt]--;
+      if (inDeg[tgt] === 0) q.push(tgt);
+    });
+  }
+  members.forEach(n => { if (!result.includes(n.id)) result.push(n.id); });
+  return result.map(id => members.find(n => n.id === id)).filter(Boolean);
+}
+
+function buildClusterLayouts(nodes, clusters, layerIndex, edges) {
   const assigned = new Set();
   const layouts = [];
   (clusters || []).forEach((cluster, index) => {
@@ -879,15 +943,6 @@ function buildClusterLayouts(nodes, clusters, layerIndex, layers, layerX, edges)
     layout.minLayer = layerList[0] ?? 0;
     layout.maxLayer = layerList[layerList.length - 1] ?? layout.minLayer;
     layout.medianLayer = layerList.length ? layerList[Math.floor(layerList.length / 2)] : layout.minLayer;
-    layout.idsByLayer = layers.map(layer => layer.filter(id => layout.nodeIds.includes(id)));
-    layout.contentHeight = Math.max(NODE_H, ...layout.idsByLayer.map(ids => stackHeight(ids.map(id => nodeMap[id]).filter(Boolean))));
-    const maxLayerNodeW = li => Math.max(...layout.idsByLayer[li].map(id => nodeW(nodeMap[id].label, nodeMap[id].description)), NODE_W);
-    layout.box = {
-      x: layerX[layout.minLayer] - CLUSTER_PAD,
-      y: 140,
-      w: (layerX[layout.maxLayer] + maxLayerNodeW(layout.maxLayer)) - layerX[layout.minLayer] + CLUSTER_PAD * 2,
-      h: layout.contentHeight + CLUSTER_PAD * 2 + CLUSTER_LABEL_H + 20,
-    };
   });
 
   const layoutByNode = {};
@@ -904,7 +959,12 @@ function buildClusterLayouts(nodes, clusters, layerIndex, layers, layerX, edges)
   layouts.forEach(layout => {
     layout.connectedMedian = layout.connectionCount ? layout.connectedMedian / layout.connectionCount : 9999;
   });
+  const topoOrder = layoutTopologicalOrder(layouts, layoutByNode, edges);
+  const topoPos = {};
+  topoOrder.forEach((id, i) => { topoPos[id] = i; });
+  layouts.forEach(l => { if (!(l.id in topoPos)) topoPos[l.id] = 9999; });
   return layouts.sort((a, b) =>
+    topoPos[a.id] - topoPos[b.id] ||
     a.medianLayer - b.medianLayer ||
     a.minLayer - b.minLayer ||
     a.connectedMedian - b.connectedMedian ||
@@ -912,70 +972,86 @@ function buildClusterLayouts(nodes, clusters, layerIndex, layers, layerX, edges)
   );
 }
 
-function scoreClusterRow(layout, candidateY, placed, edges, layoutByNode) {
-  const center = { x: layout.box.x + layout.box.w / 2, y: candidateY + layout.box.h / 2 };
-  let score = 0, count = 0;
+function layoutTopologicalOrder(layouts, layoutByNode, edges) {
+  const out = {}, inDeg = {};
+  const edgeCount = {};
+  layouts.forEach(l => { out[l.id] = []; inDeg[l.id] = 0; edgeCount[l.id] = 0; });
   edges.forEach(edge => {
     const a = layoutByNode[edge.sourceId], b = layoutByNode[edge.targetId];
     if (!a || !b || a === b) return;
-    const other = a === layout ? b : b === layout ? a : null;
-    if (!other || !placed.has(other.id)) return;
-    const otherCenter = { x: other.box.x + other.box.w / 2, y: other.box.y + other.box.h / 2 };
-    score += Math.abs(center.x - otherCenter.x) + Math.abs(center.y - otherCenter.y);
-    count++;
-  });
-  return count ? score / count : candidateY;
-}
-
-function placeClusterLayouts(layouts, edges) {
-  const rows = [];
-  const placed = new Set();
-  const layoutByNode = {};
-  layouts.forEach(layout => layout.nodeIds.forEach(id => { layoutByNode[id] = layout; }));
-
-  layouts.forEach(layout => {
-    const candidates = rows
-      .map(row => row.y)
-      .filter(y => !rowWouldOverlap(layout, y, rows));
-    const nextY = rows.length
-      ? Math.max(...rows.map(row => row.y + row.h)) + LANE_GAP_Y
-      : 140;
-    candidates.push(nextY);
-    const bestY = candidates
-      .map(y => ({ y, score: scoreClusterRow(layout, y, placed, edges, layoutByNode) }))
-      .sort((a, b) => a.score - b.score || a.y - b.y)[0].y;
-    layout.box.y = bestY;
-    let row = rows.find(candidate => candidate.y === bestY);
-    if (!row) {
-      row = { y: bestY, h: 0, layouts: [] };
-      rows.push(row);
+    edgeCount[a.id] = (edgeCount[a.id] || 0) + 1;
+    edgeCount[b.id] = (edgeCount[b.id] || 0) + 1;
+    if (!out[a.id].includes(b.id)) {
+      out[a.id].push(b.id);
+      inDeg[b.id]++;
     }
-    row.h = Math.max(row.h, layout.box.h);
-    row.layouts.push(layout);
-    placed.add(layout.id);
   });
-}
-
-function rowWouldOverlap(layout, y, rows) {
-  const box = { ...layout.box, y };
-  return rows.some(row => row.layouts.some(existing => boxesOverlap(box, existing.box, CLUSTER_INTRUSION_GAP)));
-}
-
-function positionNodesInLayouts(layouts, layers, layerX) {
-  layouts.forEach(layout => {
-    const contentTop = layout.box.y + CLUSTER_PAD + CLUSTER_LABEL_H;
-    layout.idsByLayer.forEach((ids, li) => {
-      const columnNodes = ids.map(id => nodeMap[id]).filter(Boolean);
-      if (!columnNodes.length) return;
-      const totalH = stackHeight(columnNodes);
-      let curY = contentTop + Math.max(0, (layout.contentHeight - totalH) / 2);
-      columnNodes.forEach(n => {
-        n.x = layerX[li];
-        n.y = curY;
-        curY += nodeH(n) + NODE_GAP_Y;
-      });
+  const q = layouts.filter(l => inDeg[l.id] === 0)
+    .sort((a, b) => (edgeCount[a.id] || 0) - (edgeCount[b.id] || 0) || a.medianLayer - b.medianLayer)
+    .map(l => l.id);
+  const order = [];
+  while (q.length) {
+    const id = q.shift();
+    order.push(id);
+    (out[id] || []).forEach(tgt => {
+      inDeg[tgt]--;
+      if (inDeg[tgt] === 0) {
+        const idx = q.findIndex(qid => {
+          const qec = edgeCount[qid] || 0;
+          const qml = layouts.find(x => x.id === qid)?.medianLayer ?? 0;
+          const tec = edgeCount[tgt] || 0;
+          const tml = layouts.find(x => x.id === tgt)?.medianLayer ?? 0;
+          return tec < qec || (tec === qec && tml < qml);
+        });
+        q.splice(idx < 0 ? q.length : idx, 0, tgt);
+      }
     });
-    resolveNodeCollisions(layout.nodeIds.map(id => nodeMap[id]).filter(Boolean), COLLISION_GAP, 20);
+  }
+  layouts.forEach(l => { if (!order.includes(l.id)) order.push(l.id); });
+  return order;
+}
+
+function positionClusters(layouts, nodes, edges) {
+  const TOP_OFFSET = 140;
+  let currentX = 60;
+
+  layouts.forEach(layout => {
+    const members = layout.nodeIds.map(id => nodes.find(n => n.id === id)).filter(Boolean);
+    if (!members.length) return;
+
+    const mode = (layout.cluster && layout.cluster.layout) || 'vertical';
+    const ordered = topologicalOrderInCluster(members, edges);
+    const maxNodeW = Math.max(...members.map(n => nodeW(n.label, n.description)), NODE_W);
+
+    if (mode === 'circular' && ordered.length > 2) {
+      const radius = Math.max(CIRCULAR_MIN_RADIUS, ordered.length * CIRCULAR_RADIUS_FACTOR);
+      const clusterW = radius * 2 + maxNodeW + CLUSTER_PAD * 4;
+      const centerX = currentX + clusterW / 2;
+      const centerY = TOP_OFFSET + CLUSTER_PAD + CLUSTER_LABEL_H + radius + NODE_H / 2;
+
+      ordered.forEach((node, i) => {
+        const angle = (i / ordered.length) * 2 * Math.PI - Math.PI / 2;
+        const nw = nodeW(node.label, node.description);
+        const nh = nodeH(node);
+        node.x = centerX + radius * Math.cos(angle) - nw / 2;
+        node.y = centerY + radius * Math.sin(angle) - nh / 2;
+      });
+
+      currentX += clusterW + CLUSTER_GAP_X;
+    } else {
+      const clusterW = maxNodeW + CLUSTER_PAD * 2;
+      const leftEdge = currentX + CLUSTER_PAD;
+      const contentTop = TOP_OFFSET + CLUSTER_PAD + CLUSTER_LABEL_H;
+
+      let curY = contentTop;
+      ordered.forEach(node => {
+        node.x = leftEdge;
+        node.y = curY;
+        curY += nodeH(node) + NODE_GAP_Y;
+      });
+
+      currentX += clusterW + CLUSTER_GAP_X;
+    }
   });
 }
 
@@ -984,28 +1060,34 @@ function validateClusterSeparation(nodes, clusters) {
   resolveClusterCollisions(nodes, clusters);
 }
 
+function shouldClusterBeCircular(layout, edges) {
+  if (!layout.isCluster) return false;
+  const members = layout.nodeIds.map(id => nodeMap[id]).filter(Boolean);
+  if (members.length < 3) return false;
+  if (layout.cluster && layout.cluster.layout === 'circular') return false;
+  const order = topologicalOrderInCluster(members, edges);
+  const pos = {};
+  order.forEach((n, i) => { pos[n.id] = i; });
+  for (const edge of edges) {
+    if (!layout.nodeIds.includes(edge.sourceId) || !layout.nodeIds.includes(edge.targetId)) continue;
+    if (edge.sourceId === edge.targetId) continue;
+    if (Math.abs((pos[edge.sourceId] ?? 0) - (pos[edge.targetId] ?? 0)) > 1) return true;
+  }
+  return false;
+}
+
 function autoLayout(nodes, edges, clusters = []) {
   if (nodes.some(n => n.x != null)) return;
   Object.keys(nodeMap).forEach(k => delete nodeMap[k]);
   nodes.forEach(n => { nodeMap[n.id] = n; });
   const { layers, layerIndex } = buildTopologicalLayers(nodes, edges);
-  /* ---------- compute per-layer max widths ---------- */
-  const layerW = layers.map(layer => {
-    let mx = 0;
-    layer.forEach(id => { const n = nodeMap[id]; if (n) mx = Math.max(mx, nodeW(n.label, n.description)); });
-    return mx;
+  const layouts = buildClusterLayouts(nodes, clusters, layerIndex, edges);
+  layouts.forEach(layout => {
+    if (layout.cluster && shouldClusterBeCircular(layout, edges)) {
+      layout.cluster.layout = 'circular';
+    }
   });
-  const layerX = [];
-  let xPos = 60;
-  layers.forEach((layer, li) => {
-    layerX[li] = xPos;
-    const gap = li < layers.length - 1 ? Math.max(LAYER_GAP_X, layerW[li] * 0.5 + layerW[li + 1] * 0.5 + 180) : 0;
-    xPos += layerW[li] + gap;
-  });
-
-  const layouts = buildClusterLayouts(nodes, clusters, layerIndex, layers, layerX, edges);
-  placeClusterLayouts(layouts, edges);
-  positionNodesInLayouts(layouts, layers, layerX);
+  positionClusters(layouts, nodes, edges);
   resolveNodeCollisions(nodes, COLLISION_GAP, 40);
   validateClusterSeparation(nodes, clusters);
   resolveEdgeOverlaps(nodes, edges, clusters);
