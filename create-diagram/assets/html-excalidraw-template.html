@@ -327,7 +327,7 @@ let NODE_TYPES = th().nodeTypes;
 const NODE_W = 340, NODE_H = 124;
 const NODE_H_DESC = 205, TITLE_FONT_SIZE = 36, DESCRIPTION_FONT_SIZE = 24, MAX_DESC_CHARS = 96, MAX_DESC_LINES = 3;
 const CLUSTER_PAD = 56, CLUSTER_LABEL_H = 44;
-const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, CLUSTER_GAP_X = 100;
+const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, CLUSTER_GAP_X = 160;
 const CIRCULAR_RADIUS_FACTOR = 80, CIRCULAR_MIN_RADIUS = 200;
 const EDGE_END_PAD = 16;
 const EDGE_MIN_SEPARATION = 52, EDGE_LAYOUT_STEP = 46, EDGE_LAYOUT_LIMIT = 184, EDGE_LAYOUT_PASSES = 4;
@@ -705,7 +705,7 @@ function edgeRoute(edge, edgeIndex, nodes = state.nodes, edges = state.edges) {
   const dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < 1) return null;
   const mx = (start.x + end.x) / 2, my = (start.y + end.y) / 2;
-  const off = Math.max(-80, Math.min(80, parallelEdgeOffset(edge, edgeIndex, edges) + Math.min(dist * 0.08, 32)));
+  const off = Math.max(-160, Math.min(160, parallelEdgeOffset(edge, edgeIndex, edges) + Math.min(dist * 0.08, 32)));
   const control = { x: mx + dy / dist * off, y: my - dx / dist * off };
   const points = [start, control, end];
   return { edge, src, tgt, points, samples: sampleCurve(points), labelPoint: control, labelBox: edgeLabelBox(edge, control.x, control.y) };
@@ -792,6 +792,8 @@ function scoreEdgeLayout(nodes, edges, initialY = {}, clusters = []) {
     const dy = Math.abs((initialY[route.edge.sourceId] ?? route.src.y) - route.src.y) +
       Math.abs((initialY[route.edge.targetId] ?? route.tgt.y) - route.tgt.y);
     score += dy * 0.08;
+    const minEdgeLen = Math.max(route.labelBox.w * 1.3, 160);
+    if (routeLength(route) < minEdgeLen) score += (minEdgeLen - routeLength(route)) * 2;
   });
   for (let i = 0; i < routes.length; i++) {
     for (let j = i + 1; j < routes.length; j++) {
@@ -1044,10 +1046,24 @@ function positionClusters(layouts, nodes, edges) {
       const contentTop = TOP_OFFSET + CLUSTER_PAD + CLUSTER_LABEL_H;
 
       let curY = contentTop;
-      ordered.forEach(node => {
+      ordered.forEach((node, ni) => {
         node.x = leftEdge;
         node.y = curY;
-        curY += nodeH(node) + NODE_GAP_Y;
+        if (ni < ordered.length - 1) {
+          const next = ordered[ni + 1];
+          const connectingEdges = edges.filter(e =>
+            (e.sourceId === node.id && e.targetId === next.id) ||
+            (e.sourceId === next.id && e.targetId === node.id)
+          );
+          const maxLabelW = connectingEdges.reduce((max, e) => {
+            const lw = Math.max(64, (e.label || '').length * 13.2 + 30);
+            return Math.max(max, lw);
+          }, 0);
+          const labelGap = Math.min(Math.max(maxLabelW * 1.2, 96), 320);
+          curY += nodeH(node) + Math.max(NODE_GAP_Y, labelGap);
+        } else {
+          curY += nodeH(node) + NODE_GAP_Y;
+        }
       });
 
       currentX += clusterW + CLUSTER_GAP_X;
