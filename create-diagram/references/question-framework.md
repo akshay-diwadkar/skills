@@ -1,6 +1,6 @@
 # Create Diagram Question Framework
 
-Use this framework to reach shared understanding before producing a diagram. Ask one question at a time and wait for the user's answer.
+Use this framework to reach shared understanding before planning a diagram. Ask one question at a time and wait for the user's answer. In Plan Mode, this framework ends with a `<proposed_plan>`, not a written HTML file.
 
 ## Phase 1: Grounding Exploration
 
@@ -26,7 +26,7 @@ Resolve:
 - Usage: onboarding, architecture review, debugging, sales/demo, documentation, planning, incident analysis.
 - Fidelity: default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences. Use `exact-code-graph` only for file/class/function-level developer reviews. Use `executive-concept-map` only for business concepts, ownership, outcomes, and risks.
 - Takeaways: 1-3 concise statements the visible brief panel should make obvious.
-- Output location: where the HTML file should be created. Ask: "Where should I create the HTML diagram?" Resolve this before writing any file.
+- Output location: where the HTML file should eventually be created. Ask: "Where should I create the HTML diagram?" Resolve this before emitting the proposed plan.
 
 Good first question:
 
@@ -95,9 +95,9 @@ If the answer to all questions is "N/A" (solo dev, simple static site), skip to 
 
 ---
 
-## Phase 5: Readiness Gate
+## Phase 5: Plan Readiness Gate
 
-Before producing the HTML diagram, confirm:
+Before emitting the `<proposed_plan>`, confirm:
 
 - [ ] Purpose, audience, decision to support, and fidelity are explicit.
 - [ ] Output location is explicit: either a full `.html` path or a directory where a descriptive kebab-case `.html` filename will be generated.
@@ -110,3 +110,11 @@ Before producing the HTML diagram, confirm:
 - [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`/`inferred`/`stated`). Code/doc claims cite `file:line` or `file:start-end`; user-stated relationships use explicit conversation evidence such as `user-stated`.
 - [ ] Agent instructions in the hidden JSON block tell future agents what can change safely.
 - [ ] The JSON schema from html-output-guide.md Section D is fully populated (empty arrays are acceptable for trivial diagrams).
+
+The proposed plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps. It must also state that implementation happens only after the user requests execution outside Plan Mode.
+
+---
+
+## Phase 6: Build Gate
+
+Build the HTML diagram only after the plan has been accepted and execution is allowed. Do not write, create, overwrite, save, or verify files while the surrounding collaboration mode is Plan Mode. During the build phase, follow `html-output-guide.md` as the renderer contract and save only at the user-confirmed location.
