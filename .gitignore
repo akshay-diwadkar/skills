@@ -3,6 +3,8 @@
 
 # But not these files/directories
 !create-diagram/
+!create-diagram/assets/
+!create-diagram/assets/*
 !create-diagram/references/
 !create-diagram/references/*.md
 !create-diagram/scripts/

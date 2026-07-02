@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Issue Planner"
+  short_description: "Fetch GitHub issues and plan fixes."
+  default_prompt: "Fetch open GitHub issues for this repo and plan how to resolve them using the local codebase."
