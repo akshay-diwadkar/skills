@@ -3,7 +3,11 @@
 
 # But not these files/directories
 !create-diagram/
+!create-diagram/scripts/
+!create-diagram/scripts/*.py
 !plan-with-senior-dev/
+!plan-with-senior-dev/scripts/
+!plan-with-senior-dev/scripts/*.py
 !README.md
 
 # But exclude cache/build artifacts within those directories
