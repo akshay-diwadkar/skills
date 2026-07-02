@@ -59,7 +59,7 @@ EXTERNAL_ALLOWLIST = frozenset({
     "EDGE_LAYOUT_LIMIT", "EDGE_LAYOUT_PASSES",
     "TITLE_FONT_SIZE", "DESCRIPTION_FONT_SIZE", "MAX_DESC_CHARS", "MAX_DESC_LINES",
     "VERSION",
-    # False positives — names inside string literals or comments
+    # False positives - names inside string literals or comments
     "rgba", "shadow", "first", "place",
     "stage", "tier", "edges", "nodes",
     # SVG attribute helpers (inside template literal strings)
@@ -159,7 +159,7 @@ def check_template(template_path):
 
     # Consider all definitions as valid references
     all_defs.add("init")  # init() is the entry point, not defined as 'function init' in module scripts
-    # Actually, init is defined as function init() — will be caught by the regex above.
+    # Actually, init is defined as function init() - will be caught by the regex above.
     # But the DIAGRAM_DATA walkthrough uses `.forEach`, `.filter`, etc. which are in the allowlist.
 
     issues = []
@@ -175,7 +175,7 @@ def check_template(template_path):
             continue
         # Skip names that are clearly object property accesses used as methods
         # (these have a . before them in the original source, but the regex
-        # won't match those — we look for (?<![.\w$]) prefix)
+        # won't match those - we look for (?<![.\w$]) prefix)
         issues.append(f'  "{name}" used on line(s) {", ".join(map(str, lines[:5]))}'
                       f'{"..." if len(lines) > 5 else ""}')
 
@@ -207,7 +207,7 @@ def main():
         print("in scripts/check_template_refs.py if it's a valid external reference.")
         sys.exit(1)
     else:
-        print(f"OK — all function references resolve to definitions.")
+        print("OK - all function references resolve to definitions.")
         sys.exit(0)
 
 

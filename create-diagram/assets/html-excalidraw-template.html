@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create Diagram — Excalidraw-Style Diagram</title>
-<link href="https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap" rel="stylesheet">
+<title>Create Diagram - Excalidraw-Style Diagram</title>
+<link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat&family=Comic+Neue&family=Gloria+Hallelujah&family=Indie+Flower&family=Kalam&family=Patrick+Hand&family=Permanent+Marker&family=Shadows+Into+Light&family=Short+Stack&display=swap" rel="stylesheet">
 <script type="importmap">
 {
   "imports": {
@@ -29,12 +29,23 @@ body[data-theme="dark"] #toolbar button{background:#1a1916;border-color:#2a2820;
   body[data-theme="dark"] #toolbar button:hover{background:#2a2820}
   #toolbar button:active{background:#e5ddd2}
   body[data-theme="dark"] #toolbar button:active{background:#3a3528}
+  #font-menu-toggle[aria-expanded="true"]{background:#e7f2ff;border-color:#6aa3d8;color:#1a6a9f}
+  body[data-theme="dark"] #font-menu-toggle[aria-expanded="true"]{background:#111a22;border-color:#6aa3d8;color:#6aa3d8}
   #toolbar input{flex:0 0 auto;width:clamp(120px,22vw,180px);background:#fff;border:1px solid #d4c9b8;border-radius:8px;padding:4px 10px;font-family:var(--diagram-font);font-size:16px;color:#5a4e3e;outline:none}
   body[data-theme="dark"] #toolbar input{background:#1a1916;border-color:#2a2820;color:#d4cfc4}
   #toolbar input::placeholder{color:#a99f90}
   body[data-theme="dark"] #toolbar input::placeholder{color:#6d6355}
   .toolbar-sep{height:24px;width:1px;background:#d4c9b8;margin:0 4px}
   body[data-theme="dark"] .toolbar-sep{background:#2a2820}
+#font-menu{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:121;display:none;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 96px);overflow:auto;background:rgba(255,255,255,0.96);backdrop-filter:blur(8px);border:1px solid #d4c9b8;border-radius:10px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+body[data-theme="dark"] #font-menu{background:rgba(18,18,22,0.96);border-color:#2a2820;box-shadow:0 4px 20px rgba(0,0,0,0.45)}
+#font-menu.open{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#font-menu button{min-height:38px;text-align:left;background:#fff;border:1px solid #d4c9b8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:17px;line-height:1;color:#5a4e3e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-theme="dark"] #font-menu button{background:#1a1916;border-color:#2a2820;color:#d4cfc4}
+#font-menu button:hover{background:#f0ebe4}
+body[data-theme="dark"] #font-menu button:hover{background:#2a2820}
+#font-menu button.active{background:#e7f2ff;border-color:#1a7abf;color:#1a6a9f}
+body[data-theme="dark"] #font-menu button.active{background:#111a22;border-color:#6aa3d8;color:#6aa3d8}
 #title-display{flex:1 1 96px;min-width:48px;max-width:clamp(72px,24vw,220px);font-size:18px;font-weight:600;color:#5a4e3e;padding:0 12px;border-right:1px solid #d4c9b8;margin-right:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-theme="dark"] #title-display{color:#c4a46c;border-right-color:#2a2820}
 #zoom-level{color:#8a7e6e}
@@ -117,6 +128,7 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
     #toolbar{gap:4px;padding:5px 7px}
     #toolbar button{padding:4px 8px;font-size:15px}
     #title-display{max-width:84px;padding:0 8px;font-size:16px}
+    #font-menu.open{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -125,23 +137,24 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
 <div id="canvas-container">
   <div id="toolbar">
     <span id="title-display">Diagram</span>
-    <button id="zoom-out" title="Zoom out">−</button>
+    <button id="zoom-out" title="Zoom out">-</button>
     <span id="zoom-level" style="font-size:15px;min-width:36px;text-align:center">100%</span>
     <button id="zoom-in" title="Zoom in">+</button>
-    <button id="zoom-readable" title="Readable fit">Fit</button>
+    <button id="font-menu-toggle" title="Choose diagram font" aria-expanded="false" aria-controls="font-menu">Fonts</button>
     <button id="zoom-fit-all" title="Fit whole diagram">All</button>
     <button id="reset-layout" title="Reset saved node positions">Reset</button>
     <button id="walkthrough-btn" title="Guided walkthrough">Walk</button>
-    <button id="theme-toggle" title="Toggle dark mode" style="font-size:20px;border:none;background:none;cursor:pointer;padding:2px 6px">☀️</button>
+    <button id="theme-toggle" title="Toggle dark mode" style="font-size:16px;border:none;background:none;cursor:pointer;padding:2px 6px">Light</button>
   </div>
+  <div id="font-menu" role="menu" aria-label="Diagram fonts"></div>
   <aside id="walkthrough-card" aria-label="Walkthrough step">
     <button id="wt-card-close" class="panel-close" title="Close walkthrough">x</button>
     <span id="wt-card-count">1/4</span>
     <h2 id="wt-card-title">Step title</h2>
     <p id="wt-card-desc">Step description</p>
     <div id="wt-card-nav">
-      <button id="wt-card-prev" title="Previous step">←</button>
-      <button id="wt-card-next" title="Next step">→</button>
+      <button id="wt-card-prev" title="Previous step">&lt;</button>
+      <button id="wt-card-next" title="Next step">&gt;</button>
     </div>
   </aside>
   <svg id="canvas">
@@ -162,7 +175,7 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
     <button id="legend-toggle" type="button" aria-expanded="false" aria-controls="legend-list"><span>Legend</span><span aria-hidden="true">+</span></button>
     <div id="legend-list" class="legend-list"></div>
   </aside>
-  <div id="instructions">Drag nodes · Scroll to zoom · Drag background to pan</div>
+  <div id="instructions">Drag nodes | Scroll to zoom | Drag background to pan</div>
   <aside id="brief-panel" class="collapsed" aria-label="Diagram brief" aria-live="polite"></aside>
   <div id="warnings" role="status" aria-live="polite"></div>
   <aside id="details-panel" aria-live="polite"></aside>
@@ -323,6 +336,20 @@ function th() { return THEMES[currentTheme]; }
 
 let currentTheme = localStorage.getItem('diagram-theme') || 'light';
 let NODE_TYPES = th().nodeTypes;
+const DIAGRAM_FONTS = [
+  { name: 'Indie Flower', css: "'Indie Flower'" },
+  { name: 'Architects Daughter', css: "'Architects Daughter'" },
+  { name: 'Caveat', css: "'Caveat'" },
+  { name: 'Patrick Hand', css: "'Patrick Hand'" },
+  { name: 'Kalam', css: "'Kalam'" },
+  { name: 'Permanent Marker', css: "'Permanent Marker'" },
+  { name: 'Shadows Into Light', css: "'Shadows Into Light'" },
+  { name: 'Gloria Hallelujah', css: "'Gloria Hallelujah'" },
+  { name: 'Comic Neue', css: "'Comic Neue'" },
+  { name: 'Short Stack', css: "'Short Stack'" },
+];
+const DEFAULT_DIAGRAM_FONT = 'Indie Flower';
+let currentFontName = getSavedDiagramFontName();
 
 const NODE_W = 340, NODE_H = 124;
 const NODE_H_DESC = 205, TITLE_FONT_SIZE = 36, DESCRIPTION_FONT_SIZE = 24, MAX_DESC_CHARS = 96, MAX_DESC_LINES = 3;
@@ -499,16 +526,106 @@ function renderWarnings() {
   console.warn('Diagram warnings:', state.warnings);
 }
 
+function getFontDef(name) {
+  return DIAGRAM_FONTS.find(font => font.name === name) || DIAGRAM_FONTS[0];
+}
+
+function getSavedDiagramFontName() {
+  try {
+    const saved = localStorage.getItem('diagram-font');
+    return DIAGRAM_FONTS.some(font => font.name === saved) ? saved : DEFAULT_DIAGRAM_FONT;
+  } catch {
+    return DEFAULT_DIAGRAM_FONT;
+  }
+}
+
+function fontCssStack(name) {
+  const font = getFontDef(name);
+  return `${font.css}, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+}
+
+function renderFontMenu() {
+  const menu = document.getElementById('font-menu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  DIAGRAM_FONTS.forEach(font => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.role = 'menuitem';
+    item.textContent = font.name;
+    item.dataset.fontName = font.name;
+    item.style.fontFamily = fontCssStack(font.name);
+    item.classList.toggle('active', font.name === currentFontName);
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      setDiagramFont(font.name);
+      closeFontMenu();
+    });
+    menu.appendChild(item);
+  });
+}
+
+function positionFontMenu() {
+  const menu = document.getElementById('font-menu');
+  const toggle = document.getElementById('font-menu-toggle');
+  if (!menu || !toggle) return;
+  const rect = toggle.getBoundingClientRect();
+  const width = Math.min(360, window.innerWidth - 32);
+  const left = Math.max(16, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 16));
+  menu.style.width = width + 'px';
+  menu.style.left = left + 'px';
+  menu.style.top = (rect.bottom + 8) + 'px';
+  menu.style.transform = 'none';
+}
+
+function openFontMenu() {
+  const menu = document.getElementById('font-menu');
+  const toggle = document.getElementById('font-menu-toggle');
+  if (!menu || !toggle) return;
+  positionFontMenu();
+  renderFontMenu();
+  menu.classList.add('open');
+  toggle.setAttribute('aria-expanded', 'true');
+}
+
+function closeFontMenu() {
+  const menu = document.getElementById('font-menu');
+  const toggle = document.getElementById('font-menu-toggle');
+  if (menu) menu.classList.remove('open');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function toggleFontMenu() {
+  const menu = document.getElementById('font-menu');
+  if (menu && menu.classList.contains('open')) closeFontMenu();
+  else openFontMenu();
+}
+
+function setDiagramFont(name, { persist = true, rerender = true } = {}) {
+  currentFontName = getFontDef(name).name;
+  document.documentElement.style.setProperty('--diagram-font', fontCssStack(currentFontName));
+  if (persist) {
+    try { localStorage.setItem('diagram-font', currentFontName); } catch { /* ignore unavailable storage */ }
+  }
+  renderFontMenu();
+  verifyDiagramFont();
+  if (rerender && state.nodes.length) renderAll();
+}
+
 async function verifyDiagramFont() {
   if (!document.fonts) return;
+  const font = getFontDef(currentFontName);
+  const previousWarningCount = state.warnings.length;
+  state.warnings = state.warnings.filter(w => !w.endsWith('failed to load; diagram text may use a fallback font.'));
+  if (state.warnings.length !== previousWarningCount) renderWarnings();
   try {
-    await document.fonts.load('16px "Indie Flower"');
-    if (!document.fonts.check('16px "Indie Flower"')) {
-      state.warnings.push('Indie Flower failed to load; diagram text may use a fallback font.');
+    await document.fonts.load(`16px ${font.css}`);
+    if (!document.fonts.check(`16px ${font.css}`)) {
+      state.warnings.push(`${font.name} failed to load; diagram text may use a fallback font.`);
       renderWarnings();
     }
   } catch {
-    state.warnings.push('Indie Flower failed to load; diagram text may use a fallback font.');
+    state.warnings.push(`${font.name} failed to load; diagram text may use a fallback font.`);
     renderWarnings();
   }
 }
@@ -1093,7 +1210,13 @@ function shouldClusterBeCircular(layout, edges) {
 }
 
 function autoLayout(nodes, edges, clusters = []) {
-  if (nodes.some(n => n.x != null)) return;
+  const positioned = nodes.filter(n => n.x != null || n.y != null);
+  const completeManualPositions = positioned.length === nodes.length &&
+    positioned.every(n => n.x != null && n.y != null && Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
+  if (completeManualPositions) return;
+  if (positioned.length) {
+    nodes.forEach(n => { delete n.x; delete n.y; });
+  }
   Object.keys(nodeMap).forEach(k => delete nodeMap[k]);
   nodes.forEach(n => { nodeMap[n.id] = n; });
   const { layers, layerIndex } = buildTopologicalLayers(nodes, edges);
@@ -1187,7 +1310,7 @@ function setTheme(name) {
   const dot = document.getElementById('grid-dot');
   if (dot) dot.setAttribute('fill', th().gridDot);
   const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = name === 'dark' ? '🌙' : '☀️';
+  if (btn) btn.textContent = name === 'dark' ? 'Dark' : 'Light';
   localStorage.setItem('diagram-theme', name);
   renderAll();
 }
@@ -1788,7 +1911,7 @@ function savePositions() {
     state.nodes.forEach(n => { posMap[n.id] = { x: n.x, y: n.y }; });
     const data = { version: VERSION, positions: posMap };
     localStorage.setItem(getStorageKey(), JSON.stringify(data));
-  } catch (e) { /* localStorage unavailable or full — silently ignore */ }
+  } catch (e) { /* localStorage unavailable or full; silently ignore */ }
 }
 
 function restorePositions() {
@@ -1979,7 +2102,7 @@ function prevWalkthroughStep() {
 /* ---------- init ---------- */
 function init() {
   state.warnings = validateDiagramData(DIAGRAM_DATA);
-  verifyDiagramFont();
+  setDiagramFont(currentFontName, { persist: false, rerender: false });
   state.nodes = (DIAGRAM_DATA.nodes || []).map(n => ({ ...n }));
   state.edges = (DIAGRAM_DATA.edges || []).map(e => ({ ...e }));
   state.clusters = (DIAGRAM_DATA.clusters || []).map(c => ({ ...c }));
@@ -1997,7 +2120,7 @@ function init() {
   const dot = document.getElementById('grid-dot');
   if (dot) dot.setAttribute('fill', th().gridDot);
   const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+  if (btn) btn.textContent = currentTheme === 'dark' ? 'Dark' : 'Light';
   renderAll();
   renderBriefPanel();
   setTimeout(() => fitToScreen(), 50);
@@ -2020,7 +2143,11 @@ function init() {
     const r = canvas.getBoundingClientRect();
     zoomAt(r.width / 2, r.height / 2, 0.8);
   });
-  document.getElementById('zoom-readable').addEventListener('click', () => fitToScreen());
+  document.getElementById('font-menu-toggle').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleFontMenu();
+  });
+  document.getElementById('font-menu').addEventListener('click', e => e.stopPropagation());
   document.getElementById('zoom-fit-all').addEventListener('click', fitAll);
   document.getElementById('reset-layout').addEventListener('click', resetLayout);
   document.getElementById('legend-toggle').addEventListener('click', e => {
@@ -2038,12 +2165,19 @@ function init() {
   document.getElementById('wt-card-next').addEventListener('click', nextWalkthroughStep);
   document.getElementById('wt-card-prev').addEventListener('click', prevWalkthroughStep);
   document.getElementById('wt-card-close').addEventListener('click', stopWalkthrough);
+  document.addEventListener('click', closeFontMenu);
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && state.walkthroughActive) stopWalkthrough();
+    if (e.key === 'Escape') {
+      closeFontMenu();
+      if (state.walkthroughActive) stopWalkthrough();
+    }
     if (e.key === 'ArrowRight' && state.walkthroughActive) nextWalkthroughStep();
     if (e.key === 'ArrowLeft' && state.walkthroughActive) prevWalkthroughStep();
   });
-  window.addEventListener('resize', () => fitToScreen());
+  window.addEventListener('resize', () => {
+    fitToScreen();
+    positionFontMenu();
+  });
 }
 
 init();

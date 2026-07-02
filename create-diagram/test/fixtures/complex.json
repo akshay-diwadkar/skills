@@ -1,0 +1,333 @@
+{
+  "diagram": {
+    "title": "Create Diagram Smoke Flow",
+    "storageKey": "create-diagram-smoke-v1",
+    "audience": "Agents and engineers validating create-diagram",
+    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and editable export generation.",
+    "fidelity": "narrative-architecture",
+    "takeaways": [
+      "Requests move from actor to service before durable state changes.",
+      "The queue and worker path proves asynchronous handoff rendering.",
+      "Operational artifacts stay visible for follow-up work."
+    ],
+    "nodes": [
+      {
+        "id": "user",
+        "label": "Requester",
+        "type": "actor",
+        "description": "Person asking the agent to create a reliable architecture diagram.",
+        "x": 120,
+        "y": 220
+      },
+      {
+        "id": "builder",
+        "label": "HTML Builder",
+        "type": "process",
+        "description": "Builds validated HTML from a structured diagram payload.",
+        "x": 120,
+        "y": 520
+      },
+      {
+        "id": "template",
+        "label": "Shared Template",
+        "type": "file",
+        "description": "Canonical renderer that stays unchanged outside data blocks.",
+        "x": 120,
+        "y": 820
+      },
+      {
+        "id": "validator",
+        "label": "HTML Validator",
+        "type": "process",
+        "description": "Checks diagram data, metadata, positions, edges, and template drift.",
+        "x": 1050,
+        "y": 320
+      },
+      {
+        "id": "exporter",
+        "label": "Excalidraw Exporter",
+        "type": "process",
+        "description": "Creates an editable Excalidraw file after HTML validation passes.",
+        "x": 1050,
+        "y": 760
+      },
+      {
+        "id": "editable",
+        "label": "Editable Artifact",
+        "type": "document",
+        "description": "Native Excalidraw document with labels and descriptions.",
+        "x": 1050,
+        "y": 1120
+      },
+      {
+        "id": "notes",
+        "label": "Notes {JSON}",
+        "type": "concept",
+        "description": "Literal brace text proves parser strings remain safe.",
+        "x": 1980,
+        "y": 1500
+      },
+      {
+        "id": "ops",
+        "label": "Ops Review",
+        "type": "event",
+        "description": "Review moment that checks generated files before sharing.",
+        "x": 2350,
+        "y": 1800
+      },
+      {
+        "id": "runbook",
+        "label": "Runbook",
+        "type": "document",
+        "description": "Operational notes for future agents changing the diagram.",
+        "x": 1980,
+        "y": 2100
+      }
+    ],
+    "edges": [
+      {
+        "sourceId": "user",
+        "targetId": "builder",
+        "label": "requests",
+        "evidence": "user-stated",
+        "confidence": "stated"
+      },
+      {
+        "sourceId": "builder",
+        "targetId": "template",
+        "label": "populates",
+        "evidence": "scripts/build_diagram.py:1",
+        "confidence": "observed"
+      },
+      {
+        "sourceId": "builder",
+        "targetId": "validator",
+        "label": "hands to",
+        "evidence": "SKILL.md:34",
+        "confidence": "observed"
+      },
+      {
+        "sourceId": "validator",
+        "targetId": "exporter",
+        "label": "unblocks",
+        "evidence": "SKILL.md:40",
+        "confidence": "observed"
+      },
+      {
+        "sourceId": "exporter",
+        "targetId": "editable",
+        "label": "writes",
+        "evidence": "scripts/generate_excalidraw.py:1",
+        "confidence": "observed"
+      },
+      {
+        "sourceId": "validator",
+        "targetId": "validator",
+        "label": "rechecks",
+        "evidence": "scripts/validate_diagram.py:1",
+        "confidence": "observed"
+      },
+      {
+        "sourceId": "notes",
+        "targetId": "ops",
+        "label": "briefs",
+        "evidence": "user-stated",
+        "confidence": "stated"
+      },
+      {
+        "sourceId": "ops",
+        "targetId": "runbook",
+        "label": "records",
+        "evidence": "user-stated",
+        "confidence": "stated"
+      }
+    ],
+    "walkthrough": [
+      {
+        "id": "build",
+        "title": "Build HTML",
+        "description": "Requester data enters the builder and is placed into the shared template.",
+        "nodeIds": ["user", "builder", "template"]
+      },
+      {
+        "id": "validate-export",
+        "title": "Validate and export",
+        "description": "The validator gates Excalidraw generation and catches data problems first.",
+        "nodeIds": ["builder", "validator", "exporter", "editable"]
+      },
+      {
+        "id": "review",
+        "title": "Review notes",
+        "description": "Operational notes and review artifacts remain visible for future changes.",
+        "nodeIds": ["notes", "ops", "runbook"]
+      }
+    ],
+    "clusters": [
+      {
+        "id": "authoring",
+        "label": "Authoring",
+        "layout": "vertical",
+        "nodeIds": ["user", "builder", "template"]
+      },
+      {
+        "id": "verification",
+        "label": "Verification",
+        "layout": "vertical",
+        "nodeIds": ["validator", "exporter", "editable"]
+      },
+      {
+        "id": "review",
+        "label": "Review",
+        "layout": "circular",
+        "nodeIds": ["notes", "ops", "runbook"]
+      }
+    ]
+  },
+  "metadata": {
+    "audience": "Agents and engineers validating create-diagram",
+    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and editable export generation.",
+    "fidelity": "narrative-architecture",
+    "entities": [
+      {
+        "id": "user",
+        "name": "Requester",
+        "type": "actor",
+        "description": "Person asking the agent to create a reliable architecture diagram.",
+        "evidence": "user-stated"
+      },
+      {
+        "id": "builder",
+        "name": "HTML Builder",
+        "type": "process",
+        "description": "Builds validated HTML from a structured diagram payload.",
+        "evidence": "scripts/build_diagram.py:1"
+      },
+      {
+        "id": "template",
+        "name": "Shared Template",
+        "type": "file",
+        "description": "Canonical renderer that stays unchanged outside data blocks.",
+        "evidence": "assets/html-excalidraw-template.html:1"
+      },
+      {
+        "id": "validator",
+        "name": "HTML Validator",
+        "type": "process",
+        "description": "Checks diagram data, metadata, positions, edges, and template drift.",
+        "evidence": "scripts/validate_diagram.py:1"
+      },
+      {
+        "id": "exporter",
+        "name": "Excalidraw Exporter",
+        "type": "process",
+        "description": "Creates an editable Excalidraw file after HTML validation passes.",
+        "evidence": "scripts/generate_excalidraw.py:1"
+      },
+      {
+        "id": "editable",
+        "name": "Editable Artifact",
+        "type": "document",
+        "description": "Native Excalidraw document with labels and descriptions.",
+        "evidence": "user-stated"
+      },
+      {
+        "id": "notes",
+        "name": "Notes {JSON}",
+        "type": "concept",
+        "description": "Literal brace text proves parser strings remain safe.",
+        "evidence": "user-stated"
+      },
+      {
+        "id": "ops",
+        "name": "Ops Review",
+        "type": "event",
+        "description": "Review moment that checks generated files before sharing.",
+        "evidence": "user-stated"
+      },
+      {
+        "id": "runbook",
+        "name": "Runbook",
+        "type": "document",
+        "description": "Operational notes for future agents changing the diagram.",
+        "evidence": "user-stated"
+      }
+    ],
+    "relationships": [
+      {
+        "sourceId": "user",
+        "targetId": "builder",
+        "label": "requests",
+        "direction": "Requester -> HTML Builder",
+        "confidence": "stated",
+        "evidence": "user-stated"
+      },
+      {
+        "sourceId": "builder",
+        "targetId": "template",
+        "label": "populates",
+        "direction": "HTML Builder -> Shared Template",
+        "confidence": "observed",
+        "evidence": "scripts/build_diagram.py:1"
+      },
+      {
+        "sourceId": "builder",
+        "targetId": "validator",
+        "label": "hands to",
+        "direction": "HTML Builder -> HTML Validator",
+        "confidence": "observed",
+        "evidence": "SKILL.md:34"
+      },
+      {
+        "sourceId": "validator",
+        "targetId": "exporter",
+        "label": "unblocks",
+        "direction": "HTML Validator -> Excalidraw Exporter",
+        "confidence": "observed",
+        "evidence": "SKILL.md:40"
+      },
+      {
+        "sourceId": "exporter",
+        "targetId": "editable",
+        "label": "writes",
+        "direction": "Excalidraw Exporter -> Editable Artifact",
+        "confidence": "observed",
+        "evidence": "scripts/generate_excalidraw.py:1"
+      },
+      {
+        "sourceId": "validator",
+        "targetId": "validator",
+        "label": "rechecks",
+        "direction": "HTML Validator -> HTML Validator",
+        "confidence": "observed",
+        "evidence": "scripts/validate_diagram.py:1"
+      },
+      {
+        "sourceId": "notes",
+        "targetId": "ops",
+        "label": "briefs",
+        "direction": "Notes {JSON} -> Ops Review",
+        "confidence": "stated",
+        "evidence": "user-stated"
+      },
+      {
+        "sourceId": "ops",
+        "targetId": "runbook",
+        "label": "records",
+        "direction": "Ops Review -> Runbook",
+        "confidence": "stated",
+        "evidence": "user-stated"
+      }
+    ],
+    "assumptions": [
+      "Fixture evidence cites script entrypoints rather than exact generated line numbers."
+    ],
+    "omissions": [
+      "Browser interaction QA is covered by smoke validation rather than this fixture."
+    ],
+    "openQuestions": [],
+    "agentInstructions": [
+      "Keep node ids stable across fixture updates.",
+      "Keep this fixture valid for builder, HTML validation, Excalidraw generation, and Excalidraw validation."
+    ]
+  }
+}

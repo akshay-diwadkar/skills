@@ -3,8 +3,12 @@
 
 # But not these files/directories
 !create-diagram/
+!create-diagram/references/
+!create-diagram/references/*.md
 !create-diagram/scripts/
 !create-diagram/scripts/*.py
+!create-diagram/test/
+!create-diagram/test/**
 !plan-with-senior-dev/
 !plan-with-senior-dev/scripts/
 !plan-with-senior-dev/scripts/*.py

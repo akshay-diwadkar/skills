@@ -13,8 +13,6 @@ When files or a repo are available, inspect before asking:
 
 Summarize discovered facts briefly before asking the first question. Separate facts from inferences.
 
----
-
 ## Phase 2: Intent
 
 Resolve:
@@ -22,17 +20,19 @@ Resolve:
 - Purpose: what the diagram must help someone understand or decide.
 - Audience: engineer, designer, founder, buyer, stakeholder, operator, manager, or mixed.
 - Decision to support: what a stakeholder should be able to approve, challenge, explain, fund, operate, or delegate after seeing the diagram.
-- Agent afterlife: what a future agent must be able to infer, modify, or regenerate from the artifact without the original conversation.
+- Agent afterlife: what a future agent must infer, modify, or regenerate from the artifact without the original conversation.
 - Usage: onboarding, architecture review, debugging, sales/demo, documentation, planning, incident analysis.
+- Format: ask "What output format(s) do you need?" Options: HTML, `.excalidraw`, or both. Default recommendation: both. HTML is for sharing and presenting; `.excalidraw` is for future editing and refinement.
 - Fidelity: default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences. Use `exact-code-graph` only for file/class/function-level developer reviews. Use `executive-concept-map` only for business concepts, ownership, outcomes, and risks.
 - Takeaways: 1-3 concise statements the visible brief panel should make obvious.
-- Output location: where the HTML file should eventually be created. Ask: "Where should I create the HTML diagram?" Resolve this before emitting the proposed plan.
+- Output location: where the diagram files should be created. Ask once: "Where should I create the diagram file(s)?" When both HTML and `.excalidraw` are requested, both are placed in the same directory with the same base name.
 
 Good first question:
 
 > What decision or understanding should this diagram make obvious to its intended audience?
 
 Include:
+
 - Why this matters.
 - My recommendation.
 - Trade-offs.
@@ -44,8 +44,6 @@ Follow-up when the artifact will be reused:
 Default recommendation for mixed audiences:
 
 > I recommend a narrative architecture sketchboard: enough implementation evidence for developers, enough ownership and failure-path context for managers, and enough plain-language purpose for stakeholders.
-
----
 
 ## Phase 3: Model Extraction
 
@@ -69,9 +67,8 @@ For graph diagrams, also resolve:
 - Edge direction: what source and target mean for every edge type.
 - Clustering: folder, package, layer, bounded context, team, lifecycle phase, or conceptual region.
 - Noise policy: which high-volume edges are hidden, summarized, weighted, or moved into metadata.
-- Evidence policy: every edge needs a verb label, confidence (`observed`, `inferred`, or `stated`), and evidence. Use `file:line` or `file:start-end` for code/doc claims, and explicit conversation evidence such as `user-stated` for user-stated relationships.
-- Presentation state: which clusters should start collapsed, which should start expanded, and what each collapsed summary card must explain.
-- Collapsed relationship policy: which cross-cluster relationships stay visible as aggregated summary edges and which are only shown after expansion or in static export.
+- Evidence policy: every edge needs a verb label, confidence (`observed`, `inferred`, or `stated`), and evidence. Use `file:line`, `file:start-end`, or `user-stated`.
+- Manual position policy: omit `x`/`y` unless exact placement is required. If any node has manual coordinates, every node must have both `x` and `y`.
 
 Use concrete scenario probes:
 
@@ -79,41 +76,35 @@ Use concrete scenario probes:
 - "A downstream step fails. Where is that represented, and what still remains true?"
 - "What would be misleading if the diagram compresses this into one box?"
 
----
-
 ## Phase 4: Infrastructure Context
 
-Resolve the infrastructure that surrounds this codebase — what runs before it, after it, and around it:
+Resolve the infrastructure that surrounds this codebase: what runs before it, after it, and around it.
 
-- **Build & CI:** "What builds, tests, packages, or containers this code? Where does CI run, and what triggers it?"
+- **Build and CI:** "What builds, tests, packages, or containers this code? Where does CI run, and what triggers it?"
 - **Provisioning:** "What infrastructure is provisioned before this code runs (databases, queues, storage, networks)? Who manages that provisioning?"
 - **Deployment Target:** "Where does this code run in production (hosting platform, Kubernetes, serverless, edge)? Are there staging/QA environments?"
-- **Observability:** "How is this system observed — logs, metrics, traces, alerts, dashboards? What platform handles each?"
-- **Downstream Consumers:** "What systems consume this code's output — other services, data pipelines, APIs, webhooks, or human-facing UIs? What happens if this system is unavailable?"
+- **Observability:** "How is this system observed - logs, metrics, traces, alerts, dashboards? What platform handles each?"
+- **Downstream Consumers:** "What systems consume this code's output - other services, data pipelines, APIs, webhooks, or human-facing UIs? What happens if this system is unavailable?"
 
 If the answer to all questions is "N/A" (solo dev, simple static site), skip to Phase 5. Note differences across environments (dev/staging/prod) and who manages each piece of infrastructure.
-
----
 
 ## Phase 5: Plan Readiness Gate
 
 Before emitting the `<proposed_plan>`, confirm:
 
 - [ ] Purpose, audience, decision to support, and fidelity are explicit.
+- [ ] Output format (HTML, `.excalidraw`, or both) is explicit.
 - [ ] Output location is explicit: either a full `.html` path or a directory where a descriptive kebab-case `.html` filename will be generated.
-- [ ] `DIAGRAM_DATA` has a stakeholder-ready brief when appropriate: `audience`, `purpose`, `fidelity`, and 1-3 `takeaways`.
+- [ ] `diagram` payload has a stakeholder-ready brief when appropriate: `audience`, `purpose`, `fidelity`, and 1-3 `takeaways`.
 - [ ] Scope and exclusions are explicit.
 - [ ] Main entities and relationships are named.
 - [ ] Edge cases and failure paths are either included or intentionally omitted.
-- [ ] Explanatory prose is written; the JSON agent metadata goes in a hidden `<script type="application/json" id="agent-metadata">` tag, invisible to humans.
-- [ ] Every entity has a stable `id` matching its `id` in `DIAGRAM_DATA.nodes`.
-- [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`/`inferred`/`stated`). Code/doc claims cite `file:line` or `file:start-end`; user-stated relationships use explicit conversation evidence such as `user-stated`.
-- [ ] Agent instructions in the hidden JSON block tell future agents what can change safely.
-- [ ] The JSON schema from html-output-guide.md Section D is fully populated (empty arrays are acceptable for trivial diagrams).
+- [ ] Every entity has a stable `id` matching its `id` in `diagram.nodes`.
+- [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`, `inferred`, or `stated`).
+- [ ] Metadata has `entities`, `relationships`, `assumptions`, `omissions`, `openQuestions`, and `agentInstructions`.
+- [ ] Generated HTML will be built with `scripts/build_diagram.py`, validated with `scripts/validate_diagram.py`, and optionally exported/validated with the Excalidraw scripts.
 
 The proposed plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps. It must also state that implementation happens only after the user requests execution outside Plan Mode.
-
----
 
 ## Phase 6: Build Gate
 
