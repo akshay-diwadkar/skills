@@ -45,7 +45,7 @@ Some HTML shapes (cloud, cylinder, dog-ear, note) have no native Excalidraw equi
 
 `.excalidraw` export has a hard overlap-free edge rule. Edge strokes and edge labels must not overlap foreground nodes, node text, other edge strokes, or other edge labels. Source and target anchor contact is allowed only at the arrow endpoints. Cluster background fills are allowed behind edges.
 
-`generate_excalidraw.py` tries deterministic alternate routes before writing the file. If it cannot find a clean route, it exits non-zero and does not write the `.excalidraw` output. `validate_excalidraw.py` independently enforces the same rule on generated or hand-authored files.
+`generate_excalidraw.py` validates the source HTML, refuses to overwrite an existing `.excalidraw` file without `--overwrite`, and tries deterministic alternate routes before writing the file. If it cannot find a clean route, it exits non-zero and does not write the `.excalidraw` output. `validate_excalidraw.py` independently enforces the same rule on generated or hand-authored files.
 
 ## What Is Excluded
 
@@ -58,11 +58,11 @@ Some HTML shapes (cloud, cylinder, dog-ear, note) have no native Excalidraw equi
 ```text
 HTML generated and validated
        |
-python scripts/generate_excalidraw.py <path-to-diagram.html>
+python "$skillDir\scripts\generate_excalidraw.py" <path-to-diagram.html>
        |
 .excalidraw file written to same directory
        |
-python scripts/validate_excalidraw.py <path-to-diagram.excalidraw>
+python "$skillDir\scripts\validate_excalidraw.py" <path-to-diagram.excalidraw>
 ```
 
 The generator:
@@ -79,7 +79,7 @@ The generator:
 Run after generation:
 
 ```bash
-python scripts/validate_excalidraw.py path/to/diagram.excalidraw
+python "$skillDir\scripts\validate_excalidraw.py" path/to/diagram.excalidraw
 ```
 
 The validator checks:

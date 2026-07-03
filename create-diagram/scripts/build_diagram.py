@@ -1,7 +1,7 @@
 """Build a create-diagram HTML file from a JSON payload.
 
 Usage:
-    python scripts/build_diagram.py --data payload.json --output diagram.html [--overwrite]
+    python build_diagram.py --data payload.json --output diagram.html [--create-dirs] [--overwrite]
 
 Payload shape:
     {
@@ -24,7 +24,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
 
 
-def build_diagram(payload_path, output_path, overwrite=False):
+def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False):
     payload_path = Path(payload_path)
     output_path = Path(output_path)
 
@@ -36,6 +36,13 @@ def build_diagram(payload_path, output_path, overwrite=False):
         raise FileExistsError(f"Output exists: {output_path}. Pass --overwrite to replace it.")
     if output_path.resolve() == TEMPLATE_PATH.resolve():
         raise ValueError("Output path must not be the canonical template file.")
+    if not output_path.parent.exists():
+        if not create_dirs:
+            raise FileNotFoundError(
+                f"Output directory does not exist: {output_path.parent}. "
+                "Pass --create-dirs after confirming directory creation."
+            )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
     payload = json.loads(payload_path.read_text(encoding="utf-8"))
     diagram = payload.get("diagram")
@@ -54,8 +61,9 @@ def build_diagram(payload_path, output_path, overwrite=False):
     html = replace_js_assignment(html, "DIAGRAM_DATA", diagram_literal)
     html = replace_agent_metadata(html, metadata)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(html, encoding="utf-8")
+    temp_path = output_path.with_name(f".{output_path.name}.tmp")
+    temp_path.write_text(html, encoding="utf-8")
+    temp_path.replace(output_path)
     return output_path
 
 
@@ -63,6 +71,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Build create-diagram HTML from a JSON payload.")
     parser.add_argument("--data", required=True, help="Path to payload JSON.")
     parser.add_argument("--output", required=True, help="Path to output .html file.")
+    parser.add_argument("--create-dirs", action="store_true", help="Create a missing output directory.")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing output file.")
     return parser.parse_args(argv)
 
@@ -70,7 +79,7 @@ def parse_args(argv):
 def main(argv=None):
     args = parse_args(argv or sys.argv[1:])
     try:
-        output = build_diagram(args.data, args.output, args.overwrite)
+        output = build_diagram(args.data, args.output, args.overwrite, args.create_dirs)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

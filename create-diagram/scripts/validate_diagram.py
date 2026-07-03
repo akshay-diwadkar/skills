@@ -1,7 +1,7 @@
 """Validate generated Excalidraw-style diagram HTML.
 
 Usage:
-    python scripts/validate_diagram.py <path-to-diagram.html>
+    python validate_diagram.py <path-to-diagram.html>
 """
 
 from __future__ import annotations

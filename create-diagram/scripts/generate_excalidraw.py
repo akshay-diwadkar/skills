@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import sys
@@ -15,6 +16,7 @@ from _diagram_utils import (
     cluster_box,
     select_non_overlapping_routes,
 )
+import validate_diagram
 
 
 NODE_STYLES = {
@@ -260,10 +262,62 @@ def derive_output_path(html_path):
     return Path(html_path).with_suffix(".excalidraw")
 
 
-def generate(input_html_path):
+def validate_html_input(html_path):
+    text = html_path.read_text(encoding="utf-8")
+    errors = 0
+
+    for issue in validate_diagram.check_structural_completeness(text):
+        print(f"ERROR: {issue}", file=sys.stderr)
+        errors += 1
+
+    raw_block = validate_diagram.extract_raw_js_block(text, "DIAGRAM_DATA")
+    if raw_block is None:
+        print("ERROR: Could not find 'const DIAGRAM_DATA =' in file.", file=sys.stderr)
+        errors += 1
+        return False
+
+    try:
+        template_issues = validate_diagram.check_template_integrity(html_path)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        errors += 1
+        template_issues = []
+    for issue in template_issues:
+        print(f"ERROR: {issue}", file=sys.stderr)
+        errors += 1
+
+    dangerous = validate_diagram.check_dangerous_js(raw_block)
+    for line, desc in dangerous:
+        print(
+            f"ERROR: DIAGRAM_DATA line {line}: {desc}. The parser cannot handle this syntax.",
+            file=sys.stderr,
+        )
+        errors += 1
+
+    try:
+        data = extract_diagram_data(text)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return False
+
+    metadata = validate_diagram.extract_agent_metadata(text)
+    validation_errors, _warnings = validate_diagram.validate(data, metadata)
+    errors += validation_errors
+    return errors == 0
+
+
+def generate(input_html_path, overwrite=False):
     html_path = Path(input_html_path)
     if not html_path.exists():
         print(f"ERROR: File not found: {html_path}", file=sys.stderr)
+        return False
+
+    output_path = derive_output_path(html_path)
+    if output_path.exists() and not overwrite:
+        print(f"ERROR: Output exists: {output_path}. Pass --overwrite to replace it.", file=sys.stderr)
+        return False
+
+    if not validate_html_input(html_path):
         return False
 
     try:
@@ -324,17 +378,23 @@ def generate(input_html_path):
         "files": {},
     }
 
-    output_path = derive_output_path(html_path)
-    output_path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    temp_path = output_path.with_name(f".{output_path.name}.tmp")
+    temp_path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    temp_path.replace(output_path)
     print(f"Written: {output_path} ({len(elements)} elements)")
     return True
 
 
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: python generate_excalidraw.py <path-to-diagram.html>", file=sys.stderr)
-        sys.exit(1)
-    sys.exit(0 if generate(sys.argv[1]) else 1)
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Generate .excalidraw from validated diagram HTML.")
+    parser.add_argument("html_path", help="Path to the generated diagram HTML.")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing .excalidraw file.")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv or sys.argv[1:])
+    sys.exit(0 if generate(args.html_path, overwrite=args.overwrite) else 1)
 
 
 if __name__ == "__main__":

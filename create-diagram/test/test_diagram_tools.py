@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 FIXTURES = ROOT / "test" / "fixtures"
 TEMPLATE = ROOT / "assets" / "html-excalidraw-template.html"
+SKILL_DOC = ROOT / "SKILL.md"
+REFERENCES = ROOT / "references"
 sys.path.insert(0, str(SCRIPTS))
 
 import build_diagram  # noqa: E402
@@ -216,6 +218,31 @@ class DiagramToolTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 build_diagram.build_diagram(payload_path, html_path, overwrite=False)
 
+    def test_builder_refuses_missing_directory_without_create_dirs(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            payload_path = Path(tmp) / "payload.json"
+            html_path = Path(tmp) / "missing" / "diagram.html"
+            payload_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            with self.assertRaises(FileNotFoundError):
+                build_diagram.build_diagram(payload_path, html_path)
+
+            self.assertFalse(html_path.exists())
+
+    def test_builder_create_dirs_and_atomic_write(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            payload_path = Path(tmp) / "payload.json"
+            html_path = Path(tmp) / "missing" / "diagram.html"
+            payload_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            build_diagram.build_diagram(payload_path, html_path, create_dirs=True)
+
+            self.assertTrue(html_path.exists())
+            self.assertFalse((html_path.parent / ".diagram.html.tmp").exists())
+            self.assertIn("const DIAGRAM_DATA =", html_path.read_text(encoding="utf-8"))
+
     def test_excalidraw_export_validates(self):
         payload = minimal_payload()
         with tempfile.TemporaryDirectory() as tmp:
@@ -228,6 +255,27 @@ class DiagramToolTests(unittest.TestCase):
             self.assertEqual(warnings, 0)
             text_values = [el.get("text", "") for el in doc["elements"] if el.get("type") == "text"]
             self.assertTrue(any("Starts the validated diagram flow" in value for value in text_values))
+
+    def test_excalidraw_generation_refuses_existing_output_without_overwrite(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            exc_path = html_path.with_suffix(".excalidraw")
+            exc_path.write_text("existing", encoding="utf-8")
+
+            self.assertFalse(generate_excalidraw.generate(html_path))
+            self.assertEqual(exc_path.read_text(encoding="utf-8"), "existing")
+
+            self.assertTrue(generate_excalidraw.generate(html_path, overwrite=True))
+            self.assertEqual(json.loads(exc_path.read_text(encoding="utf-8"))["type"], "excalidraw")
+
+    def test_excalidraw_generation_refuses_invalid_html(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = Path(tmp) / "diagram.html"
+            html_path.write_text("<html><body>broken</body></html>", encoding="utf-8")
+
+            self.assertFalse(generate_excalidraw.generate(html_path))
+            self.assertFalse(html_path.with_suffix(".excalidraw").exists())
 
     def test_complex_fixture_excalidraw_export_validates(self):
         payload = load_complex_payload()
@@ -432,6 +480,17 @@ class DiagramToolTests(unittest.TestCase):
                 with self.subTest(command=command):
                     result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_docs_use_anchored_script_commands(self):
+        docs = [SKILL_DOC.read_text(encoding="utf-8")]
+        docs.extend(path.read_text(encoding="utf-8") for path in REFERENCES.glob("*.md"))
+        combined = "\n".join(docs)
+
+        self.assertIn('$skillDir\\scripts\\build_diagram.py', combined)
+        self.assertIn('$skillDir\\scripts\\validate_diagram.py', combined)
+        self.assertIn('$skillDir\\scripts\\generate_excalidraw.py', combined)
+        self.assertIn('$skillDir\\scripts\\validate_excalidraw.py', combined)
+        self.assertNotRegex(combined, r"python\s+scripts[\\/]")
 
 
 if __name__ == "__main__":

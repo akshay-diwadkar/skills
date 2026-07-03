@@ -46,7 +46,7 @@ Every edge must have a verb label describing the relationship:
 
 ## Section C: Build Payload
 
-Build generated HTML with the shared template through `scripts/build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. Generated HTML should differ from `assets/html-excalidraw-template.html` only in `DIAGRAM_DATA` and `#agent-metadata`.
+Build generated HTML with the shared template through `$skillDir\scripts\build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. Generated HTML should differ from `assets/html-excalidraw-template.html` only in `DIAGRAM_DATA` and `#agent-metadata`.
 
 Payload shape:
 
@@ -118,10 +118,10 @@ Payload shape:
 Build command:
 
 ```bash
-python scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --overwrite
+python "$skillDir\scripts\build_diagram.py" --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
 ```
 
-Omit `--overwrite` unless the user has confirmed replacement. The builder refuses to overwrite an existing file without that flag and refuses to write over the canonical template.
+Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement. The builder refuses to overwrite an existing file without that flag and refuses to write over the canonical template.
 
 ## Section D: `diagram` Rules
 
@@ -191,7 +191,7 @@ Rules:
 Run:
 
 ```bash
-python scripts/validate_diagram.py <path-to-output.html>
+python "$skillDir\scripts\validate_diagram.py" <path-to-output.html>
 ```
 
 The script checks:

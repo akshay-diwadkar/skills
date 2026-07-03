@@ -102,7 +102,7 @@ Before emitting the `<proposed_plan>`, confirm:
 - [ ] Every entity has a stable `id` matching its `id` in `diagram.nodes`.
 - [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`, `inferred`, or `stated`).
 - [ ] Metadata has `entities`, `relationships`, `assumptions`, `omissions`, `openQuestions`, and `agentInstructions`.
-- [ ] Generated HTML will be built with `scripts/build_diagram.py`, validated with `scripts/validate_diagram.py`, and optionally exported/validated with the Excalidraw scripts.
+- [ ] Generated HTML will be built with `$skillDir\scripts\build_diagram.py`, validated with `$skillDir\scripts\validate_diagram.py`, and optionally exported/validated with the Excalidraw scripts.
 
 The proposed plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps. It must also state that implementation happens only after the user requests execution outside Plan Mode.
 
