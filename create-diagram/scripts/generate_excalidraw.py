@@ -309,22 +309,19 @@ def validate_html_input(html_path):
 def generate(input_html_path, overwrite=False):
     html_path = Path(input_html_path)
     if not html_path.exists():
-        print(f"ERROR: File not found: {html_path}", file=sys.stderr)
-        return False
+        raise FileNotFoundError(f"Input not found: {html_path}")
 
     output_path = derive_output_path(html_path)
     if output_path.exists() and not overwrite:
-        print(f"ERROR: Output exists: {output_path}. Pass --overwrite to replace it.", file=sys.stderr)
-        return False
+        raise FileExistsError(f"Output exists: {output_path}. Pass --overwrite to replace it.")
 
     if not validate_html_input(html_path):
-        return False
+        raise ValueError("Input HTML validation failed. See errors above.")
 
     try:
         data = extract_diagram_data(html_path.read_text(encoding="utf-8"))
     except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return False
+        raise ValueError(f"Failed to extract diagram data: {exc}") from exc
 
     nodes = data.get("nodes") or []
     edges = data.get("edges") or []
@@ -332,8 +329,7 @@ def generate(input_html_path, overwrite=False):
     positions = compute_layout(data)
     edge_routes, route_error = select_non_overlapping_routes(edges, nodes_by_id, positions)
     if route_error:
-        print(f"ERROR: {route_error}", file=sys.stderr)
-        return False
+        raise ValueError(f"Edge routing failed: {route_error}")
 
     elements = []
 
@@ -382,7 +378,7 @@ def generate(input_html_path, overwrite=False):
     temp_path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
     temp_path.replace(output_path)
     print(f"Written: {output_path} ({len(elements)} elements)")
-    return True
+    return output_path
 
 
 def parse_args(argv):
@@ -394,7 +390,12 @@ def parse_args(argv):
 
 def main(argv=None):
     args = parse_args(argv or sys.argv[1:])
-    sys.exit(0 if generate(args.html_path, overwrite=args.overwrite) else 1)
+    try:
+        output = generate(args.html_path, overwrite=args.overwrite)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

@@ -62,6 +62,7 @@ EXTERNAL_ALLOWLIST = frozenset({
     # False positives - names inside string literals or comments
     "rgba", "shadow", "first", "place",
     "stage", "tier", "edges", "nodes",
+    "Excalidraw", "derive", "files",
     # SVG attribute helpers (inside template literal strings)
     "translate", "scale", "rotate", "matrix",
     # RoughJS

@@ -1,9 +1,11 @@
 """Debug template integrity hash mismatch."""
-import hashlib, re
+import argparse
+import hashlib
+import re
 from pathlib import Path
 
+
 TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "html-excalidraw-template.html"
-OUTPUT = Path(r"C:\Users\Akshay Diwadkar\.agents\skills\plan-with-senior-dev\plan-with-senior-dev-skill-architecture.html")
 
 
 def strip_data_sections(text):
@@ -36,35 +38,50 @@ def strip_data_sections(text):
     return result
 
 
-tmpl = TEMPLATE.read_text(encoding='utf-8')
-out = OUTPUT.read_text(encoding='utf-8')
+def main():
+    parser = argparse.ArgumentParser(description="Debug template integrity hash mismatch.")
+    parser.add_argument("output_path", help="Path to the generated HTML output file to compare against template.")
+    args = parser.parse_args()
 
-t_clean = strip_data_sections(tmpl)
-o_clean = strip_data_sections(out)
+    output = Path(args.output_path)
+    if not output.exists():
+        print(f"ERROR: Output file not found: {output}", file=__import__('sys').stderr)
+        return 1
 
-t_hash = hashlib.sha256(t_clean.encode('utf-8')).hexdigest()
-o_hash = hashlib.sha256(o_clean.encode('utf-8')).hexdigest()
+    tmpl = TEMPLATE.read_text(encoding='utf-8')
+    out = output.read_text(encoding='utf-8')
 
-print('Template hash:', t_hash)
-print('Output hash:  ', o_hash)
-print('Match:', t_hash == o_hash)
+    t_clean = strip_data_sections(tmpl)
+    o_clean = strip_data_sections(out)
 
-if t_hash != o_hash:
-    t_lines = t_clean.split('\n')
-    o_lines = o_clean.split('\n')
-    for i, (tl, ol) in enumerate(zip(t_lines, o_lines)):
-        if tl != ol:
-            print(f'First diff at line {i+1}:')
-            print(f'  Template len={len(tl)}, Output len={len(ol)}')
-            print(f'  Template: {repr(tl[:120])}')
-            print(f'  Output:   {repr(ol[:120])}')
-            break
-    print(f'Template lines: {len(t_lines)}, Output lines: {len(o_lines)}')
-    if len(t_lines) != len(o_lines):
-        print(f'Line count mismatch at line {min(len(t_lines), len(o_lines))}')
-        if len(o_lines) > len(t_lines):
-            for j in range(len(t_lines), len(o_lines)):
-                print(f'  Extra output: {repr(o_lines[j][:120])}')
-        else:
-            for j in range(len(o_lines), len(t_lines)):
-                print(f'  Missing from output: {repr(t_lines[j][:120])}')
+    t_hash = hashlib.sha256(t_clean.encode('utf-8')).hexdigest()
+    o_hash = hashlib.sha256(o_clean.encode('utf-8')).hexdigest()
+
+    print('Template hash:', t_hash)
+    print('Output hash:  ', o_hash)
+    print('Match:', t_hash == o_hash)
+
+    if t_hash != o_hash:
+        t_lines = t_clean.split('\n')
+        o_lines = o_clean.split('\n')
+        for i, (tl, ol) in enumerate(zip(t_lines, o_lines)):
+            if tl != ol:
+                print(f'First diff at line {i+1}:')
+                print(f'  Template len={len(tl)}, Output len={len(ol)}')
+                print(f'  Template: {repr(tl[:120])}')
+                print(f'  Output:   {repr(ol[:120])}')
+                break
+        print(f'Template lines: {len(t_lines)}, Output lines: {len(o_lines)}')
+        if len(t_lines) != len(o_lines):
+            print(f'Line count mismatch at line {min(len(t_lines), len(o_lines))}')
+            if len(o_lines) > len(t_lines):
+                for j in range(len(t_lines), len(o_lines)):
+                    print(f'  Extra output: {repr(o_lines[j][:120])}')
+            else:
+                for j in range(len(o_lines), len(t_lines)):
+                    print(f'  Missing from output: {repr(t_lines[j][:120])}')
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

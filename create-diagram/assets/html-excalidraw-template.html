@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create Diagram - Excalidraw-Style Diagram</title>
 <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat&family=Comic+Neue&family=Gloria+Hallelujah&family=Indie+Flower&family=Kalam&family=Patrick+Hand&family=Permanent+Marker&family=Shadows+Into+Light&family=Short+Stack&display=swap" rel="stylesheet">
-<script type="importmap">
-{
-  "imports": {
-    "roughjs": "https://unpkg.com/roughjs@4.6.6/bundled/rough.esm.js"
-  }
-}
-</script>
 <style>
 :root{--diagram-font:'Indie Flower',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -184,109 +177,99 @@ body[data-theme="dark"] #instructions{background:rgba(18,18,22,0.88);border-colo
 <script>
 /* ========== POPULATE THIS DATA ========== */
 const DIAGRAM_DATA = {
-  title: "plan-with-senior-dev Flow",
-  storageKey: "plan-with-senior-dev-flow-v1",
-  audience: "AI agents and developers",
-  purpose: "Show the 4-stage runtime flow, decision gates, reference-doc routing, and task-tier branching at a glance.",
+  title: "create-diagram Workflow",
+  storageKey: "create-diagram-flow-v1",
+  audience: "AI agents and developers using the create-diagram skill",
+  purpose: "Show the 8-stage agent workflow from user request through exploration, questioning, planning, building, validation, excalidraw derivation, verification, and delivery.",
   fidelity: "narrative-architecture",
   takeaways: [
-    "Explore \u2192 Grill \u2192 Plan \u2192 Verify is the canonical flow; feedback loops at contradiction, exit-criteria, and quality gates",
-    "Task tier (Tiny/Standard/High-Risk) controls plan length, risk detail, and reference-doc routing",
-    "Six reference documents gate specific decisions; pre-mortem and anti-patterns apply only at higher tiers"
+    "Explore \u2192 Question \u2192 Plan \u2192 Build \u2192 Validate \u2192 Derive \u2192 Verify is the canonical flow; feedback loops at question and verify gates",
+    "Each stage reads a reference doc or runs a script; derive (.excalidraw) is optional",
+    "Fidelity defaults to narrative-architecture; only DIAGRAM_DATA and #agent-metadata are touched in the template"
   ],
   nodes: [
-    { id: "user", label: "User", type: "actor", description: "Person with an ambiguous implementation request" },
-    { id: "agent", label: "Skill Runner", type: "actor", description: "AI agent executing the plan-with-senior-dev workflow" },
-    { id: "explore", label: "Explore Stage", type: "process", description: "Build current-state evidence from entrypoints, patterns, tests, and contradictions" },
-    { id: "contradiction", label: "Contradictions?", type: "decision", description: "Does the request conflict with code, tests, or established conventions?" },
-    { id: "grill", label: "Grill to Shared Understanding", type: "process", description: "Design-tree walk: one question at a time with concrete scenario probes" },
-    { id: "exit-criteria", label: "Exit Criteria Met?", type: "decision", description: "Goals concrete? Terms agreed? Interfaces decided? Edge cases settled?" },
-    { id: "plan", label: "Plan", type: "process", description: "Produce decision-complete plan in dependency order with tracer bullet for higher tiers" },
-    { id: "tier", label: "Tier Decision", type: "decision", description: "Size the work: Tiny, Standard, or High-Risk controls plan length and risk detail" },
-    { id: "verify", label: "Verify", type: "process", description: "Check current-state claims, scope, patterns, failure modes, tests, and rollback" },
-    { id: "quality-pass", label: "Quality Pass?", type: "decision", description: "Decision-complete? No hedging? Implementation can start immediately?" },
-    { id: "artifact", label: "Plan Artifact", type: "file", description: "Final decision-complete implementation plan delivered to the user" },
-    { id: "exploration-protocol", label: "Exploration Protocol", type: "document", description: "Reference doc for gathering codebase evidence before asking questions" },
-    { id: "question-strategy", label: "Question Strategy", type: "document", description: "Reference doc for asking blocking versus non-blocking questions" },
-    { id: "grilling-protocol", label: "Grilling Protocol", type: "document", description: "Reference doc for pressure-test checklist and exit criteria" },
-    { id: "quality-rubric", label: "Quality Rubric", type: "document", description: "Reference doc for required plan qualities per task tier" },
-    { id: "pre-mortem", label: "Pre-Mortem", type: "document", description: "Reference doc for finding plan-breaking blind spots before finalizing" },
-    { id: "anti-patterns", label: "Anti-Patterns", type: "document", description: "Reference doc for common plan mistakes and how to fix them" },
-    { id: "check-script", label: "Check Plan Script", type: "file", description: "Python validation script combining shape checker and rubric checker" },
-    { id: "domain-docs", label: "Domain Docs", type: "document", description: "CONTEXT.md glossary and ADRs for durable tradeoffs" }
+    { id: "user", label: "User", type: "actor", description: "Person requesting a diagram for a codebase concept" },
+    { id: "agent", label: "Diagram Agent", type: "actor", description: "AI agent executing the create-diagram workflow" },
+    { id: "explore", label: "Explore", type: "process", description: "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions" },
+    { id: "q-framework", label: "Question Framework", type: "document", description: "Reference doc for asking one question at a time about purpose, audience, format, entities" },
+    { id: "question", label: "Question", type: "process", description: "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear" },
+    { id: "output-guide", label: "HTML/Excalidraw Guide", type: "document", description: "Reference doc for plan format: only DIAGRAM_DATA changed, fidelity defaults, output path conventions" },
+    { id: "plan", label: "Plan", type: "process", description: "Propose a plan with title, purpose, audience, fidelity, entities, relationships, clusters, and evidence policy" },
+    { id: "build", label: "Build", type: "process", description: "Create JSON payload and run build_diagram.py to produce the standalone HTML file" },
+    { id: "validate", label: "Validate", type: "process", description: "Run validate_diagram.py on the HTML; fix all errors until exit code 0" },
+    { id: "derive", label: "Derive .excalidraw?", type: "decision", description: "If user requests an editable .excalidraw export, run generate_excalidraw.py; otherwise skip" },
+    { id: "verify", label: "Verify", type: "process", description: "Open HTML in browser; check brief panel, node shapes, edge labels, legend, walkthrough, drag/pan/zoom, theme toggle, reset, excalidraw rendering" },
+    { id: "output-html", label: "Diagram HTML", type: "file", description: "Final standalone HTML diagram artifact delivered to the user" }
   ],
   edges: [
     { sourceId: "user", targetId: "agent", label: "requests", evidence: "SKILL.md:8", confidence: "observed" },
-    { sourceId: "agent", targetId: "explore", label: "executes", evidence: "SKILL.md:44", confidence: "observed" },
-    { sourceId: "explore", targetId: "exploration-protocol", label: "reads", evidence: "SKILL.md:16", confidence: "observed" },
-    { sourceId: "explore", targetId: "contradiction", label: "checks", evidence: "SKILL.md:56", confidence: "observed" },
-    { sourceId: "contradiction", targetId: "explore", label: "conflicts", evidence: "SKILL.md:56-58", confidence: "observed" },
-    { sourceId: "contradiction", targetId: "grill", label: "resolved", evidence: "user-stated", confidence: "stated" },
-    { sourceId: "explore", targetId: "grill", label: "proceeds", evidence: "SKILL.md:62", confidence: "observed" },
-    { sourceId: "grill", targetId: "question-strategy", label: "follows", evidence: "SKILL.md:17", confidence: "observed" },
-    { sourceId: "grill", targetId: "grilling-protocol", label: "applies", evidence: "SKILL.md:18", confidence: "observed" },
-    { sourceId: "grill", targetId: "exit-criteria", label: "evaluates", evidence: "SKILL.md:80-91", confidence: "observed" },
-    { sourceId: "exit-criteria", targetId: "grill", label: "not-met", evidence: "SKILL.md:92", confidence: "observed" },
-    { sourceId: "exit-criteria", targetId: "plan", label: "met", evidence: "SKILL.md:92", confidence: "observed" },
-    { sourceId: "plan", targetId: "quality-rubric", label: "references", evidence: "SKILL.md:19", confidence: "observed" },
-    { sourceId: "plan", targetId: "anti-patterns", label: "checks", evidence: "SKILL.md:21", confidence: "observed" },
-    { sourceId: "plan", targetId: "tier", label: "sizes", evidence: "SKILL.md:123-187", confidence: "observed" },
-    { sourceId: "plan", targetId: "domain-docs", label: "aligns", evidence: "SKILL.md:188-201", confidence: "observed" },
-    { sourceId: "plan", targetId: "pre-mortem", label: "runs", evidence: "SKILL.md:20", confidence: "observed" },
-    { sourceId: "plan", targetId: "verify", label: "outputs", evidence: "SKILL.md:108", confidence: "observed" },
-    { sourceId: "verify", targetId: "check-script", label: "executes", evidence: "SKILL.md:67-81", confidence: "observed" },
-    { sourceId: "verify", targetId: "quality-pass", label: "evaluates", evidence: "SKILL.md:110-121", confidence: "observed" },
-    { sourceId: "quality-pass", targetId: "verify", label: "fails", evidence: "SKILL.md:121", confidence: "observed" },
-    { sourceId: "quality-pass", targetId: "artifact", label: "passes", evidence: "user-stated", confidence: "stated" },
-    { sourceId: "artifact", targetId: "user", label: "delivers", evidence: "user-stated", confidence: "stated" }
+    { sourceId: "agent", targetId: "explore", label: "runs", evidence: "SKILL.md:44", confidence: "observed" },
+    { sourceId: "explore", targetId: "q-framework", label: "follows", evidence: "SKILL.md:16", confidence: "observed" },
+    { sourceId: "explore", targetId: "question", label: "gathers info", evidence: "SKILL.md:62", confidence: "observed" },
+    { sourceId: "question", targetId: "explore", label: "more info needed", evidence: "SKILL.md:62", confidence: "observed" },
+    { sourceId: "question", targetId: "plan", label: "ready", evidence: "SKILL.md:94", confidence: "observed" },
+    { sourceId: "plan", targetId: "output-guide", label: "references", evidence: "SKILL.md:95", confidence: "observed" },
+    { sourceId: "plan", targetId: "build", label: "produces", evidence: "SKILL.md:108", confidence: "observed" },
+    { sourceId: "build", targetId: "validate", label: "generates", evidence: "SKILL.md:112", confidence: "observed" },
+    { sourceId: "validate", targetId: "derive", label: "passes", evidence: "SKILL.md:120", confidence: "observed" },
+    { sourceId: "derive", targetId: "build", label: "validation failed", evidence: "SKILL.md:115", confidence: "observed" },
+    { sourceId: "derive", targetId: "verify", label: "no excalidraw", evidence: "SKILL.md:124", confidence: "observed" },
+    { sourceId: "derive", targetId: "output-html", label: "excalidraw done", evidence: "SKILL.md:132", confidence: "observed" },
+    { sourceId: "verify", targetId: "build", label: "fix and rebuild", evidence: "SKILL.md:142", confidence: "observed" },
+    { sourceId: "verify", targetId: "output-html", label: "approved", evidence: "SKILL.md:150", confidence: "observed" },
+    { sourceId: "output-html", targetId: "user", label: "delivers", evidence: "SKILL.md:150", confidence: "observed" }
   ],
   walkthrough: [
     {
       id: "request",
-      title: "Request arrives",
-      description: "User brings an ambiguous implementation request to the Skill Runner agent.",
+      title: "User requests a diagram",
+      description: "User asks the agent to diagram a codebase concept. Agent loads the create-diagram skill.",
       nodeIds: ["user", "agent"]
     },
     {
-      id: "explore",
-      title: "Explore and check contradictions",
-      description: "Agent reads the codebase and Exploration Protocol, then checks for contradictions with the request.",
-      nodeIds: ["agent", "explore", "exploration-protocol", "contradiction"]
-    },
-    {
-      id: "grill",
-      title: "Grill to shared understanding",
-      description: "Design-tree walk with scenario probes until exit criteria are all met, following Question Strategy and Grilling Protocol.",
-      nodeIds: ["grill", "question-strategy", "grilling-protocol", "exit-criteria"]
+      id: "explore-question",
+      title: "Explore and ask clarifying questions",
+      description: "Agent inspects the repo and follows the Question Framework to ask one question at a time until purpose, audience, layout, and entities are settled.",
+      nodeIds: ["agent", "explore", "q-framework", "question"]
     },
     {
       id: "plan",
-      title: "Plan with tiering",
-      description: "Size the work, write changes in dependency order, run pre-mortem for higher tiers, and align with domain docs.",
-      nodeIds: ["plan", "tier", "quality-rubric", "anti-patterns", "pre-mortem", "domain-docs"]
+      title: "Plan the diagram",
+      description: "Agent proposes a plan with title, audience, fidelity, entities, relationships, clusters, and evidence expectations. Asks before creating files.",
+      nodeIds: ["question", "plan", "output-guide"]
+    },
+    {
+      id: "build-validate",
+      title: "Build and validate",
+      description: "Agent creates the JSON payload, runs build_diagram.py, then runs validate_diagram.py and fixes all errors.",
+      nodeIds: ["plan", "build", "validate"]
+    },
+    {
+      id: "derive",
+      title: "Optionally derive .excalidraw",
+      description: "If requested, agent runs generate_excalidraw.py and validates the output with validate_excalidraw.py.",
+      nodeIds: ["validate", "derive"]
     },
     {
       id: "verify",
       title: "Verify and deliver",
-      description: "Run the check script, evaluate against quality rubric, and deliver the final plan artifact to the user.",
-      nodeIds: ["verify", "check-script", "quality-pass", "artifact", "user"]
+      description: "Agent opens the HTML in a browser, verifies all features work, then delivers the final artifact to the user.",
+      nodeIds: ["derive", "verify", "output-html", "user"]
     }
   ],
   clusters: [
     { id: "c-initiation", label: "Initiation", nodeIds: ["user", "agent"] },
-    { id: "c-exploration", label: "Exploration Zone", nodeIds: ["explore", "contradiction", "exploration-protocol"] },
-    { id: "c-grilling", label: "Grilling Zone", nodeIds: ["grill", "exit-criteria", "question-strategy", "grilling-protocol"] },
-    { id: "c-planning", label: "Planning Zone", nodeIds: ["plan", "tier", "quality-rubric", "anti-patterns", "pre-mortem"] },
-    { id: "c-verification", label: "Verification Zone", nodeIds: ["verify", "quality-pass", "check-script"] },
-    { id: "c-knowledge", label: "Domain Knowledge", nodeIds: ["domain-docs"] },
-    { id: "c-output", label: "Delivery", nodeIds: ["artifact"] }
+    { id: "c-exploration", label: "Exploration & Questions", nodeIds: ["explore", "q-framework", "question"] },
+    { id: "c-planning", label: "Planning", nodeIds: ["plan", "output-guide"] },
+    { id: "c-engineering", label: "Build & Validation", nodeIds: ["build", "validate"] },
+    { id: "c-derivation", label: "Excalidraw (Optional)", nodeIds: ["derive"] },
+    { id: "c-delivery", label: "Delivery", nodeIds: ["verify", "output-html"] }
   ]
 };
 </script>
 
+<script src="roughjs.js"></script>
 <script type="module">
-import rough from 'roughjs';
-
 /* ---------- theme ---------- */
 const THEMES = {
   light: {
@@ -363,7 +346,7 @@ const VERSION = 11;
 
 const canvas = document.getElementById('canvas');
 const $ = id => document.getElementById(id);
-const rc = rough.svg(canvas);
+const rc = window.roughjs.svg(canvas);
 
 /* ---------- state ---------- */
 let state = {
@@ -2186,74 +2169,59 @@ init();
 <!-- AGENT METADATA (invisible to human viewers, embedded for agent parsing) -->
 <script type="application/json" id="agent-metadata">
 {
-  "audience": "AI agents and developers",
-  "purpose": "Show the 4-stage runtime flow, decision gates, reference-doc routing, and task-tier branching at a glance.",
+  "audience": "AI agents and developers using the create-diagram skill",
+  "purpose": "Show the 8-stage agent workflow from user request through exploration, questioning, planning, building, validation, excalidraw derivation, verification, and delivery.",
   "fidelity": "narrative-architecture",
   "entities": [
-    { "id": "user", "name": "User", "type": "actor", "description": "Person with an ambiguous implementation request", "evidence": "SKILL.md:8" },
-    { "id": "agent", "name": "Skill Runner", "type": "actor", "description": "AI agent executing the plan-with-senior-dev workflow", "evidence": "SKILL.md:6-8" },
-    { "id": "explore", "name": "Explore Stage", "type": "process", "description": "Build current-state evidence from entrypoints, patterns, tests, and contradictions", "evidence": "SKILL.md:44-58" },
-    { "id": "contradiction", "name": "Contradictions?", "type": "decision", "description": "Does the request conflict with code, tests, or established conventions?", "evidence": "SKILL.md:56-58" },
-    { "id": "grill", "name": "Grill to Shared Understanding", "type": "process", "description": "Design-tree walk: one question at a time with concrete scenario probes", "evidence": "SKILL.md:60-92" },
-    { "id": "exit-criteria", "name": "Exit Criteria Met?", "type": "decision", "description": "Goals concrete? Terms agreed? Interfaces decided? Edge cases settled?", "evidence": "SKILL.md:80-92" },
-    { "id": "plan", "name": "Plan", "type": "process", "description": "Produce decision-complete plan in dependency order with tracer bullet for higher tiers", "evidence": "SKILL.md:94-108" },
-    { "id": "tier", "name": "Tier Decision", "type": "decision", "description": "Size the work: Tiny, Standard, or High-Risk controls plan length and risk detail", "evidence": "SKILL.md:123-187" },
-    { "id": "verify", "name": "Verify", "type": "process", "description": "Check current-state claims, scope, patterns, failure modes, tests, and rollback", "evidence": "SKILL.md:108-121" },
-    { "id": "quality-pass", "name": "Quality Pass?", "type": "decision", "description": "Decision-complete? No hedging? Implementation can start immediately?", "evidence": "SKILL.md:110-121" },
-    { "id": "artifact", "name": "Plan Artifact", "type": "file", "description": "Final decision-complete implementation plan delivered to the user", "evidence": "SKILL.md:94-108" },
-    { "id": "exploration-protocol", "name": "Exploration Protocol", "type": "document", "description": "Reference doc for gathering codebase evidence before asking questions", "evidence": "references/exploration-protocol.md" },
-    { "id": "question-strategy", "name": "Question Strategy", "type": "document", "description": "Reference doc for asking blocking versus non-blocking questions", "evidence": "references/question-strategy.md" },
-    { "id": "grilling-protocol", "name": "Grilling Protocol", "type": "document", "description": "Reference doc for pressure-test checklist and exit criteria", "evidence": "references/grilling-protocol.md" },
-    { "id": "quality-rubric", "name": "Quality Rubric", "type": "document", "description": "Reference doc for required plan qualities per task tier", "evidence": "references/plan-quality-rubric.md" },
-    { "id": "pre-mortem", "name": "Pre-Mortem", "type": "document", "description": "Reference doc for finding plan-breaking blind spots before finalizing", "evidence": "references/pre-mortem.md" },
-    { "id": "anti-patterns", "name": "Anti-Patterns", "type": "document", "description": "Reference doc for common plan mistakes and how to fix them", "evidence": "references/anti-patterns.md" },
-    { "id": "check-script", "name": "Check Plan Script", "type": "file", "description": "Python validation script combining shape checker and rubric checker", "evidence": "scripts/check_plan.py" },
-    { "id": "domain-docs", "name": "Domain Docs", "type": "document", "description": "CONTEXT.md glossary and ADRs for durable tradeoffs", "evidence": "SKILL.md:188-201" }
+    { "id": "user", "name": "User", "type": "actor", "description": "Person requesting a diagram for a codebase concept", "evidence": "SKILL.md:8" },
+    { "id": "agent", "name": "Diagram Agent", "type": "actor", "description": "AI agent executing the create-diagram workflow", "evidence": "SKILL.md:6-8" },
+    { "id": "explore", "name": "Explore", "type": "process", "description": "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions", "evidence": "SKILL.md:44" },
+    { "id": "q-framework", "name": "Question Framework", "type": "document", "description": "Reference doc for asking one question at a time about purpose, audience, format, entities", "evidence": "reference/question-framework.md" },
+    { "id": "question", "name": "Question", "type": "process", "description": "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear", "evidence": "SKILL.md:62" },
+    { "id": "output-guide", "name": "HTML/Excalidraw Guide", "type": "document", "description": "Reference doc for plan format: only DIAGRAM_DATA changed, fidelity defaults, output path conventions", "evidence": "assets/html-excalidraw-template.html" },
+    { "id": "plan", "name": "Plan", "type": "process", "description": "Propose a plan with title, purpose, audience, fidelity, entities, relationships, clusters, and evidence policy", "evidence": "SKILL.md:94" },
+    { "id": "build", "name": "Build", "type": "process", "description": "Create JSON payload and run build_diagram.py to produce the standalone HTML file", "evidence": "SKILL.md:108" },
+    { "id": "validate", "name": "Validate", "type": "process", "description": "Run validate_diagram.py on the HTML; fix all errors until exit code 0", "evidence": "SKILL.md:112" },
+    { "id": "derive", "name": "Derive .excalidraw?", "type": "decision", "description": "If user requests an editable .excalidraw export, run generate_excalidraw.py; otherwise skip", "evidence": "SKILL.md:120" },
+    { "id": "verify", "name": "Verify", "type": "process", "description": "Open HTML in browser; check brief panel, node shapes, edge labels, legend, walkthrough, drag/pan/zoom, theme toggle, reset, excalidraw rendering", "evidence": "SKILL.md:140" },
+    { "id": "output-html", "name": "Diagram HTML", "type": "file", "description": "Final standalone HTML diagram artifact delivered to the user", "evidence": "SKILL.md:150" }
   ],
   "relationships": [
-    { "sourceId": "user", "targetId": "agent", "label": "requests", "direction": "User \u2192 Skill Runner", "confidence": "observed", "evidence": "SKILL.md:8" },
-    { "sourceId": "agent", "targetId": "explore", "label": "executes", "direction": "Skill Runner \u2192 Explore Stage", "confidence": "observed", "evidence": "SKILL.md:44" },
-    { "sourceId": "explore", "targetId": "exploration-protocol", "label": "reads", "direction": "Explore Stage \u2192 Exploration Protocol", "confidence": "observed", "evidence": "SKILL.md:16" },
-    { "sourceId": "explore", "targetId": "contradiction", "label": "checks", "direction": "Explore Stage \u2192 Contradictions?", "confidence": "observed", "evidence": "SKILL.md:56" },
-    { "sourceId": "contradiction", "targetId": "explore", "label": "conflicts", "direction": "Contradictions? \u2192 Explore Stage", "confidence": "observed", "evidence": "SKILL.md:56-58" },
-    { "sourceId": "contradiction", "targetId": "grill", "label": "resolved", "direction": "Contradictions? \u2192 Grill", "confidence": "stated", "evidence": "user-stated" },
-    { "sourceId": "explore", "targetId": "grill", "label": "proceeds", "direction": "Explore Stage \u2192 Grill", "confidence": "observed", "evidence": "SKILL.md:62" },
-    { "sourceId": "grill", "targetId": "question-strategy", "label": "follows", "direction": "Grill \u2192 Question Strategy", "confidence": "observed", "evidence": "SKILL.md:17" },
-    { "sourceId": "grill", "targetId": "grilling-protocol", "label": "applies", "direction": "Grill \u2192 Grilling Protocol", "confidence": "observed", "evidence": "SKILL.md:18" },
-    { "sourceId": "grill", "targetId": "exit-criteria", "label": "evaluates", "direction": "Grill \u2192 Exit Criteria", "confidence": "observed", "evidence": "SKILL.md:80-91" },
-    { "sourceId": "exit-criteria", "targetId": "grill", "label": "not-met", "direction": "Exit Criteria \u2192 Grill", "confidence": "observed", "evidence": "SKILL.md:92" },
-    { "sourceId": "exit-criteria", "targetId": "plan", "label": "met", "direction": "Exit Criteria \u2192 Plan", "confidence": "observed", "evidence": "SKILL.md:92" },
-    { "sourceId": "plan", "targetId": "quality-rubric", "label": "references", "direction": "Plan \u2192 Quality Rubric", "confidence": "observed", "evidence": "SKILL.md:19" },
-    { "sourceId": "plan", "targetId": "anti-patterns", "label": "checks", "direction": "Plan \u2192 Anti-Patterns", "confidence": "observed", "evidence": "SKILL.md:21" },
-    { "sourceId": "plan", "targetId": "tier", "label": "sizes", "direction": "Plan \u2192 Tier Decision", "confidence": "observed", "evidence": "SKILL.md:123-187" },
-    { "sourceId": "plan", "targetId": "domain-docs", "label": "aligns", "direction": "Plan \u2192 Domain Docs", "confidence": "observed", "evidence": "SKILL.md:188-201" },
-    { "sourceId": "plan", "targetId": "pre-mortem", "label": "runs", "direction": "Plan \u2192 Pre-Mortem", "confidence": "observed", "evidence": "SKILL.md:20" },
-    { "sourceId": "plan", "targetId": "verify", "label": "outputs", "direction": "Plan \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:108" },
-    { "sourceId": "verify", "targetId": "check-script", "label": "executes", "direction": "Verify \u2192 Check Plan Script", "confidence": "observed", "evidence": "SKILL.md:67-81" },
-    { "sourceId": "verify", "targetId": "quality-pass", "label": "evaluates", "direction": "Verify \u2192 Quality Pass?", "confidence": "observed", "evidence": "SKILL.md:110-121" },
-    { "sourceId": "quality-pass", "targetId": "verify", "label": "fails", "direction": "Quality Pass? \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:121" },
-    { "sourceId": "quality-pass", "targetId": "artifact", "label": "passes", "direction": "Quality Pass? \u2192 Plan Artifact", "confidence": "stated", "evidence": "user-stated" },
-    { "sourceId": "artifact", "targetId": "user", "label": "delivers", "direction": "Plan Artifact \u2192 User", "confidence": "stated", "evidence": "user-stated" }
+    { "sourceId": "user", "targetId": "agent", "label": "requests", "direction": "User \u2192 Diagram Agent", "confidence": "observed", "evidence": "SKILL.md:8" },
+    { "sourceId": "agent", "targetId": "explore", "label": "runs", "direction": "Diagram Agent \u2192 Explore", "confidence": "observed", "evidence": "SKILL.md:44" },
+    { "sourceId": "explore", "targetId": "q-framework", "label": "follows", "direction": "Explore \u2192 Question Framework", "confidence": "observed", "evidence": "SKILL.md:16" },
+    { "sourceId": "explore", "targetId": "question", "label": "gathers info", "direction": "Explore \u2192 Question", "confidence": "observed", "evidence": "SKILL.md:62" },
+    { "sourceId": "question", "targetId": "explore", "label": "more info needed", "direction": "Question \u2192 Explore", "confidence": "observed", "evidence": "SKILL.md:62" },
+    { "sourceId": "question", "targetId": "plan", "label": "ready", "direction": "Question \u2192 Plan", "confidence": "observed", "evidence": "SKILL.md:94" },
+    { "sourceId": "plan", "targetId": "output-guide", "label": "references", "direction": "Plan \u2192 HTML/Excalidraw Guide", "confidence": "observed", "evidence": "SKILL.md:95" },
+    { "sourceId": "plan", "targetId": "build", "label": "produces", "direction": "Plan \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:108" },
+    { "sourceId": "build", "targetId": "validate", "label": "generates", "direction": "Build \u2192 Validate", "confidence": "observed", "evidence": "SKILL.md:112" },
+    { "sourceId": "validate", "targetId": "derive", "label": "passes", "direction": "Validate \u2192 Derive?", "confidence": "observed", "evidence": "SKILL.md:120" },
+    { "sourceId": "derive", "targetId": "build", "label": "validation failed", "direction": "Derive? \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:115" },
+    { "sourceId": "derive", "targetId": "verify", "label": "no excalidraw", "direction": "Derive? \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:124" },
+    { "sourceId": "derive", "targetId": "output-html", "label": "excalidraw done", "direction": "Derive? \u2192 Diagram HTML", "confidence": "observed", "evidence": "SKILL.md:132" },
+    { "sourceId": "verify", "targetId": "build", "label": "fix and rebuild", "direction": "Verify \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:142" },
+    { "sourceId": "verify", "targetId": "output-html", "label": "approved", "direction": "Verify \u2192 Diagram HTML", "confidence": "observed", "evidence": "SKILL.md:150" },
+    { "sourceId": "output-html", "targetId": "user", "label": "delivers", "direction": "Diagram HTML \u2192 User", "confidence": "stated", "evidence": "user-stated" }
   ],
   "assumptions": [
-    "The diagram shows the canonical flow; agents may fast-path tiny changes by skipping the grilling loop",
-    "Reference docs are shown at their gate; they are read only when the task risk matches the doc's purpose"
+    "The diagram shows the canonical flow; agents may fast-path trivial diagrams by skipping the question loop",
+    "Derive .excalidraw stage is optional; flow splits at the decision node"
   ],
   "omissions": [
-    "Individual file paths and line-level evidence are in agent-metadata only",
-    "check_plan_shape.py and check_plan_rubric.py internals are compressed into Check Plan Script node",
-    "agents/openai.yaml surface contract is omitted",
-    "scripts/_plan_utils.py helper is omitted as implementation detail"
+    "Individual script paths and line-level evidence are in agent-metadata only",
+    "build_diagram.py and generate_excalidraw.py internals are compressed into Build and Derive nodes",
+    "Individual source files (SKILL.md, reference docs) are omitted as implementation details"
   ],
   "openQuestions": [
-    "Should the pre-mortem node connect to a specific stage (plan) or also to verify?"
+    "Should the derive decision node have a separate validation-excalidraw sub-stage node?"
   ],
   "agentInstructions": [
     "Keep entity `id` values stable across diagram updates",
     "Match node `id` in DIAGRAM_DATA with `id` in agent-metadata entities",
     "Add new entities only when supported by SKILL.md evidence",
-    "Ensure feedback-loop edges (contradiction->explore, exit-criteria->grill, quality-pass->verify) stay visible",
-    "The walkthrough follows left-to-right flow through the 4 stages"
+    "Ensure feedback-loop edges (question->explore, validate->build, verify->build) stay visible",
+    "The walkthrough follows left-to-right flow through the 6 stages"
   ]
 }
 </script>

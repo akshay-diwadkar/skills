@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -21,7 +22,7 @@ import build_diagram  # noqa: E402
 import generate_excalidraw  # noqa: E402
 import validate_diagram  # noqa: E402
 import validate_excalidraw  # noqa: E402
-from _diagram_utils import extract_diagram_data  # noqa: E402
+from _diagram_utils import extract_diagram_data, js_obj_to_json  # noqa: E402
 
 
 def load_complex_payload():
@@ -263,7 +264,8 @@ class DiagramToolTests(unittest.TestCase):
             exc_path = html_path.with_suffix(".excalidraw")
             exc_path.write_text("existing", encoding="utf-8")
 
-            self.assertFalse(generate_excalidraw.generate(html_path))
+            with self.assertRaises(FileExistsError):
+                generate_excalidraw.generate(html_path)
             self.assertEqual(exc_path.read_text(encoding="utf-8"), "existing")
 
             self.assertTrue(generate_excalidraw.generate(html_path, overwrite=True))
@@ -274,7 +276,8 @@ class DiagramToolTests(unittest.TestCase):
             html_path = Path(tmp) / "diagram.html"
             html_path.write_text("<html><body>broken</body></html>", encoding="utf-8")
 
-            self.assertFalse(generate_excalidraw.generate(html_path))
+            with self.assertRaises(ValueError):
+                generate_excalidraw.generate(html_path)
             self.assertFalse(html_path.with_suffix(".excalidraw").exists())
 
     def test_complex_fixture_excalidraw_export_validates(self):
@@ -415,7 +418,8 @@ class DiagramToolTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             html_path = write_payload(payload, tmp)
             exc_path = html_path.with_suffix(".excalidraw")
-            self.assertFalse(generate_excalidraw.generate(html_path))
+            with self.assertRaises(ValueError):
+                generate_excalidraw.generate(html_path)
             self.assertFalse(exc_path.exists())
 
     def test_invalid_duplicate_ids(self):
@@ -491,6 +495,145 @@ class DiagramToolTests(unittest.TestCase):
         self.assertIn('$skillDir\\scripts\\generate_excalidraw.py', combined)
         self.assertIn('$skillDir\\scripts\\validate_excalidraw.py', combined)
         self.assertNotRegex(combined, r"python\s+scripts[\\/]")
+
+    def test_default_template_data_validates(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        data = extract_diagram_data(text)
+        metadata = validate_diagram.extract_agent_metadata(text)
+        errors, _warnings = validate_diagram.validate(data, metadata)
+        self.assertEqual(errors, 0)
+
+    def test_js_obj_to_json_parser_edge_cases(self):
+        cases = [
+            ("single quotes", "{'a':1}", '{"a":1}'),
+            ("double quotes", '{"a":1}', '{"a":1}'),
+            ("trailing comma", "{a:1,b:2,}", '{"a":1,"b":2}'),
+            ("single-line comment", "{a:1,//comment\nb:2}", '{"a":1,"b":2}'),
+            ("block comment", "{a:1,/*block*/b:2}", '{"a":1,"b":2}'),
+            ("unquoted keys", "{key:42}", '{"key":42}'),
+            ("nested braces", "{a:{b:[1,2]}}", '{"a":{"b":[1,2]}}'),
+            ("mixed quotes", '{"a":\'hello\'}', '{"a":"hello"}'),
+            ("inner double in single", "{a:'line \"quote\"'}",
+             '{"a":"line \\"quote\\""}'),
+            ("null/bool/num", "{a:null,b:true,c:3.14}",
+             '{"a":null,"b":true,"c":3.14}'),
+        ]
+        for name, inp, expected in cases:
+            with self.subTest(name=name):
+                result = js_obj_to_json(inp)
+                self.assertEqual(json.loads(result), json.loads(expected))
+
+    def test_js_obj_to_json_rejects_backticks(self):
+        with self.assertRaises(ValueError):
+            js_obj_to_json("{a:`template`}")
+
+    def test_layout_stress_large_diagram(self):
+        nodes = []
+        metadata_entities = []
+        edges = []
+        metadata_relationships = []
+        for i in range(30):
+            nid = f"n{i}"
+            nodes.append({
+                "id": nid, "label": f"Node {i}", "type": "process",
+                "description": f"Auto-generated node {i} for stress testing the layout algorithm.",
+            })
+            metadata_entities.append({
+                "id": nid, "name": f"Node {i}", "type": "process",
+                "description": f"Auto-generated node {i} for stress testing.",
+                "evidence": "stress-test",
+            })
+        for i in range(29):
+            src = f"n{i}"
+            tgt = f"n{i + 1}"
+            edges.append({
+                "sourceId": src, "targetId": tgt, "label": f"route-{i}",
+                "evidence": "stress-test", "confidence": "observed",
+            })
+            metadata_relationships.append({
+                "sourceId": src, "targetId": tgt, "label": f"route-{i}",
+                "confidence": "observed", "evidence": "stress-test",
+            })
+
+        payload = {
+            "diagram": {
+                "title": "Stress Test Diagram",
+                "storageKey": "stress-test-v1",
+                "audience": "test",
+                "purpose": "Exercise the layout engine at scale.",
+                "fidelity": "narrative-architecture",
+                "takeaways": ["Large diagram stress test"],
+                "nodes": nodes,
+                "edges": edges,
+                "clusters": [
+                    {"id": "c-all", "label": "All Nodes", "nodeIds": [n["id"] for n in nodes]},
+                ],
+                "walkthrough": [
+                    {
+                        "id": "overview",
+                        "title": "Overview",
+                        "description": "The stress test diagram at a glance.",
+                        "nodeIds": [nodes[0]["id"], nodes[-1]["id"]],
+                    },
+                ],
+            },
+            "metadata": {
+                "audience": "test",
+                "purpose": "Exercise the layout engine at scale.",
+                "fidelity": "narrative-architecture",
+                "entities": metadata_entities,
+                "relationships": metadata_relationships,
+                "assumptions": [],
+                "omissions": [],
+                "openQuestions": [],
+                "agentInstructions": [],
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = Path(tmp) / "stress.html"
+            payload_path = Path(tmp) / "payload.json"
+            payload_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+            t0 = time.time()
+            build_diagram.build_diagram(payload_path, html_path, overwrite=True)
+            build_time = time.time() - t0
+
+            data = extract_diagram_data(html_path.read_text(encoding="utf-8"))
+            metadata = validate_diagram.extract_agent_metadata(html_path.read_text(encoding="utf-8"))
+            errors, _warnings = validate_diagram.validate(data, metadata)
+            self.assertEqual(errors, 0, f"Build time: {build_time:.2f}s")
+
+            t0 = time.time()
+            generate_excalidraw.generate(html_path, overwrite=True)
+            gen_time = time.time() - t0
+
+            doc = json.loads(html_path.with_suffix(".excalidraw").read_text(encoding="utf-8"))
+            exc_errors, exc_warnings = validate_excalidraw.validate(doc)
+            self.assertEqual(exc_errors, 0, f"Gen time: {gen_time:.2f}s")
+
+    def test_constant_parity_between_python_and_js(self):
+        py = {}
+        with open(SCRIPTS / "_diagram_utils.py", encoding="utf-8") as f:
+            for line in f:
+                m = re.match(r"^(\w+)\s*=\s*([\d.]+)", line)
+                if m:
+                    py[m.group(1)] = m.group(2)
+        js = {}
+        template_text = TEMPLATE.read_text(encoding="utf-8")
+        for m in re.finditer(r"const (\w+)\s*=\s*([\d.]+)", template_text):
+            name = m.group(1)
+            if name not in js:
+                js[name] = m.group(2)
+
+        shared = set(py.keys()) & set(js.keys())
+        self.assertGreater(len(shared), 5, "Too few shared constants to cross-verify")
+        for name in sorted(shared):
+            with self.subTest(constant=name):
+                self.assertEqual(
+                    py[name], js[name],
+                    f"Constant '{name}' differs: Python={py[name]}, JS={js[name]}",
+                )
 
 
 if __name__ == "__main__":
