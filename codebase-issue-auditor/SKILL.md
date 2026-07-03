@@ -9,7 +9,15 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Opti
 
 ## Workflow
 
-1. **Frame the audit**
+1. **Grill the audit brief**
+   - Always interview the user before inspecting the repo or generating findings, even when the initial prompt already includes some scope.
+   - Ask a focused 5-7 question grill that captures: audit target path or current-directory confirmation; why the audit is being run now; desired finding categories; known risk areas, recent changes, suspected pain points, or areas to challenge; explicit exclusions; desired output mode; severity threshold and whether low-priority backlog items should be included.
+   - Desired finding categories are `bug`, `security`, `performance`, `test-gap`, `architecture`, `maintainability`, and `developer-experience`.
+   - Desired output modes are local draft list, GitHub issue drafts, publish-ready issues, or resolution follow-up after fixes.
+   - Complete this step only when you can restate the audit brief with target, priorities, exclusions, output mode, and threshold.
+
+2. **Frame the audit**
+   - Use the audit brief from step 1 to prioritize repo inspection and later coverage.
    - Audit the current local working directory by default, or the local path the user explicitly provides.
    - Inspect local repo guidance before judging the code: `git remote -v`, `AGENTS.md` or `CLAUDE.md`, `docs/agents/`, `CONTEXT.md`, ADRs, CI config, dependency manifests, test config, and existing issue-label guidance where available.
    - Do not clone or inspect the GitHub issue destination as audit evidence. GitHub is only the publishing target.
@@ -17,27 +25,28 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Opti
    - If `graphify-out/graph.json` exists, use `graphify` queries to orient around architecture and cross-module relationships. If not, use normal repo exploration unless the user asks for a graph.
    - Complete this step only when you can state the repo purpose, primary runtime/tooling, test/CI shape, deploy or package surface if present, and issue-tracker conventions if present.
 
-2. **Run the audit protocol**
+3. **Run the audit protocol**
    - Read `references/audit-protocol.md` and follow it before drafting issues.
    - Read `references/audit-rubric.md` before accepting or rejecting candidate findings.
    - Build the protocol artifacts in working notes: ecosystem inventory, risk map, coverage matrix, candidate ledger, and reject ledger.
+   - Prioritize the user's stated categories and risk areas in the coverage matrix, while still recording reject reasons for other high-risk areas found during framing.
    - Use adjacent skills only when they match a candidate type: `diagnose` for suspected failing behavior, `improve-codebase-architecture` for architectural friction, `to-issues` for converting an approved plan into vertical slices, and `triage` for applying the repo's issue-state vocabulary.
    - If local ecosystem inventory reveals a concrete framework, package, runtime, build tool, test tool, deployment target, or CI/tooling setup that may be misused, read `references/ecosystem-optimization.md` before using web evidence for that candidate. Do not run ecosystem web research without local evidence first.
    - Complete this step only when every high-risk area in the coverage matrix has either an accepted candidate finding or a recorded reject reason.
 
-3. **Draft one issue per root cause**
+4. **Draft one issue per root cause**
    - Draft only candidates that pass the default threshold in `references/audit-rubric.md`.
    - Merge duplicate symptoms into a single root-cause issue.
    - Prefer independently fixable issues over large area-based epics.
    - Each draft must include the schema fields below. Put the verification path in the issue body, and report confidence in the review summary rather than adding new JSON fields.
    - Complete this step only when every drafted issue can be pasted into GitHub with enough evidence for a maintainer to reproduce, verify, or confidently plan the fix.
 
-4. **Review before publishing**
+5. **Review before publishing**
    - Present the draft issue list with severity, category, confidence, evidence summary, verification path, and any rejected near-misses worth knowing about.
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
    - Do not publish until the user explicitly approves publication.
 
-5. **Publish with the bundled script**
+6. **Publish with the bundled script**
    - Save approved drafts as JSON using the schema below.
    - Ask for the GitHub repository URL to publish issues to. Accept `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, or `owner/repo`.
    - Check token configuration before publishing:
@@ -57,7 +66,7 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Opti
      python scripts/publish_github_issues.py --input issues.json --env .env --github-repo-url https://github.com/owner/repo --publish
      ```
 
-6. **Resolution follow-up after fixes**
+7. **Resolution follow-up after fixes**
    - Use this branch when rerun after implementation work.
    - Compare current audit findings against open audit or GitHub issues supplied by the user, fetched through approved issue metadata, or referenced in the implementation plan.
    - Re-run enough of `references/audit-protocol.md` to test the original root cause and its adjacent regression surface.
