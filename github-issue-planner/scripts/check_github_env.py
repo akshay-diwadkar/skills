@@ -6,7 +6,14 @@ from __future__ import annotations
 import argparse
 import sys
 
-from github_common import ConfigError, load_config_env, masked, normalize_github_repo_target
+from github_common import (
+    ConfigError,
+    load_config_env,
+    masked,
+    normalize_github_repo_target,
+    parse_int,
+    validate_github_api_url,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,6 +27,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if not config.get("GITHUB_TOKEN"):
         problems.append("GITHUB_TOKEN")
+
+    fetch_limit = "missing"
+    try:
+        parsed_limit = parse_int(config.get("GITHUB_ISSUE_FETCH_LIMIT"))
+        if parsed_limit is not None:
+            fetch_limit = str(parsed_limit)
+    except ConfigError as exc:
+        fetch_limit = "invalid"
+        problems.append(f"GITHUB_ISSUE_FETCH_LIMIT invalid: {exc}")
+
+    api_url = "missing"
+    try:
+        api_url = validate_github_api_url(config.get("GITHUB_API_URL"))
+    except ConfigError as exc:
+        api_url = "invalid"
+        problems.append(f"GITHUB_API_URL invalid: {exc}")
 
     repo = "not checked"
     if args.github_repo_url:
@@ -40,7 +63,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  GITHUB_TOKEN: {masked(config.get('GITHUB_TOKEN', ''), secret=True)}")
     print(f"  GitHub issue source: {repo}")
     print(f"  GITHUB_ISSUE_FETCH_LABELS: {masked(config.get('GITHUB_ISSUE_FETCH_LABELS', ''))}")
-    print(f"  GITHUB_ISSUE_FETCH_LIMIT: {masked(config.get('GITHUB_ISSUE_FETCH_LIMIT', ''))}")
+    print(f"  GITHUB_ISSUE_FETCH_LIMIT: {fetch_limit}")
+    print(f"  GITHUB_API_URL: {api_url}")
 
     if problems:
         print("Missing or invalid configuration:", file=sys.stderr)

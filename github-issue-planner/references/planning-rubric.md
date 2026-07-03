@@ -1,6 +1,6 @@
 # Planning Rubric
 
-Use this rubric when `plan-with-senior-dev` is unavailable or the user declines to use it.
+Use this rubric for every report. Use `plan-with-senior-dev` only when the user explicitly asks for senior planning.
 
 ## Source Boundaries
 
@@ -25,9 +25,21 @@ Order plans by:
 - `needs-info`: the issue lacks reproduction steps, expected behavior, scope, environment, or acceptance criteria.
 - `blocked`: local code, credentials, generated artifacts, or external dependencies needed for planning are unavailable.
 
+## Report Shape
+
+Each issue section must include:
+
+- issue number, title, URL, labels, author, and timestamps;
+- planning status: `ready-to-plan`, `needs-info`, or `blocked`;
+- summary of the issue body and relevant comments;
+- local codebase findings with file references or command evidence;
+- implementation plan or needs-info questions;
+- verification commands and expected passing result when implementation can be planned;
+- risks and assumptions.
+
 ## Plan Quality Bar
 
-Each plan must include:
+Every `ready-to-plan` issue must include:
 
 - the required outcome in one or two sentences;
 - local current-state findings with file references or command evidence;
@@ -39,6 +51,8 @@ Each plan must include:
 - assumptions that remain and why they are acceptable.
 
 If GitHub credentials or the repository URL are missing, the follow-up should produce a local close-candidate report instead of attempting issue closure.
+
+If any required quality-bar item is missing, the issue is not `ready-to-plan`; mark it `needs-info` or `blocked`.
 
 ## Needs-Info Handling
 

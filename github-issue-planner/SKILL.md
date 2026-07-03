@@ -1,59 +1,53 @@
 ---
 name: github-issue-planner
-description: Fetch open GitHub issues for a specified repository, read issue bodies and comments, inspect the local codebase, and write decision-complete implementation plans to a local Markdown report. Use when the user asks to fetch open issues, plan issue fixes, prepare a GitHub issue backlog for implementation, or produce local plans for resolving GitHub issues without writing back to GitHub.
+description: Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, or produce read-only issue-resolution plans without writing back to GitHub.
 ---
 
 # GitHub Issue Planner
 
-Fetch open non-PR GitHub issues, use the local codebase as the implementation source of truth, and write one resolution plan per issue. GitHub is read-only in this skill.
+Fetch open non-PR GitHub issues, inspect the local checkout, and write one resolution plan per issue. GitHub is read-only in this skill.
 
 ## Workflow
 
 1. **Resolve inputs**
-   - Ask for `--github-repo-url` if the user did not provide a GitHub repository URL or `owner/repo`.
-   - Use the current local working directory as the codebase by default, or a local path explicitly provided by the user.
-   - Do not clone or inspect the GitHub repository as the code source. Use GitHub only for issue metadata.
+   - Set `$skillDir` to this skill folder and use it for every bundled script path.
+   - Use the current working directory as the codebase unless the user provides a local path.
+   - Use the user's GitHub URL or `owner/repo` when provided.
+   - If no GitHub target is provided, infer `owner/repo` from the local checkout's GitHub remote. Ask only when inference fails or multiple GitHub remotes conflict.
+   - Do not clone or inspect GitHub repository files. GitHub provides issue metadata only.
 
-2. **Check GitHub access**
+2. **Preflight**
    - Use `.env` in the current directory or this skill folder, or an explicit `--env` path.
-   - Validate token configuration:
-     ```bash
-     python scripts/check_github_env.py --env .env --github-repo-url https://github.com/owner/repo
+   - Validate token and optional config without exposing secrets:
+     ```powershell
+     $skillDir = 'C:\Users\Akshay Diwadkar\.agents\skills\github-issue-planner'
+     python "$skillDir\scripts\check_github_env.py" --env .env --github-repo-url owner/repo
      ```
+   - If preflight fails, report the missing or invalid configuration and stop.
 
 3. **Fetch open issues**
    - Fetch all open non-PR issues and comments:
-     ```bash
-     python scripts/fetch_github_issues.py --env .env --github-repo-url https://github.com/owner/repo --output .scratch/github-issue-plans/issues.json
+     ```powershell
+     $skillDir = 'C:\Users\Akshay Diwadkar\.agents\skills\github-issue-planner'
+     python "$skillDir\scripts\fetch_github_issues.py" --env .env --github-repo-url owner/repo --output .scratch/github-issue-plans/issues.json
      ```
-   - Treat the JSON output as the GitHub issue context. Do not write labels, comments, or state changes back to GitHub.
+   - Treat the JSON output as the only GitHub issue context. Do not write labels, comments, or state changes back to GitHub.
 
-4. **Choose planning engine**
-   - If `plan-with-senior-dev` is available, ask the user whether to use it for issue-resolution planning.
-   - If the user approves, use `plan-with-senior-dev` for each issue after fetching issue context and exploring local code.
-   - If the user declines or `plan-with-senior-dev` is unavailable, read `references/planning-rubric.md` and follow it directly.
-
-5. **Explore local code**
+4. **Explore local code**
    - For each issue, inspect the local codebase, tests, docs, config, and nearby patterns relevant to the issue.
-   - Cite local files and commands in the plan where they support implementation decisions.
-   - Mark the issue as `needs-info` in the report when the issue lacks enough detail to plan safely.
+   - Cite local files and commands where they support implementation decisions.
+   - Mark the issue `blocked` when required local code, credentials, generated artifacts, or external dependencies are unavailable.
 
-6. **Write the report**
+5. **Plan with the rubric**
+   - Read `references/planning-rubric.md` before writing the report.
+   - Use the built-in rubric by default. Use `plan-with-senior-dev` only when the user explicitly asks for senior planning.
+   - Mark an issue `needs-info` when the issue or local evidence lacks enough detail to plan safely.
+
+6. **Quality-gate and report**
    - Write a Markdown report under `.scratch/github-issue-plans/<owner-repo>/<timestamp>.md`.
-   - Include one section per issue with issue summary, local findings, decision-complete plan, test strategy, risks, and assumptions.
+   - Quality-gate each issue section against `references/planning-rubric.md`.
+   - A `ready-to-plan` issue must cite local evidence, implementation steps, relevant API/config/data impacts, tests, risks, and assumptions. Otherwise mark it `needs-info` or `blocked`.
    - End by summarizing the report path and top priorities in chat.
-
-## Report Shape
-
-Each issue section should include:
-
-- issue number, title, URL, labels, author, and timestamps;
-- planning status: `ready-to-plan`, `needs-info`, or `blocked`;
-- summary of the issue body and relevant comments;
-- local codebase findings with file references;
-- implementation plan that leaves no decisions to the implementer;
-- verification commands and expected passing result;
-- risks and assumptions.
 
 ## GitHub Configuration
 
@@ -74,6 +68,8 @@ Safe env handling:
 - Pass `.env` paths only to trusted bundled scripts via `--env`; checker output must mask tokens.
 
 `GITHUB_TOKEN` is required. Labels and limits are optional defaults only. Pass the repository target per run with `--github-repo-url`. Trusted bundled scripts may parse `.env` internally when passed `--env`; the agent must not read the file directly.
+
+`GITHUB_API_URL` is optional and defaults to `https://api.github.com`.
 
 ## Safety Rules
 

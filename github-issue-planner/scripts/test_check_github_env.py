@@ -65,6 +65,26 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
             self.assertEqual(code, 2)
 
+    def test_invalid_optional_config_fails_without_printing_secrets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env_path = Path(temp_dir) / ".env"
+            env_path.write_text(
+                "GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz\n"
+                "GITHUB_ISSUE_FETCH_LIMIT=zero\n"
+                "GITHUB_API_URL=not-a-url\n",
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), mock.patch.dict(os.environ, {}, clear=True):
+                code = checker.main(["--env", str(env_path)])
+
+            self.assertEqual(code, 2)
+            output = stdout.getvalue()
+            self.assertIn("GITHUB_ISSUE_FETCH_LIMIT: invalid", output)
+            self.assertIn("GITHUB_API_URL: invalid", output)
+            self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", output)
+
     def test_valid_repo_url_passes(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             env_path = Path(temp_dir) / ".env"
@@ -109,6 +129,8 @@ class CheckGitHubEnvTests(unittest.TestCase):
         self.assertIn("Get-Content .env", docs)
         self.assertIn("rg ... .env", docs)
         self.assertIn("checker output must mask tokens", docs)
+        self.assertIn("$skillDir\\scripts\\check_github_env.py", docs)
+        self.assertIn("$skillDir\\scripts\\fetch_github_issues.py", docs)
 
 
 if __name__ == "__main__":

@@ -97,6 +97,16 @@ def parse_int(value: str | None, default: int | None = None) -> int | None:
     return parsed
 
 
+def validate_github_api_url(value: str | None, default: str = "https://api.github.com") -> str:
+    raw = (value or default).strip()
+    parsed = urllib.parse.urlparse(raw)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ConfigError("GITHUB_API_URL must be an HTTP(S) URL with a hostname")
+    if parsed.username or parsed.password:
+        raise ConfigError("GITHUB_API_URL must not include credentials")
+    return raw.rstrip("/")
+
+
 def parse_labels(value: str | None) -> list[str]:
     if not value:
         return []
