@@ -71,13 +71,16 @@ Before finalizing a plan, run the combined plan checker when the plan exists as 
 python scripts/check_plan.py --tier tiny plan.md
 python scripts/check_plan.py --tier standard plan.md
 python scripts/check_plan.py --tier high-risk plan.md
+python scripts/check_plan.py --tier standard --issue-related plan.md
 ```
 
 You can optionally separate warnings from errors by passing `--warn` (which exits 0 for warnings), or get structured JSON output using `--format json`.
 
+Pass `--issue-related` for GitHub issue fixes, audit-finding fixes, or repo-fix plans likely to resolve tracked issues. The checker then requires a `Post-Resolution Audit Follow-Up` section that reruns `codebase-issue-auditor`, compares current findings against open audit or GitHub issues, lists resolved candidates with evidence, and requires explicit user approval before closing issues.
+
 The script runs both the shape checker (`check_plan_shape.py`) and the rubric checker (`check_plan_rubric.py`) in sequence:
 - The shape checker validates the H1 title, tier-specific sections, reasonable line count, deferred decisions, vague work, weak verification, placeholders, soft commitments, and basic evidence signals.
-- The rubric checker looks for evidence, scope boundaries, local-pattern grounding, ordered changes, expected test results, rollback detail, assumption quality, risk handling, compatibility, migration, and pre-mortem actionability.
+- The rubric checker looks for evidence, scope boundaries, local-pattern grounding, ordered changes, expected test results, rollback detail, assumption quality, risk handling, compatibility, migration, pre-mortem actionability, and issue follow-up when `--issue-related` is set.
 
 Passing the script is necessary but not sufficient; still apply the rubric below for judgment-heavy issues.
 

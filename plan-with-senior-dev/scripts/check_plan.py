@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
     )
+    parser.add_argument(
+        "--issue-related",
+        action="store_true",
+        help="Require the Post-Resolution Audit Follow-Up section for issue or audit-finding plans.",
+    )
     return parser.parse_args()
 
 
@@ -52,7 +57,7 @@ def main() -> int:
 
     # Run checks
     shape_diags = check_plan_shape.validate(text, args.tier)
-    rubric_diags = check_plan_rubric.validate(text, args.tier)
+    rubric_diags = check_plan_rubric.validate(text, args.tier, issue_related=args.issue_related)
 
     all_diags = shape_diags + rubric_diags
 

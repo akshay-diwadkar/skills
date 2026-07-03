@@ -70,6 +70,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
     )
+    parser.add_argument(
+        "--issue-related",
+        action="store_true",
+        help="Require the Post-Resolution Audit Follow-Up section for issue or audit-finding plans.",
+    )
     return parser.parse_args()
 
 
@@ -229,6 +234,47 @@ def pre_mortem_findings_are_actionable(section_obj: Section | None) -> bool:
     return all("Action:" in line for line in finding_lines)
 
 
+def validate_issue_resolution_follow_up(sections: dict[str, Section]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    follow_up = section(sections, "Post-Resolution Audit Follow-Up")
+    if follow_up is None:
+        diagnostics.append(Diagnostic(
+            code="rubric.issue_follow_up.missing",
+            message="Missing section 'Post-Resolution Audit Follow-Up' for issue-related plan",
+        ))
+        return diagnostics
+
+    body = follow_up.body
+    checks = (
+        (
+            "rubric.issue_follow_up.audit_rerun",
+            r"\b(rerun|re-run|run)\b[\s\S]*\bcodebase-issue-auditor\b",
+            "Post-Resolution Audit Follow-Up must rerun codebase-issue-auditor after planned fixes and tests pass",
+        ),
+        (
+            "rubric.issue_follow_up.compare_open_issues",
+            r"\bcompare\b[\s\S]*\b(current audit findings|audit findings|findings)\b[\s\S]*\b(open audit|open .*GitHub|GitHub issues|open issues)\b",
+            "Post-Resolution Audit Follow-Up must compare current audit findings against open audit or GitHub issues",
+        ),
+        (
+            "rubric.issue_follow_up.resolved_candidates",
+            r"\b(list|report|record)\b[\s\S]*\bresolved issue candidates?\b[\s\S]*\b(source|test|audit) evidence\b",
+            "Post-Resolution Audit Follow-Up must list resolved issue candidates with source, test, or audit evidence",
+        ),
+        (
+            "rubric.issue_follow_up.user_approval",
+            r"\bclose\b[\s\S]*\b(explicit user approval|user approval)\b",
+            "Post-Resolution Audit Follow-Up must require explicit user approval before closing issues",
+        ),
+    )
+
+    for code, pattern, message in checks:
+        if not re.search(pattern, body, flags=re.IGNORECASE):
+            diagnostics.append(fail(code, message, follow_up))
+
+    return diagnostics
+
+
 def require_section(sections: dict[str, Section], diagnostics: list[Diagnostic], name: str) -> Section | None:
     found = section(sections, name)
     if found is None:
@@ -386,7 +432,7 @@ def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Dia
     return diagnostics
 
 
-def validate(text: str, tier: str) -> list[Diagnostic]:
+def validate(text: str, tier: str, issue_related: bool = False) -> list[Diagnostic]:
     sections, parse_diags = parse_sections(text)
     clean_text = strip_fenced_code_blocks(text)
     
@@ -396,7 +442,10 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
         diags = validate_standard(sections, text) # pass original text to check code blocks
     else:
         diags = validate_high_risk(sections, text)
-        
+
+    if issue_related:
+        diags.extend(validate_issue_resolution_follow_up(sections))
+
     return parse_diags + diags
 
 
@@ -408,7 +457,7 @@ def main() -> int:
         print(f"Error reading plan: {e}", file=sys.stderr)
         return 1
 
-    diagnostics = validate(text, args.tier)
+    diagnostics = validate(text, args.tier, issue_related=args.issue_related)
 
     errors = [d for d in diagnostics if not d.is_warning]
     warnings = [d for d in diagnostics if d.is_warning]

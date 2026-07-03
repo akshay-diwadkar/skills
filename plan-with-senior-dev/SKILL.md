@@ -1,26 +1,27 @@
 ---
 name: plan-with-senior-dev
-description: Produce codebase-grounded, decision-complete implementation plans through focused exploration, plan-shaping questions, existing-pattern alignment, domain-doc judgment, and concrete verification.
+description: Plan code changes, refactors, bug fixes, migrations, and issue resolution as repo-evidenced, decision-complete implementation plans. Use when the user wants senior planning, assumption-challenging, existing-pattern alignment, domain-doc judgment, or concrete verification before implementation.
 ---
 
 # Plan With Senior Dev
 
 Turn an ambiguous implementation request into a plan another engineer or agent can execute without choosing product behavior, architecture, public interfaces, migration policy, or test strategy.
 
-The skill is intentionally lean. Do the thinking in the current repo, keep the final plan compact, and only add detail that prevents a likely implementation mistake.
+Keep the run gate-driven: each gate must meet its completion criterion before moving on.
 
 ## Reference Routing
 
-Read these files only when they match the task risk or ambiguity:
+Read only the references whose condition fires:
 
-- `references/exploration-protocol.md`: before asking questions on non-trivial codebase work, or when current-state evidence is thin.
-- `references/question-strategy.md`: when the prompt has unresolved product, scope, interface, migration, terminology, or test choices.
-- `references/grilling-protocol.md`: compact pressure-test and exit-criteria checklist used during §2.
-- `references/plan-quality-rubric.md`: before finalizing plans, choosing plan length, or running `scripts/check_plan.py`.
-- `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive changes, or plans that feel optimistic.
-- `references/anti-patterns.md`: when the plan feels vague, overbuilt, under-evidenced, or likely to leave choices to the implementer.
+- `references/exploration-protocol.md`: before asking on non-trivial codebase work, or when current-state evidence is thin.
+- `references/question-strategy.md`: when product, scope, interface, migration, terminology, compatibility, or test choices are unresolved.
+- `references/grilling-protocol.md`: during the Question gate when pressure tests or exit criteria are needed.
+- `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive work, or optimistic plans.
+- `references/issue-resolution-follow-up.md`: for GitHub issue fixes, audit-finding fixes, or repo-fix plans likely to resolve tracked issues.
+- `references/plan-quality-rubric.md`: before finalizing, choosing plan tier or length, or running `scripts/check_plan.py`.
+- `references/anti-patterns.md`: when a plan feels vague, overbuilt, under-evidenced, or likely to leave decisions to the implementer.
 
-## Core Contract
+## Contract
 
 Always:
 
@@ -29,43 +30,26 @@ Always:
 - Prefer existing local patterns, helpers, tests, and architecture over new abstractions.
 - Ask only questions whose answers change scope, behavior, architecture, risk, docs, or tests.
 - Produce a decision-complete plan with concrete verification commands and expected results.
-- Keep domain docs focused: `CONTEXT.md` is glossary-only; ADRs are for durable tradeoffs.
 
 Never:
 
 - Ask the user for facts that code, tests, docs, or config can answer.
-- Invent provider/factory/interface layers unless the repo already uses them or two concrete cases justify them.
-- Present a plan with unresolved product, architecture, migration, or public-interface choices.
-- Use hedging language such as "might want to", "could potentially", or "consider implementing".
+- Invent provider, factory, adapter, registry, or interface layers unless the repo already uses them or two concrete cases justify them.
+- Present a plan with unresolved product, architecture, migration, public-interface, or test-strategy choices.
+- Use hedging such as "might want to", "could potentially", "consider implementing", or "as needed".
 - End the plan by asking permission to proceed.
 
-## Runtime Flow
+## Gates
 
 ### 1. Explore
 
-Build enough current-state evidence to constrain the plan.
+Build enough repo evidence to constrain the plan. Check the request surface, one real call path, nearby analogues, tests, config/build surfaces, domain docs when business language appears, and contradictions with existing behavior.
 
-Check, as relevant:
+Completion criterion: current behavior, change boundary, relevant local pattern, and remaining unknowns are clear enough to summarize in cited bullets. For tiny changes, one cited current-state fact plus the relevant verification command is enough.
 
-- Domain docs: `CONTEXT-MAP.md`, `CONTEXT.md`, and `docs/adr/`.
-- Entrypoints: routes, commands, jobs, UI flows, public APIs, or package exports.
-- Call path: the main flow from entrypoint through validation, persistence, side effects, and output.
-- Analogous patterns: two or three nearby examples for structure, naming, errors, and tests.
-- Test landscape: existing test files, runner, commands, setup data, mocks, and coverage gaps.
-- Config/build surfaces: env vars, generated files, migrations, codegen, and deployment hooks.
-- Contradictions: where the request conflicts with code, docs, tests, or established conventions.
+### 2. Question
 
-Do not over-map tiny changes. For a single-file local change, one cited current-state finding plus the relevant test command is enough.
-
-### 2. Grill to Shared Understanding
-
-After exploration, run a design-tree walk before planning. The goal is shared understanding of every decision branch, not a large transcript of questions.
-
-**Procedure:**
-
-1. State the current hypothesis in one paragraph.
-2. Identify the root decision that determines the next branch.
-3. Ask one question at a time with this format:
+Turn unresolved intent into decisions. State the current hypothesis, identify the root decision, and ask one narrow question at a time using:
 
 ```text
 Question: [specific decision]
@@ -73,61 +57,21 @@ Recommended answer: [default], because [repo evidence or risk]
 Why it matters: [what changes if the answer differs]
 ```
 
-4. After the user answers, update the hypothesis and move to the next dependent decision.
-5. For each major decision, test at least one concrete scenario: happy path, boundary, failure, and compatibility — preferring scenarios that force a boundary between two domain concepts or architectural responsibilities.
-6. Stop when every branch has an owner decision, a repo-backed default, or an explicit out-of-scope call.
+Pressure-test major decisions with concrete happy-path, boundary, failure, or compatibility scenarios.
 
-**Shared-Understanding Exit Criteria:**
-
-The grilling session is done when all are true:
-- Goal and success criteria are concrete.
-- Important terms have agreed meanings and clear boundaries.
-- Referenced docs or prior decisions have been checked or marked as assumptions.
-- In-scope and out-of-scope behavior are named.
-- Public interfaces and data shapes are decided or explicitly unchanged.
-- Edge cases have expected behavior.
-- Migration, compatibility, rollback, and docs decisions are settled when relevant.
-- The test strategy proves the risky behavior.
-
-If any item remains unresolved and matters to implementation, do not proceed to planning.
+Completion criterion: every implementation-relevant branch has an owner decision, a repo-backed default, or an explicit out-of-scope call. Goal, scope, interfaces, data shapes, edge behavior, migration/rollback/docs decisions, and test strategy are settled when those topics apply.
 
 ### 3. Plan
 
-Choose the smallest plan that satisfies the user's goal and fits the repo.
+Choose the smallest plan that satisfies the goal and fits the repo. Order changes by dependency: foundations, core behavior, public surface or orchestration, tests, then docs/migrations/release notes. For Standard and High-risk work, include a tracer bullet proving the approach end to end.
 
-Order changes by dependency, not by filename:
-
-1. Foundations with no local dependencies.
-2. Core behavior.
-3. Public surface or orchestration.
-4. Tests and verification.
-5. Docs, migrations, or release notes when needed.
-
-For Standard and High-risk work, include a tracer bullet: the smallest vertical slice that proves the approach end to end before the rest is filled in.
-
-For issue-related plans, include a **Post-Resolution Audit Follow-Up** after normal implementation and verification. Issue-related plans include GitHub issue fixes, audit-finding fixes, or repo-fix work likely to resolve tracked issues. The follow-up must tell the implementer to:
-
-1. Rerun `codebase-issue-auditor` against the local repo after all planned fixes and tests pass.
-2. Compare current audit findings against open audit or GitHub issues.
-3. List resolved issue candidates with source, test, or audit evidence showing the finding no longer reproduces.
-4. Close resolved issues only after explicit user approval.
-
-If GitHub credentials or the repository URL are missing, keep the close candidates as a local report and do not attempt external issue closure.
+Completion criterion: the plan leaves no product behavior, architecture, interface shape, migration policy, or test strategy for the implementer to decide.
 
 ### 4. Verify
 
-Before finalizing, check:
+Audit the draft against the plan tier. Run `scripts/check_plan.py` when the plan exists as a draft file or can be piped through stdin. Use `--issue-related` for issue-related plans.
 
-- Current-state claims are cited or clearly marked as assumptions.
-- Scope says what changes and what deliberately does not.
-- The plan follows cited existing patterns or explains the exception.
-- Failure modes are covered when the change can fail.
-- Tests name files or locations, behavior to assert, exact commands, and expected passing result.
-- Rollback is clear for non-trivial changes.
-- Domain terms match `CONTEXT.md`, or the plan includes a glossary update.
-- No filler or hedging language remains.
-
-If a check fails, return to exploration or ask the narrow question that resolves it.
+Completion criterion: current-state claims are cited or marked as assumptions; scope boundaries, local patterns, failure behavior, tests, rollback, domain-doc treatment, and assumptions are explicit; no filler or hedging remains.
 
 ## Task Tiers
 
@@ -185,45 +129,13 @@ Keep sections brief. Combine related bullets. Name files only where needed to re
 
 Use when the plan touches persisted data, public contracts, security/auth, payments, external integrations, concurrency, migrations, overloaded domain terms, or hard-to-undo rollout behavior.
 
-Use the Standard shape plus:
-
-- Compatibility and migration notes.
-- Explicit rollback for code, data, and external side effects.
-- A short risk register with P0/P1/P2 tiers.
-- Pre-mortem findings only for real risks, not every possible category.
-
-Do not present a High-risk plan with unresolved P0 risks.
+Use the Standard shape plus compatibility and migration notes, explicit rollback for code/data/external side effects, a short P0/P1/P2 risk register, and real pre-mortem findings. Do not present a High-risk plan with unresolved P0 risks.
 
 ## Domain Docs
 
 Check existing domain docs before planning when the request introduces or reuses business language.
 
-`CONTEXT.md`:
+- `CONTEXT.md`: glossary only. Add or update a term when the session resolves canonical language, rejects a synonym, or fixes an overloaded concept.
+- ADRs: durable tradeoffs only. Recommend or add one only when the decision is hard to reverse, surprising without context, and the result of a real tradeoff.
 
-- Use it only as a glossary.
-- Add or update a term when the session resolves canonical language, rejects a synonym, or fixes an overloaded concept.
-- Do not put APIs, file paths, implementation details, acceptance criteria, or planning notes in it.
-
-ADR:
-
-- Recommend or add an ADR only when the decision is hard to reverse, surprising without context, and the result of a real tradeoff.
-- Skip ADRs for obvious, local, mechanical, or easy-to-reverse choices.
-
-## Quality Bar
-
-A good plan lets implementation start immediately.
-
-It states:
-
-- What outcome is required.
-- What the code does today.
-- What changes, in dependency order.
-- What stays out of scope and why.
-- Which existing pattern to follow.
-- How errors and edge cases behave.
-- How to test the change and know it passed.
-- How to roll back or why rollback is trivial.
-- For issue-related work, how to rerun `codebase-issue-auditor`, identify resolved open issues, and close them only after explicit user approval.
-- What assumptions remain and why they are low-impact.
-
-If a plan would force the implementer to decide product behavior, architecture, interface shape, migration policy, or test strategy, it is not done.
+Do not put APIs, file paths, implementation details, acceptance criteria, or planning notes in `CONTEXT.md`.
