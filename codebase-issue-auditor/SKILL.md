@@ -5,37 +5,35 @@ description: Audit a repository for evidence-backed bugs, risks, test gaps, arch
 
 # Codebase Issue Auditor
 
-Audit a local codebase and turn concrete findings into GitHub issue drafts. Publish only after the user approves the draft list.
+Audit a local codebase and turn concrete findings into GitHub issue drafts. Optimize for missed-finding reduction: use systematic coverage before drafting, and publish only after the user approves the draft list.
 
 ## Workflow
 
-1. **Establish repo context**
+1. **Frame the audit**
    - Audit the current local working directory by default, or the local path the user explicitly provides.
-   - Inspect local `git remote -v`, issue-tracker guidance in `AGENTS.md` or `CLAUDE.md`, `docs/agents/`, `CONTEXT.md`, ADRs, CI config, dependency manifests, test config, and existing issue labels where available.
-   - Build an ecosystem inventory from manifests, lockfiles, framework configs, build/test configs, CI files, Dockerfiles, deployment config, and runtime/tooling version files.
+   - Inspect local repo guidance before judging the code: `git remote -v`, `AGENTS.md` or `CLAUDE.md`, `docs/agents/`, `CONTEXT.md`, ADRs, CI config, dependency manifests, test config, and existing issue-label guidance where available.
    - Do not clone or inspect the GitHub issue destination as audit evidence. GitHub is only the publishing target.
    - If repo issue-tracker conventions are missing and the user wants durable setup, use `setup-matt-pocock-skills` first.
    - If `graphify-out/graph.json` exists, use `graphify` queries to orient around architecture and cross-module relationships. If not, use normal repo exploration unless the user asks for a graph.
+   - Complete this step only when you can state the repo purpose, primary runtime/tooling, test/CI shape, deploy or package surface if present, and issue-tracker conventions if present.
 
-2. **Audit for evidence-backed findings**
-   - Read `references/audit-rubric.md` before drafting findings.
-   - Inspect source, tests, dependencies, build scripts, CI, and docs for concrete evidence.
-   - If the ecosystem inventory finds frameworks, packages, runtimes, build tools, test tools, or deployment tools, read `references/ecosystem-optimization.md` and compare local usage against current documented capabilities.
-   - Use adjacent skills when they fit the finding type:
-     - `diagnose` for suspected bugs or failing behavior.
-     - `improve-codebase-architecture` for architectural friction.
-     - `to-issues` for converting an approved plan into vertical slices.
-     - `triage` for applying the repo's issue-state vocabulary.
-   - Do not raise speculative ideas. Every finding needs source locations, command output, dependency metadata, test evidence, or a clear reasoning chain from the implementation. Ecosystem optimization findings also need primary-source web evidence and a concrete expected benefit.
+2. **Run the audit protocol**
+   - Read `references/audit-protocol.md` and follow it before drafting issues.
+   - Read `references/audit-rubric.md` before accepting or rejecting candidate findings.
+   - Build the protocol artifacts in working notes: ecosystem inventory, risk map, coverage matrix, candidate ledger, and reject ledger.
+   - Use adjacent skills only when they match a candidate type: `diagnose` for suspected failing behavior, `improve-codebase-architecture` for architectural friction, `to-issues` for converting an approved plan into vertical slices, and `triage` for applying the repo's issue-state vocabulary.
+   - If local ecosystem inventory reveals a concrete framework, package, runtime, build tool, test tool, deployment target, or CI/tooling setup that may be misused, read `references/ecosystem-optimization.md` before using web evidence for that candidate. Do not run ecosystem web research without local evidence first.
+   - Complete this step only when every high-risk area in the coverage matrix has either an accepted candidate finding or a recorded reject reason.
 
 3. **Draft one issue per root cause**
+   - Draft only candidates that pass the default threshold in `references/audit-rubric.md`.
    - Merge duplicate symptoms into a single root-cause issue.
    - Prefer independently fixable issues over large area-based epics.
-   - Default threshold: draft only medium, high, or critical severity findings with high confidence.
-   - Include title, body, labels, severity, category, evidence, and acceptance criteria.
+   - Each draft must include the schema fields below. Put the verification path in the issue body, and report confidence in the review summary rather than adding new JSON fields.
+   - Complete this step only when every drafted issue can be pasted into GitHub with enough evidence for a maintainer to reproduce, verify, or confidently plan the fix.
 
 4. **Review before publishing**
-   - Present the draft issue list with severity, category, confidence, and evidence summary.
+   - Present the draft issue list with severity, category, confidence, evidence summary, verification path, and any rejected near-misses worth knowing about.
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
    - Do not publish until the user explicitly approves publication.
 
@@ -60,10 +58,12 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Publ
      ```
 
 6. **Resolution follow-up after fixes**
-   - When rerun after implementation work, compare current audit findings against open audit or GitHub issues supplied by the user, fetched through approved issue metadata, or referenced in the implementation plan.
+   - Use this branch when rerun after implementation work.
+   - Compare current audit findings against open audit or GitHub issues supplied by the user, fetched through approved issue metadata, or referenced in the implementation plan.
+   - Re-run enough of `references/audit-protocol.md` to test the original root cause and its adjacent regression surface.
    - Classify each relevant open issue as `resolved`, `still-open`, or `still-failing`.
    - Mark an issue `resolved` only when source evidence, passing tests, command output, or a clean rerun shows the original finding no longer reproduces.
-   - Present resolved issue candidates with issue number or URL, original finding summary, current evidence, and any residual risk.
+   - Present resolved issue candidates with issue number or URL, original finding summary, current evidence, verification path, and residual risk.
    - Do not close GitHub issues automatically. Ask for explicit user approval before closing any issue.
    - If GitHub credentials or the repository URL are missing, produce the resolved/open/still-failing classification locally and stop before any external write.
 

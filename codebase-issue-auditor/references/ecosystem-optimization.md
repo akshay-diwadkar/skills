@@ -1,6 +1,6 @@
 # Ecosystem Optimization
 
-Use this reference after the local repo inventory identifies frameworks, packages, runtimes, build tools, test tools, or deployment tools. Web research supplements local evidence; it never replaces it.
+Use this reference only after the local repo inventory identifies a concrete framework, package, runtime, build tool, test tool, deployment target, or CI/tooling setup that may be misused. Web research supplements local evidence; it never creates a finding by itself.
 
 ## Inventory
 

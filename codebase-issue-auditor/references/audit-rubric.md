@@ -1,6 +1,6 @@
 # Audit Rubric
 
-Use this rubric before drafting any issue. The goal is useful, evidence-backed GitHub work, not a brainstorm.
+Use this rubric to decide which candidates from the audit protocol become GitHub issue drafts. The goal is useful, evidence-backed work, not a brainstorm.
 
 ## Categories
 
@@ -8,13 +8,25 @@ Use this rubric before drafting any issue. The goal is useful, evidence-backed G
 - `security`: secrets exposure, auth/authz weakness, injection, unsafe deserialization, dependency vulnerability, or sensitive-data handling risk.
 - `performance`: avoidable slow path, excessive I/O, unnecessary network calls, algorithmic scaling issue, expensive render loop, or measurable bottleneck.
 - `test-gap`: important behavior lacks coverage, existing tests miss a high-risk path, or CI does not exercise a critical integration.
-- `architecture`: module boundaries, interfaces, or dependencies make change risky or obscure; prefer findings with concrete locality or leverage evidence.
+- `architecture`: module boundaries, interfaces, ownership, or dependencies make change risky or obscure; prefer findings with concrete locality or leverage evidence.
 - `maintainability`: duplicated logic, fragile configuration, unclear ownership, dead code, or error handling that increases defect risk.
 - `developer-experience`: setup, scripts, docs, CI feedback, or local workflows make normal development slower or error-prone.
 
+## Evidence Gate
+
+Accept a candidate only when it has all of these:
+
+- root cause: the issue identifies the underlying implementation, configuration, dependency, or workflow cause rather than only a symptom;
+- local evidence: source locations, command output, dependency metadata, test evidence, documentation, or a clear reasoning chain from implementation to failure;
+- impact: the affected user, operator, maintainer, build, test, or runtime workflow is named;
+- verification path: a concrete way to know the fix worked, such as a regression test, command, manual reproduction, benchmark, config check, or clean rerun;
+- acceptance criteria: observable criteria a maintainer can use to close the issue.
+
+Reject candidates that require guessing about product intent, hidden production state, unavailable logs, or unobserved user behavior unless the local code creates a credible failure path.
+
 ## Ecosystem Optimization Evidence
 
-Ecosystem optimization findings are valid when local framework, package, runtime, or tool usage leaves a documented capability unused or misconfigured.
+Ecosystem optimization findings are valid only when local framework, package, runtime, or tool usage leaves a documented capability unused or misconfigured.
 
 Use ecosystem evidence for:
 
@@ -24,7 +36,7 @@ Use ecosystem evidence for:
 - `maintainability`: outdated configuration shape, deprecated APIs, duplicated tool responsibilities, or unsupported migration path with concrete local impact.
 - `architecture`: framework or platform capabilities that would simplify boundaries, routing, data loading, module ownership, or deployment topology without inventing an unrelated abstraction.
 
-Each ecosystem optimization finding needs local evidence, primary-source web evidence, and a concrete expected benefit. Do not draft broad modernization epics or "upgrade because newer exists" issues.
+Each ecosystem optimization finding needs local evidence, current primary-source web evidence, and a concrete expected benefit. Do not draft broad modernization epics or "upgrade because newer exists" issues.
 
 ## Severity
 
@@ -35,9 +47,9 @@ Each ecosystem optimization finding needs local evidence, primary-source web evi
 
 ## Confidence
 
-- High confidence requires direct code evidence, reproducible command output, authoritative dependency metadata, or a clear path from implementation to failure.
+- High confidence requires direct code evidence, reproducible command output, authoritative dependency metadata, test evidence, or a clear path from implementation to failure.
 - For ecosystem optimization findings, high confidence also requires current primary-source evidence such as official docs, release notes, migration guides, security advisories, package registry metadata, or vendor performance guidance.
-- Medium confidence means the signal is credible but needs one more confirmation step. Keep it in the draft review but do not publish by default.
+- Medium confidence means the signal is credible but needs one more confirmation step. Keep it in the draft review only if useful context is worth showing; do not publish by default.
 - Low confidence is speculation. Do not draft it as an issue.
 
 ## Default Publishing Threshold
@@ -47,15 +59,19 @@ Draft and publish only findings that are:
 - severity `medium`, `high`, or `critical`;
 - high confidence;
 - independently fixable;
-- supported by evidence that can be pasted into the issue.
+- rooted in one cause rather than a broad area;
+- supported by evidence that can be pasted into the issue;
+- paired with a verification path and acceptance criteria.
 
 ## Issue Body Checklist
 
 Each issue body should include:
 
 - problem summary;
-- why it matters;
-- evidence with file paths, command output, dependency metadata, or reasoning;
+- why it matters and who or what workflow is affected;
+- root cause;
+- evidence with file paths, command output, dependency metadata, docs, or reasoning;
 - expected outcome;
+- verification path;
 - acceptance criteria;
 - notes about likely affected area, without over-prescribing an implementation.
