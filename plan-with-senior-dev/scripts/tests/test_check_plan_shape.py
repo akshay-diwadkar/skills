@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from check_plan_shape import validate, TIERS
+from check_plan_shape import validate
 
 
 def shape_errors(text: str, tier: str = "tiny") -> list[str]:
@@ -121,16 +121,17 @@ class TestDuplicateHeadings:
         dupes = [e for e in errs if "Duplicate heading" in e]
         assert len(dupes) == 0
 
-    @staticmethod
-    def _requires_issue_52_fix():
-        import pytest
-        pytest.skip("Requires issue #52 fix to be merged first")
-
     def test_heading_in_code_block_not_detected_as_duplicate(self):
-        self._requires_issue_52_fix()
+        text = "# Add unit tests\n## Goal\nWrite tests\n## Current State\nNo tests\n```\n## Goal\ninside code block\n```\n## Change\nAdd files\n## Test/Verification\npytest returns 0\n## Assumptions\nLow"
+        errs = shape_errors(text, "tiny")
+        dupes = [e for e in errs if "Duplicate heading" in e]
+        assert len(dupes) == 0
 
     def test_heading_in_code_block_not_counted_for_required_section(self):
-        self._requires_issue_52_fix()
+        text = "# Add unit tests\n## Change\nAdd files\n```\n## Current State\n## Goal\n```\n## Test/Verification\npytest returns 0\n## Assumptions\nLow"
+        errs = shape_errors(text, "tiny")
+        missing_goal = [e for e in errs if "Missing required section: Goal" in e]
+        assert len(missing_goal) > 0
 
 
 # ---- Uncertainty Pattern Tests ----

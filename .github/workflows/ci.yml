@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plan-with-senior-dev/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "plan-with-senior-dev/**"
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install ruff mypy pytest
+      - name: Lint
+        run: ruff check plan-with-senior-dev/scripts/
+      - name: Type check
+        run: mypy plan-with-senior-dev/scripts/
+      - name: Test
+        run: python -m pytest plan-with-senior-dev/scripts/tests/ -v

@@ -434,7 +434,6 @@ def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Dia
 
 def validate(text: str, tier: str, issue_related: bool = False) -> list[Diagnostic]:
     sections, parse_diags = parse_sections(text)
-    clean_text = strip_fenced_code_blocks(text)
     
     if tier == "tiny":
         diags = validate_tiny(sections)

@@ -5,6 +5,10 @@
 !.gitignore
 !README.md
 
+# CI workflows
+!.github/
+!.github/**
+
 # Tracked skill folders
 !create-diagram/
 !create-diagram/**
@@ -18,6 +22,7 @@
 # Secret and generated local files
 **/.env
 issues.json
+issues_draft.json
 **/__pycache__/
 **/*.py[cod]
 **/.scratch/

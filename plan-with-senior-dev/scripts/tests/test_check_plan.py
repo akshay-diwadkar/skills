@@ -21,7 +21,7 @@ def run_checker(text: str, tier: str = "tiny", warn: bool = False, issue_related
         if issue_related:
             args.append("--issue-related")
         sys.argv = ["check_plan.py"] + args
-        exit_code = check_plan_main()
+        exit_code: int | str = check_plan_main()
     except SystemExit as e:
         exit_code = e.code if e.code is not None else 0
     finally:
@@ -29,7 +29,8 @@ def run_checker(text: str, tier: str = "tiny", warn: bool = False, issue_related
         sys.stdin = old_stdin
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-    return exit_code if exit_code is not None else 0, output
+    code = int(exit_code) if not isinstance(exit_code, str) else (1 if exit_code else 0)
+    return code, output
 
 
 def run_checker_json(text: str, tier: str = "tiny") -> tuple[int, dict]:
@@ -41,7 +42,7 @@ def run_checker_json(text: str, tier: str = "tiny") -> tuple[int, dict]:
     sys.stderr = StringIO()
     try:
         sys.argv = ["check_plan.py", "--tier", tier, "--format", "json"]
-        exit_code = check_plan_main()
+        exit_code: int | str = check_plan_main()
     except SystemExit as e:
         exit_code = e.code if e.code is not None else 0
     finally:
@@ -49,9 +50,10 @@ def run_checker_json(text: str, tier: str = "tiny") -> tuple[int, dict]:
         sys.stdin = old_stdin
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-    if exit_code and exit_code != 0:
-        return exit_code, {}
-    return exit_code, json.loads(output) if output.strip() else {}
+    code = int(exit_code) if not isinstance(exit_code, str) else (1 if exit_code else 0)
+    if code != 0:
+        return code, {}
+    return code, json.loads(output) if output.strip() else {}
 
 
 VALID_TINY_PLAN = (
@@ -112,7 +114,6 @@ class TestWarnFlag:
         text = "# Add a test suite for the format checker\n## Goal\nFix\n## Current State\nfile.py:42\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\npython test.py returns 0\n## Rollback Plan\nTrivial revert\n## Assumptions\nLow impact"
         code, output = run_checker(text, "standard", warn=True)
         warnings_in_output = "Warning" in output
-        errors_in_output = "Error" in output and "rubric" in output.lower() is False
         assert code == 0 or warnings_in_output
 
 

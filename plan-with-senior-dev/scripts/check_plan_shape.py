@@ -7,13 +7,14 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path so we can import _plan_utils
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 
 
-TIERS = {
+TIERS: dict[str, dict[str, Any]] = {
     "tiny": {
         "min_lines": 8,
         "max_lines": 50,
@@ -297,11 +298,13 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
         end_idx = heading_indices[idx + 1] if idx + 1 < len(heading_indices) else len(lines)
         content = "\n".join(lines[start_idx + 1 : end_idx]).strip()
         clean_content = strip_fenced_code_blocks(content)
-        non_empty_lines = [l for l in clean_content.splitlines() if l.strip()]
+        non_empty_lines = [line for line in clean_content.splitlines() if line.strip()]
 
         if not non_empty_lines:
             heading_text = lines[start_idx].strip()
-            heading_level = len(re.match(r"^#+", heading_text).group(0))
+            heading_match = re.match(r"^#+", heading_text)
+            assert heading_match is not None
+            heading_level = len(heading_match.group(0))
             heading_name = re.sub(r"^#{1,6}\s+", "", heading_text)
             heading_name_clean = re.sub(r"\s*\([^)]*\)\s*$", "", heading_name).strip()
 
