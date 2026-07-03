@@ -1,0 +1,29 @@
+{
+  "_comment": "Single source of truth for shared geometry constants. Python reads this directly; JS keeps inline const for performance — the parity test verifies both match.",
+  "NODE_W": 340,
+  "NODE_H": 124,
+  "NODE_H_DESC": 205,
+  "TITLE_FONT_SIZE": 36,
+  "DESCRIPTION_FONT_SIZE": 24,
+  "MAX_DESC_CHARS": 96,
+  "MAX_DESC_LINES": 3,
+  "CLUSTER_PAD": 56,
+  "CLUSTER_LABEL_H": 44,
+  "NODE_GAP_Y": 72,
+  "COLLISION_GAP": 64,
+  "CLUSTER_INTRUSION_GAP": 72,
+  "CLUSTER_GAP_X": 160,
+  "CIRCULAR_RADIUS_FACTOR": 80,
+  "CIRCULAR_MIN_RADIUS": 200,
+  "EDGE_END_PAD": 16,
+  "EDGE_NODE_CLEARANCE": 10,
+  "EDGE_ENDPOINT_ALLOWANCE": 28,
+  "EDGE_SEGMENT_CLEARANCE": 6,
+  "_js_only": {
+    "EDGE_MIN_SEPARATION": 52,
+    "EDGE_LAYOUT_STEP": 46,
+    "EDGE_LAYOUT_LIMIT": 184,
+    "EDGE_LAYOUT_PASSES": 4,
+    "MIN_READABLE_SCALE": 0.58
+  }
+}

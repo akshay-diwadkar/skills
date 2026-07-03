@@ -22,7 +22,7 @@ import build_diagram  # noqa: E402
 import generate_excalidraw  # noqa: E402
 import validate_diagram  # noqa: E402
 import validate_excalidraw  # noqa: E402
-from _diagram_utils import extract_diagram_data, js_obj_to_json  # noqa: E402
+from _diagram_utils import _GEOMETRY_CONFIG, extract_diagram_data, js_obj_to_json  # noqa: E402
 
 
 def load_complex_payload():
@@ -528,11 +528,14 @@ class DiagramToolTests(unittest.TestCase):
             js_obj_to_json("{a:`template`}")
 
     def test_layout_stress_large_diagram(self):
+        node_count = 50
+        edge_count = 49
+        cluster_count = 5
         nodes = []
         metadata_entities = []
         edges = []
         metadata_relationships = []
-        for i in range(30):
+        for i in range(node_count):
             nid = f"n{i}"
             nodes.append({
                 "id": nid, "label": f"Node {i}", "type": "process",
@@ -543,7 +546,7 @@ class DiagramToolTests(unittest.TestCase):
                 "description": f"Auto-generated node {i} for stress testing.",
                 "evidence": "stress-test",
             })
-        for i in range(29):
+        for i in range(edge_count):
             src = f"n{i}"
             tgt = f"n{i + 1}"
             edges.append({
@@ -553,6 +556,16 @@ class DiagramToolTests(unittest.TestCase):
             metadata_relationships.append({
                 "sourceId": src, "targetId": tgt, "label": f"route-{i}",
                 "confidence": "observed", "evidence": "stress-test",
+            })
+
+        clusters = []
+        for c in range(cluster_count):
+            start = c * 10
+            end = min(start + 10, node_count)
+            clusters.append({
+                "id": f"c-{c}",
+                "label": f"Cluster {c}",
+                "nodeIds": [f"n{i}" for i in range(start, end)],
             })
 
         payload = {
@@ -565,9 +578,7 @@ class DiagramToolTests(unittest.TestCase):
                 "takeaways": ["Large diagram stress test"],
                 "nodes": nodes,
                 "edges": edges,
-                "clusters": [
-                    {"id": "c-all", "label": "All Nodes", "nodeIds": [n["id"] for n in nodes]},
-                ],
+                "clusters": clusters,
                 "walkthrough": [
                     {
                         "id": "overview",
@@ -613,12 +624,9 @@ class DiagramToolTests(unittest.TestCase):
             self.assertEqual(exc_errors, 0, f"Gen time: {gen_time:.2f}s")
 
     def test_constant_parity_between_python_and_js(self):
-        py = {}
-        with open(SCRIPTS / "_diagram_utils.py", encoding="utf-8") as f:
-            for line in f:
-                m = re.match(r"^(\w+)\s*=\s*([\d.]+)", line)
-                if m:
-                    py[m.group(1)] = m.group(2)
+        config_path = ROOT / "assets" / "geometry-config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        py = _GEOMETRY_CONFIG.copy()
         js = {}
         template_text = TEMPLATE.read_text(encoding="utf-8")
         for m in re.finditer(r"const (\w+)\s*=\s*([\d.]+)", template_text):
@@ -631,9 +639,14 @@ class DiagramToolTests(unittest.TestCase):
         for name in sorted(shared):
             with self.subTest(constant=name):
                 self.assertEqual(
-                    py[name], js[name],
+                    str(py[name]), js[name],
                     f"Constant '{name}' differs: Python={py[name]}, JS={js[name]}",
                 )
+
+        json_keys = set(config.keys()) - {"_comment", "_js_only"}
+        for name in sorted(json_keys):
+            with self.subTest(constant=name + "_json"):
+                self.assertIn(name, py, f"Constant '{name}' missing from Python module constants")
 
 
 if __name__ == "__main__":
