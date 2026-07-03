@@ -242,10 +242,13 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
     # 2. Title check
     diagnostics.extend(title_failures(text))
 
+    # Stripped text for heading detection (ignores headings inside fenced code blocks)
+    scan_lines = strip_fenced_code_blocks(text).splitlines()
+
     # 3. Duplicate heading check
     found_headings: list[tuple[str, int]] = []
     lines = text.splitlines()
-    for index, line in enumerate(lines, start=1):
+    for index, line in enumerate(scan_lines, start=1):
         match = re.match(r"^##\s+(.+?)\s*$", line)
         if match:
             heading = re.sub(r"\s*\([^)]*\)\s*$", "", match.group(1)).strip()
@@ -286,7 +289,7 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
 
     # 6. Empty section check
     heading_indices: list[int] = []
-    for i, line in enumerate(lines):
+    for i, line in enumerate(scan_lines):
         if re.match(r"^#{1,6}\s+", line):
             heading_indices.append(i)
 
