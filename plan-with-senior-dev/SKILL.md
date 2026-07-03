@@ -105,6 +105,15 @@ Order changes by dependency, not by filename:
 
 For Standard and High-risk work, include a tracer bullet: the smallest vertical slice that proves the approach end to end before the rest is filled in.
 
+For issue-related plans, include a **Post-Resolution Audit Follow-Up** after normal implementation and verification. Issue-related plans include GitHub issue fixes, audit-finding fixes, or repo-fix work likely to resolve tracked issues. The follow-up must tell the implementer to:
+
+1. Rerun `codebase-issue-auditor` against the local repo after all planned fixes and tests pass.
+2. Compare current audit findings against open audit or GitHub issues.
+3. List resolved issue candidates with source, test, or audit evidence showing the finding no longer reproduces.
+4. Close resolved issues only after explicit user approval.
+
+If GitHub credentials or the repository URL are missing, keep the close candidates as a local report and do not attempt external issue closure.
+
 ### 4. Verify
 
 Before finalizing, check:
@@ -214,6 +223,7 @@ It states:
 - How errors and edge cases behave.
 - How to test the change and know it passed.
 - How to roll back or why rollback is trivial.
+- For issue-related work, how to rerun `codebase-issue-auditor`, identify resolved open issues, and close them only after explicit user approval.
 - What assumptions remain and why they are low-impact.
 
 If a plan would force the implementer to decide product behavior, architecture, interface shape, migration policy, or test strategy, it is not done.

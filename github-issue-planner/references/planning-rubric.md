@@ -35,7 +35,10 @@ Each plan must include:
 - public API, data shape, config, migration, or compatibility notes when relevant;
 - edge cases and failure modes;
 - exact tests or checks to run and expected passing result;
+- a post-resolution audit follow-up that reruns `codebase-issue-auditor`, compares current findings against open audit or GitHub issues, lists resolved issue candidates with evidence, and closes them only after explicit user approval;
 - assumptions that remain and why they are acceptable.
+
+If GitHub credentials or the repository URL are missing, the follow-up should produce a local close-candidate report instead of attempting issue closure.
 
 ## Needs-Info Handling
 

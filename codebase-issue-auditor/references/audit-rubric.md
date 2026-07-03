@@ -12,6 +12,20 @@ Use this rubric before drafting any issue. The goal is useful, evidence-backed G
 - `maintainability`: duplicated logic, fragile configuration, unclear ownership, dead code, or error handling that increases defect risk.
 - `developer-experience`: setup, scripts, docs, CI feedback, or local workflows make normal development slower or error-prone.
 
+## Ecosystem Optimization Evidence
+
+Ecosystem optimization findings are valid when local framework, package, runtime, or tool usage leaves a documented capability unused or misconfigured.
+
+Use ecosystem evidence for:
+
+- `performance`: missed caching, compilation, runtime, rendering, bundling, query, or deployment capabilities that create avoidable work.
+- `security`: vulnerable versions, missing hardening flags, unsafe defaults, or unconfigured security features documented by the vendor or project.
+- `developer-experience`: package manager, test runner, build cache, CI, or local workflow features that would make normal development materially faster or clearer.
+- `maintainability`: outdated configuration shape, deprecated APIs, duplicated tool responsibilities, or unsupported migration path with concrete local impact.
+- `architecture`: framework or platform capabilities that would simplify boundaries, routing, data loading, module ownership, or deployment topology without inventing an unrelated abstraction.
+
+Each ecosystem optimization finding needs local evidence, primary-source web evidence, and a concrete expected benefit. Do not draft broad modernization epics or "upgrade because newer exists" issues.
+
 ## Severity
 
 - `critical`: likely data loss, security exposure, production outage, broken release path, or a defect that blocks most users.
@@ -22,6 +36,7 @@ Use this rubric before drafting any issue. The goal is useful, evidence-backed G
 ## Confidence
 
 - High confidence requires direct code evidence, reproducible command output, authoritative dependency metadata, or a clear path from implementation to failure.
+- For ecosystem optimization findings, high confidence also requires current primary-source evidence such as official docs, release notes, migration guides, security advisories, package registry metadata, or vendor performance guidance.
 - Medium confidence means the signal is credible but needs one more confirmation step. Keep it in the draft review but do not publish by default.
 - Low confidence is speculation. Do not draft it as an issue.
 

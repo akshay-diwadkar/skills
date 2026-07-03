@@ -1,20 +1,24 @@
-# Ignore everything
+# Ignore everything by default
 *
 
-# But not these files/directories
-!create-diagram/
-!create-diagram/assets/
-!create-diagram/assets/*
-!create-diagram/references/
-!create-diagram/references/*.md
-!create-diagram/scripts/
-!create-diagram/scripts/*.py
-!create-diagram/test/
-!create-diagram/test/**
-!plan-with-senior-dev/
-!plan-with-senior-dev/scripts/
-!plan-with-senior-dev/scripts/*.py
+# Repository metadata/docs
+!.gitignore
 !README.md
 
-# But exclude cache/build artifacts within those directories
+# Tracked skill folders
+!create-diagram/
+!create-diagram/**
+!plan-with-senior-dev/
+!plan-with-senior-dev/**
+!codebase-issue-auditor/
+!codebase-issue-auditor/**
+!github-issue-planner/
+!github-issue-planner/**
+
+# Secret and generated local files
+**/.env
+issues.json
 **/__pycache__/
+**/*.py[cod]
+**/.scratch/
+create-diagram/.playwright-cli/

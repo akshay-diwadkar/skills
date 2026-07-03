@@ -12,6 +12,7 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Publ
 1. **Establish repo context**
    - Audit the current local working directory by default, or the local path the user explicitly provides.
    - Inspect local `git remote -v`, issue-tracker guidance in `AGENTS.md` or `CLAUDE.md`, `docs/agents/`, `CONTEXT.md`, ADRs, CI config, dependency manifests, test config, and existing issue labels where available.
+   - Build an ecosystem inventory from manifests, lockfiles, framework configs, build/test configs, CI files, Dockerfiles, deployment config, and runtime/tooling version files.
    - Do not clone or inspect the GitHub issue destination as audit evidence. GitHub is only the publishing target.
    - If repo issue-tracker conventions are missing and the user wants durable setup, use `setup-matt-pocock-skills` first.
    - If `graphify-out/graph.json` exists, use `graphify` queries to orient around architecture and cross-module relationships. If not, use normal repo exploration unless the user asks for a graph.
@@ -19,12 +20,13 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Publ
 2. **Audit for evidence-backed findings**
    - Read `references/audit-rubric.md` before drafting findings.
    - Inspect source, tests, dependencies, build scripts, CI, and docs for concrete evidence.
+   - If the ecosystem inventory finds frameworks, packages, runtimes, build tools, test tools, or deployment tools, read `references/ecosystem-optimization.md` and compare local usage against current documented capabilities.
    - Use adjacent skills when they fit the finding type:
      - `diagnose` for suspected bugs or failing behavior.
      - `improve-codebase-architecture` for architectural friction.
      - `to-issues` for converting an approved plan into vertical slices.
      - `triage` for applying the repo's issue-state vocabulary.
-   - Do not raise speculative ideas. Every finding needs source locations, command output, dependency metadata, test evidence, or a clear reasoning chain from the implementation.
+   - Do not raise speculative ideas. Every finding needs source locations, command output, dependency metadata, test evidence, or a clear reasoning chain from the implementation. Ecosystem optimization findings also need primary-source web evidence and a concrete expected benefit.
 
 3. **Draft one issue per root cause**
    - Merge duplicate symptoms into a single root-cause issue.
@@ -56,6 +58,14 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Publ
      ```bash
      python scripts/publish_github_issues.py --input issues.json --env .env --github-repo-url https://github.com/owner/repo --publish
      ```
+
+6. **Resolution follow-up after fixes**
+   - When rerun after implementation work, compare current audit findings against open audit or GitHub issues supplied by the user, fetched through approved issue metadata, or referenced in the implementation plan.
+   - Classify each relevant open issue as `resolved`, `still-open`, or `still-failing`.
+   - Mark an issue `resolved` only when source evidence, passing tests, command output, or a clean rerun shows the original finding no longer reproduces.
+   - Present resolved issue candidates with issue number or URL, original finding summary, current evidence, and any residual risk.
+   - Do not close GitHub issues automatically. Ask for explicit user approval before closing any issue.
+   - If GitHub credentials or the repository URL are missing, produce the resolved/open/still-failing classification locally and stop before any external write.
 
 ## Issue Draft Schema
 
