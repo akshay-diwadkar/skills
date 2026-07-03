@@ -1,13 +1,15 @@
 ---
 name: github-issue-planner
-description: Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, or produce read-only issue-resolution plans without writing back to GitHub.
+description: Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, produce read-only issue-resolution plans, or explicitly asks to execute one planned issue through a branch, commit, PR, and post-merge follow-up.
 ---
 
 # GitHub Issue Planner
 
-Fetch open non-PR GitHub issues, inspect the local checkout, and write one resolution plan per issue. GitHub is read-only in this skill.
+Fetch open non-PR GitHub issues, inspect the local checkout, and write one resolution plan per issue. GitHub is read-only by default.
 
-## Workflow
+The branch, commit, PR, and post-merge issue-comment lifecycle is opt-in only. Use it only when the user explicitly asks to `execute`, `implement`, `open PR`, or `run issue lifecycle` for a single planned issue.
+
+## Default Planning Workflow
 
 1. **Resolve inputs**
    - Set `$skillDir` to this skill folder and use it for every bundled script path.
@@ -49,6 +51,65 @@ Fetch open non-PR GitHub issues, inspect the local checkout, and write one resol
    - A `ready-to-plan` issue must cite local evidence, implementation steps, relevant API/config/data impacts, tests, risks, and assumptions. Otherwise mark it `needs-info` or `blocked`.
    - End by summarizing the report path and top priorities in chat.
 
+## Opt-In Execution Workflow
+
+Use this workflow only when explicitly requested. It handles exactly one `ready-to-plan` issue per branch and PR.
+
+1. **Select one issue**
+   - Confirm exactly one issue number and its `ready-to-plan` section from the latest report.
+   - Do not batch multiple issues into one execution PR.
+   - If the issue is `needs-info` or `blocked`, stop and report the missing decision or blocker.
+
+2. **Prepare the branch before editing**
+   - Run `git status -sb` and inspect relevant diffs before creating a branch.
+   - If the worktree contains unrelated changes, do not stage or overwrite them; ask which files belong to the issue.
+   - Resolve the default branch from the remote, using `main` when the remote does not provide a clear answer.
+   - Checkout and update the default branch, then create `codex/issue-<number>-<slug>` before making code changes.
+
+3. **Implement and verify**
+   - Use the issue plan as the implementation source of truth.
+   - Keep changes limited to the selected issue.
+   - Run the exact verification commands from the plan, plus any focused checks needed for touched code.
+
+4. **Commit, push, and open PR**
+   - Stage only files belonging to the selected issue.
+   - Commit as `Fix issue #<number>: <short title>`.
+   - Push the branch with upstream tracking.
+   - Open a ready-for-review PR titled `[codex] Issue #<number>: <title>`.
+   - The PR body must use `Refs #<number>`, not `Fixes #<number>`, and must include the validation run, assumptions, and this post-merge follow-up command:
+     ```powershell
+     $skillDir = 'C:\Users\Akshay Diwadkar\.agents\skills\github-issue-planner'
+     python "$skillDir\scripts\post_merge_issue_followup.py" --env .env --github-repo-url owner/repo --issue-number <number> --pr-number <pr> --base main --verification-summary-file .scratch/github-issue-plans/verification-issue-<number>-pr-<pr>.md
+     ```
+
+5. **Stop after PR creation**
+   - Do not wait in-session for approval and merge.
+   - Do not close, label, or comment on the issue during execution mode.
+   - End with the branch, commit, PR URL, validation result, and the resumable post-merge follow-up command.
+
+## Post-Merge Follow-Up Workflow
+
+Use this workflow after the PR has been approved and merged into `main`.
+
+1. **Verify on updated main**
+   - Checkout `main` and pull the latest remote state.
+   - Rerun the verification commands recorded in the issue plan or PR body.
+   - Write a short Markdown verification summary file, normally `.scratch/github-issue-plans/verification-issue-<number>-pr-<pr>.md`.
+
+2. **Post the issue comment**
+   - Run the bundled script:
+     ```powershell
+     $skillDir = 'C:\Users\Akshay Diwadkar\.agents\skills\github-issue-planner'
+     python "$skillDir\scripts\post_merge_issue_followup.py" --env .env --github-repo-url owner/repo --issue-number <number> --pr-number <pr> --base main --verification-summary-file .scratch/github-issue-plans/verification-issue-<number>-pr-<pr>.md
+     ```
+   - The script confirms the PR is merged into the expected base branch, has approval evidence, references the requested issue, and that the issue number is still an issue rather than a PR.
+   - The script avoids duplicate comments by using a hidden marker: `github-issue-planner:issue=<number>:pr=<pr>`.
+
+3. **Do not mutate issue state**
+   - Do not close the issue.
+   - Do not apply or remove labels.
+   - Do not use GitHub auto-close keywords in PR bodies.
+
 ## GitHub Configuration
 
 Create `.env` from `.env.example` or export equivalent variables:
@@ -57,6 +118,8 @@ Create `.env` from `.env.example` or export equivalent variables:
 GITHUB_TOKEN=
 GITHUB_ISSUE_FETCH_LABELS=
 GITHUB_ISSUE_FETCH_LIMIT=
+# Optional. Defaults to https://api.github.com.
+GITHUB_API_URL=
 ```
 
 Safe env handling:
@@ -71,10 +134,14 @@ Safe env handling:
 
 `GITHUB_API_URL` is optional and defaults to `https://api.github.com`.
 
+Read-only planning mode needs issue read access. Opt-in execution and post-merge follow-up need token permissions for pull requests and issue comments, plus local `git`/`gh` authentication for branch, push, and PR creation.
+
 ## Safety Rules
 
-- Do not comment on GitHub issues.
+- In default planning mode, do not comment on GitHub issues.
+- In opt-in execution mode, do not comment on GitHub issues.
+- In post-merge follow-up mode, comment only with the bundled `post_merge_issue_followup.py` script after verification passes on updated `main`.
 - Do not apply or remove labels.
 - Do not close issues.
-- Do not implement code fixes.
+- Do not implement code fixes unless opt-in execution mode was explicitly requested for exactly one `ready-to-plan` issue.
 - Do not treat GitHub repository contents as the codebase; only the local checkout is the code source.

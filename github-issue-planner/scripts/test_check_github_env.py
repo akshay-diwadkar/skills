@@ -132,6 +132,17 @@ class CheckGitHubEnvTests(unittest.TestCase):
         self.assertIn("$skillDir\\scripts\\check_github_env.py", docs)
         self.assertIn("$skillDir\\scripts\\fetch_github_issues.py", docs)
 
+    def test_skill_docs_preserve_opt_in_execution_boundary(self):
+        docs = SKILL_PATH.read_text(encoding="utf-8")
+        self.assertIn("GitHub is read-only by default", docs)
+        self.assertIn("opt-in only", docs)
+        self.assertIn("Use this workflow only when explicitly requested", docs)
+        self.assertIn("exactly one `ready-to-plan` issue", docs)
+        self.assertIn("Refs #<number>", docs)
+        self.assertIn("not `Fixes #<number>`", docs)
+        self.assertIn("$skillDir\\scripts\\post_merge_issue_followup.py", docs)
+        self.assertIn("Do not close the issue", docs)
+
 
 if __name__ == "__main__":
     unittest.main()
