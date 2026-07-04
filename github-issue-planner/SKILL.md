@@ -116,26 +116,25 @@ Use this workflow after the PR has been approved and merged into `main`.
 Create `.env` from `.env.example` or export equivalent variables:
 
 ```dotenv
-GITHUB_TOKEN=
 GITHUB_ISSUE_FETCH_LABELS=
 GITHUB_ISSUE_FETCH_LIMIT=
 # Optional. Defaults to https://api.github.com.
 GITHUB_API_URL=
 ```
 
+Authentication is handled via the `gh` CLI instead of explicit tokens. Make sure you are authenticated with `gh auth login`.
+
 Safe env handling:
 
 - `.env.example` is safe to read.
-- `.env` is sensitive and must be treated as a secret-bearing file.
-- Never directly read `.env` in the agent context: do not run `cat .env`, `Get-Content .env`, `type .env`, `rg ... .env`, `Select-String ... .env`, or equivalent commands.
-- Never inspect `.env` contents to debug authentication. If debugging is needed, inspect only existence, size, or path metadata.
-- Pass `.env` paths only to trusted bundled scripts via `--env`; checker output must mask tokens.
+- `.env` may contain optional configuration.
+- Pass `.env` paths only to trusted bundled scripts via `--env`.
 
-`GITHUB_TOKEN` is required. Labels and limits are optional defaults only. Pass the repository target per run with `--github-repo-url`. Trusted bundled scripts may parse `.env` internally when passed `--env`; the agent must not read the file directly.
+`gh` CLI authentication is required. Labels and limits are optional defaults only. Pass the repository target per run with `--github-repo-url`.
 
 `GITHUB_API_URL` is optional and defaults to `https://api.github.com`.
 
-Read-only planning mode needs issue read access. Opt-in execution and post-merge follow-up need token permissions for pull requests and issue comments, plus local `git`/`gh` authentication for branch, push, and PR creation.
+Read-only planning mode needs issue read access. Opt-in execution and post-merge follow-up need permissions for pull requests and issue comments, plus local `git`/`gh` authentication for branch, push, and PR creation.
 
 ## Safety Rules
 

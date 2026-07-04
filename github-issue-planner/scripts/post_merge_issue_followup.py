@@ -6,11 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
@@ -30,80 +28,35 @@ MARKER_TEMPLATE = "github-issue-planner:issue={issue_number}:pr={pr_number}"
 class GitHubClient:
     def __init__(
         self,
-        token: str,
         api_url: str = "https://api.github.com",
         max_retries: int = 3,
         sleep=time.sleep,
     ) -> None:
-        self.token = token
         self.api_url = validate_github_api_url(api_url)
         self.max_retries = max_retries
         self.sleep = sleep
 
     def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-        data = None
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {self.token}",
-            "User-Agent": "github-issue-planner",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if payload is not None:
-            data = json.dumps(payload).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-
-        request = urllib.request.Request(
-            self.api_url + path,
-            data=data,
-            headers=headers,
-            method=method,
-        )
         for attempt in range(self.max_retries + 1):
             try:
-                with urllib.request.urlopen(request, timeout=30) as response:
-                    text = response.read().decode("utf-8")
-                    return json.loads(text) if text else None
-            except urllib.error.HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="replace")
-                if self._should_retry_http(exc) and attempt < self.max_retries:
-                    self.sleep(self._retry_delay(exc))
-                    continue
-                raise GitHubError(
-                    f"GitHub API {method} {path} failed: {exc.code} {detail}"
-                ) from exc
-            except urllib.error.URLError as exc:
+                cmd = ["gh", "api", path, "-X", method]
+                kwargs = {"capture_output": True, "text": True, "check": True}
+                if payload is not None:
+                    cmd.extend(["--input", "-"])
+                    kwargs["input"] = json.dumps(payload)
+                
+                result = subprocess.run(cmd, **kwargs)
+                return json.loads(result.stdout) if result.stdout.strip() else None
+            except subprocess.CalledProcessError as exc:
                 if attempt < self.max_retries:
                     self.sleep(1.0)
                     continue
-                raise GitHubError(f"GitHub API {method} {path} failed: {exc}") from exc
+                raise GitHubError(
+                    f"GitHub API {method} {path} failed: {exc.returncode} {exc.stderr}"
+                ) from exc
+            except FileNotFoundError as exc:
+                raise GitHubError("gh cli is not installed") from exc
         raise GitHubError(f"GitHub API {method} {path} failed after retries")
-
-    def _should_retry_http(self, exc: urllib.error.HTTPError) -> bool:
-        if exc.code == 429 or exc.code >= 500:
-            return True
-        remaining = exc.headers.get("X-RateLimit-Remaining")
-        return exc.code == 403 and remaining == "0"
-
-    def _retry_delay(self, exc: urllib.error.HTTPError) -> float:
-        retry_after = exc.headers.get("Retry-After")
-        if retry_after:
-            try:
-                return min(max(float(retry_after), 0.0), 60.0)
-            except ValueError:
-                try:
-                    retry_at = parsedate_to_datetime(retry_after)
-                    return min(max(retry_at.timestamp() - time.time(), 0.0), 60.0)
-                except (TypeError, ValueError):
-                    pass
-
-        reset_at = exc.headers.get("X-RateLimit-Reset")
-        if reset_at:
-            try:
-                return min(max(float(reset_at) - time.time(), 0.0), 60.0)
-            except ValueError:
-                pass
-
-        return 1.0
 
     def paginated_get(self, path: str) -> list[dict[str, Any]]:
         collected: list[dict[str, Any]] = []
@@ -119,6 +72,7 @@ class GitHubClient:
             page += 1
 
     def get_pull_request(self, repo: str, pr_number: int) -> dict[str, Any]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         result = self.request("GET", f"/repos/{encoded_repo}/pulls/{pr_number}")
         if not isinstance(result, dict):
@@ -126,10 +80,12 @@ class GitHubClient:
         return result
 
     def list_reviews(self, repo: str, pr_number: int) -> list[dict[str, Any]]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         return self.paginated_get(f"/repos/{encoded_repo}/pulls/{pr_number}/reviews")
 
     def get_issue(self, repo: str, issue_number: int) -> dict[str, Any]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         result = self.request("GET", f"/repos/{encoded_repo}/issues/{issue_number}")
         if not isinstance(result, dict):
@@ -137,10 +93,12 @@ class GitHubClient:
         return result
 
     def list_issue_comments(self, repo: str, issue_number: int) -> list[dict[str, Any]]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         return self.paginated_get(f"/repos/{encoded_repo}/issues/{issue_number}/comments")
 
     def add_issue_comment(self, repo: str, issue_number: int, body: str) -> dict[str, Any]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         result = self.request(
             "POST",
@@ -263,16 +221,13 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config, _ = load_config_env(args.env)
-        token = config.get("GITHUB_TOKEN", "")
-        if not token:
-            raise ConfigError("set GITHUB_TOKEN before posting post-merge issue comments")
-
+        
         repo = normalize_github_repo_target(args.github_repo_url)
         api_url = validate_github_api_url(config.get("GITHUB_API_URL"))
         summary_path = Path(args.verification_summary_file)
         verification_summary = summary_path.read_text(encoding="utf-8")
 
-        client = GitHubClient(token, api_url)
+        client = GitHubClient(api_url)
         print(
             run_followup(
                 client=client,

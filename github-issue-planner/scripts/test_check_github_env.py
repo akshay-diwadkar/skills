@@ -28,13 +28,11 @@ from github_common import ConfigError, normalize_github_repo_target  # noqa: E40
 
 
 class CheckGitHubEnvTests(unittest.TestCase):
-    def test_valid_env_file_passes_and_masks_token(self):
+    @mock.patch("subprocess.run")
+    def test_valid_env_file_passes(self, mock_run):
         with tempfile.TemporaryDirectory() as temp_dir:
             env_path = Path(temp_dir) / ".env"
-            env_path.write_text(
-                "GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz\n",
-                encoding="utf-8",
-            )
+            env_path.write_text("\n", encoding="utf-8")
             stdout = io.StringIO()
 
             with contextlib.redirect_stdout(stdout), mock.patch.dict(os.environ, {}, clear=True):
@@ -43,8 +41,7 @@ class CheckGitHubEnvTests(unittest.TestCase):
             self.assertEqual(code, 0)
             output = stdout.getvalue()
             self.assertIn("Environment is ready", output)
-            self.assertIn("ghp_...wxyz", output)
-            self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", output)
+            self.assertIn("gh cli: authenticated", output)
 
     def test_short_token_is_fully_masked(self):
         self.assertEqual(checker.masked("short", secret=True), "***")
@@ -55,7 +52,10 @@ class CheckGitHubEnvTests(unittest.TestCase):
         self.assertEqual(masked, "ghp_...wxyz")
         self.assertNotIn(token, masked)
 
-    def test_missing_token_fails(self):
+    @mock.patch("subprocess.run")
+    def test_missing_gh_cli_auth_fails(self, mock_run):
+        import subprocess
+        mock_run.side_effect = subprocess.CalledProcessError(1, ["gh", "auth", "status"])
         with tempfile.TemporaryDirectory() as temp_dir:
             env_path = Path(temp_dir) / ".env"
             env_path.write_text("GITHUB_ISSUE_FETCH_LIMIT=5\n", encoding="utf-8")
@@ -65,11 +65,11 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
             self.assertEqual(code, 2)
 
-    def test_invalid_optional_config_fails_without_printing_secrets(self):
+    @mock.patch("subprocess.run")
+    def test_invalid_optional_config_fails(self, mock_run):
         with tempfile.TemporaryDirectory() as temp_dir:
             env_path = Path(temp_dir) / ".env"
             env_path.write_text(
-                "GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz\n"
                 "GITHUB_ISSUE_FETCH_LIMIT=zero\n"
                 "GITHUB_API_URL=not-a-url\n",
                 encoding="utf-8",
@@ -83,12 +83,12 @@ class CheckGitHubEnvTests(unittest.TestCase):
             output = stdout.getvalue()
             self.assertIn("GITHUB_ISSUE_FETCH_LIMIT: invalid", output)
             self.assertIn("GITHUB_API_URL: invalid", output)
-            self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", output)
 
-    def test_valid_repo_url_passes(self):
+    @mock.patch("subprocess.run")
+    def test_valid_repo_url_passes(self, mock_run):
         with tempfile.TemporaryDirectory() as temp_dir:
             env_path = Path(temp_dir) / ".env"
-            env_path.write_text("GITHUB_TOKEN=token\n", encoding="utf-8")
+            env_path.write_text("\n", encoding="utf-8")
             stdout = io.StringIO()
 
             with contextlib.redirect_stdout(stdout), mock.patch.dict(os.environ, {}, clear=True):
@@ -122,13 +122,8 @@ class CheckGitHubEnvTests(unittest.TestCase):
                 with self.assertRaises(ConfigError):
                     normalize_github_repo_target(raw)
 
-    def test_skill_docs_forbid_direct_env_reads(self):
+    def test_skill_docs_mention_scripts(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("Never directly read `.env`", docs)
-        self.assertIn("cat .env", docs)
-        self.assertIn("Get-Content .env", docs)
-        self.assertIn("rg ... .env", docs)
-        self.assertIn("checker output must mask tokens", docs)
         self.assertIn("$skillDir\\scripts\\check_github_env.py", docs)
         self.assertIn("$skillDir\\scripts\\fetch_github_issues.py", docs)
 

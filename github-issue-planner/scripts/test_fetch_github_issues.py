@@ -74,33 +74,6 @@ class FakeClient:
         return [comment()]
 
 
-class FakeResponse:
-    def __init__(self, payload):
-        self.payload = payload
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, traceback):
-        return False
-
-    def read(self):
-        return json.dumps(self.payload).encode("utf-8")
-
-
-def http_error(code, body="temporary failure", headers=None):
-    message = Message()
-    for key, value in (headers or {}).items():
-        message[key] = value
-    return urllib.error.HTTPError(
-        "https://api.github.com/test",
-        code,
-        "error",
-        message,
-        io.BytesIO(body.encode("utf-8")),
-    )
-
-
 class FetchGitHubIssuesTests(unittest.TestCase):
     def test_repo_target_normalization_accepts_supported_forms(self):
         cases = {
@@ -148,50 +121,21 @@ class FetchGitHubIssuesTests(unittest.TestCase):
             },
         )
 
-    def test_request_retries_transient_http_failures(self):
+    @mock.patch("subprocess.run")
+    def test_request_retries_transient_failures(self, mock_run):
+        import subprocess
         sleeps = []
-        responses = [
-            http_error(500, headers={"Retry-After": "0"}),
-            FakeResponse({"ok": True}),
+        mock_run.side_effect = [
+            subprocess.CalledProcessError(1, ["gh"]),
+            subprocess.CalledProcessError(1, ["gh"]),
+            mock.Mock(stdout='{"ok": true}'),
         ]
 
-        def fake_urlopen(request, timeout):
-            response = responses.pop(0)
-            if isinstance(response, Exception):
-                raise response
-            return response
+        client = fetcher.GitHubClient(sleep=sleeps.append)
+        self.assertEqual(client.request("GET", "/repos/owner/repo/issues"), {"ok": True})
 
-        client = fetcher.GitHubClient("token", sleep=sleeps.append)
-        with mock.patch.object(fetcher.urllib.request, "urlopen", side_effect=fake_urlopen):
-            self.assertEqual(client.request("GET", "/repos/owner/repo/issues"), {"ok": True})
-
-        self.assertEqual(sleeps, [0.0])
-        self.assertEqual(responses, [])
-
-    def test_request_retries_rate_limit_responses(self):
-        sleeps = []
-        responses = [
-            http_error(
-                403,
-                headers={
-                    "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": "0",
-                },
-            ),
-            FakeResponse({"ok": True}),
-        ]
-
-        def fake_urlopen(request, timeout):
-            response = responses.pop(0)
-            if isinstance(response, Exception):
-                raise response
-            return response
-
-        client = fetcher.GitHubClient("token", sleep=sleeps.append)
-        with mock.patch.object(fetcher.urllib.request, "urlopen", side_effect=fake_urlopen):
-            self.assertEqual(client.request("GET", "/repos/owner/repo/issues"), {"ok": True})
-
-        self.assertEqual(sleeps, [0.0])
+        self.assertEqual(sleeps, [1.0, 1.0])
+        self.assertEqual(mock_run.call_count, 3)
 
     def test_write_json_atomic_replaces_output_and_removes_temp_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -204,34 +148,12 @@ class FetchGitHubIssuesTests(unittest.TestCase):
             self.assertEqual(json.loads(output_path.read_text(encoding="utf-8")), {"ok": True})
             self.assertFalse((output_path.parent / ".issues.json.tmp").exists())
 
-    def test_main_missing_token_fails(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp = Path(temp_dir)
-            env_path = temp / ".env"
-            output_path = temp / "issues.json"
-            env_path.write_text("", encoding="utf-8")
-
-            with mock.patch.dict(os.environ, {}, clear=True):
-                code = fetcher.main(
-                    [
-                        "--env",
-                        str(env_path),
-                        "--github-repo-url",
-                        "owner/repo",
-                        "--output",
-                        str(output_path),
-                    ]
-                )
-
-            self.assertEqual(code, 2)
-            self.assertFalse(output_path.exists())
-
     def test_main_writes_json_output_shape(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp = Path(temp_dir)
             env_path = temp / ".env"
             output_path = temp / "issues.json"
-            env_path.write_text("GITHUB_TOKEN=token\n", encoding="utf-8")
+            env_path.write_text("\n", encoding="utf-8")
 
             fake_client = FakeClient()
             stdout = io.StringIO()

@@ -5,13 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,73 +26,34 @@ from github_common import (
 class GitHubClient:
     def __init__(
         self,
-        token: str,
         api_url: str = "https://api.github.com",
         max_retries: int = 3,
         sleep=time.sleep,
     ) -> None:
-        self.token = token
         self.api_url = validate_github_api_url(api_url)
         self.max_retries = max_retries
         self.sleep = sleep
 
     def request(self, method: str, path: str) -> Any:
-        request = urllib.request.Request(
-            self.api_url + path,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {self.token}",
-                "User-Agent": "github-issue-planner",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-            method=method,
-        )
         for attempt in range(self.max_retries + 1):
             try:
-                with urllib.request.urlopen(request, timeout=30) as response:
-                    text = response.read().decode("utf-8")
-                    return json.loads(text) if text else None
-            except urllib.error.HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="replace")
-                if self._should_retry_http(exc) and attempt < self.max_retries:
-                    self.sleep(self._retry_delay(exc))
-                    continue
-                raise GitHubError(
-                    f"GitHub API {method} {path} failed: {exc.code} {detail}"
-                ) from exc
-            except urllib.error.URLError as exc:
+                result = subprocess.run(
+                    ["gh", "api", path, "-X", method],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return json.loads(result.stdout) if result.stdout.strip() else None
+            except subprocess.CalledProcessError as exc:
                 if attempt < self.max_retries:
                     self.sleep(1.0)
                     continue
-                raise GitHubError(f"GitHub API {method} {path} failed: {exc}") from exc
+                raise GitHubError(
+                    f"GitHub API {method} {path} failed: {exc.returncode} {exc.stderr}"
+                ) from exc
+            except FileNotFoundError as exc:
+                raise GitHubError("gh cli is not installed") from exc
         raise GitHubError(f"GitHub API {method} {path} failed after retries")
-
-    def _should_retry_http(self, exc: urllib.error.HTTPError) -> bool:
-        if exc.code == 429 or exc.code >= 500:
-            return True
-        remaining = exc.headers.get("X-RateLimit-Remaining")
-        return exc.code == 403 and remaining == "0"
-
-    def _retry_delay(self, exc: urllib.error.HTTPError) -> float:
-        retry_after = exc.headers.get("Retry-After")
-        if retry_after:
-            try:
-                return min(max(float(retry_after), 0.0), 60.0)
-            except ValueError:
-                try:
-                    retry_at = parsedate_to_datetime(retry_after)
-                    return min(max(retry_at.timestamp() - time.time(), 0.0), 60.0)
-                except (TypeError, ValueError):
-                    pass
-
-        reset_at = exc.headers.get("X-RateLimit-Reset")
-        if reset_at:
-            try:
-                return min(max(float(reset_at) - time.time(), 0.0), 60.0)
-            except ValueError:
-                pass
-
-        return 1.0
 
     def paginated_get(self, path: str, limit: int | None = None) -> list[dict[str, Any]]:
         collected: list[dict[str, Any]] = []
@@ -113,6 +71,7 @@ class GitHubClient:
             page += 1
 
     def list_open_issues(self, repo: str, labels: list[str], limit: int | None) -> list[dict[str, Any]]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         query = "state=open&sort=created&direction=asc"
         if labels:
@@ -121,6 +80,7 @@ class GitHubClient:
         return [issue for issue in issues if "pull_request" not in issue]
 
     def list_comments(self, repo: str, issue_number: int) -> list[dict[str, Any]]:
+        import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         return self.paginated_get(f"/repos/{encoded_repo}/issues/{issue_number}/comments")
 
@@ -225,14 +185,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         config, _ = load_config_env(args.env)
-        token = config.get("GITHUB_TOKEN", "")
-        if not token:
-            raise ConfigError("set GITHUB_TOKEN before fetching issues")
 
         repo = normalize_github_repo_target(args.github_repo_url)
         labels = args.label or parse_labels(config.get("GITHUB_ISSUE_FETCH_LABELS"))
         limit = args.limit if args.limit is not None else parse_int(config.get("GITHUB_ISSUE_FETCH_LIMIT"))
-        client = GitHubClient(token, validate_github_api_url(config.get("GITHUB_API_URL")))
+        client = GitHubClient(validate_github_api_url(config.get("GITHUB_API_URL")))
         result = fetch_issues(
             client=client,
             repo=repo,

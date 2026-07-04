@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 
 from github_common import (
@@ -25,8 +26,16 @@ def main(argv: list[str] | None = None) -> int:
     config, loaded = load_config_env(args.env)
     problems: list[str] = []
 
-    if not config.get("GITHUB_TOKEN"):
-        problems.append("GITHUB_TOKEN")
+    gh_auth = "missing"
+    try:
+        subprocess.run(["gh", "auth", "status"], check=True, capture_output=True, text=True)
+        gh_auth = "authenticated"
+    except FileNotFoundError:
+        gh_auth = "gh cli not installed"
+        problems.append("gh cli not installed")
+    except subprocess.CalledProcessError:
+        gh_auth = "not authenticated"
+        problems.append("gh cli not authenticated")
 
     fetch_limit = "missing"
     try:
@@ -60,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Loaded env file(s): none")
 
     print("GitHub issue planner environment:")
-    print(f"  GITHUB_TOKEN: {masked(config.get('GITHUB_TOKEN', ''), secret=True)}")
+    print(f"  gh cli: {gh_auth}")
     print(f"  GitHub issue source: {repo}")
     print(f"  GITHUB_ISSUE_FETCH_LABELS: {masked(config.get('GITHUB_ISSUE_FETCH_LABELS', ''))}")
     print(f"  GITHUB_ISSUE_FETCH_LIMIT: {fetch_limit}")
