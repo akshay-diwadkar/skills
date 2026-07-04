@@ -17,11 +17,40 @@ import json
 import sys
 from pathlib import Path
 
-from _diagram_utils import replace_agent_metadata, replace_js_assignment
+from _diagram_utils import replace_agent_metadata, replace_js_assignment, script_safe_json
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
+STYLE_PATH = SCRIPT_DIR.parent / "assets" / "css" / "style.css"
+ROUGHJS_PATH = SCRIPT_DIR.parent / "assets" / "roughjs.js"
+
+
+def html_safe_inline_asset(text):
+    return text.replace("</", "<\\/")
+
+
+def inline_runtime_assets(html):
+    if not STYLE_PATH.exists():
+        raise FileNotFoundError(f"Stylesheet not found: {STYLE_PATH}")
+    if not ROUGHJS_PATH.exists():
+        raise FileNotFoundError(f"RoughJS runtime not found: {ROUGHJS_PATH}")
+
+    style = STYLE_PATH.read_text(encoding="utf-8")
+    roughjs = html_safe_inline_asset(ROUGHJS_PATH.read_text(encoding="utf-8"))
+    html = html.replace(
+        '<link rel="stylesheet" href="css/style.css">',
+        '<style id="create-diagram-style" data-inline-asset="css/style.css">\n'
+        + style
+        + "\n</style>",
+    )
+    html = html.replace(
+        '<script src="roughjs.js"></script>',
+        '<script id="create-diagram-roughjs" data-inline-asset="roughjs.js">\n'
+        + roughjs
+        + "\n</script>",
+    )
+    return html
 
 
 def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False):
@@ -54,10 +83,11 @@ def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False)
 
     diagram_literal = (
         "const DIAGRAM_DATA = "
-        + json.dumps(diagram, indent=2, ensure_ascii=False)
+        + script_safe_json(diagram, indent=2, ensure_ascii=False)
         + ";"
     )
     html = TEMPLATE_PATH.read_text(encoding="utf-8")
+    html = inline_runtime_assets(html)
     html = replace_js_assignment(html, "DIAGRAM_DATA", diagram_literal)
     html = replace_agent_metadata(html, metadata)
 

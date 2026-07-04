@@ -224,8 +224,8 @@ const NODE_GAP_Y = 72, COLLISION_GAP = 64, CLUSTER_INTRUSION_GAP = 72, CLUSTER_G
 const CIRCULAR_RADIUS_FACTOR = 80, CIRCULAR_MIN_RADIUS = 200;
 const EDGE_END_PAD = 16;
 const EDGE_MIN_SEPARATION = 52, EDGE_LAYOUT_STEP = 46, EDGE_LAYOUT_LIMIT = 184, EDGE_LAYOUT_PASSES = 4;
-const MIN_READABLE_SCALE = 0.58;
-const VERSION = 11;
+const MIN_READABLE_SCALE = 0.58, MIN_FIT_SCALE = 0.08;
+const VERSION = 12;
 
 const canvas = document.getElementById('canvas');
 const $ = id => document.getElementById(id);
@@ -670,6 +670,48 @@ function edgeLabelBox(edge, x, y) {
   return { x: x - labelW / 2, y: labelY - labelH / 2, w: labelW, h: labelH };
 }
 
+function sampleAtRatio(samples, ratio) {
+  if (!samples.length) return { point: { x: 0, y: 0 }, before: null, after: null };
+  const index = Math.max(0, Math.min(samples.length - 1, Math.round((samples.length - 1) * ratio)));
+  return {
+    point: samples[index],
+    before: samples[Math.max(0, index - 1)],
+    after: samples[Math.min(samples.length - 1, index + 1)]
+  };
+}
+
+function labelPositionPenalty(edge, point, nodes) {
+  const box = edgeLabelBox(edge, point.x, point.y);
+  let penalty = 0;
+  nodes.forEach(node => {
+    const nBox = expandBox(nodeBox(node), 18);
+    if (boxesOverlap(box, nBox)) penalty += 100000;
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    if (pointInBox({ x: cx, y: cy }, nBox)) penalty += 100000;
+  });
+  return penalty;
+}
+
+function chooseEdgeLabelPoint(edge, points, samples, nodes, fallback) {
+  const candidates = [fallback];
+  [0.12, 0.24, 0.36, 0.5, 0.64, 0.76, 0.88].forEach(ratio => {
+    const { point, before, after } = sampleAtRatio(samples, ratio);
+    const dx = (after ? after.x : point.x) - (before ? before.x : point.x);
+    const dy = (after ? after.y : point.y) - (before ? before.y : point.y);
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    [0, -48, 48, -88, 88, -128, 128, -184, 184, -248, 248, -320, 320].forEach(offset => {
+      candidates.push({ x: point.x + nx * offset, y: point.y + ny * offset });
+    });
+  });
+  return candidates.reduce((best, candidate) => {
+    const score = labelPositionPenalty(edge, candidate, nodes) + distance(candidate, fallback) * 0.08;
+    return score < best.score ? { point: candidate, score } : best;
+  }, { point: fallback, score: Infinity }).point;
+}
+
 function edgeRoute(edge, edgeIndex, nodes = state.nodes, edges = state.edges) {
   const src = nodes.find(n => n.id === edge.sourceId);
   const tgt = nodes.find(n => n.id === edge.targetId);
@@ -680,7 +722,9 @@ function edgeRoute(edge, edgeIndex, nodes = state.nodes, edges = state.edges) {
     const x2 = b.x + b.w + EDGE_END_PAD, y2 = b.y + b.h * 0.65;
     const loopX = b.x + b.w + 72;
     const points = [{ x: x1, y: y1 }, { x: loopX, y: b.y - 26 }, { x: loopX, y: b.y + b.h + 26 }, { x: x2, y: y2 }];
-    return { edge, src, tgt, points, samples: points, labelPoint: { x: loopX, y: b.y + b.h / 2 }, labelBox: edgeLabelBox(edge, loopX, b.y + b.h / 2) };
+    const fallback = { x: loopX, y: b.y + b.h / 2 };
+    const labelPoint = chooseEdgeLabelPoint(edge, points, points, nodes, fallback);
+    return { edge, src, tgt, points, samples: points, labelPoint, labelBox: edgeLabelBox(edge, labelPoint.x, labelPoint.y) };
   }
   const start = edgeAnchor(src, tgt);
   const end = edgeAnchor(tgt, src);
@@ -691,7 +735,9 @@ function edgeRoute(edge, edgeIndex, nodes = state.nodes, edges = state.edges) {
   const off = Math.max(-160, Math.min(160, parallelEdgeOffset(edge, edgeIndex, edges) + Math.min(dist * 0.08, 32)));
   const control = { x: mx + dy / dist * off, y: my - dx / dist * off };
   const points = [start, control, end];
-  return { edge, src, tgt, points, samples: sampleCurve(points), labelPoint: control, labelBox: edgeLabelBox(edge, control.x, control.y) };
+  const samples = sampleCurve(points);
+  const labelPoint = chooseEdgeLabelPoint(edge, points, samples, nodes, control);
+  return { edge, src, tgt, points, samples, labelPoint, labelBox: edgeLabelBox(edge, labelPoint.x, labelPoint.y) };
 }
 
 function routeLength(route) {
@@ -723,7 +769,7 @@ function routeNodePenalty(route, nodes) {
     route.samples.slice(1, -1).forEach(point => {
       if (pointInBox(point, box)) penalty += 420;
     });
-    if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 20))) penalty += 900;
+    if (boxesOverlap(route.labelBox, expandBox(nodeBox(node), 20))) penalty += 25000;
   });
   return penalty;
 }
@@ -1114,7 +1160,7 @@ function screenToLogical(sx, sy) {
 
 function zoomAt(px, py, factor) {
   const old = state.viewScale;
-  state.viewScale = Math.max(0.15, Math.min(5, state.viewScale * factor));
+  state.viewScale = Math.max(MIN_FIT_SCALE, Math.min(5, state.viewScale * factor));
   const ratio = state.viewScale / old;
   state.viewX = px - ratio * (px - state.viewX);
   state.viewY = py - ratio * (py - state.viewY);
@@ -1141,7 +1187,9 @@ function fitToScreen({ readable = true } = {}) {
   const cw = bounds.w, ch = bounds.h;
   if (cw < 1 || ch < 1) return;
   const fitScale = Math.min(availableW / cw * 0.95, availableH / ch * 0.95, 2);
-  state.viewScale = readable ? Math.max(MIN_READABLE_SCALE, fitScale) : Math.max(0.08, fitScale);
+  const readableWouldCrop = readable && fitScale < MIN_READABLE_SCALE &&
+    (cw * MIN_READABLE_SCALE > availableW * 1.15 || ch * MIN_READABLE_SCALE > availableH * 1.15);
+  state.viewScale = readable && !readableWouldCrop ? Math.max(MIN_READABLE_SCALE, fitScale) : Math.max(MIN_FIT_SCALE, fitScale);
   const scaledW = cw * state.viewScale;
   const scaledH = ch * state.viewScale;
   state.viewX = pad.left + (availableW - scaledW) / 2 - bounds.minX * state.viewScale;

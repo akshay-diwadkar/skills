@@ -37,6 +37,16 @@ from _diagram_utils import (
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
+INLINE_STYLE_RE = re.compile(
+    r'<style\s+id="create-diagram-style"\s+data-inline-asset="css/style.css">.*?</style>',
+    re.DOTALL,
+)
+INLINE_ROUGHJS_RE = re.compile(
+    r'<script\s+id="create-diagram-roughjs"\s+data-inline-asset="roughjs.js">.*?</script>',
+    re.DOTALL,
+)
+STYLE_LINK = '<link rel="stylesheet" href="css/style.css">'
+ROUGHJS_SCRIPT = '<script src="roughjs.js"></script>'
 
 
 def fail(msg):
@@ -62,6 +72,8 @@ def check_dangerous_js(raw_block):
 
 def strip_data_sections(text):
     result = replace_js_assignment(text, "DIAGRAM_DATA", "const DIAGRAM_DATA = {};")
+    result = INLINE_STYLE_RE.sub(STYLE_LINK, result)
+    result = INLINE_ROUGHJS_RE.sub(ROUGHJS_SCRIPT, result)
     return re.sub(
         r'<script\s+type="application/json"\s+id="agent-metadata">.*?</script>',
         '<script type="application/json" id="agent-metadata">{}</script>',
@@ -99,6 +111,34 @@ def check_structural_completeness(text):
         issues.append("File is missing closing </body> tag; document may be truncated.")
     if "init();" not in text or "</script>" not in text:
         issues.append("Missing init(); call or closing </script>; module script may be truncated.")
+    return issues
+
+
+def check_embedded_assets(text):
+    issues = []
+    style_match = INLINE_STYLE_RE.search(text)
+    roughjs_match = INLINE_ROUGHJS_RE.search(text)
+    if not style_match:
+        issues.append(
+            "Generated HTML is missing the embedded stylesheet. Rebuild with scripts/build_diagram.py."
+        )
+    elif not style_match.group(0).split(">", 1)[1].rsplit("</style>", 1)[0].strip():
+        issues.append(
+            "Generated HTML has an empty embedded stylesheet. Rebuild with scripts/build_diagram.py."
+        )
+    if not roughjs_match:
+        issues.append(
+            "Generated HTML is missing the embedded RoughJS runtime. Rebuild with scripts/build_diagram.py."
+        )
+    elif "window.roughjs" not in roughjs_match.group(0).split(">", 1)[1].rsplit("</script>", 1)[0]:
+        issues.append(
+            "Generated HTML has an invalid embedded RoughJS runtime. Rebuild with scripts/build_diagram.py."
+        )
+    if STYLE_LINK in text or ROUGHJS_SCRIPT in text:
+        issues.append(
+            "Generated HTML still references external local assets. Rebuild with scripts/build_diagram.py "
+            "so the artifact is portable."
+        )
     return issues
 
 
@@ -433,6 +473,15 @@ def main():
     for issue in check_structural_completeness(text):
         fail(issue)
         sys.exit(1)
+    for issue in check_embedded_assets(text):
+        fail(issue)
+        sys.exit(1)
+
+    try:
+        metadata = extract_agent_metadata(text, required=True)
+    except ValueError as exc:
+        fail(str(exc))
+        sys.exit(1)
 
     for issue in check_template_integrity(html_path):
         fail(issue)
@@ -455,7 +504,6 @@ def main():
         fail(str(exc))
         sys.exit(1)
 
-    metadata = extract_agent_metadata(text)
     errors, warnings = validate(data, metadata)
     if errors:
         print(f"\n{errors} error(s), {warnings} warning(s) found.", file=sys.stderr)

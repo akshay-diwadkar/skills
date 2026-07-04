@@ -269,6 +269,9 @@ def validate_html_input(html_path):
     for issue in validate_diagram.check_structural_completeness(text):
         print(f"ERROR: {issue}", file=sys.stderr)
         errors += 1
+    for issue in validate_diagram.check_embedded_assets(text):
+        print(f"ERROR: {issue}", file=sys.stderr)
+        errors += 1
 
     raw_block = validate_diagram.extract_raw_js_block(text, "DIAGRAM_DATA")
     if raw_block is None:
@@ -300,7 +303,12 @@ def validate_html_input(html_path):
         print(f"ERROR: {exc}", file=sys.stderr)
         return False
 
-    metadata = validate_diagram.extract_agent_metadata(text)
+    try:
+        metadata = validate_diagram.extract_agent_metadata(text, required=True)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        errors += 1
+        metadata = None
     validation_errors, _warnings = validate_diagram.validate(data, metadata)
     errors += validation_errors
     return errors == 0
@@ -399,4 +407,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

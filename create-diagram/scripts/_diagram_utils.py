@@ -230,20 +230,30 @@ def extract_diagram_data(text):
         raise ValueError(f"Could not parse DIAGRAM_DATA JSON: {exc}") from exc
 
 
-def extract_agent_metadata(text):
+def script_safe_json(data, **kwargs):
+    return json.dumps(data, **kwargs).replace("</", "<\\/")
+
+
+def extract_agent_metadata(text, required=False):
     pattern = re.compile(
         r'<script\s+type="application/json"\s+id="agent-metadata">(.*?)</script>',
         re.DOTALL,
     )
     match = pattern.search(text)
     if not match:
+        if required:
+            raise ValueError("Could not find #agent-metadata script tag.")
         return None
     content = match.group(1).strip()
     if not content:
+        if required:
+            raise ValueError("#agent-metadata is empty.")
         return None
     try:
         return json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        if required:
+            raise ValueError(f"Could not parse #agent-metadata JSON: {exc}") from exc
         return None
 
 
@@ -254,7 +264,7 @@ def replace_agent_metadata(text, metadata):
     )
     block = (
         '<script type="application/json" id="agent-metadata">\n'
-        + json.dumps(metadata, indent=2, ensure_ascii=False)
+        + script_safe_json(metadata, indent=2, ensure_ascii=False)
         + "\n</script>"
     )
     if not pattern.search(text):

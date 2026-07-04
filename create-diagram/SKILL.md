@@ -35,6 +35,7 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
      ```bash
      python "$skillDir\scripts\build_diagram.py" --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
      ```
+   - The generated HTML is self-contained: the builder embeds the local stylesheet and RoughJS runtime, so the output can be opened or served from any directory without copying sibling assets.
    - Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement.
 
 5. **Validate**

@@ -46,7 +46,7 @@ Every edge must have a verb label describing the relationship:
 
 ## Section C: Build Payload
 
-Build generated HTML with the shared template through `$skillDir\scripts\build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. Generated HTML should differ from `assets/html-excalidraw-template.html` only in `DIAGRAM_DATA` and `#agent-metadata`.
+Build generated HTML with the shared template through `$skillDir\scripts\build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. The builder embeds the local stylesheet and RoughJS runtime, so the generated `.html` file is portable and can be opened or served from any directory without copying sibling assets. Generated HTML should differ from `assets/html-excalidraw-template.html` only in `DIAGRAM_DATA`, `#agent-metadata`, and the builder-managed inline asset blocks.
 
 Payload shape:
 

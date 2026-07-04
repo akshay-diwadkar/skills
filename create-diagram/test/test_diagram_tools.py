@@ -244,6 +244,70 @@ class DiagramToolTests(unittest.TestCase):
             self.assertFalse((html_path.parent / ".diagram.html.tmp").exists())
             self.assertIn("const DIAGRAM_DATA =", html_path.read_text(encoding="utf-8"))
 
+    def test_builder_inlines_runtime_assets(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            text = html_path.read_text(encoding="utf-8")
+
+            self.assertIn('id="create-diagram-style" data-inline-asset="css/style.css"', text)
+            self.assertIn('id="create-diagram-roughjs" data-inline-asset="roughjs.js"', text)
+            self.assertIn("window.roughjs", text)
+            self.assertNotIn('<link rel="stylesheet" href="css/style.css">', text)
+            self.assertNotIn('<script src="roughjs.js"></script>', text)
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "validate_diagram.py"), str(html_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_validate_diagram_cli_rejects_external_local_assets(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            text = html_path.read_text(encoding="utf-8")
+            text = validate_diagram.INLINE_STYLE_RE.sub(
+                '<link rel="stylesheet" href="css/style.css">',
+                text,
+            )
+            text = validate_diagram.INLINE_ROUGHJS_RE.sub(
+                '<script src="roughjs.js"></script>',
+                text,
+            )
+            html_path.write_text(text, encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "validate_diagram.py"), str(html_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("embedded stylesheet", result.stderr)
+
+    def test_builder_escapes_script_closing_sequences_in_data_and_metadata(self):
+        payload = minimal_payload()
+        injected = "</script><script>window.__xss_probe=1</script>"
+        payload["diagram"]["nodes"][0]["label"] = injected
+        payload["metadata"]["entities"][0]["name"] = injected
+
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            text = html_path.read_text(encoding="utf-8")
+
+            self.assertNotIn(injected, text)
+            self.assertIn("<\\/script><script>window.__xss_probe=1<\\/script>", text)
+            self.assertNotIn("<script>window.__xss_probe=1</script>", text)
+
+            data = extract_diagram_data(text)
+            metadata = validate_diagram.extract_agent_metadata(text, required=True)
+            self.assertEqual(data["nodes"][0]["label"], injected)
+            self.assertEqual(metadata["entities"][0]["name"], injected)
+
     def test_excalidraw_export_validates(self):
         payload = minimal_payload()
         with tempfile.TemporaryDirectory() as tmp:
@@ -279,6 +343,21 @@ class DiagramToolTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate_excalidraw.generate(html_path)
             self.assertFalse(html_path.with_suffix(".excalidraw").exists())
+
+    def test_excalidraw_generation_cli_returns_nonzero_for_invalid_html(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = Path(tmp) / "diagram.html"
+            html_path.write_text("<html><body>broken</body></html>", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "generate_excalidraw.py"), str(html_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Input HTML validation failed", result.stderr)
 
     def test_complex_fixture_excalidraw_export_validates(self):
         payload = load_complex_payload()
@@ -447,6 +526,52 @@ class DiagramToolTests(unittest.TestCase):
         payload["metadata"]["entities"][0]["id"] = "missing"
         errors, _warnings = self.validate_payload(payload)
         self.assertGreater(errors, 0)
+
+    def test_validate_diagram_cli_rejects_malformed_metadata(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            text = html_path.read_text(encoding="utf-8")
+            text = re.sub(
+                r'<script\s+type="application/json"\s+id="agent-metadata">.*?</script>',
+                '<script type="application/json" id="agent-metadata">{not json}</script>',
+                text,
+                flags=re.S,
+            )
+            html_path.write_text(text, encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "validate_diagram.py"), str(html_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Could not parse #agent-metadata JSON", result.stderr)
+
+    def test_validate_diagram_cli_rejects_empty_metadata(self):
+        payload = minimal_payload()
+        with tempfile.TemporaryDirectory() as tmp:
+            html_path = write_payload(payload, tmp)
+            text = html_path.read_text(encoding="utf-8")
+            text = re.sub(
+                r'<script\s+type="application/json"\s+id="agent-metadata">.*?</script>',
+                '<script type="application/json" id="agent-metadata"></script>',
+                text,
+                flags=re.S,
+            )
+            html_path.write_text(text, encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "validate_diagram.py"), str(html_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("#agent-metadata is empty", result.stderr)
 
     def test_invalid_partial_manual_position(self):
         payload = minimal_payload()
