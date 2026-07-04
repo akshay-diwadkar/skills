@@ -322,6 +322,18 @@ class DiagramToolTests(unittest.TestCase):
         errors, _warnings = self.validate_payload(payload)
         self.assertGreater(errors, 0)
 
+    def test_validate_rejects_missing_metadata(self):
+        payload = minimal_payload()
+        errors, _warnings = validate_diagram.validate(payload["diagram"], None)
+        self.assertGreater(errors, 0)
+        self.assertGreaterEqual(_warnings, 0)
+
+    def test_validate_rejects_empty_metadata(self):
+        payload = minimal_payload()
+        errors, _warnings = validate_diagram.validate(payload["diagram"], {})
+        self.assertGreater(errors, 0)
+        self.assertGreaterEqual(_warnings, 0)
+
     def test_validate_diagram_cli_rejects_malformed_metadata(self):
         payload = minimal_payload()
         with tempfile.TemporaryDirectory() as tmp:

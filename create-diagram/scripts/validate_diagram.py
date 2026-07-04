@@ -404,54 +404,57 @@ def validate(data, metadata):
                     if visible_edges == 0:
                         emit_warning(f'Walkthrough step "{step_id or i}" has no edges connecting its nodes.')
 
-    if metadata:
-        for field in ("audience", "purpose", "fidelity"):
-            data_value = data.get(field)
-            meta_value = metadata.get(field)
-            if data_value and meta_value and data_value != meta_value:
-                emit_error(f"#agent-metadata.{field} does not match DIAGRAM_DATA.{field}.")
+    if not isinstance(metadata, dict) or not metadata:
+        emit_error("#agent-metadata is missing or invalid.")
+        return errors, warnings
 
-        meta_entities = metadata.get("entities") or []
-        meta_entity_ids = set()
-        for i, entity in enumerate(meta_entities):
-            entity_id = entity.get("id")
-            if not entity_id:
-                emit_error(f"metadata entities[{i}] is missing an 'id'.")
-                continue
-            meta_entity_ids.add(entity_id)
-            if entity_id not in node_ids:
-                emit_error(f"metadata entity '{entity_id}' has no matching DIAGRAM_DATA node.")
-                continue
-            if entity.get("name") and entity.get("name") != node_labels.get(entity_id):
-                emit_warning(f'metadata entity "{entity_id}" name differs from DIAGRAM_DATA node label.')
-            entity_type = resolve_type(entity.get("type", ""))
-            if entity_type and entity_type != node_types_map.get(entity_id):
-                emit_error(f'metadata entity "{entity_id}" type differs from DIAGRAM_DATA node type.')
+    for field in ("audience", "purpose", "fidelity"):
+        data_value = data.get(field)
+        meta_value = metadata.get(field)
+        if data_value and meta_value and data_value != meta_value:
+            emit_error(f"#agent-metadata.{field} does not match DIAGRAM_DATA.{field}.")
 
-        for node_id in node_ids:
-            if node_id not in meta_entity_ids:
-                emit_error(f"DIAGRAM_DATA node '{node_id}' is missing from #agent-metadata entities.")
+    meta_entities = metadata.get("entities") or []
+    meta_entity_ids = set()
+    for i, entity in enumerate(meta_entities):
+        entity_id = entity.get("id")
+        if not entity_id:
+            emit_error(f"metadata entities[{i}] is missing an 'id'.")
+            continue
+        meta_entity_ids.add(entity_id)
+        if entity_id not in node_ids:
+            emit_error(f"metadata entity '{entity_id}' has no matching DIAGRAM_DATA node.")
+            continue
+        if entity.get("name") and entity.get("name") != node_labels.get(entity_id):
+            emit_warning(f'metadata entity "{entity_id}" name differs from DIAGRAM_DATA node label.')
+        entity_type = resolve_type(entity.get("type", ""))
+        if entity_type and entity_type != node_types_map.get(entity_id):
+            emit_error(f'metadata entity "{entity_id}" type differs from DIAGRAM_DATA node type.')
 
-        for i, rel in enumerate(metadata.get("relationships") or []):
-            src = rel.get("sourceId")
-            tgt = rel.get("targetId")
-            label = rel.get("label") or f"relationship[{i}]"
-            if not rel.get("label"):
-                emit_error(f"metadata relationships[{i}] is missing 'label'.")
-            if src and src not in node_ids:
-                emit_error(f"metadata relationship '{label}' has dangling source '{src}'.")
-            if tgt and tgt not in node_ids:
-                emit_error(f"metadata relationship '{label}' has dangling target '{tgt}'.")
-            confidence = rel.get("confidence")
-            if confidence and confidence not in VALID_CONFIDENCE:
-                emit_error(f"metadata relationship '{label}' has invalid confidence '{confidence}'.")
-            evidence = rel.get("evidence")
-            if not evidence:
-                emit_error(f"metadata relationship '{label}' is missing 'evidence'.")
-            else:
-                eq = evidence_quality(evidence)
-                if eq:
-                    emit_warning(f'metadata relationship "{label}" evidence "{evidence}" has {eq}.')
+    for node_id in node_ids:
+        if node_id not in meta_entity_ids:
+            emit_error(f"DIAGRAM_DATA node '{node_id}' is missing from #agent-metadata entities.")
+
+    for i, rel in enumerate(metadata.get("relationships") or []):
+        src = rel.get("sourceId")
+        tgt = rel.get("targetId")
+        label = rel.get("label") or f"relationship[{i}]"
+        if not rel.get("label"):
+            emit_error(f"metadata relationships[{i}] is missing 'label'.")
+        if src and src not in node_ids:
+            emit_error(f"metadata relationship '{label}' has dangling source '{src}'.")
+        if tgt and tgt not in node_ids:
+            emit_error(f"metadata relationship '{label}' has dangling target '{tgt}'.")
+        confidence = rel.get("confidence")
+        if confidence and confidence not in VALID_CONFIDENCE:
+            emit_error(f"metadata relationship '{label}' has invalid confidence '{confidence}'.")
+        evidence = rel.get("evidence")
+        if not evidence:
+            emit_error(f"metadata relationship '{label}' is missing 'evidence'.")
+        else:
+            eq = evidence_quality(evidence)
+            if eq:
+                emit_warning(f'metadata relationship "{label}" evidence "{evidence}" has {eq}.')
 
     return errors, warnings
 
