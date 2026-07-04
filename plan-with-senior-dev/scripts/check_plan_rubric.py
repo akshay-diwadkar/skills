@@ -16,6 +16,10 @@ from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 
 SECTION_ALIASES = {
     "Test Strategy": ("Test Strategy", "Test/Verification"),
+    "Change Propagation": ("Change Propagation", "Change Propagation Map", "Propagation Map"),
+    "Constraint Verification": ("Constraint Verification", "Constraints"),
+    "Devil's Advocate": ("Devil's Advocate", "Attack Findings"),
+    "Logic Specification": ("Logic Specification", "Pseudo-code", "Pseudocode"),
 }
 
 EXPECTED_WORDS = (
@@ -146,11 +150,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
     )
-    parser.add_argument(
-        "--issue-related",
-        action="store_true",
-        help="Require the Post-Resolution Audit Follow-Up section for issue or audit-finding plans.",
-    )
     return parser.parse_args()
 
 
@@ -186,6 +185,17 @@ def parse_sections(text: str) -> tuple[dict[str, Section], list[Diagnostic]]:
             sections[name] = Section(name=name, line=line_number, body=body)
             
     return sections, diagnostics
+
+
+def extract_fenced_code_blocks(text: str) -> list[tuple[str, str, int]]:
+    blocks: list[tuple[str, str, int]] = []
+    pattern = re.compile(r"^```([A-Za-z0-9_-]*)\s*$([\s\S]*?)^```\s*$", re.MULTILINE)
+    for match in pattern.finditer(text):
+        lang = match.group(1).casefold()
+        body = match.group(2)
+        line = text[: match.start()].count("\n") + 1
+        blocks.append((lang, body, line))
+    return blocks
 
 
 def section(sections: dict[str, Section], name: str) -> Section | None:
@@ -338,43 +348,116 @@ def pre_mortem_findings_are_actionable(section_obj: Section | None) -> bool:
     return all("Action:" in line for line in finding_lines)
 
 
-def validate_issue_resolution_follow_up(sections: dict[str, Section]) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    follow_up = section(sections, "Post-Resolution Audit Follow-Up")
-    if follow_up is None:
-        diagnostics.append(Diagnostic(
-            code="rubric.issue_follow_up.missing",
-            message="Missing section 'Post-Resolution Audit Follow-Up' for issue-related plan",
-        ))
-        return diagnostics
+def has_propagation_map(body: str) -> bool:
+    has_arrow = bool(re.search(r"(?:->|→)", body))
+    has_file_ref = bool(re.search(r"[\w./\\-]+\.\w+:\d+|`[^`]*(?:/|\\|\.\w+)[^`]*`", body))
+    has_update_required = bool(re.search(r"\bupdate required\s*:\s*(?:yes|no)\b", body, flags=re.IGNORECASE))
+    return has_arrow and has_file_ref and has_update_required
 
-    body = follow_up.body
-    checks = (
-        (
-            "rubric.issue_follow_up.audit_rerun",
-            r"\b(rerun|re-run|run)\b[\s\S]*\bcodebase-issue-auditor\b",
-            "Post-Resolution Audit Follow-Up must rerun codebase-issue-auditor after planned fixes and tests pass",
-        ),
-        (
-            "rubric.issue_follow_up.compare_open_issues",
-            r"\bcompare\b[\s\S]*\b(current audit findings|audit findings|findings)\b[\s\S]*\b(open audit|open .*GitHub|GitHub issues|open issues)\b",
-            "Post-Resolution Audit Follow-Up must compare current audit findings against open audit or GitHub issues",
-        ),
-        (
-            "rubric.issue_follow_up.resolved_candidates",
-            r"\b(list|report|record)\b[\s\S]*\bresolved issue candidates?\b[\s\S]*\b(source|test|audit) evidence\b",
-            "Post-Resolution Audit Follow-Up must list resolved issue candidates with source, test, or audit evidence",
-        ),
-        (
-            "rubric.issue_follow_up.user_approval",
-            r"\bclose\b[\s\S]*\b(explicit user approval|user approval)\b",
-            "Post-Resolution Audit Follow-Up must require explicit user approval before closing issues",
-        ),
+
+def has_constraint_classification(body: str) -> bool:
+    has_classification = bool(re.search(r"\b(preserved|modified|at[- ]risk)\b", body, flags=re.IGNORECASE))
+    has_evidence = bool(re.search(r"\bevidence\b|[\w./\\-]+\.\w+:\d+|`[^`]+`", body, flags=re.IGNORECASE))
+    return has_classification and has_evidence
+
+
+def count_attack_findings(body: str) -> int:
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    count = 0
+    for line in lines:
+        if re.match(r"^(?:[-*]|\d+\.)\s+", line) and re.search(
+            r"\b(P[012]|scenario|failure|attack|fix|accepted risk)\b",
+            line,
+            flags=re.IGNORECASE,
+        ):
+            count += 1
+    if count:
+        return count
+    return len(re.findall(r"\bP[012]\b", body))
+
+
+def has_function_like_pseudocode(text: str) -> bool:
+    for lang, body, _ in extract_fenced_code_blocks(text):
+        if lang not in {"", "text", "pseudo", "pseudocode", "python", "py", "typescript", "ts", "javascript", "js"}:
+            continue
+        if re.search(
+            r"\bfunction\s+\w+\s*\([^)]*:\s*[^)]*\)\s*:\s*[\w<>\[\]|.]+",
+            body,
+        ):
+            return True
+        if re.search(r"\bdef\s+\w+\s*\([^)]*:\s*[^)]*\)\s*->\s*[\w.\[\]|]+", body):
+            return True
+        if re.search(
+            r"^\s*\w+\s*\([^)]*:\s*[^)]*\)\s*(?:->|:)\s*[\w<>\[\]|.]+",
+            body,
+            flags=re.MULTILINE,
+        ):
+            return True
+    return False
+
+
+def has_test_assertion_specificity(body: str) -> bool:
+    patterns = (
+        r"\bassert(?:s|ion)?\b",
+        r"\bexpect\s*\(",
+        r"\binput\b[\s\S]{0,160}\boutput\b",
+        r"\boutput\b[\s\S]{0,160}\binput\b",
+        r"\bgiven\b[\s\S]{0,120}\breturns?\b",
+        r"`[^`]+`\s*(?:->|=>|\breturns?\b)\s*`?[^`\n]+",
     )
+    return any(re.search(pattern, body, flags=re.IGNORECASE) for pattern in patterns)
 
-    for code, pattern, message in checks:
-        if not re.search(pattern, body, flags=re.IGNORECASE):
-            diagnostics.append(fail(code, message, follow_up))
+
+def validate_attack_findings(sections: dict[str, Section]) -> list[Diagnostic]:
+    attack = section(sections, "Devil's Advocate")
+    if attack is None:
+        return [Diagnostic(
+            code="rubric.devils_advocate.missing",
+            message="Missing Devil's Advocate or Attack Findings section",
+        )]
+    if count_attack_findings(attack.body) < 3:
+        return [fail(
+            "rubric.devils_advocate.depth",
+            "Devil's Advocate must contain at least 3 concrete findings",
+            attack,
+        )]
+    return []
+
+
+def validate_standard_reasoning_sections(sections: dict[str, Section], full_text: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    propagation = section(sections, "Change Propagation")
+    constraints = section(sections, "Constraint Verification")
+
+    if propagation is None:
+        diagnostics.append(Diagnostic(
+            code="rubric.propagation.missing",
+            message="Missing Change Propagation or Propagation Map section",
+        ))
+    elif not has_propagation_map(propagation.body):
+        diagnostics.append(fail(
+            "rubric.propagation.completeness",
+            "Propagation map must include an arrow, file references, and update required yes/no entries",
+            propagation,
+        ))
+
+    if constraints is None:
+        diagnostics.append(Diagnostic(
+            code="rubric.constraints.missing",
+            message="Missing Constraint Verification or Constraints section",
+        ))
+    elif not has_constraint_classification(constraints.body):
+        diagnostics.append(fail(
+            "rubric.constraints.evidence",
+            "Constraint Verification must classify constraints as preserved, modified, or at risk with evidence",
+            constraints,
+        ))
+
+    if not has_function_like_pseudocode(full_text):
+        diagnostics.append(Diagnostic(
+            code="rubric.pseudocode.quality",
+            message="Pseudo-code must include function-like signatures with typed parameters and return types",
+        ))
 
     return diagnostics
 
@@ -392,6 +475,7 @@ def validate_tiny(sections: dict[str, Section]) -> list[Diagnostic]:
     change = require_section(sections, diagnostics, "Change")
     tests = require_section(sections, diagnostics, "Test Strategy")
     assumptions = require_section(sections, diagnostics, "Assumptions")
+    diagnostics.extend(validate_attack_findings(sections))
 
     if current and not has_repo_evidence(current.body, "tiny"):
         diagnostics.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence or justify N/A", current))
@@ -402,6 +486,8 @@ def validate_tiny(sections: dict[str, Section]) -> list[Diagnostic]:
             diagnostics.append(fail("rubric.test_strategy.command", "Test/Verification must include an exact command or explicit manual check", tests))
         if not has_expected_result(tests.body):
             diagnostics.append(fail("rubric.test_strategy.expected_result", "Test/Verification must include expected passing result", tests))
+        if not has_test_assertion_specificity(tests.body):
+            diagnostics.append(fail("rubric.test_strategy.assertions", "Test/Verification must include exact assertions or input/output pairs", tests))
     if assumptions and not assumptions.body.strip():
         diagnostics.append(fail("rubric.assumptions.non_empty", "Assumptions must not be empty", assumptions))
 
@@ -417,6 +503,8 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
     tests = require_section(sections, diagnostics, "Test Strategy")
     rollback = require_section(sections, diagnostics, "Rollback Plan")
     assumptions = require_section(sections, diagnostics, "Assumptions")
+    diagnostics.extend(validate_attack_findings(sections))
+    diagnostics.extend(validate_standard_reasoning_sections(sections, full_text))
 
     if current and not has_repo_evidence(current.body, "standard"):
         diagnostics.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence with file:line or justify N/A", current))
@@ -437,6 +525,8 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
             diagnostics.append(fail("rubric.test_strategy.command", "Test Strategy must include exact commands or explicit manual checks", tests))
         if not has_expected_result(tests.body):
             diagnostics.append(fail("rubric.test_strategy.expected_result", "Test Strategy must include expected passing result", tests))
+        if not has_test_assertion_specificity(tests.body):
+            diagnostics.append(fail("rubric.test_strategy.assertions", "Test Strategy must include exact assertions or input/output pairs", tests))
     if rollback and not has_concrete_rollback(rollback.body):
         diagnostics.append(fail("rubric.rollback.concrete", "Rollback Plan must state concrete steps or trivial rollback reason", rollback))
     failure_modes = section(sections, "Failure Modes")
@@ -554,7 +644,7 @@ def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Dia
     return diagnostics
 
 
-def validate(text: str, tier: str, issue_related: bool = False) -> list[Diagnostic]:
+def validate(text: str, tier: str) -> list[Diagnostic]:
     sections, parse_diags = parse_sections(text)
     
     if tier == "tiny":
@@ -563,9 +653,6 @@ def validate(text: str, tier: str, issue_related: bool = False) -> list[Diagnost
         diags = validate_standard(sections, text) # pass original text to check code blocks
     else:
         diags = validate_high_risk(sections, text)
-
-    if issue_related:
-        diags.extend(validate_issue_resolution_follow_up(sections))
 
     return parse_diags + diags
 
@@ -578,7 +665,7 @@ def main() -> int:
         print(f"Error reading plan: {e}", file=sys.stderr)
         return 1
 
-    diagnostics = validate(text, args.tier, issue_related=args.issue_related)
+    diagnostics = validate(text, args.tier)
 
     errors = [d for d in diagnostics if not d.is_warning]
     warnings = [d for d in diagnostics if d.is_warning]

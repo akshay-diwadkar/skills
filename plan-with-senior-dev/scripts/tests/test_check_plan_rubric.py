@@ -5,13 +5,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_plan_rubric import validate
 
 
-def rubric_errors(text: str, tier: str = "tiny", issue_related: bool = False) -> list[str]:
-    diags = validate(text, tier, issue_related=issue_related)
+def rubric_errors(text: str, tier: str = "tiny") -> list[str]:
+    diags = validate(text, tier)
     return [d.message for d in diags if not d.is_warning]
 
 
-def rubric_warnings(text: str, tier: str = "tiny", issue_related: bool = False) -> list[str]:
-    diags = validate(text, tier, issue_related=issue_related)
+def rubric_warnings(text: str, tier: str = "tiny") -> list[str]:
+    diags = validate(text, tier)
     return [d.message for d in diags if d.is_warning]
 
 
@@ -185,19 +185,33 @@ class TestInterfaceSpec:
         assert len(interface_errors) == 0
 
 
-# ---- Issue-Related Follow-up ----
+# ---- Pseudo-code, Propagation, Constraints, Devil's Advocate ----
 
-class TestIssueRelated:
-    def test_issue_related_missing_follow_up(self):
-        text = "# Add test suite\n## Goal\nFix bug\n## Current State\nfile.py:10 has bug\n## Change\nAdd check\n## Test/Verification\npython test.py returns 0\n## Assumptions\nLow risk"
-        errs = rubric_errors(text, "tiny", issue_related=True)
-        assert any("Post-Resolution" in e for e in errs)
+class TestExecutableSpecChecks:
+    def test_propagation_map_requires_arrow_file_and_update_required(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve output unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Change Propagation Map\nnormalize_value affects local code only\n## Constraint Verification\nPreserved evidence: file.py:10 keeps str output\n## Changes\n1. Fix\n## Logic Specification\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n## Devil's Advocate\n- P2 scenario: literal attack. Fix: exact signature.\n- P2 scenario: edge attack. Fix: assertion.\n- P2 scenario: rollback attack. Fix: revert only.\n## Test Strategy\nInput: None. Output: \"\". Assert normalize_value(None) == \"\". python test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("Propagation map" in e for e in errs)
 
-    def test_issue_related_with_follow_up(self):
-        text = "# Add test suite\n## Goal\nFix bug\n## Current State\nfile.py:10 has bug\n## Change\nAdd check\n## Test/Verification\npython test.py returns 0\n## Assumptions\nLow risk\n## Post-Resolution Audit Follow-Up\nAfter fixes pass, rerun codebase-issue-auditor. Compare current audit findings against open audit or GitHub issues. List resolved issue candidates with source, test, or audit evidence. Close resolved issues only after explicit user approval."
-        errs = rubric_errors(text, "tiny", issue_related=True)
-        follow_up_errors = [e for e in errs if "Post-Resolution" in e]
-        assert len(follow_up_errors) == 0
+    def test_constraint_verification_requires_classification_and_evidence(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve output unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Change Propagation Map\nnormalize_value -> files\n  - direct caller: file.py:10 - update required: yes - reason: add guard\n## Constraint Verification\nReturn type stays the same\n## Changes\n1. Fix\n## Logic Specification\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n## Devil's Advocate\n- P2 scenario: literal attack. Fix: exact signature.\n- P2 scenario: edge attack. Fix: assertion.\n- P2 scenario: rollback attack. Fix: revert only.\n## Test Strategy\nInput: None. Output: \"\". Assert normalize_value(None) == \"\". python test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("Constraint Verification" in e for e in errs)
+
+    def test_devils_advocate_requires_three_findings(self):
+        text = "# Add test suite\n## Goal\nFix it\n## Current State\nfile.py:10 has bug\n## Change\nAdd check\n## Test/Verification\nInput: None. Output: \"\". Assert normalize_value(None) == \"\". python test.py returns 0\n## Devil's Advocate\n- P2 scenario: one finding. Fix: assertion.\n## Assumptions\nLow risk"
+        errs = rubric_errors(text, "tiny")
+        assert any("at least 3" in e for e in errs)
+
+    def test_pseudocode_requires_typed_signature(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve output unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Change Propagation Map\nnormalize_value -> files\n  - direct caller: file.py:10 - update required: yes - reason: add guard\n## Constraint Verification\nPreserved evidence: file.py:10 keeps str output\n## Changes\n1. Fix\n## Logic Specification\n```pseudocode\nif missing then return default\n```\n## Devil's Advocate\n- P2 scenario: literal attack. Fix: exact signature.\n- P2 scenario: edge attack. Fix: assertion.\n- P2 scenario: rollback attack. Fix: revert only.\n## Test Strategy\nInput: None. Output: \"\". Assert normalize_value(None) == \"\". python test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("function-like signatures" in e for e in errs)
+
+    def test_test_strategy_requires_assertion_specificity(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve output unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Change Propagation Map\nnormalize_value -> files\n  - direct caller: file.py:10 - update required: yes - reason: add guard\n## Constraint Verification\nPreserved evidence: file.py:10 keeps str output\n## Changes\n1. Fix\n## Logic Specification\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n## Devil's Advocate\n- P2 scenario: literal attack. Fix: exact signature.\n- P2 scenario: edge attack. Fix: assertion.\n- P2 scenario: rollback attack. Fix: revert only.\n## Test Strategy\nTest happy path and failure case. python test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("assertions or input/output" in e for e in errs)
 
 
 # ---- High-Risk Checks ----

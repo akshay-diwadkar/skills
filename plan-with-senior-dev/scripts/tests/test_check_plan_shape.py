@@ -56,7 +56,7 @@ class TestRequiredSections:
         assert any("Assumptions" in m for m in missing)
 
     def test_tiny_has_all_required_sections(self):
-        text = "# Add test suite\n## Goal\n## Current State\n## Change\n## Test/Verification\n## Assumptions"
+        text = "# Add test suite\n## Goal\n## Current State\n## Change\n## Test/Verification\n## Devil's Advocate\n## Assumptions"
         errs = shape_errors(text, "tiny")
         missing = [e for e in errs if "Missing required section" in e]
         assert len(missing) == 0
@@ -76,6 +76,20 @@ class TestRequiredSections:
         assert any("Compatibility" in m for m in missing)
         assert any("Migration" in m for m in missing)
         assert any("Risk" in m for m in missing)
+
+    def test_standard_requires_pseudocode_propagation_constraints_and_attack(self):
+        text = "# Add test suite\n## Goal\nFix\n## Success Criteria\nPasses\n## Current State\nfile.py:10\n## Scope\nIn scope\n## Reasoning Summary\nCause\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Logic Specification\nPlain text\n## Test Strategy\nAssert output\n## Rollback Plan\nRevert\n## Assumptions\nLow"
+        errs = shape_errors(text, "standard")
+        assert any("pseudo-code" in e for e in errs)
+        assert any("Change Propagation" in e for e in errs)
+        assert any("Constraint" in e for e in errs)
+        assert any("Devil's Advocate" in e for e in errs)
+
+    def test_standard_accepts_alias_sections_and_pseudocode_block(self):
+        text = "# Add tests for validator scripts\n## Goal\nFix\n## Success Criteria\nPasses\n## Current State\nfile.py:10\n## Scope\nIn scope\n## Reasoning Summary\nCause\n## Approach\nFollow existing pattern\n## Propagation Map\nsymbol -> file.py:10\n## Constraints\nPreserved: contract at file.py:10\n## Changes\n1. Fix\n## Logic Specification\nSpec:\n```pseudocode\nfix_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n## Test Strategy\nAssert output\n## Attack Findings\n- P2 scenario\n## Rollback Plan\nRevert\n## Assumptions\nLow"
+        errs = shape_errors(text, "standard")
+        targeted = [e for e in errs if "pseudo-code" in e or "Change Propagation" in e or "Constraint" in e or "Devil's Advocate" in e]
+        assert targeted == []
 
 
 class TestOptionalSections:

@@ -17,7 +17,7 @@ from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 TIERS: dict[str, dict[str, Any]] = {
     "tiny": {
         "min_lines": 8,
-        "max_lines": 50,
+        "max_lines": 60,
         "sections": [
             "Goal",
             "Current State",
@@ -27,15 +27,17 @@ TIERS: dict[str, dict[str, Any]] = {
         ],
     },
     "standard": {
-        "min_lines": 20,
-        "max_lines": 90,
+        "min_lines": 30,
+        "max_lines": 140,
         "sections": [
             "Goal",
             "Success Criteria",
             "Current State",
             "Scope",
+            "Reasoning Summary",
             "Approach",
             "Changes",
+            "Logic Specification",
             "Test Strategy",
             "Rollback Plan",
             "Assumptions",
@@ -47,25 +49,27 @@ TIERS: dict[str, dict[str, Any]] = {
         ],
     },
     "high-risk": {
-        "min_lines": 50,
-        "max_lines": 180,
+        "min_lines": 60,
+        "max_lines": 220,
         "sections": [
             "Goal",
             "Success Criteria",
             "Current State",
             "Scope",
+            "Reasoning Summary",
             "Approach",
             "Changes",
+            "Logic Specification",
             "Test Strategy",
             "Rollback Plan",
             "Assumptions",
             "Compatibility",
             "Migration",
             "Risk",
+            "Pre-Mortem Findings",
         ],
         "optional_warn": [
             "Doc Updates",
-            "Pre-Mortem Findings",
         ]
     },
 }
@@ -142,6 +146,38 @@ PERMISSION_TO_PROCEED_PATTERNS = [
     r"\blet me know if\b",
     r"\bawaiting your approval\b",
 ]
+
+
+def extract_fenced_code_blocks(text: str) -> list[tuple[str, str, int]]:
+    blocks: list[tuple[str, str, int]] = []
+    pattern = re.compile(r"^```([A-Za-z0-9_-]*)\s*$([\s\S]*?)^```\s*$", re.MULTILINE)
+    for match in pattern.finditer(text):
+        lang = match.group(1).casefold()
+        body = match.group(2)
+        line = text[: match.start()].count("\n") + 1
+        blocks.append((lang, body, line))
+    return blocks
+
+
+def has_pseudocode_block(text: str) -> bool:
+    pseudo_langs = {"pseudo", "pseudocode"}
+    for lang, body, _ in extract_fenced_code_blocks(text):
+        if lang in pseudo_langs:
+            return True
+        if re.search(r"\b(if|else|elif|for|while|return|throw|raise)\b", body, flags=re.IGNORECASE) and re.search(
+            r"\b(function|def|returns?|->|:)\b", body,
+            flags=re.IGNORECASE,
+        ):
+            return True
+    return False
+
+
+def has_any_section(found_names: set[str], alternatives: tuple[str, ...]) -> bool:
+    for heading in found_names:
+        for alternative in alternatives:
+            if heading == alternative or heading.startswith(alternative + " "):
+                return True
+    return False
 
 
 def parse_args() -> argparse.Namespace:
@@ -277,6 +313,30 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
             diagnostics.append(Diagnostic(
                 code="shape.section.missing_required",
                 message=f"Missing required section: {section}"
+            ))
+
+    # New structural sections introduced by the six-gate planning workflow.
+    if not has_any_section(found_names, ("Devil's Advocate", "Attack Findings")):
+        diagnostics.append(Diagnostic(
+            code="shape.section.missing_devils_advocate",
+            message="Missing required section: Devil's Advocate or Attack Findings"
+        ))
+
+    if tier in {"standard", "high-risk"}:
+        if not has_any_section(found_names, ("Change Propagation", "Propagation Map")):
+            diagnostics.append(Diagnostic(
+                code="shape.section.missing_change_propagation",
+                message="Missing required section: Change Propagation or Propagation Map"
+            ))
+        if not has_any_section(found_names, ("Constraint Verification", "Constraints")):
+            diagnostics.append(Diagnostic(
+                code="shape.section.missing_constraints",
+                message="Missing required section: Constraint Verification or Constraints"
+            ))
+        if not has_pseudocode_block(text):
+            diagnostics.append(Diagnostic(
+                code="shape.pseudocode.missing",
+                message="Standard and High-risk plans must include a fenced pseudo-code block"
             ))
 
     # Optional warnings sections

@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_plan import main as check_plan_main
 
 
-def run_checker(text: str, tier: str = "tiny", warn: bool = False, issue_related: bool = False) -> tuple[int, str]:
+def run_checker(text: str, tier: str = "tiny", warn: bool = False) -> tuple[int, str]:
     old_stdin = sys.stdin
     old_stdout = sys.stdout
     old_stderr = sys.stderr
@@ -18,8 +18,6 @@ def run_checker(text: str, tier: str = "tiny", warn: bool = False, issue_related
         args = ["--tier", tier]
         if warn:
             args.append("--warn")
-        if issue_related:
-            args.append("--issue-related")
         sys.argv = ["check_plan.py"] + args
         exit_code: int | str = check_plan_main()
     except SystemExit as e:
@@ -61,7 +59,11 @@ VALID_TINY_PLAN = (
     "## Goal\nFix the bug\n"
     "## Current State\n`src/file.py:42` has issue\n"
     "## Change\nAdd null check before access\n"
-    "## Test/Verification\n`python -m pytest tests/` returns 0\n"
+    "## Test/Verification\nInput: missing value. Output: default value. Assert `normalize(None) == \"\"`. `python -m pytest tests/` returns 0\n"
+    "## Devil's Advocate\n"
+    "- P2 literal attack: If caller passes None, fix adds explicit default.\n"
+    "- P2 edge attack: Empty string remains unchanged by assertion.\n"
+    "- P2 rollback attack: No persistent data changes, so revert restores old behavior.\n"
     "## Assumptions\nLow impact: no schema change"
 )
 
@@ -71,11 +73,19 @@ VALID_STANDARD_PLAN = (
     "## Success Criteria\nReturns exit code 0\n"
     "## Current State\n`src/file.py:42` has issue\n"
     "## Scope\nIn scope: fix bug\nOut of scope: refactoring\nPreserve existing return shape unchanged\nBlast radius: affected caller is the local validator command only\n"
+    "## Reasoning Summary\nDecompose to input validation and output preservation. Root cause is unchecked missing data at src/file.py:42. Selected approach is smallest because it keeps the existing local validator pattern.\n"
     "## Approach\nFollow existing pattern from nearby files\n"
+    "## Change Propagation Map\nnormalize_value -> files that must be updated\n  - direct caller: src/file.py:42 - update required: yes - reason: add null guard\n  - test: tests/test_file.py:12 - update required: yes - reason: add missing-data assertion\n"
+    "## Constraint Verification\n| Constraint | Current value / evidence | Classification | Plan preserves? |\n|---|---|---|---|\n| Return type | src/file.py:42 returns str | Preserved | Yes - assert string output |\n"
     "## Changes\n1. Add null check\n2. Update tests\n"
+    "## Logic Specification\nPseudo-code for exact behavior:\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n"
     "## Tracer Bullet\n`python -c test_one_path.py` verifies the flow end to end\n"
     "## Failure Modes\nNull pointer on missing data\n"
-    "## Test Strategy\nTest for happy path and failure\n`python test.py` returns 0\n"
+    "## Test Strategy\nTest happy path and failure case. Input: None. Output: \"\". Assert `normalize_value(None) == \"\"`. `python test.py` returns 0\n"
+    "## Devil's Advocate\n"
+    "- P1 literal attack: If implementer changes return type, constraint table and assertion fail. Fix: preserve str return.\n"
+    "- P2 edge attack: Empty string input could be treated as None. Fix: pseudo-code returns raw for non-None.\n"
+    "- P2 dependency attack: Local command expects str. Fix: propagation map keeps caller contract unchanged.\n"
     "## Rollback Plan\nTrivial revert; no persistent data or external side effects\n"
     "## Doc Updates\nNo terminology changes\n"
     "## Assumptions\nLow-impact: no data change"

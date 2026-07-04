@@ -1,68 +1,67 @@
 # Exploration Protocol
 
-Use this protocol to replace guessing with repo evidence. The goal is not to map the whole repository; it is to find enough truth to constrain the plan.
+Use this protocol to replace guessing with repo evidence. The goal is enough truth to constrain the plan, not a full repository census.
 
 ## Exploration Order
 
-1. Identify the request surface: route, command, component, job, package export, migration, API, or domain document named or implied by the user.
+1. Identify the request surface: route, command, component, job, package export, migration, API, schema, or domain document named or implied by the user.
 2. Read the nearest source files and tests before broader search.
 3. Trace one real call path from entrypoint to output, including validation, persistence, side effects, and error handling when relevant.
 4. Find two or three analogous implementations for naming, layering, test style, and failure behavior.
-5. Inspect configuration surfaces that can change the plan: env vars, generated files, build scripts, feature flags, schemas, migrations, and deployment hooks.
-6. Check domain docs when business language appears: `CONTEXT-MAP.md`, `CONTEXT.md`, and `docs/adr/`.
+5. For non-Tiny plans, trace transitive dependencies from changed symbols to the public boundary.
+6. Check test coverage for the affected path: existing tests, fixtures, snapshots, mocks, contract tests, and missing scenarios.
+7. Inspect configuration surfaces that can change the plan: env vars, generated files, build scripts, feature flags, schemas, migrations, and deployment hooks.
+8. Check domain docs when business language appears: `CONTEXT-MAP.md`, `CONTEXT.md`, and `docs/adr/`.
+9. Run non-mutating type checks, linters, test discovery, or build commands when they answer current-state questions faster than reading.
 
 ## Evidence Rules
 
 - Cite discovered facts with `file:line` whenever possible.
-- Separate facts from assumptions. Do not let assumptions masquerade as current state.
+- Separate facts from assumptions.
 - Prefer exact local examples over generic best practices.
-- If source, tests, and docs disagree, treat that as a planning input, not a nuisance.
-- Run non-mutating checks when they can answer a question faster than reading.
+- Record contradictions between source, tests, docs, config, and user framing.
+- Treat contradictions as planning inputs: surface them in Current State and resolve them in Question or Assumptions.
 
 ## Delegated Exploration
 
-On non-trivial work, start with bounded delegated evidence gathering when subagents are available. Keep synthesis and decisions in the main agent, and fall back to direct local exploration only when delegation is unavailable or the change is tiny enough that one pass is sufficient.
+On non-trivial work, start with bounded delegated evidence gathering when subagents are available. Keep synthesis and decisions in the main agent.
 
-Good subagent tasks include:
+Good delegated tasks:
 
-- Locate the entrypoint for a named route, command, component, job, package export, or API.
+- Locate an entrypoint for a named route, command, component, job, package export, or API.
 - Trace one call path from a known entrypoint to output.
-- Find two or three analogous implementations or tests.
-- Check config surfaces such as env vars, build scripts, generated files, migrations, feature flags, and schemas.
+- Find analogous implementations or tests.
+- Trace direct and transitive references for one symbol.
+- Check config surfaces, generated files, migrations, feature flags, and schemas.
 - Summarize relevant `CONTEXT.md`, `CONTEXT-MAP.md`, or `docs/adr/` entries.
 
-Each delegated task must include:
+Each task must include exact anchors and request cited bullets with `file:line`, open questions, and contradictions. Subagents must not make product, architecture, migration, public-interface, or test-strategy decisions.
 
-- A narrow prompt with one evidence target.
-- Exact search anchors, paths, symbols, or filenames to start from.
-- Expected output format: cited bullets with `file:line`, open questions, and contradictions.
-- A prohibition on product, architecture, migration, public-interface, or test-strategy decisions.
-
-The main agent must spot-check cited files before using subagent findings in the plan. Treat uncited subagent summaries as leads, not facts.
+The main agent must spot-check cited files before using subagent findings. Treat uncited summaries as leads, not facts.
 
 ## Stop Conditions
 
 Stop exploring when all are true:
 
-- The current behavior is clear enough to describe in two to five cited bullets.
-- The change boundary is clear: affected entrypoints, data shapes, side effects, and tests.
-- Existing patterns show where the new or changed behavior belongs.
+- Current behavior is clear enough to describe in two to five cited bullets.
+- Change boundary is clear: affected entrypoints, data shapes, side effects, tests, and config.
+- Existing patterns show where changed behavior belongs.
+- Direct and transitive dependency surfaces are known for non-Tiny plans.
+- Test coverage and test gaps are known.
 - Remaining unknowns are user intent or tradeoffs, not discoverable facts.
 
-For tiny changes, stop after the nearest implementation, one relevant test or command, and any obvious config or type surface.
+For Tiny changes, stop after the nearest implementation, one relevant test or command, and any obvious type/config surface.
 
-## Contradictions
+## Contradictions Output
 
-When the user request conflicts with code, tests, docs, or established naming:
+Every non-Tiny plan must include one of:
 
-- State the contradiction plainly.
-- Quote the repo fact with a location.
-- Ask only for the decision that cannot be derived.
-- Recommend the least surprising option based on current behavior unless the user goal clearly requires a change.
+- `Contradictions found: [specific contradiction with evidence]`
+- `Contradictions found: none after checking [source/test/docs/config surfaces]`
 
 ## Exploration Anti-Goals
 
 - Do not ask the user where code lives before searching.
 - Do not catalog unrelated folders to look thorough.
-- Do not read every file in a subsystem when an entrypoint, call path, and analogues are enough.
-- Do not plan migrations, public interfaces, or data rewrites without checking the existing schema and compatibility surface.
+- Do not read every file in a subsystem when an entrypoint, call path, analogues, and propagation are enough.
+- Do not plan migrations, public interfaces, or data rewrites without checking schema and compatibility surfaces.
