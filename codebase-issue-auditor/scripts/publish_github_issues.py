@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish approved codebase audit issue drafts to GitHub."""
+"""Publish approved codebase audit issue drafts to GitHub using gh cli."""
 
 from __future__ import annotations
 
@@ -8,9 +8,8 @@ import json
 import os
 import re
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
+import tempfile
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -43,8 +42,8 @@ class ConfigError(Exception):
     """Raised for invalid local configuration or input."""
 
 
-class GitHubError(Exception):
-    """Raised for GitHub API failures."""
+class GhError(Exception):
+    """Raised for gh cli failures."""
 
 
 @dataclass(frozen=True)
@@ -81,6 +80,7 @@ def normalize_github_repo_target(value: str | None) -> str:
     elif OWNER_REPO_PATTERN.match(target):
         pass
     else:
+        import urllib.parse
         parsed = urllib.parse.urlparse(target)
         if parsed.scheme not in {"https", "ssh"} or parsed.hostname != "github.com":
             raise ConfigError(
@@ -231,64 +231,34 @@ def format_issue_body(issue: IssueDraft) -> str:
     return "\n\n".join(sections)
 
 
-class GitHubClient:
-    def __init__(self, token: str, api_url: str = "https://api.github.com") -> None:
-        self.token = token
-        self.api_url = api_url.rstrip("/")
-
-    def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-        data = None
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {self.token}",
-            "User-Agent": "codebase-issue-auditor",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if payload is not None:
-            data = json.dumps(payload).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-
-        request = urllib.request.Request(
-            self.api_url + path,
-            data=data,
-            headers=headers,
-            method=method,
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                text = response.read().decode("utf-8")
-                return json.loads(text) if text else None
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise GitHubError(f"GitHub API {method} {path} failed: {exc.code} {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise GitHubError(f"GitHub API {method} {path} failed: {exc}") from exc
-
+class GhClient:
     def list_open_issues(self, repo: str) -> list[dict[str, Any]]:
-        issues: list[dict[str, Any]] = []
-        page = 1
-        encoded_repo = urllib.parse.quote(repo, safe="/")
-        while True:
-            batch = self.request(
-                "GET", f"/repos/{encoded_repo}/issues?state=open&per_page=100&page={page}"
-            )
-            if not isinstance(batch, list):
-                raise GitHubError("GitHub open issue listing returned an unexpected response")
-            issues.extend(batch)
-            if len(batch) < 100:
-                return issues
-            page += 1
+        cmd = ["gh", "issue", "list", "--repo", repo, "--state", "open", "--json", "title,html_url", "--limit", "1000"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return json.loads(result.stdout)
+        except subprocess.CalledProcessError as exc:
+            raise GhError(f"gh issue list failed: {exc.stderr}") from exc
+        except json.JSONDecodeError as exc:
+            raise GhError(f"Failed to parse gh issue list output: {exc}") from exc
 
     def create_issue(self, repo: str, title: str, body: str, labels: list[str]) -> dict[str, Any]:
-        encoded_repo = urllib.parse.quote(repo, safe="/")
-        created = self.request(
-            "POST",
-            f"/repos/{encoded_repo}/issues",
-            {"title": title, "body": body, "labels": labels},
-        )
-        if not isinstance(created, dict):
-            raise GitHubError("GitHub issue creation returned an unexpected response")
-        return created
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as f:
+            f.write(body)
+            body_path = f.name
+            
+        try:
+            cmd = ["gh", "issue", "create", "--repo", repo, "--title", title, "--body-file", body_path]
+            for label in labels:
+                cmd.extend(["--label", label])
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return {"html_url": result.stdout.strip()}
+        except subprocess.CalledProcessError as exc:
+            raise GhError(f"gh issue create failed: {exc.stderr}") from exc
+        finally:
+            if os.path.exists(body_path):
+                os.remove(body_path)
 
 
 def issue_exists(open_issues: list[dict[str, Any]], title: str) -> dict[str, Any] | None:
@@ -301,7 +271,7 @@ def issue_exists(open_issues: list[dict[str, Any]], title: str) -> dict[str, Any
 
 def publish_issues(
     issues: list[IssueDraft],
-    client: GitHubClient | Any | None,
+    client: GhClient | Any | None,
     repo: str,
     default_labels: list[str],
     extra_labels: list[str],
@@ -312,7 +282,7 @@ def publish_issues(
     open_issues: list[dict[str, Any]] = []
     if publish:
         if client is None:
-            raise ConfigError("a GitHub client is required when --publish is used")
+            raise ConfigError("a gh client is required when --publish is used")
         if skip_duplicates:
             open_issues = client.list_open_issues(repo)
 
@@ -341,7 +311,7 @@ def publish_issues(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Publish approved audit issue drafts to GitHub.")
+    parser = argparse.ArgumentParser(description="Publish approved audit issue drafts to GitHub using gh cli.")
     parser.add_argument("--input", required=True, help="Path to issue draft JSON.")
     parser.add_argument("--publish", action="store_true", help="Create GitHub issues. Default is dry-run.")
     parser.add_argument(
@@ -350,7 +320,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--label", action="append", default=[], help="Extra label to add to every issue.")
     parser.add_argument("--no-skip-duplicates", action="store_true", help="Do not skip matching open titles.")
-    parser.add_argument("--env", help="Optional path to a .env file.")
+    parser.add_argument("--env", help="Optional path to a .env file (only for labels and duplicate settings now).")
     return parser
 
 
@@ -371,10 +341,7 @@ def main(argv: list[str] | None = None) -> int:
 
         client = None
         if args.publish:
-            token = config.get("GITHUB_TOKEN", "")
-            if not token:
-                raise ConfigError("set GITHUB_TOKEN before using --publish")
-            client = GitHubClient(token, config.get("GITHUB_API_URL", "https://api.github.com"))
+            client = GhClient()
 
         publish_issues(
             issues=issues,
@@ -389,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    except GitHubError as exc:
+    except GhError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 

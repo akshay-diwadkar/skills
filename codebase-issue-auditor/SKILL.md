@@ -49,21 +49,21 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Opti
 6. **Publish with the bundled script**
    - Save approved drafts as JSON using the schema below.
    - Ask for the GitHub repository URL to publish issues to. Accept `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, or `owner/repo`.
-   - Check token configuration before publishing:
+   - Check gh cli authentication before publishing:
      ```bash
-     python scripts/check_github_env.py --env .env
+     python scripts/check_github_env.py
      ```
    - Optionally validate the destination:
      ```bash
-     python scripts/check_github_env.py --env .env --github-repo-url https://github.com/owner/repo
+     python scripts/check_github_env.py --github-repo-url https://github.com/owner/repo
      ```
    - Run a dry run first:
      ```bash
-     python scripts/publish_github_issues.py --input issues.json --env .env --github-repo-url https://github.com/owner/repo
+     python scripts/publish_github_issues.py --input issues.json --github-repo-url https://github.com/owner/repo
      ```
    - After approval, publish:
      ```bash
-     python scripts/publish_github_issues.py --input issues.json --env .env --github-repo-url https://github.com/owner/repo --publish
+     python scripts/publish_github_issues.py --input issues.json --github-repo-url https://github.com/owner/repo --publish
      ```
 
 7. **Resolution follow-up after fixes**
@@ -100,42 +100,23 @@ Allowed severities: `critical`, `high`, `medium`, `low`.
 
 ## GitHub Configuration
 
-Copy `.env.example` to `.env` outside source control and fill in the values:
+This skill uses the GitHub CLI (`gh`) for authentication. Ensure `gh` is installed and you are logged in:
+
+```bash
+gh auth login
+```
+
+You can optionally configure default labels and duplicate checking using a `.env` file or environment variables:
 
 ```dotenv
-GITHUB_TOKEN=ghp_xxx
 GITHUB_DEFAULT_LABELS=audit,needs-triage
 GITHUB_SKIP_DUPLICATES=true
 ```
 
-Safe env handling:
-
-- `.env.example` is safe to read.
-- `.env` is sensitive and must be treated as a secret-bearing file.
-- Never directly read `.env` in the agent context: do not run `cat .env`, `Get-Content .env`, `type .env`, `rg ... .env`, `Select-String ... .env`, or equivalent commands.
-- Never inspect `.env` contents to debug authentication. If debugging is needed, inspect only existence, size, or path metadata.
-- Pass `.env` paths only to trusted bundled scripts via `--env`; checker output must mask tokens.
-
-Check configuration without printing secrets:
+Check configuration:
 
 ```bash
-python scripts/check_github_env.py --env .env
-```
-
-The trusted publisher script parses `.env` internally when passed `--env`, so loading variables into the shell is optional. The `.env` stores the GitHub token and optional defaults only; it does not hardcode the issue destination. Pass the destination per run with `--github-repo-url`.
-
-If another tool needs the variables in the current shell, use the matching loader:
-
-PowerShell:
-
-```powershell
-.\scripts\load_github_env.ps1 -EnvPath .env
-```
-
-Bash or zsh:
-
-```bash
-source scripts/load_github_env.sh .env
+python scripts/check_github_env.py
 ```
 
 When `--env` is provided, the checker and publisher use that file plus already-exported environment variables. Without `--env`, they read `.env` from the current working directory first, then from this skill folder if present. Environment variables already set in the shell take precedence. `GITHUB_REPOSITORY` is ignored by the normal publishing flow; use `--github-repo-url` instead.
@@ -145,4 +126,3 @@ When `--env` is provided, the checker and publisher use that file plus already-e
 - Dry-run mode is the default and never calls the GitHub API.
 - `--publish` is required for network writes.
 - Duplicate protection is enabled by default and skips open issues with the same title.
-- Never commit a real `.env` containing secrets. Keep `.env.example` as the only tracked env template in the skill.

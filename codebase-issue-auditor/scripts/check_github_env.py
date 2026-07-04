@@ -7,12 +7,13 @@ import argparse
 import os
 import re
 import sys
+import subprocess
 import urllib.parse
 from pathlib import Path
 
 
-REQUIRED_KEYS = ("GITHUB_TOKEN",)
-OPTIONAL_KEYS = ("GITHUB_DEFAULT_LABELS", "GITHUB_SKIP_DUPLICATES", "GITHUB_API_URL")
+REQUIRED_KEYS = ()
+OPTIONAL_KEYS = ("GITHUB_DEFAULT_LABELS", "GITHUB_SKIP_DUPLICATES")
 OWNER_REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$")
 SSH_REPO_PATTERN = re.compile(r"^git@github\.com:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?)$")
 
@@ -51,16 +52,6 @@ def load_config(env_path: str | None = None) -> tuple[dict[str, str], list[Path]
     return config, loaded
 
 
-def masked(value: str, secret: bool = False) -> str:
-    if not value:
-        return "missing"
-    if secret:
-        if len(value) <= 8:
-            return "***"
-        return f"{value[:4]}...{value[-4:]}"
-    return value
-
-
 def normalize_github_repo_target(value: str | None) -> str:
     if not value or not value.strip():
         raise ValueError("missing target")
@@ -89,6 +80,16 @@ def normalize_github_repo_target(value: str | None) -> str:
     return target
 
 
+def check_gh_cli() -> list[str]:
+    try:
+        result = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return [f"gh cli not authenticated or installed: {result.stderr.strip()}"]
+        return []
+    except FileNotFoundError:
+        return ["gh cli is not installed or not in PATH"]
+
+
 def check(config: dict[str, str], github_repo_url: str | None = None) -> list[str]:
     missing = [key for key in REQUIRED_KEYS if not config.get(key)]
     if github_repo_url:
@@ -96,6 +97,8 @@ def check(config: dict[str, str], github_repo_url: str | None = None) -> list[st
             normalize_github_repo_target(github_repo_url)
         except ValueError as exc:
             missing.append(f"--github-repo-url invalid: {exc}")
+            
+    missing.extend(check_gh_cli())
     return missing
 
 
@@ -113,10 +116,14 @@ def main(argv: list[str] | None = None) -> int:
         for path in loaded:
             print(f"  {path}")
     else:
-        print("Loaded env file(s): none")
+        print("Loaded env file(s): none (using defaults)")
 
     print("GitHub issue publishing environment:")
-    print(f"  GITHUB_TOKEN: {masked(config.get('GITHUB_TOKEN', ''), secret=True)}")
+    
+    # gh auth status will just pass silently if ok, print summary
+    gh_status = "OK" if not any("gh cli" in p for p in problems) else "Failed"
+    print(f"  gh CLI auth: {gh_status}")
+    
     if args.github_repo_url:
         try:
             repo = normalize_github_repo_target(args.github_repo_url)
@@ -125,8 +132,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  GitHub issue target: {repo}")
     else:
         print("  GitHub issue target: not checked")
+        
     for key in OPTIONAL_KEYS:
-        print(f"  {key}: {masked(config.get(key, ''))}")
+        val = config.get(key, "")
+        print(f"  {key}: {val if val else 'not set'}")
 
     if problems:
         print("Missing or invalid configuration:", file=sys.stderr)
