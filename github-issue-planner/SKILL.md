@@ -1,13 +1,13 @@
 ---
 name: github-issue-planner
-description: Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, produce read-only issue-resolution plans, or explicitly asks to execute one planned issue through a branch, commit, PR, and post-merge follow-up.
+description: Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, produce read-only issue-resolution plans, or explicitly asks to execute ready issues through dedicated branches, commits, PRs, and post-merge follow-up.
 ---
 
 # GitHub Issue Planner
 
 Fetch open non-PR GitHub issues, inspect the local checkout, and write one resolution plan per issue. GitHub is read-only by default.
 
-The branch, commit, PR, and post-merge issue-comment lifecycle is opt-in only. Use it only when the user explicitly asks to `execute`, `implement`, `open PR`, or `run issue lifecycle` for a single planned issue.
+The branch, commit, PR, and post-merge issue-comment lifecycle is opt-in only. Use it only when the user explicitly asks to `execute`, `implement`, `open PR`, or `run issue lifecycle` for the latest `ready-to-plan` issues.
 
 ## Default Planning Workflow
 
@@ -53,25 +53,25 @@ The branch, commit, PR, and post-merge issue-comment lifecycle is opt-in only. U
 
 ## Opt-In Execution Workflow
 
-Use this workflow only when explicitly requested. It handles exactly one `ready-to-plan` issue per branch and PR.
+Use this workflow only when explicitly requested. It handles every `ready-to-plan` issue from the latest report, one issue per branch and PR.
 
-1. **Select one issue**
-   - Confirm exactly one issue number and its `ready-to-plan` section from the latest report.
-   - Do not batch multiple issues into one execution PR.
-   - If the issue is `needs-info` or `blocked`, stop and report the missing decision or blocker.
+1. **Select the ready set**
+   - Confirm the latest report and collect every issue marked `ready-to-plan`.
+   - Skip `needs-info` and `blocked` issues, but keep them listed in the run summary.
+   - Do not batch multiple issues into one branch or one PR.
 
-2. **Prepare the branch before editing**
-   - Run `git status -sb` and inspect relevant diffs before creating a branch.
-   - If the worktree contains unrelated changes, do not stage or overwrite them; ask which files belong to the issue.
+2. **Prepare each branch before editing**
+   - Run `git status -sb` and inspect relevant diffs before creating the first branch.
+   - If the worktree contains unrelated changes, do not stage or overwrite them; treat that issue as blocked unless the user clarifies scope.
    - Resolve the default branch from the remote, using `main` when the remote does not provide a clear answer.
-   - Checkout and update the default branch, then create `codex/issue-<number>-<slug>` before making code changes.
+   - For each issue, checkout and update the default branch, then create `codex/issue-<number>-<slug>` before making code changes.
 
-3. **Implement and verify**
-   - Use the issue plan as the implementation source of truth.
-   - Keep changes limited to the selected issue.
+3. **Implement and verify per issue**
+   - Use the issue plan as the implementation source of truth for that issue.
+   - Keep each branch limited to one issue.
    - Run the exact verification commands from the plan, plus any focused checks needed for touched code.
 
-4. **Commit, push, and open PR**
+4. **Commit, push, and open PR per issue**
    - Stage only files belonging to the selected issue.
    - Commit as `Fix issue #<number>: <short title>`.
    - Push the branch with upstream tracking.
@@ -82,10 +82,11 @@ Use this workflow only when explicitly requested. It handles exactly one `ready-
      python "$skillDir\scripts\post_merge_issue_followup.py" --env .env --github-repo-url owner/repo --issue-number <number> --pr-number <pr> --base main --verification-summary-file .scratch/github-issue-plans/verification-issue-<number>-pr-<pr>.md
      ```
 
-5. **Stop after PR creation**
+5. **Continue through the batch**
+   - If one issue fails during branch creation, implementation, push, or PR creation, mark that issue blocked and continue with the remaining ready issues.
    - Do not wait in-session for approval and merge.
    - Do not close, label, or comment on the issue during execution mode.
-   - End with the branch, commit, PR URL, validation result, and the resumable post-merge follow-up command.
+   - End with the branch, commit, PR URL, validation result, and the resumable post-merge follow-up command for each ready issue.
 
 ## Post-Merge Follow-Up Workflow
 
@@ -143,5 +144,5 @@ Read-only planning mode needs issue read access. Opt-in execution and post-merge
 - In post-merge follow-up mode, comment only with the bundled `post_merge_issue_followup.py` script after verification passes on updated `main`.
 - Do not apply or remove labels.
 - Do not close issues.
-- Do not implement code fixes unless opt-in execution mode was explicitly requested for exactly one `ready-to-plan` issue.
+- Do not implement code fixes unless opt-in execution mode was explicitly requested for the latest `ready-to-plan` issues.
 - Do not treat GitHub repository contents as the codebase; only the local checkout is the code source.
