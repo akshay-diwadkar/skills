@@ -63,6 +63,24 @@ class TestScopeBoundaries:
         assert len(scope_errors) == 0
 
 
+class TestAdversarialScope:
+    def test_standard_fails_without_invariant_language(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nNo external side effects\n## Test Strategy\nTest happy path\npython test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("invariants" in e.lower() for e in errs)
+
+    def test_standard_fails_without_blast_radius_language(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve existing behavior unchanged\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nNo external side effects\n## Test Strategy\nTest happy path\npython test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("blast radius" in e.lower() for e in errs)
+
+    def test_standard_passes_adversarial_scope_inside_existing_sections(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve existing behavior unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nNo external side effects\n## Test Strategy\nTest happy path\npython test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        adversarial_errors = [e for e in errs if "invariants" in e.lower() or "blast radius" in e.lower() or "side-effect" in e.lower()]
+        assert len(adversarial_errors) == 0
+
+
 class TestApproachPatterns:
     def test_approach_missing_pattern_ref(self):
         text = "# Add a test suite for the format checker\n## Goal\nFix it\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nRewrite everything from scratch\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\n## Rollback Plan\nTrivial\n## Assumptions\nLow"
@@ -120,10 +138,23 @@ class TestRollback:
         assert any("concrete steps" in e for e in errs)
 
     def test_rollback_trivial(self):
-        text = "# Add test suite\n## Goal\nFix it\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\n## Rollback Plan\nTrivial revert\n## Assumptions\nLow"
+        text = "# Add test suite\n## Goal\nFix it\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow"
         errs = rubric_errors(text, "standard")
         rollback_errors = [e for e in errs if "Rollback Plan must" in e]
         assert len(rollback_errors) == 0
+
+
+class TestSideEffects:
+    def test_standard_fails_without_side_effect_boundary(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve existing behavior unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nFailure returns current error\n## Test Strategy\nTest happy path and failure\npython test.py returns 0\n## Rollback Plan\nTrivial revert\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        assert any("side-effect" in e.lower() for e in errs)
+
+    def test_standard_passes_with_explicit_no_side_effect_boundary(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix it\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix bug\nOut of scope: refactor\nPreserve existing behavior unchanged\nBlast radius: affected caller is local command\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nFailure returns current error; no external side effects\n## Test Strategy\nTest happy path and failure\npython test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact"
+        errs = rubric_errors(text, "standard")
+        side_effect_errors = [e for e in errs if "side-effect" in e.lower()]
+        assert len(side_effect_errors) == 0
 
 
 class TestAssumptions:
@@ -182,8 +213,13 @@ class TestHighRisk:
         errs = rubric_errors(text, "high-risk")
         assert any("P0, P1, and P2" in e for e in errs)
 
+    def test_high_risk_requires_p0_p1_actions(self):
+        text = "# Add a test suite for validator scripts\n## Goal\nFix bug\n## Success Criteria\nReturns exit code 0\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\nPreserve old clients unchanged\nBlast radius: affected clients and jobs are local only\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nNo external side effects\n## Test Strategy\nTest happy path and failure\npython test.py returns 0\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow impact\n## Compatibility\nOld clients read existing contract\n## Migration\nNo migration needed; rollback is reversible\n## Risk\nP0: data loss\nP1: timeout\nP2: minor perf - Action: monitor"
+        errs = rubric_errors(text, "high-risk")
+        assert any("P0 and P1" in e for e in errs)
+
     def test_high_risk_present(self):
-        text = "# Add test suite\n## Goal\nFix bug\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\n## Rollback Plan\nTrivial revert\n## Assumptions\nLow\n## Compatibility\nOld clients unaffected\n## Migration\nNo migration needed\n## Risk\nP0: data loss - Action: add validation\nP1: timeout - Action: add retry\nP2: minor perf - Action: monitor"
+        text = "# Add test suite\n## Goal\nFix bug\n## Current State\nfile.py:10 has bug\n## Scope\nIn scope: fix\nOut of scope: refactor\nPreserve old clients unchanged\nBlast radius: affected clients and jobs are local only\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Failure Modes\nNo external side effects\n## Test Strategy\nTest for pass\n## Rollback Plan\nTrivial revert with no persistent data\n## Assumptions\nLow\n## Compatibility\nOld clients unaffected\n## Migration\nNo migration needed; rollback is reversible\n## Risk\nP0: data loss - Action: add validation\nP1: timeout - Action: add retry\nP2: minor perf - Action: monitor"
         errs = rubric_errors(text, "high-risk")
         risk_errors = [e for e in errs if "Risk must" in e or "P0" in e]
         assert len(risk_errors) == 0

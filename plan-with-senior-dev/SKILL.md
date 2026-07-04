@@ -16,6 +16,7 @@ Read only the references whose condition fires:
 - `references/exploration-protocol.md`: before asking on non-trivial codebase work, or when current-state evidence is thin.
 - `references/question-strategy.md`: when product, scope, interface, migration, terminology, compatibility, or test choices are unresolved.
 - `references/grilling-protocol.md`: during the Question gate when pressure tests or exit criteria are needed.
+- `references/adversarial-planning.md`: before finalizing Standard or High-risk plans, or when side effects, invariants, blast radius, or rollback could be missed.
 - `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive work, or optimistic plans.
 - `references/issue-resolution-follow-up.md`: for GitHub issue fixes, audit-finding fixes, or repo-fix plans likely to resolve tracked issues.
 - `references/plan-quality-rubric.md`: before finalizing, choosing plan tier or length, or running `scripts/check_plan.py`.
@@ -45,7 +46,7 @@ Never:
 
 Build enough repo evidence to constrain the plan. Check the request surface, one real call path, nearby analogues, tests, config/build surfaces, domain docs when business language appears, and contradictions with existing behavior.
 
-Completion criterion: current behavior, change boundary, relevant local pattern, and remaining unknowns are clear enough to summarize in cited bullets. For tiny changes, one cited current-state fact plus the relevant verification command is enough.
+Completion criterion: current behavior, change boundary, relevant local pattern, invariants that must stay unchanged, side-effect surfaces, blast radius, and remaining unknowns are clear enough to summarize in cited bullets when relevant. For tiny changes, one cited current-state fact plus the relevant verification command is enough.
 
 ### 2. Question
 
@@ -63,15 +64,15 @@ Completion criterion: every implementation-relevant branch has an owner decision
 
 ### 3. Plan
 
-Choose the smallest plan that satisfies the goal and fits the repo. Order changes by dependency: foundations, core behavior, public surface or orchestration, tests, then docs/migrations/release notes. For Standard and High-risk work, include a tracer bullet proving the approach end to end.
+Choose the smallest plan that satisfies the goal and fits the repo. Order changes by dependency: foundations, core behavior, public surface or orchestration, tests, then docs/migrations/release notes. For Standard and High-risk work, include a tracer bullet proving the approach end to end and encode adversarial constraints in the existing sections.
 
-Completion criterion: the plan leaves no product behavior, architecture, interface shape, migration policy, or test strategy for the implementer to decide.
+Completion criterion: the plan leaves no product behavior, architecture, interface shape, migration policy, side-effect behavior, rollback path, invariant, blast-radius boundary, or test strategy for the implementer to decide.
 
 ### 4. Verify
 
-Audit the draft against the plan tier. Run `scripts/check_plan.py` when the plan exists as a draft file or can be piped through stdin. Use `--issue-related` for issue-related plans.
+Audit the draft against the plan tier. Run the adversarial pass for Standard and High-risk plans, then run `scripts/check_plan.py` when the plan exists as a draft file or can be piped through stdin. Use `--issue-related` for issue-related plans.
 
-Completion criterion: current-state claims are cited or marked as assumptions; scope boundaries, local patterns, failure behavior, tests, rollback, domain-doc treatment, and assumptions are explicit; no filler or hedging remains.
+Completion criterion: current-state claims are cited or marked as assumptions; scope boundaries, invariants, blast radius, local patterns, side effects, failure behavior, tests, rollback, domain-doc treatment, and assumptions are explicit; no filler or hedging remains.
 
 ## Task Tiers
 
@@ -125,11 +126,15 @@ Final plan shape:
 
 Keep sections brief. Combine related bullets. Name files only where needed to remove ambiguity.
 
+Encode invariants and blast radius in `Scope`; encode local-pattern fit in `Approach`; encode side effects in `Failure Modes` or `Rollback Plan`.
+
 ### High-Risk
 
 Use when the plan touches persisted data, public contracts, security/auth, payments, external integrations, concurrency, migrations, overloaded domain terms, or hard-to-undo rollout behavior.
 
 Use the Standard shape plus compatibility and migration notes, explicit rollback for code/data/external side effects, a short P0/P1/P2 risk register, and real pre-mortem findings. Do not present a High-risk plan with unresolved P0 risks.
+
+Every P0 and P1 risk must include an explicit mitigation action in `Risk` or `Pre-Mortem Findings`.
 
 ## Domain Docs
 

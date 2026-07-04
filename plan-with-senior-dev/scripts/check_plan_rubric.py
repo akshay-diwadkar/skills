@@ -38,6 +38,82 @@ MEASURABLE_VERBS = (
     "responds", "respond", "shows", "show", "verifies", "verify", "asserts", "assert",
 )
 
+BLAST_RADIUS_WORDS = (
+    "blast radius",
+    "caller",
+    "callers",
+    "consumer",
+    "consumers",
+    "importer",
+    "importers",
+    "route",
+    "routes",
+    "job",
+    "jobs",
+    "worker",
+    "workers",
+    "webhook",
+    "webhooks",
+    "subscriber",
+    "subscribers",
+    "client",
+    "clients",
+    "shared",
+    "config",
+    "schema",
+    "schemas",
+    "contract",
+    "contracts",
+    "downstream",
+    "affected",
+)
+
+INVARIANT_WORDS = (
+    "invariant",
+    "invariants",
+    "preserve",
+    "preserves",
+    "unchanged",
+    "do not change",
+    "does not change",
+    "keep",
+    "keeps",
+    "remain",
+    "remains",
+)
+
+SIDE_EFFECT_WORDS = (
+    "side effect",
+    "side effects",
+    "persistent",
+    "persistence",
+    "persisted",
+    "database",
+    "data",
+    "schema",
+    "migration",
+    "network",
+    "external",
+    "filesystem",
+    "file system",
+    "cache",
+    "queue",
+    "job",
+    "worker",
+    "webhook",
+    "notification",
+    "email",
+    "billing",
+    "charge",
+    "idempotent",
+    "idempotency",
+    "no persistent",
+    "no external",
+    "no data",
+    "no filesystem",
+    "no durable",
+)
+
 
 @dataclass(frozen=True)
 class Section:
@@ -166,6 +242,19 @@ def has_scope_boundaries(body: str) -> bool:
     return has_in_scope and has_out_scope
 
 
+def has_word_from(body: str, words: tuple[str, ...]) -> bool:
+    lowered = body.casefold()
+    return any(word in lowered for word in words)
+
+
+def has_blast_radius(body: str) -> bool:
+    return has_word_from(body, BLAST_RADIUS_WORDS)
+
+
+def has_invariant(body: str) -> bool:
+    return has_word_from(body, INVARIANT_WORDS)
+
+
 def references_existing_pattern(body: str) -> bool:
     return bool(
         re.search(
@@ -192,6 +281,10 @@ def has_concrete_rollback(body: str) -> bool:
             flags=re.IGNORECASE,
         )
     )
+
+
+def has_side_effect_boundary(*bodies: str) -> bool:
+    return has_word_from("\n".join(bodies), SIDE_EFFECT_WORDS)
 
 
 def distinguishes_assumptions(body: str) -> bool:
@@ -222,6 +315,17 @@ def has_risk_tiers(body: str) -> bool:
 
 def has_unresolved_p0(body: str) -> bool:
     return bool(re.search(r"\bP0\s*:\s*(?:unresolved|TBD|ask later|open|unknown)", body, flags=re.IGNORECASE))
+
+
+def p0_p1_risks_have_actions(body: str) -> bool:
+    risk_lines = [
+        line.strip()
+        for line in body.splitlines()
+        if re.search(r"\bP[01]\b", line)
+    ]
+    if not risk_lines:
+        return False
+    return all(re.search(r"\bAction\s*:", line, flags=re.IGNORECASE) for line in risk_lines)
 
 
 def pre_mortem_findings_are_actionable(section_obj: Section | None) -> bool:
@@ -318,6 +422,10 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
         diagnostics.append(fail("rubric.current_state.evidence", "Current State must cite repo evidence with file:line or justify N/A", current))
     if scope and not has_scope_boundaries(scope.body):
         diagnostics.append(fail("rubric.scope.boundaries", "Scope must include in-scope and out-of-scope or unchanged behavior", scope))
+    if scope and not has_invariant(scope.body):
+        diagnostics.append(fail("rubric.scope.invariants", "Scope must name invariants or unchanged behavior that the plan preserves", scope))
+    if scope and not has_blast_radius(scope.body):
+        diagnostics.append(fail("rubric.scope.blast_radius", "Scope must name the blast radius: affected callers, clients, jobs, config, contracts, or downstream surfaces", scope))
     if approach and not references_existing_pattern(approach.body):
         diagnostics.append(fail("rubric.approach.pattern", "Approach must reference an existing pattern, local precedent, or explicit exception", approach))
     if changes and not is_ordered(changes.body):
@@ -331,6 +439,15 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
             diagnostics.append(fail("rubric.test_strategy.expected_result", "Test Strategy must include expected passing result", tests))
     if rollback and not has_concrete_rollback(rollback.body):
         diagnostics.append(fail("rubric.rollback.concrete", "Rollback Plan must state concrete steps or trivial rollback reason", rollback))
+    failure_modes = section(sections, "Failure Modes")
+    rollback_body = rollback.body if rollback else ""
+    failure_body = failure_modes.body if failure_modes else ""
+    if not has_side_effect_boundary(rollback_body, failure_body):
+        diagnostics.append(fail(
+            "rubric.side_effects.boundary",
+            "Failure Modes or Rollback Plan must state side-effect handling or explicitly say there are no persistent, external, data, or filesystem side effects",
+            rollback or failure_modes,
+        ))
     if assumptions and not distinguishes_assumptions(assumptions.body):
         diagnostics.append(fail("rubric.assumptions.classified", "Assumptions must distinguish low-impact, accepted, or blocking assumptions", assumptions))
     if has_risk_language(full_text) and not has_mitigation(full_text):
@@ -426,6 +543,11 @@ def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Dia
             diagnostics.append(fail("rubric.risk.tiers", "Risk must use P0, P1, and P2 language", risk))
         if has_unresolved_p0(risk.body):
             diagnostics.append(fail("rubric.risk.unresolved_p0", "Risk must not leave P0 unresolved", risk))
+        risk_mitigation_body = risk.body
+        if pre_mortem:
+            risk_mitigation_body = f"{risk_mitigation_body}\n{pre_mortem.body}"
+        if not p0_p1_risks_have_actions(risk_mitigation_body):
+            diagnostics.append(fail("rubric.risk.p0_p1_actions", "Every P0 and P1 risk must include Action: mitigation", risk))
     if not pre_mortem_findings_are_actionable(pre_mortem):
         diagnostics.append(fail("rubric.pre_mortem.action", "Pre-Mortem Findings must include tiered findings with Action:", pre_mortem))
 
