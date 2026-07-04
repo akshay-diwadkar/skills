@@ -1,23 +1,11 @@
 # Skills
 
-Agent skills for AI coding assistants. Skills are reusable, self-contained instructions that teach an agent to perform a specific task - planning, diagramming, debugging, issue auditing, etc.
+Agent skills for AI coding assistants. This repository tracks a small set of reusable skills for diagramming, planning, auditing, and GitHub issue planning.
 
-## Structure
 
-Each skill lives in a top-level directory and follows this convention:
+## Install
 
-```
-skill-name/
-  SKILL.md           # Required - frontmatter (name, description) + skill instructions
-  references/        # Reference docs linked from SKILL.md
-  scripts/           # Helper scripts (Python, shell, etc.)
-  assets/            # Templates, static files
-  agents/            # Sub-agent configs (e.g., openai.yaml)
-```
-
-## Installation
-
-Use the `npx skills` CLI to install individual skills from this repo:
+Install individual skills with the `npx skills` CLI:
 
 ```bash
 npx skills add akshay-diwadkar/skills --skill create-diagram
@@ -33,47 +21,76 @@ Manual clone and symlink installation also works:
 ```bash
 git clone https://github.com/akshay-diwadkar/skills.git
 cd skills
-
-# Symlink individual skills into your agent's skills directory
 mkdir -p ~/.agents/skills
 ln -s "$PWD/create-diagram" ~/.agents/skills/
 ln -s "$PWD/plan-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/codebase-issue-auditor" ~/.agents/skills/
 ln -s "$PWD/github-issue-planner" ~/.agents/skills/
-
-# Or copy instead of symlink:
-# cp -r create-diagram ~/.agents/skills/
-# cp -r plan-with-senior-dev ~/.agents/skills/
-# cp -r codebase-issue-auditor ~/.agents/skills/
-# cp -r github-issue-planner ~/.agents/skills/
 ```
 
-## Usage
+## Skill Catalog
 
-Skills in `~/.agents/skills/` are auto-discovered by the agent. To use a skill:
+### `create-diagram`
 
-1. **By name** - the agent loads the skill automatically when the task matches its description
-2. **By trigger** - skills with a `triggers` field in their frontmatter activate on matching phrases (e.g., `/graphify`)
-3. **Manually** - reference a skill in your agent config file (e.g., `opencode.json` or `CLAUDE.md`) under the skills section
+Question-first diagram workflow for architecture maps, workflow visualizations, relationship graphs, and self-contained HTML artifacts. The skill explores the repo, asks only unresolved diagram questions, plans the output, builds through the bundled HTML template, validates the generated file, and verifies browser behavior.
 
-## Tracked Skills
+### `plan-with-senior-dev`
 
-### Planning & Design
+Planning-only workflow for repo-evidenced, decision-complete implementation specifications. The skill emphasizes local code evidence, smallest viable design, change propagation, constraint verification, concrete test strategy, and Devil's Advocate review before implementation.
 
-- **plan-with-senior-dev** - Produce codebase-grounded, decision-complete implementation plans through focused exploration, plan-shaping questions, existing-pattern alignment, domain-doc judgment, and concrete verification. Run `scripts/check_plan_shape.py` and `scripts/check_plan_rubric.py` to validate plan quality.
-- **github-issue-planner** - Fetch open GitHub issues for a repository, read issue bodies and comments, inspect the local codebase, and write decision-complete implementation plans to a local Markdown report. GitHub is read-only for this skill.
+### `codebase-issue-auditor`
 
-### Auditing & Issue Publishing
+Local repository audit workflow for evidence-backed bugs, risks, test gaps, architecture friction, performance issues, maintainability problems, and developer-experience improvements. Findings become GitHub issue drafts only after review; publishing is guarded by a dry run first and requires `--publish` for network writes.
 
-- **codebase-issue-auditor** - Audit a local repository for evidence-backed bugs, risks, test gaps, architectural friction, performance hotspots, maintainability issues, and developer-experience optimizations, then draft GitHub issues for approval. Publishing requires an explicit dry run first and `--publish` for network writes.
+### `github-issue-planner`
 
-### Communication & Diagramming
+Fetches open non-PR GitHub issues, treats the local checkout as the implementation source of truth, and writes local Markdown resolution plans. GitHub is read-only by default. Branch creation, commits, pull requests, and post-merge follow-up happen only when the user explicitly opts into that lifecycle.
 
-- **create-diagram** - Grilling workflow that questions the user to shared understanding, then produces a self-contained HTML diagram. Use for architecture maps, relationship graphs, workflow visualizations, or any diagram that benefits from clarifying questions first.
+## GitHub Setup
 
-## Maintainer Verification
+`codebase-issue-auditor` and `github-issue-planner` authenticate through the GitHub CLI:
 
-`create-diagram` is intended to run on Windows, macOS, and Linux with Python 3.9+. Normal skill usage only requires the Python standard library. Maintainers should run:
+```bash
+gh auth login
+```
+
+Use the bundled checker scripts to validate local configuration without exposing secrets:
+
+```bash
+python codebase-issue-auditor/scripts/check_github_env.py --github-repo-url owner/repo
+python github-issue-planner/scripts/check_github_env.py --github-repo-url owner/repo
+```
+
+Optional `.env` files may be used for non-secret defaults.
+
+For `codebase-issue-auditor`:
+
+```dotenv
+GITHUB_DEFAULT_LABELS=audit,needs-triage
+GITHUB_SKIP_DUPLICATES=true
+```
+
+For `github-issue-planner`:
+
+```dotenv
+GITHUB_ISSUE_FETCH_LABELS=
+GITHUB_ISSUE_FETCH_LIMIT=
+GITHUB_API_URL=
+```
+
+Commit `.env.example` files only. Real `.env` files must stay local and must not be committed.
+
+## Maintainer Checks
+
+CI runs `plan-with-senior-dev` script quality checks on Python 3.11:
+
+```bash
+ruff check plan-with-senior-dev/scripts/
+mypy plan-with-senior-dev/scripts/
+python -m pytest plan-with-senior-dev/scripts/tests/ -v
+```
+
+CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
 
 ```bash
 python -m unittest discover -s create-diagram/test -v
@@ -90,51 +107,6 @@ python -m playwright install chromium
 python create-diagram/scripts/browser_smoke.py
 ```
 
-## GitHub Token Setup
-
-`codebase-issue-auditor` and `github-issue-planner` use a GitHub token for repository issue access. `GITHUB_TOKEN` is required. Skill-specific `.env.example` files are safe to track; real `.env` files contain secrets and must stay local.
-
-### Option 1: `.env` file
-
-Copy the matching template inside the skill directory:
-
-```bash
-cp codebase-issue-auditor/.env.example codebase-issue-auditor/.env
-cp github-issue-planner/.env.example github-issue-planner/.env
-```
-
-Fill in `GITHUB_TOKEN`, then pass the file to the bundled scripts:
-
-```bash
-python codebase-issue-auditor/scripts/check_github_env.py --env codebase-issue-auditor/.env
-python github-issue-planner/scripts/check_github_env.py --env github-issue-planner/.env --github-repo-url https://github.com/owner/repo
-```
-
-### Option 2: shell environment
-
-PowerShell:
-
-```powershell
-.\codebase-issue-auditor\scripts\load_github_env.ps1 -EnvPath .\codebase-issue-auditor\.env
-$env:GITHUB_TOKEN = "your_token_here"
-```
-
-Bash or zsh:
-
-```bash
-source codebase-issue-auditor/scripts/load_github_env.sh codebase-issue-auditor/.env
-export GITHUB_TOKEN=your_token_here
-```
-
-The planner scripts also accept already-exported `GITHUB_TOKEN` values. Use `--github-repo-url` for the target repository rather than storing the destination in `.env`.
-
-### Secret Handling
-
-- Commit `.env.example`; never commit a real `.env`.
-- Do not print, `cat`, `Get-Content`, `type`, `rg`, or otherwise inspect real `.env` contents in agent context.
-- Use the bundled checker scripts to validate configuration because they mask token values.
-- Treat generated issue payloads such as root `issues.json` as local output unless intentionally reviewed and added elsewhere.
-
 ## Tracking Policy
 
-The `.gitignore` ignores everything by default and explicitly un-ignores the tracked skill source for `create-diagram/`, `plan-with-senior-dev/`, `codebase-issue-auditor/`, and `github-issue-planner/`. Real `.env` files, generated payloads such as root `issues.json`, caches, and other local skills remain outside version control.
+The `.gitignore` ignores everything by default, then explicitly un-ignores this README, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
