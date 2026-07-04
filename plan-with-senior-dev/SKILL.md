@@ -1,6 +1,6 @@
 ---
 name: plan-with-senior-dev
-description: Plan code changes, refactors, bug fixes, migrations, and issue resolution as repo-evidenced, adversarial, decision-complete implementation specifications. Use when the user wants senior planning, assumption-challenging, pseudo-code-level implementation detail, dependency and constraint propagation, domain-doc judgment, or concrete verification before implementation.
+description: Plan code changes, refactors, bug fixes, and migrations as repo-evidenced, adversarial, decision-complete implementation specifications. Use when the user wants senior planning, assumption-challenging, pseudo-code-level implementation detail, dependency and constraint propagation, domain-doc judgment, or concrete verification before implementation.
 ---
 
 # Plan With Senior Dev

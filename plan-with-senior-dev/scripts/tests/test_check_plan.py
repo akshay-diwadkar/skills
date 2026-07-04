@@ -57,7 +57,7 @@ def run_checker_json(text: str, tier: str = "tiny") -> tuple[int, dict]:
 VALID_TINY_PLAN = (
     "# Add unit tests for validation scripts\n"
     "## Goal\nFix the bug\n"
-    "## Current State\n`src/file.py:42` has issue\n"
+    "## Current State\n`src/file.py:42` has bug\n"
     "## Change\nAdd null check before access\n"
     "## Test/Verification\nInput: missing value. Output: default value. Assert `normalize(None) == \"\"`. `python -m pytest tests/` returns 0\n"
     "## Devil's Advocate\n"
@@ -71,7 +71,7 @@ VALID_STANDARD_PLAN = (
     "# Add unit tests for validation scripts\n"
     "## Goal\nFix the bug\n"
     "## Success Criteria\nReturns exit code 0\n"
-    "## Current State\n`src/file.py:42` has issue\n"
+    "## Current State\n`src/file.py:42` has bug\n"
     "## Scope\nIn scope: fix bug\nOut of scope: refactoring\nPreserve existing return shape unchanged\nBlast radius: affected caller is the local validator command only\n"
     "## Reasoning Summary\nDecompose to input validation and output preservation. Root cause is unchecked missing data at src/file.py:42. Selected approach is smallest because it keeps the existing local validator pattern.\n"
     "## Approach\nFollow existing pattern from nearby files\n"

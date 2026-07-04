@@ -38,7 +38,7 @@ class TestCurrentStateEvidence:
         assert len(evidence_errors) == 0
 
     def test_tiny_evidence_with_file_line(self):
-        text = "# Add test suite\n## Goal\nFix it\n## Current State\nsrc/test.ts:42 has issue\n## Change\nAdd null check\n## Test/Verification\npython test.py passes\n## Assumptions\nLow risk"
+        text = "# Add test suite\n## Goal\nFix it\n## Current State\nsrc/test.ts:42 has bug\n## Change\nAdd null check\n## Test/Verification\npython test.py passes\n## Assumptions\nLow risk"
         errs = rubric_errors(text, "tiny")
         evidence_errors = [e for e in errs if "Current State must cite" in e]
         assert len(evidence_errors) == 0

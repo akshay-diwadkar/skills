@@ -70,6 +70,6 @@ Order the selected approach by dependency:
 2. Core logic.
 3. Public surface or orchestration.
 4. Tests and fixtures.
-5. Documentation, release notes, and issue follow-up.
+5. Documentation and release notes.
 
 If a later step requires an earlier step that the plan does not include, the plan is incomplete.

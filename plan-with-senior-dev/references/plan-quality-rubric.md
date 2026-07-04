@@ -86,7 +86,7 @@ python scripts/check_plan.py --tier standard plan.md
 python scripts/check_plan.py --tier high-risk plan.md
 ```
 
-The checker runs `check_plan_shape.py` and `check_plan_rubric.py`. Passing the script is necessary but not sufficient; still apply this rubric for judgment-heavy issues.
+The checker runs `check_plan_shape.py` and `check_plan_rubric.py`. Passing the script is necessary but not sufficient; still apply this rubric for judgment-heavy gaps.
 
 ## Final Self-Audit
 
