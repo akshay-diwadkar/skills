@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 
-TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "html-excalidraw-template.html"
+TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "html-diagram-template.html"
 
 
 def strip_data_sections(text):

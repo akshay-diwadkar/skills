@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_TEMPLATE = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
+DEFAULT_TEMPLATE = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
 
 
 # JS built-ins, DOM APIs, globals, and Node.js/runtime names that are
@@ -61,8 +61,7 @@ EXTERNAL_ALLOWLIST = frozenset({
     "VERSION",
     # False positives - names inside string literals or comments
     "rgba", "shadow", "first", "place",
-    "stage", "tier", "edges", "nodes",
-    "Excalidraw", "derive", "files",
+    "stage", "tier", "edges", "nodes", "files",
     # SVG attribute helpers (inside template literal strings)
     "translate", "scale", "rotate", "matrix",
     # RoughJS

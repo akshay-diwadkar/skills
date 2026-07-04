@@ -3,7 +3,7 @@
     "title": "Create Diagram Smoke Flow",
     "storageKey": "create-diagram-smoke-v1",
     "audience": "Agents and engineers validating create-diagram",
-    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and editable export generation.",
+    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and HTML generation.",
     "fidelity": "narrative-architecture",
     "takeaways": [
       "Requests move from actor to service before durable state changes.",
@@ -42,22 +42,6 @@
         "description": "Checks diagram data, metadata, positions, edges, and template drift.",
         "x": 1050,
         "y": 320
-      },
-      {
-        "id": "exporter",
-        "label": "Excalidraw Exporter",
-        "type": "process",
-        "description": "Creates an editable Excalidraw file after HTML validation passes.",
-        "x": 1050,
-        "y": 760
-      },
-      {
-        "id": "editable",
-        "label": "Editable Artifact",
-        "type": "document",
-        "description": "Native Excalidraw document with labels and descriptions.",
-        "x": 1050,
-        "y": 1120
       },
       {
         "id": "notes",
@@ -108,16 +92,9 @@
       },
       {
         "sourceId": "validator",
-        "targetId": "exporter",
-        "label": "unblocks",
+        "targetId": "ops",
+        "label": "approves",
         "evidence": "SKILL.md:40",
-        "confidence": "observed"
-      },
-      {
-        "sourceId": "exporter",
-        "targetId": "editable",
-        "label": "writes",
-        "evidence": "scripts/generate_excalidraw.py:1",
         "confidence": "observed"
       },
       {
@@ -150,10 +127,10 @@
         "nodeIds": ["user", "builder", "template"]
       },
       {
-        "id": "validate-export",
-        "title": "Validate and export",
-        "description": "The validator gates Excalidraw generation and catches data problems first.",
-        "nodeIds": ["builder", "validator", "exporter", "editable"]
+        "id": "validate",
+        "title": "Validate HTML",
+        "description": "The validator checks the generated HTML and catches data problems before review.",
+        "nodeIds": ["builder", "validator", "ops"]
       },
       {
         "id": "review",
@@ -173,7 +150,7 @@
         "id": "verification",
         "label": "Verification",
         "layout": "vertical",
-        "nodeIds": ["validator", "exporter", "editable"]
+        "nodeIds": ["validator"]
       },
       {
         "id": "review",
@@ -185,7 +162,7 @@
   },
   "metadata": {
     "audience": "Agents and engineers validating create-diagram",
-    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and editable export generation.",
+    "purpose": "Exercise clusters, walkthroughs, self-loops, descriptions, and HTML generation.",
     "fidelity": "narrative-architecture",
     "entities": [
       {
@@ -207,7 +184,7 @@
         "name": "Shared Template",
         "type": "file",
         "description": "Canonical renderer that stays unchanged outside data blocks.",
-        "evidence": "assets/html-excalidraw-template.html:1"
+        "evidence": "assets/html-diagram-template.html:1"
       },
       {
         "id": "validator",
@@ -215,20 +192,6 @@
         "type": "process",
         "description": "Checks diagram data, metadata, positions, edges, and template drift.",
         "evidence": "scripts/validate_diagram.py:1"
-      },
-      {
-        "id": "exporter",
-        "name": "Excalidraw Exporter",
-        "type": "process",
-        "description": "Creates an editable Excalidraw file after HTML validation passes.",
-        "evidence": "scripts/generate_excalidraw.py:1"
-      },
-      {
-        "id": "editable",
-        "name": "Editable Artifact",
-        "type": "document",
-        "description": "Native Excalidraw document with labels and descriptions.",
-        "evidence": "user-stated"
       },
       {
         "id": "notes",
@@ -279,19 +242,11 @@
       },
       {
         "sourceId": "validator",
-        "targetId": "exporter",
-        "label": "unblocks",
-        "direction": "HTML Validator -> Excalidraw Exporter",
+        "targetId": "ops",
+        "label": "approves",
+        "direction": "HTML Validator -> Ops Review",
         "confidence": "observed",
         "evidence": "SKILL.md:40"
-      },
-      {
-        "sourceId": "exporter",
-        "targetId": "editable",
-        "label": "writes",
-        "direction": "Excalidraw Exporter -> Editable Artifact",
-        "confidence": "observed",
-        "evidence": "scripts/generate_excalidraw.py:1"
       },
       {
         "sourceId": "validator",
@@ -327,7 +282,7 @@
     "openQuestions": [],
     "agentInstructions": [
       "Keep node ids stable across fixture updates.",
-      "Keep this fixture valid for builder, HTML validation, Excalidraw generation, and Excalidraw validation."
+      "Keep this fixture valid for builder and HTML validation."
     ]
   }
 }

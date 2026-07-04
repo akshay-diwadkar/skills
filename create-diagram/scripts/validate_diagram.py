@@ -1,4 +1,4 @@
-"""Validate generated Excalidraw-style diagram HTML.
+"""Validate generated diagram HTML.
 
 Usage:
     python validate_diagram.py <path-to-diagram.html>
@@ -36,7 +36,7 @@ from _diagram_utils import (
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
+TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
 INLINE_STYLE_RE = re.compile(
     r'<style\s+id="create-diagram-style"\s+data-inline-asset="css/style.css">.*?</style>',
     re.DOTALL,
@@ -98,7 +98,7 @@ def check_template_integrity(output_path):
     if output_hash != template_hash:
         return [
             "Generated HTML has drifted from the canonical template outside DIAGRAM_DATA "
-            "and #agent-metadata. Rebuild from assets/html-excalidraw-template.html."
+            "and #agent-metadata. Rebuild from assets/html-diagram-template.html."
         ]
     return []
 

@@ -22,10 +22,10 @@ Resolve:
 - Decision to support: what a stakeholder should be able to approve, challenge, explain, fund, operate, or delegate after seeing the diagram.
 - Agent afterlife: what a future agent must infer, modify, or regenerate from the artifact without the original conversation.
 - Usage: onboarding, architecture review, debugging, sales/demo, documentation, planning, incident analysis.
-- Format: ask "What output format(s) do you need?" Options: HTML, `.excalidraw`, or both. Default recommendation: both. HTML is for sharing and presenting; `.excalidraw` is for future editing and refinement.
+- Format: the skill produces a self-contained HTML diagram.
 - Fidelity: default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences. Use `exact-code-graph` only for file/class/function-level developer reviews. Use `executive-concept-map` only for business concepts, ownership, outcomes, and risks.
 - Takeaways: 1-3 concise statements the visible brief panel should make obvious.
-- Output location: where the diagram files should be created. Ask once: "Where should I create the diagram file(s)?" When both HTML and `.excalidraw` are requested, both are placed in the same directory with the same base name.
+- Output location: where the HTML diagram should be created. Ask once: "Where should I create the HTML diagram?"
 
 Good first question:
 
@@ -93,7 +93,6 @@ If the answer to all questions is "N/A" (solo dev, simple static site), skip to 
 Before emitting the `<proposed_plan>`, confirm:
 
 - [ ] Purpose, audience, decision to support, and fidelity are explicit.
-- [ ] Output format (HTML, `.excalidraw`, or both) is explicit.
 - [ ] Output location is explicit: either a full `.html` path or a directory where a descriptive kebab-case `.html` filename will be generated.
 - [ ] `diagram` payload has a stakeholder-ready brief when appropriate: `audience`, `purpose`, `fidelity`, and 1-3 `takeaways`.
 - [ ] Scope and exclusions are explicit.
@@ -102,7 +101,7 @@ Before emitting the `<proposed_plan>`, confirm:
 - [ ] Every entity has a stable `id` matching its `id` in `diagram.nodes`.
 - [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`, `inferred`, or `stated`).
 - [ ] Metadata has `entities`, `relationships`, `assumptions`, `omissions`, `openQuestions`, and `agentInstructions`.
-- [ ] Generated HTML will be built with `$skillDir\scripts\build_diagram.py`, validated with `$skillDir\scripts\validate_diagram.py`, and optionally exported/validated with the Excalidraw scripts.
+- [ ] Generated HTML will be built with `/path/to/create-diagram/scripts/build_diagram.py` and validated with `/path/to/create-diagram/scripts/validate_diagram.py`.
 
 The proposed plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps. It must also state that implementation happens only after the user requests execution outside Plan Mode.
 

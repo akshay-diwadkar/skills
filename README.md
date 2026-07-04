@@ -69,7 +69,26 @@ Skills in `~/.agents/skills/` are auto-discovered by the agent. To use a skill:
 
 ### Communication & Diagramming
 
-- **create-diagram** - Grilling workflow that questions the user to shared understanding, then produces an Excalidraw-style HTML diagram. Use for architecture maps, relationship graphs, workflow visualizations, or any diagram that benefits from clarifying questions first.
+- **create-diagram** - Grilling workflow that questions the user to shared understanding, then produces a self-contained HTML diagram. Use for architecture maps, relationship graphs, workflow visualizations, or any diagram that benefits from clarifying questions first.
+
+## Maintainer Verification
+
+`create-diagram` is intended to run on Windows, macOS, and Linux with Python 3.9+. Normal skill usage only requires the Python standard library. Maintainers should run:
+
+```bash
+python -m unittest discover -s create-diagram/test -v
+python create-diagram/scripts/check_template_refs.py
+python create-diagram/scripts/build_diagram.py --data create-diagram/test/fixtures/complex.json --output create-diagram-smoke.html --overwrite
+python create-diagram/scripts/validate_diagram.py create-diagram-smoke.html
+```
+
+The optional browser smoke check requires Playwright:
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+python create-diagram/scripts/browser_smoke.py
+```
 
 ## GitHub Token Setup
 

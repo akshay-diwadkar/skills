@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create Diagram - Excalidraw-Style Diagram</title>
+<title>Create Diagram - HTML Diagram</title>
 <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat&family=Comic+Neue&family=Gloria+Hallelujah&family=Indie+Flower&family=Kalam&family=Patrick+Hand&family=Permanent+Marker&family=Shadows+Into+Light&family=Short+Stack&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -62,11 +62,11 @@ const DIAGRAM_DATA = {
   title: "create-diagram Workflow",
   storageKey: "create-diagram-flow-v1",
   audience: "AI agents and developers using the create-diagram skill",
-  purpose: "Show the 8-stage agent workflow from user request through exploration, questioning, planning, building, validation, excalidraw derivation, verification, and delivery.",
+  purpose: "Show the HTML-only agent workflow from user request through exploration, questioning, planning, building, validation, verification, and delivery.",
   fidelity: "narrative-architecture",
   takeaways: [
-    "Explore \u2192 Question \u2192 Plan \u2192 Build \u2192 Validate \u2192 Derive \u2192 Verify is the canonical flow; feedback loops at question and verify gates",
-    "Each stage reads a reference doc or runs a script; derive (.excalidraw) is optional",
+    "Explore \u2192 Question \u2192 Plan \u2192 Build \u2192 Validate \u2192 Verify is the canonical flow; feedback loops at question, validate, and verify gates",
+    "Each stage reads a reference doc or runs an HTML-focused script",
     "Fidelity defaults to narrative-architecture; only DIAGRAM_DATA and #agent-metadata are touched in the template"
   ],
   nodes: [
@@ -75,12 +75,11 @@ const DIAGRAM_DATA = {
     { id: "explore", label: "Explore", type: "process", description: "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions" },
     { id: "q-framework", label: "Question Framework", type: "document", description: "Reference doc for asking one question at a time about purpose, audience, format, entities" },
     { id: "question", label: "Question", type: "process", description: "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear" },
-    { id: "output-guide", label: "HTML/Excalidraw Guide", type: "document", description: "Reference doc for plan format: only DIAGRAM_DATA changed, fidelity defaults, output path conventions" },
-    { id: "plan", label: "Plan", type: "process", description: "Propose a plan with title, purpose, audience, fidelity, entities, relationships, clusters, and evidence policy" },
+    { id: "output-guide", label: "HTML Guide", type: "document", description: "Reference doc for payload shape, fidelity defaults, and output path conventions" },
+    { id: "plan", label: "Plan", type: "process", description: "Propose title, purpose, audience, fidelity, entities, relationships, and evidence policy" },
     { id: "build", label: "Build", type: "process", description: "Create JSON payload and run build_diagram.py to produce the standalone HTML file" },
     { id: "validate", label: "Validate", type: "process", description: "Run validate_diagram.py on the HTML; fix all errors until exit code 0" },
-    { id: "derive", label: "Derive .excalidraw?", type: "decision", description: "If user requests an editable .excalidraw export, run generate_excalidraw.py; otherwise skip" },
-    { id: "verify", label: "Verify", type: "process", description: "Open HTML in browser; check brief panel, node shapes, edge labels, legend, walkthrough, drag/pan/zoom, theme toggle, reset, excalidraw rendering" },
+    { id: "verify", label: "Verify", type: "process", description: "Open HTML in browser and check brief, shapes, labels, walkthrough, pan, zoom, and reset" },
     { id: "output-html", label: "Diagram HTML", type: "file", description: "Final standalone HTML diagram artifact delivered to the user" }
   ],
   edges: [
@@ -93,10 +92,8 @@ const DIAGRAM_DATA = {
     { sourceId: "plan", targetId: "output-guide", label: "references", evidence: "SKILL.md:95", confidence: "observed" },
     { sourceId: "plan", targetId: "build", label: "produces", evidence: "SKILL.md:108", confidence: "observed" },
     { sourceId: "build", targetId: "validate", label: "generates", evidence: "SKILL.md:112", confidence: "observed" },
-    { sourceId: "validate", targetId: "derive", label: "passes", evidence: "SKILL.md:120", confidence: "observed" },
-    { sourceId: "derive", targetId: "build", label: "validation failed", evidence: "SKILL.md:115", confidence: "observed" },
-    { sourceId: "derive", targetId: "verify", label: "no excalidraw", evidence: "SKILL.md:124", confidence: "observed" },
-    { sourceId: "derive", targetId: "output-html", label: "excalidraw done", evidence: "SKILL.md:132", confidence: "observed" },
+    { sourceId: "validate", targetId: "build", label: "errors found", evidence: "SKILL.md:45", confidence: "observed" },
+    { sourceId: "validate", targetId: "verify", label: "passes", evidence: "SKILL.md:48", confidence: "observed" },
     { sourceId: "verify", targetId: "build", label: "fix and rebuild", evidence: "SKILL.md:142", confidence: "observed" },
     { sourceId: "verify", targetId: "output-html", label: "approved", evidence: "SKILL.md:150", confidence: "observed" },
     { sourceId: "output-html", targetId: "user", label: "delivers", evidence: "SKILL.md:150", confidence: "observed" }
@@ -127,16 +124,10 @@ const DIAGRAM_DATA = {
       nodeIds: ["plan", "build", "validate"]
     },
     {
-      id: "derive",
-      title: "Optionally derive .excalidraw",
-      description: "If requested, agent runs generate_excalidraw.py and validates the output with validate_excalidraw.py.",
-      nodeIds: ["validate", "derive"]
-    },
-    {
       id: "verify",
       title: "Verify and deliver",
       description: "Agent opens the HTML in a browser, verifies all features work, then delivers the final artifact to the user.",
-      nodeIds: ["derive", "verify", "output-html", "user"]
+      nodeIds: ["validate", "verify", "output-html", "user"]
     }
   ],
   clusters: [
@@ -144,7 +135,6 @@ const DIAGRAM_DATA = {
     { id: "c-exploration", label: "Exploration & Questions", nodeIds: ["explore", "q-framework", "question"] },
     { id: "c-planning", label: "Planning", nodeIds: ["plan", "output-guide"] },
     { id: "c-engineering", label: "Build & Validation", nodeIds: ["build", "validate"] },
-    { id: "c-derivation", label: "Excalidraw (Optional)", nodeIds: ["derive"] },
     { id: "c-delivery", label: "Delivery", nodeIds: ["verify", "output-html"] }
   ]
 };
@@ -199,7 +189,27 @@ const THEMES = {
 };
 function th() { return THEMES[currentTheme]; }
 
-let currentTheme = localStorage.getItem('diagram-theme') || 'light';
+function safeStorageGet(key) {
+  try {
+    return window.localStorage ? window.localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    if (window.localStorage) window.localStorage.setItem(key, value);
+  } catch { /* ignore unavailable storage */ }
+}
+
+function safeStorageRemove(key) {
+  try {
+    if (window.localStorage) window.localStorage.removeItem(key);
+  } catch { /* ignore unavailable storage */ }
+}
+
+let currentTheme = safeStorageGet('diagram-theme') || 'light';
 let NODE_TYPES = th().nodeTypes;
 const DIAGRAM_FONTS = [
   { name: 'Indie Flower', css: "'Indie Flower'" },
@@ -397,12 +407,8 @@ function getFontDef(name) {
 }
 
 function getSavedDiagramFontName() {
-  try {
-    const saved = localStorage.getItem('diagram-font');
-    return DIAGRAM_FONTS.some(font => font.name === saved) ? saved : DEFAULT_DIAGRAM_FONT;
-  } catch {
-    return DEFAULT_DIAGRAM_FONT;
-  }
+  const saved = safeStorageGet('diagram-font');
+  return DIAGRAM_FONTS.some(font => font.name === saved) ? saved : DEFAULT_DIAGRAM_FONT;
 }
 
 function fontCssStack(name) {
@@ -471,7 +477,7 @@ function setDiagramFont(name, { persist = true, rerender = true } = {}) {
   currentFontName = getFontDef(name).name;
   document.documentElement.style.setProperty('--diagram-font', fontCssStack(currentFontName));
   if (persist) {
-    try { localStorage.setItem('diagram-font', currentFontName); } catch { /* ignore unavailable storage */ }
+    safeStorageSet('diagram-font', currentFontName);
   }
   renderFontMenu();
   verifyDiagramFont();
@@ -1204,7 +1210,7 @@ function fitAll() {
 }
 
 function resetLayout() {
-  try { localStorage.removeItem(getStorageKey()); } catch { /* ignore unavailable storage */ }
+  safeStorageRemove(getStorageKey());
   state.nodes = (DIAGRAM_DATA.nodes || []).map(n => ({ ...n }));
   state.edges = (DIAGRAM_DATA.edges || []).map(e => ({ ...e }));
   state.clusters = (DIAGRAM_DATA.clusters || []).map(c => ({ ...c }));
@@ -1225,7 +1231,7 @@ function setTheme(name) {
   if (dot) dot.setAttribute('fill', th().gridDot);
   const btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = name === 'dark' ? 'Dark' : 'Light';
-  localStorage.setItem('diagram-theme', name);
+  safeStorageSet('diagram-theme', name);
   renderAll();
 }
 
@@ -1820,17 +1826,15 @@ function getStorageKey() {
 }
 
 function savePositions() {
-  try {
-    const posMap = {};
-    state.nodes.forEach(n => { posMap[n.id] = { x: n.x, y: n.y }; });
-    const data = { version: VERSION, positions: posMap };
-    localStorage.setItem(getStorageKey(), JSON.stringify(data));
-  } catch (e) { /* localStorage unavailable or full; silently ignore */ }
+  const posMap = {};
+  state.nodes.forEach(n => { posMap[n.id] = { x: n.x, y: n.y }; });
+  const data = { version: VERSION, positions: posMap };
+  safeStorageSet(getStorageKey(), JSON.stringify(data));
 }
 
 function restorePositions() {
   try {
-    const saved = localStorage.getItem(getStorageKey());
+    const saved = safeStorageGet(getStorageKey());
     if (!saved) return false;
     const data = JSON.parse(saved);
     const posMap = data.version === VERSION ? data.positions : null;
@@ -2101,7 +2105,7 @@ init();
 <script type="application/json" id="agent-metadata">
 {
   "audience": "AI agents and developers using the create-diagram skill",
-  "purpose": "Show the 8-stage agent workflow from user request through exploration, questioning, planning, building, validation, excalidraw derivation, verification, and delivery.",
+  "purpose": "Show the HTML-only agent workflow from user request through exploration, questioning, planning, building, validation, verification, and delivery.",
   "fidelity": "narrative-architecture",
   "entities": [
     { "id": "user", "name": "User", "type": "actor", "description": "Person requesting a diagram for a codebase concept", "evidence": "SKILL.md:8" },
@@ -2109,12 +2113,11 @@ init();
     { "id": "explore", "name": "Explore", "type": "process", "description": "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions", "evidence": "SKILL.md:44" },
     { "id": "q-framework", "name": "Question Framework", "type": "document", "description": "Reference doc for asking one question at a time about purpose, audience, format, entities", "evidence": "reference/question-framework.md" },
     { "id": "question", "name": "Question", "type": "process", "description": "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear", "evidence": "SKILL.md:62" },
-    { "id": "output-guide", "name": "HTML/Excalidraw Guide", "type": "document", "description": "Reference doc for plan format: only DIAGRAM_DATA changed, fidelity defaults, output path conventions", "evidence": "assets/html-excalidraw-template.html" },
-    { "id": "plan", "name": "Plan", "type": "process", "description": "Propose a plan with title, purpose, audience, fidelity, entities, relationships, clusters, and evidence policy", "evidence": "SKILL.md:94" },
+    { "id": "output-guide", "name": "HTML Guide", "type": "document", "description": "Reference doc for payload shape, fidelity defaults, and output path conventions", "evidence": "assets/html-diagram-template.html" },
+    { "id": "plan", "name": "Plan", "type": "process", "description": "Propose title, purpose, audience, fidelity, entities, relationships, and evidence policy", "evidence": "SKILL.md:94" },
     { "id": "build", "name": "Build", "type": "process", "description": "Create JSON payload and run build_diagram.py to produce the standalone HTML file", "evidence": "SKILL.md:108" },
     { "id": "validate", "name": "Validate", "type": "process", "description": "Run validate_diagram.py on the HTML; fix all errors until exit code 0", "evidence": "SKILL.md:112" },
-    { "id": "derive", "name": "Derive .excalidraw?", "type": "decision", "description": "If user requests an editable .excalidraw export, run generate_excalidraw.py; otherwise skip", "evidence": "SKILL.md:120" },
-    { "id": "verify", "name": "Verify", "type": "process", "description": "Open HTML in browser; check brief panel, node shapes, edge labels, legend, walkthrough, drag/pan/zoom, theme toggle, reset, excalidraw rendering", "evidence": "SKILL.md:140" },
+    { "id": "verify", "name": "Verify", "type": "process", "description": "Open HTML in browser and check brief, shapes, labels, walkthrough, pan, zoom, and reset", "evidence": "SKILL.md:48" },
     { "id": "output-html", "name": "Diagram HTML", "type": "file", "description": "Final standalone HTML diagram artifact delivered to the user", "evidence": "SKILL.md:150" }
   ],
   "relationships": [
@@ -2124,29 +2127,24 @@ init();
     { "sourceId": "explore", "targetId": "question", "label": "gathers info", "direction": "Explore \u2192 Question", "confidence": "observed", "evidence": "SKILL.md:62" },
     { "sourceId": "question", "targetId": "explore", "label": "more info needed", "direction": "Question \u2192 Explore", "confidence": "observed", "evidence": "SKILL.md:62" },
     { "sourceId": "question", "targetId": "plan", "label": "ready", "direction": "Question \u2192 Plan", "confidence": "observed", "evidence": "SKILL.md:94" },
-    { "sourceId": "plan", "targetId": "output-guide", "label": "references", "direction": "Plan \u2192 HTML/Excalidraw Guide", "confidence": "observed", "evidence": "SKILL.md:95" },
+    { "sourceId": "plan", "targetId": "output-guide", "label": "references", "direction": "Plan \u2192 HTML Guide", "confidence": "observed", "evidence": "SKILL.md:21" },
     { "sourceId": "plan", "targetId": "build", "label": "produces", "direction": "Plan \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:108" },
     { "sourceId": "build", "targetId": "validate", "label": "generates", "direction": "Build \u2192 Validate", "confidence": "observed", "evidence": "SKILL.md:112" },
-    { "sourceId": "validate", "targetId": "derive", "label": "passes", "direction": "Validate \u2192 Derive?", "confidence": "observed", "evidence": "SKILL.md:120" },
-    { "sourceId": "derive", "targetId": "build", "label": "validation failed", "direction": "Derive? \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:115" },
-    { "sourceId": "derive", "targetId": "verify", "label": "no excalidraw", "direction": "Derive? \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:124" },
-    { "sourceId": "derive", "targetId": "output-html", "label": "excalidraw done", "direction": "Derive? \u2192 Diagram HTML", "confidence": "observed", "evidence": "SKILL.md:132" },
+    { "sourceId": "validate", "targetId": "build", "label": "errors found", "direction": "Validate \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:45" },
+    { "sourceId": "validate", "targetId": "verify", "label": "passes", "direction": "Validate \u2192 Verify", "confidence": "observed", "evidence": "SKILL.md:48" },
     { "sourceId": "verify", "targetId": "build", "label": "fix and rebuild", "direction": "Verify \u2192 Build", "confidence": "observed", "evidence": "SKILL.md:142" },
     { "sourceId": "verify", "targetId": "output-html", "label": "approved", "direction": "Verify \u2192 Diagram HTML", "confidence": "observed", "evidence": "SKILL.md:150" },
     { "sourceId": "output-html", "targetId": "user", "label": "delivers", "direction": "Diagram HTML \u2192 User", "confidence": "stated", "evidence": "user-stated" }
   ],
   "assumptions": [
-    "The diagram shows the canonical flow; agents may fast-path trivial diagrams by skipping the question loop",
-    "Derive .excalidraw stage is optional; flow splits at the decision node"
+    "The diagram shows the canonical flow; agents may fast-path trivial diagrams by skipping the question loop"
   ],
   "omissions": [
     "Individual script paths and line-level evidence are in agent-metadata only",
-    "build_diagram.py and generate_excalidraw.py internals are compressed into Build and Derive nodes",
+    "build_diagram.py internals are compressed into the Build node",
     "Individual source files (SKILL.md, reference docs) are omitted as implementation details"
   ],
-  "openQuestions": [
-    "Should the derive decision node have a separate validation-excalidraw sub-stage node?"
-  ],
+  "openQuestions": [],
   "agentInstructions": [
     "Keep entity `id` values stable across diagram updates",
     "Match node `id` in DIAGRAM_DATA with `id` in agent-metadata entities",

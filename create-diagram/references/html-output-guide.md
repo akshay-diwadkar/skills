@@ -1,4 +1,4 @@
-# HTML Excalidraw-Style Output Guide
+# HTML Diagram Output Guide
 
 Use this guide after the questioning framework has reached shared understanding. Build from a structured payload, apply the taxonomy, and embed the agent metadata.
 
@@ -46,7 +46,7 @@ Every edge must have a verb label describing the relationship:
 
 ## Section C: Build Payload
 
-Build generated HTML with the shared template through `$skillDir\scripts\build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. The builder embeds the local stylesheet and RoughJS runtime, so the generated `.html` file is portable and can be opened or served from any directory without copying sibling assets. Generated HTML should differ from `assets/html-excalidraw-template.html` only in `DIAGRAM_DATA`, `#agent-metadata`, and the builder-managed inline asset blocks.
+Build generated HTML with the shared template through `/path/to/create-diagram/scripts/build_diagram.py`. Do not hand-edit renderer code for normal create-diagram output. The builder embeds the local stylesheet and RoughJS runtime, so the generated `.html` file is portable and can be opened or served from any directory without copying sibling assets. Generated HTML should differ from `assets/html-diagram-template.html` only in `DIAGRAM_DATA`, `#agent-metadata`, and the builder-managed inline asset blocks.
 
 Payload shape:
 
@@ -118,7 +118,7 @@ Payload shape:
 Build command:
 
 ```bash
-python "$skillDir\scripts\build_diagram.py" --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
+python /path/to/create-diagram/scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
 ```
 
 Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement. The builder refuses to overwrite an existing file without that flag and refuses to write over the canonical template.
@@ -135,10 +135,10 @@ Omit `--create-dirs` unless the user has confirmed creating a missing output dir
 - Node positions (`x`, `y`) are optional. Prefer omitting them and letting the template auto-layout. If manual positions are used, every node must include both `x` and `y`; mixed or partial manual coordinates are invalid.
 - `type` must match the canonical taxonomy in Section A. Legacy aliases render but should not be used for new diagrams.
 - `label` on an edge is required and must be a verb describing the relationship.
-- `description` is recommended on nodes. It is shown as readable multi-line text in HTML and exported into `.excalidraw` text labels. Recommended length: 15-96 characters.
+- `description` is recommended on nodes. It is shown as readable multi-line text in HTML. Recommended length: 15-96 characters.
 - `evidence` and `confidence` are required on edges. `confidence` must be `observed`, `inferred`, or `stated`. Use `file:line`, `file:start-end`, or explicit conversation evidence such as `user-stated`.
 - `storageKey` is optional. When set, node positions persist in `localStorage`; change the key when the diagram shape changes substantially.
-- The HTML viewer includes a toolbar font picker. It is a browser-local display preference only and does not change `DIAGRAM_DATA`, metadata, or generated `.excalidraw` files.
+- The HTML viewer includes a toolbar font picker. It is a browser-local display preference only and does not change `DIAGRAM_DATA` or metadata.
 
 ## Section E: Agent JSON Metadata
 
@@ -191,7 +191,7 @@ Rules:
 Run:
 
 ```bash
-python "$skillDir\scripts\validate_diagram.py" <path-to-output.html>
+python /path/to/create-diagram/scripts/validate_diagram.py <path-to-output.html>
 ```
 
 The script checks:

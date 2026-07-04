@@ -15,13 +15,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 from _diagram_utils import replace_agent_metadata, replace_js_assignment, script_safe_json
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-excalidraw-template.html"
+TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
 STYLE_PATH = SCRIPT_DIR.parent / "assets" / "css" / "style.css"
 ROUGHJS_PATH = SCRIPT_DIR.parent / "assets" / "roughjs.js"
 
@@ -59,6 +60,10 @@ def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False)
 
     if not payload_path.exists():
         raise FileNotFoundError(f"Payload file not found: {payload_path}")
+    if output_path.exists() and output_path.is_dir():
+        raise IsADirectoryError(f"Output path is a directory, expected an .html file: {output_path}")
+    if output_path.suffix.lower() != ".html":
+        raise ValueError(f"Output path must end with .html: {output_path}")
     if not TEMPLATE_PATH.exists():
         raise FileNotFoundError(f"Template file not found: {TEMPLATE_PATH}")
     if output_path.exists() and not overwrite:
@@ -91,9 +96,22 @@ def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False)
     html = replace_js_assignment(html, "DIAGRAM_DATA", diagram_literal)
     html = replace_agent_metadata(html, metadata)
 
-    temp_path = output_path.with_name(f".{output_path.name}.tmp")
-    temp_path.write_text(html, encoding="utf-8")
-    temp_path.replace(output_path)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=str(output_path.parent),
+            prefix=f".{output_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            temp_file.write(html)
+        temp_path.replace(output_path)
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
     return output_path
 
 
