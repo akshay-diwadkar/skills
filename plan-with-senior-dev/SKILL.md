@@ -26,10 +26,11 @@ Read only the references whose condition fires:
 
 Always:
 
-- Explore the repo before asking questions, unless the prompt itself is contradictory and cannot be explored.
+- Explore the repo before asking questions on non-trivial work; when subagents are available, use bounded delegated evidence gathering first. Tiny or obviously local changes can stay lean.
 - Separate discovered facts from assumptions; cite codebase facts with `file:line` whenever possible.
 - Prefer existing local patterns, helpers, tests, and architecture over new abstractions.
 - Ask only questions whose answers change scope, behavior, architecture, risk, docs, or tests.
+- When asking a blocking question, present 2-4 mutually exclusive options and mark one as Recommended.
 - Produce a decision-complete plan with concrete verification commands and expected results.
 
 Never:
@@ -50,13 +51,18 @@ Completion criterion: current behavior, change boundary, relevant local pattern,
 
 ### 2. Question
 
-Turn unresolved intent into decisions. State the current hypothesis, identify the root decision, and ask one narrow question at a time using:
+Turn unresolved intent into decisions. State the current hypothesis, identify the root decision, and ask one narrow blocking question at a time using:
 
 ```text
 Question: [specific decision]
-Recommended answer: [default], because [repo evidence or risk]
+Options:
+- [Option 1] (Recommended) - [repo-backed default or concrete risk]
+- [Option 2] - [tradeoff]
+- [Option 3] - [tradeoff]
 Why it matters: [what changes if the answer differs]
 ```
+
+Use 2-4 mutually exclusive options. If there is only one real answer, do not ask; record the repo-backed default or a conservative assumption instead.
 
 Pressure-test major decisions with concrete happy-path, boundary, failure, or compatibility scenarios.
 

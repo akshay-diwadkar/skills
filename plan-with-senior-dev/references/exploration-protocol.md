@@ -21,7 +21,7 @@ Use this protocol to replace guessing with repo evidence. The goal is not to map
 
 ## Delegated Exploration
 
-Weaker intelligence subagents can handle bounded evidence-gathering work when the main agent keeps synthesis and decisions.
+On non-trivial work, start with bounded delegated evidence gathering when subagents are available. Keep synthesis and decisions in the main agent, and fall back to direct local exploration only when delegation is unavailable or the change is tiny enough that one pass is sufficient.
 
 Good subagent tasks include:
 

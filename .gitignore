@@ -14,6 +14,7 @@
 !create-diagram/**
 !plan-with-senior-dev/
 !plan-with-senior-dev/**
+!plan-with-senior-dev/scripts/*.py
 !codebase-issue-auditor/
 !codebase-issue-auditor/**
 !github-issue-planner/

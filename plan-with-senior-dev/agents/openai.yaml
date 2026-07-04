@@ -1,4 +1,4 @@
 interface:
   display_name: "Plan with Senior Dev"
   short_description: "Repo-evidenced implementation planning"
-  default_prompt: "Use $plan-with-senior-dev to explore the repo, challenge assumptions, align docs when needed, and produce a decision-complete implementation plan."
+  default_prompt: "Use $plan-with-senior-dev to gather repo evidence first, delegate bounded exploration to subagents when available, challenge assumptions with explicit options and one recommended answer, align docs when needed, and produce a decision-complete implementation plan."

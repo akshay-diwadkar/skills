@@ -4,7 +4,7 @@ Ask questions to remove decisions, not to transfer research work to the user. Ev
 
 ## Ask Only After Exploration
 
-Before asking, verify whether code, tests, docs, config, schema, or established patterns already answer the question. If they do, use the discovered answer and cite it.
+Before asking, verify whether code, tests, docs, config, schema, or established patterns already answer the question. If they do, use the discovered answer and cite it. If they do not, ask the narrowest blocking question and present it as explicit options.
 
 Ask immediately only when the prompt itself is contradictory or impossible to interpret.
 
@@ -29,19 +29,22 @@ Do not ask a long questionnaire when one blocking question controls the rest of 
 
 ## Recommended Format
 
-Use this structure:
+Use this structure for blocking questions:
 
 ```text
 Question: [specific decision]
-Recommended answer: [default], because [repo evidence or concrete risk]
+Options:
+- [Option 1] (Recommended) - [repo-backed default or concrete risk]
+- [Option 2] - [tradeoff]
+- [Option 3] - [tradeoff]
 Why it matters: [what changes if the answer differs]
 ```
 
-The recommended answer must be a real recommendation, not a neutral restatement.
+Use 2-4 mutually exclusive options. The recommended option must be a real recommendation, not a neutral restatement. If there is only one real answer, do not ask; record the repo-backed default or a conservative assumption instead.
 
 ## Blocking vs Non-Blocking
 
-Blocking questions prevent a decision-complete plan. Ask and wait.
+Blocking questions prevent a decision-complete plan. Ask and wait, but only after presenting options.
 
 Non-blocking questions improve polish but do not affect core behavior. Record a conservative assumption and continue.
 
