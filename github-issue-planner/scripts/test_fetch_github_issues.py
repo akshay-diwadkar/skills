@@ -10,9 +10,7 @@ import json
 import os
 import sys
 import tempfile
-import urllib.error
 import unittest
-from email.message import Message
 from pathlib import Path
 from unittest import mock
 
@@ -23,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 SPEC = importlib.util.spec_from_file_location(
     "fetch_github_issues", SCRIPTS_DIR / "fetch_github_issues.py"
 )
+assert SPEC is not None
 fetcher = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = fetcher

@@ -19,6 +19,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 SPEC = importlib.util.spec_from_file_location("check_github_env", SCRIPTS_DIR / "check_github_env.py")
 SKILL_PATH = SCRIPTS_DIR.parent / "SKILL.md"
+assert SPEC is not None
 checker = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = checker

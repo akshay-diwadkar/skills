@@ -4,15 +4,27 @@ on:
   push:
     branches: [main]
     paths:
-      - "plan-with-senior-dev/**"
+      - "codebase-issue-auditor/**"
       - "create-diagram/**"
-      - ".github/workflows/ci.yml"
+      - "github-issue-planner/**"
+      - "plan-with-senior-dev/**"
+      - ".github/**"
+      - ".gitignore"
+      - "README.md"
+      - "pyproject.toml"
+      - "skills-lock.json"
   pull_request:
     branches: [main]
     paths:
-      - "plan-with-senior-dev/**"
+      - "codebase-issue-auditor/**"
       - "create-diagram/**"
-      - ".github/workflows/ci.yml"
+      - "github-issue-planner/**"
+      - "plan-with-senior-dev/**"
+      - ".github/**"
+      - ".gitignore"
+      - "README.md"
+      - "pyproject.toml"
+      - "skills-lock.json"
 
 jobs:
   quality:
@@ -23,13 +35,30 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install ruff mypy pytest
+        run: python -m pip install ruff mypy pytest playwright
+      - name: Validate skill tree
+        run: python .github/scripts/validate_skill_tree.py
       - name: Lint
-        run: ruff check plan-with-senior-dev/scripts/
-      - name: Type check
-        run: mypy plan-with-senior-dev/scripts/
+        run: >
+          ruff check
+          plan-with-senior-dev/scripts
+          create-diagram/scripts
+          create-diagram/test
+          codebase-issue-auditor/scripts
+          github-issue-planner/scripts
+          .github/scripts
+      - name: Type check plan-with-senior-dev
+        run: mypy plan-with-senior-dev/scripts
+      - name: Type check codebase-issue-auditor
+        run: mypy codebase-issue-auditor/scripts
+      - name: Type check github-issue-planner
+        run: mypy github-issue-planner/scripts
+      - name: Type check create-diagram
+        run: mypy create-diagram/scripts create-diagram/test
+      - name: Type check CI scripts
+        run: mypy .github/scripts
       - name: Test
-        run: python -m pytest plan-with-senior-dev/scripts/tests/ -v
+        run: python -m pytest -q
 
   create-diagram:
     name: create-diagram (${{ matrix.os }}, py${{ matrix.python-version }})

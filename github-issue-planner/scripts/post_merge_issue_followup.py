@@ -9,7 +9,6 @@ import re
 import subprocess
 import sys
 import time
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,12 +39,18 @@ class GitHubClient:
         for attempt in range(self.max_retries + 1):
             try:
                 cmd = ["gh", "api", path, "-X", method]
-                kwargs = {"capture_output": True, "text": True, "check": True}
+                input_payload = None
                 if payload is not None:
                     cmd.extend(["--input", "-"])
-                    kwargs["input"] = json.dumps(payload)
-                
-                result = subprocess.run(cmd, **kwargs)
+                    input_payload = json.dumps(payload)
+
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    input=input_payload,
+                )
                 return json.loads(result.stdout) if result.stdout.strip() else None
             except subprocess.CalledProcessError as exc:
                 if attempt < self.max_retries:

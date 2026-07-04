@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 SPEC = importlib.util.spec_from_file_location(
     "post_merge_issue_followup", SCRIPTS_DIR / "post_merge_issue_followup.py"
 )
+assert SPEC is not None
 followup = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = followup

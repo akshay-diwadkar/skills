@@ -832,8 +832,6 @@ def candidate_edge_routes(edge, edge_index, nodes_by_id, positions, edges, node_
         candidates.append(base)
 
     src_box = node_box(src, positions[src["id"]])
-    tgt_box = node_box(tgt, positions[tgt["id"]])
-
     if src["id"] == tgt["id"]:
         loop_offsets = [72, 120, 180, 260, 360]
         for side in ("right", "left", "top", "bottom"):

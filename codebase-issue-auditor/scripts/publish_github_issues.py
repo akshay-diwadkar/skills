@@ -7,12 +7,12 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 
 ALLOWED_SEVERITIES = {"critical", "high", "medium", "low"}
@@ -44,6 +44,14 @@ class ConfigError(Exception):
 
 class GhError(Exception):
     """Raised for gh cli failures."""
+
+
+class IssueClient(Protocol):
+    def list_open_issues(self, repo: str) -> list[dict[str, object]]:
+        """Return open issue metadata for duplicate checks."""
+
+    def create_issue(self, repo: str, title: str, body: str, labels: list[str]) -> dict[str, object]:
+        """Create one issue and return created issue metadata."""
 
 
 @dataclass(frozen=True)
@@ -232,36 +240,40 @@ def format_issue_body(issue: IssueDraft) -> str:
 
 
 class GhClient:
-    def list_open_issues(self, repo: str) -> list[dict[str, Any]]:
+    def list_open_issues(self, repo: str) -> list[dict[str, object]]:
         cmd = ["gh", "issue", "list", "--repo", repo, "--state", "open", "--json", "title,html_url", "--limit", "1000"]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return json.loads(result.stdout)
         except subprocess.CalledProcessError as exc:
             raise GhError(f"gh issue list failed: {exc.stderr}") from exc
+        except FileNotFoundError as exc:
+            raise GhError("gh cli is not installed") from exc
         except json.JSONDecodeError as exc:
             raise GhError(f"Failed to parse gh issue list output: {exc}") from exc
 
-    def create_issue(self, repo: str, title: str, body: str, labels: list[str]) -> dict[str, Any]:
+    def create_issue(self, repo: str, title: str, body: str, labels: list[str]) -> dict[str, object]:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as f:
             f.write(body)
             body_path = f.name
-            
+
         try:
             cmd = ["gh", "issue", "create", "--repo", repo, "--title", title, "--body-file", body_path]
             for label in labels:
                 cmd.extend(["--label", label])
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return {"html_url": result.stdout.strip()}
         except subprocess.CalledProcessError as exc:
             raise GhError(f"gh issue create failed: {exc.stderr}") from exc
+        except FileNotFoundError as exc:
+            raise GhError("gh cli is not installed") from exc
         finally:
             if os.path.exists(body_path):
                 os.remove(body_path)
 
 
-def issue_exists(open_issues: list[dict[str, Any]], title: str) -> dict[str, Any] | None:
+def issue_exists(open_issues: list[dict[str, object]], title: str) -> dict[str, object] | None:
     target = title.casefold()
     for issue in open_issues:
         if str(issue.get("title", "")).casefold() == target:
@@ -271,15 +283,15 @@ def issue_exists(open_issues: list[dict[str, Any]], title: str) -> dict[str, Any
 
 def publish_issues(
     issues: list[IssueDraft],
-    client: GhClient | Any | None,
+    client: IssueClient | None,
     repo: str,
     default_labels: list[str],
     extra_labels: list[str],
     publish: bool,
     skip_duplicates: bool,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    open_issues: list[dict[str, Any]] = []
+) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    open_issues: list[dict[str, object]] = []
     if publish:
         if client is None:
             raise ConfigError("a gh client is required when --publish is used")
@@ -302,6 +314,8 @@ def publish_issues(
             results.append({"status": "dry-run", "title": issue.title})
             continue
 
+        if client is None:
+            raise ConfigError("a gh client is required when --publish is used")
         created = client.create_issue(repo, issue.title, format_issue_body(issue), labels)
         url = created.get("html_url", "")
         print(f"CREATED: {issue.title} {url}".rstrip())

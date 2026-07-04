@@ -4,6 +4,7 @@
 # Repository metadata/docs
 !.gitignore
 !README.md
+!pyproject.toml
 
 # CI workflows
 !.github/

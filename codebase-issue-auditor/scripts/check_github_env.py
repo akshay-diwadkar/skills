@@ -6,14 +6,14 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import sys
 import subprocess
+import sys
 import urllib.parse
 from pathlib import Path
 
 
-REQUIRED_KEYS = ()
-OPTIONAL_KEYS = ("GITHUB_DEFAULT_LABELS", "GITHUB_SKIP_DUPLICATES")
+REQUIRED_KEYS: tuple[str, ...] = ()
+OPTIONAL_KEYS: tuple[str, ...] = ("GITHUB_DEFAULT_LABELS", "GITHUB_SKIP_DUPLICATES")
 OWNER_REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$")
 SSH_REPO_PATTERN = re.compile(r"^git@github\.com:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?)$")
 
@@ -91,13 +91,13 @@ def check_gh_cli() -> list[str]:
 
 
 def check(config: dict[str, str], github_repo_url: str | None = None) -> list[str]:
-    missing = [key for key in REQUIRED_KEYS if not config.get(key)]
+    missing: list[str] = [key for key in REQUIRED_KEYS if not config.get(key)]
     if github_repo_url:
         try:
             normalize_github_repo_target(github_repo_url)
         except ValueError as exc:
             missing.append(f"--github-repo-url invalid: {exc}")
-            
+
     missing.extend(check_gh_cli())
     return missing
 
@@ -119,11 +119,11 @@ def main(argv: list[str] | None = None) -> int:
         print("Loaded env file(s): none (using defaults)")
 
     print("GitHub issue publishing environment:")
-    
+
     # gh auth status will just pass silently if ok, print summary
     gh_status = "OK" if not any("gh cli" in p for p in problems) else "Failed"
     print(f"  gh CLI auth: {gh_status}")
-    
+
     if args.github_repo_url:
         try:
             repo = normalize_github_repo_target(args.github_repo_url)
@@ -132,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  GitHub issue target: {repo}")
     else:
         print("  GitHub issue target: not checked")
-        
+
     for key in OPTIONAL_KEYS:
         val = config.get(key, "")
         print(f"  {key}: {val if val else 'not set'}")

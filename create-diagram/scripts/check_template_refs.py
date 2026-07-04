@@ -146,7 +146,6 @@ def check_template(template_path):
 
     for block in blocks:
         block_defs = extract_function_defs(block)
-        block_calls = extract_function_calls(block)
         all_defs.update(block_defs)
 
         # Track calls with line numbers

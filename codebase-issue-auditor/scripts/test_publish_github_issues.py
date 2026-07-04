@@ -17,6 +17,7 @@ from unittest import mock
 
 SCRIPT_PATH = Path(__file__).with_name("publish_github_issues.py")
 SPEC = importlib.util.spec_from_file_location("publish_github_issues", SCRIPT_PATH)
+assert SPEC is not None
 publisher = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = publisher
@@ -87,21 +88,25 @@ class PublishGitHubIssuesTests(unittest.TestCase):
             temp = Path(temp_dir)
             issue_file = self.write_json(temp, [valid_issue()])
             env_file = temp / ".env"
-            env_file.write_text("GITHUB_TOKEN=token\n", encoding="utf-8")
+            env_file.write_text("GITHUB_DEFAULT_LABELS=audit\n", encoding="utf-8")
 
             with mock.patch.dict(os.environ, {}, clear=True):
                 code = publisher.main(["--input", str(issue_file), "--env", str(env_file)])
 
             self.assertEqual(code, 2)
 
-    def test_publish_requires_github_token(self):
+    def test_publish_reports_missing_gh_cli(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp = Path(temp_dir)
             issue_file = self.write_json(temp, [valid_issue()])
             env_file = temp / ".env"
             env_file.write_text("GITHUB_DEFAULT_LABELS=audit\n", encoding="utf-8")
+            stderr = io.StringIO()
 
-            with mock.patch.dict(os.environ, {}, clear=True):
+            with contextlib.redirect_stderr(stderr), mock.patch.dict(os.environ, {}, clear=True), mock.patch(
+                "subprocess.run",
+                side_effect=FileNotFoundError(),
+            ):
                 code = publisher.main(
                     [
                         "--input",
@@ -114,7 +119,8 @@ class PublishGitHubIssuesTests(unittest.TestCase):
                     ]
                 )
 
-            self.assertEqual(code, 2)
+            self.assertEqual(code, 1)
+            self.assertIn("ERROR: gh cli is not installed", stderr.getvalue())
 
     def test_invalid_schema_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -182,9 +188,9 @@ class PublishGitHubIssuesTests(unittest.TestCase):
 
     def test_github_api_error_is_reported(self):
         issue = publisher.validate_issue(valid_issue(), 1)
-        client = FakeClient(create_error=publisher.GitHubError("simulated failure"))
+        client = FakeClient(create_error=publisher.GhError("simulated failure"))
 
-        with self.assertRaises(publisher.GitHubError):
+        with self.assertRaises(publisher.GhError):
             publisher.publish_issues(
                 issues=[issue],
                 client=client,

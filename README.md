@@ -82,12 +82,17 @@ Commit `.env.example` files only. Real `.env` files must stay local and must not
 
 ## Maintainer Checks
 
-CI runs `plan-with-senior-dev` script quality checks on Python 3.11:
+CI runs repository quality checks on Python 3.11:
 
 ```bash
-ruff check plan-with-senior-dev/scripts/
-mypy plan-with-senior-dev/scripts/
-python -m pytest plan-with-senior-dev/scripts/tests/ -v
+python .github/scripts/validate_skill_tree.py
+ruff check plan-with-senior-dev/scripts create-diagram/scripts create-diagram/test codebase-issue-auditor/scripts github-issue-planner/scripts .github/scripts
+mypy plan-with-senior-dev/scripts
+mypy codebase-issue-auditor/scripts
+mypy github-issue-planner/scripts
+mypy create-diagram/scripts create-diagram/test
+mypy .github/scripts
+python -m pytest -q
 ```
 
 CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
@@ -109,4 +114,4 @@ python create-diagram/scripts/browser_smoke.py
 
 ## Tracking Policy
 
-The `.gitignore` ignores everything by default, then explicitly un-ignores this README, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
+The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
