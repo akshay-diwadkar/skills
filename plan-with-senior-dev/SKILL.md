@@ -7,6 +7,8 @@ description: Plan code changes, refactors, bug fixes, migrations, and issue reso
 
 Turn an ambiguous implementation request into a plan another engineer or agent can execute without choosing product behavior, architecture, public interfaces, migration policy, or test strategy.
 
+This skill is planning-only: it must operate in Plan Mode for every invocation and return a plan, not implementation work.
+
 Keep the run gate-driven: each gate must meet its completion criterion before moving on.
 
 ## Reference Routing
@@ -26,6 +28,7 @@ Read only the references whose condition fires:
 
 Always:
 
+- Stay in Plan Mode and produce only a decision-complete plan.
 - Explore the repo before asking questions on non-trivial work; when subagents are available, use bounded delegated evidence gathering first. Tiny or obviously local changes can stay lean.
 - Separate discovered facts from assumptions; cite codebase facts with `file:line` whenever possible.
 - Prefer existing local patterns, helpers, tests, and architecture over new abstractions.
@@ -35,6 +38,7 @@ Always:
 
 Never:
 
+- Perform implementation, code changes, or execution-style work.
 - Ask the user for facts that code, tests, docs, or config can answer.
 - Invent provider, factory, adapter, registry, or interface layers unless the repo already uses them or two concrete cases justify them.
 - Present a plan with unresolved product, architecture, migration, public-interface, or test-strategy choices.
