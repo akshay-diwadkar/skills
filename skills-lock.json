@@ -19,6 +19,12 @@
       "skillPath": "github-issue-planner/SKILL.md",
       "computedHash": "34fad8d6710b5427655ab03fcc35ea810b433fbc5de6a76a1789d0803a199332"
     },
+    "implement-with-senior-dev": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "implement-with-senior-dev/SKILL.md",
+      "computedHash": "23b233b5b21df27ccd3a6f25799e48bc2fada24122e5971dcd1dc6b2be995a60"
+    },
     "plan-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
