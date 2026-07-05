@@ -114,4 +114,4 @@ python create-diagram/scripts/browser_smoke.py
 
 ## Tracking Policy
 
-The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
+The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, `skills-lock.json`, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.

@@ -5,6 +5,7 @@
 !.gitignore
 !README.md
 !pyproject.toml
+!skills-lock.json
 
 # CI workflows
 !.github/

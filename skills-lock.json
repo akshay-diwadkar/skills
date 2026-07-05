@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "codebase-issue-auditor": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "codebase-issue-auditor/SKILL.md",
+      "computedHash": "b66bb2e54d5491eb4dd4bc2441cccf832243dfad2f43db3a8f21413a31c1dd6d"
+    },
+    "create-diagram": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "create-diagram/SKILL.md",
+      "computedHash": "dba872de71019d9c49245caa42f3025a8f19ac6aaeb6ac68ca31cd3ff0d3e504"
+    },
+    "github-issue-planner": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "github-issue-planner/SKILL.md",
+      "computedHash": "34fad8d6710b5427655ab03fcc35ea810b433fbc5de6a76a1789d0803a199332"
+    },
+    "plan-with-senior-dev": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "plan-with-senior-dev/SKILL.md",
+      "computedHash": "9aeff28cb20e40baee40cecef7ff8b3cb2d636699875925b6ee0dafb5b45b479"
+    }
+  }
+}
