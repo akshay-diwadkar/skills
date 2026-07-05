@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement with Senior Dev"
+  short_description: "Minimal plan-bound implementation"
+  default_prompt: "Use $implement-with-senior-dev when you have an approved, specific implementation plan and need Codex to apply the smallest safe patch, preserve existing patterns, run focused tests, and produce a concise implementation report without expanding scope."
