@@ -24,6 +24,8 @@
 !codebase-issue-auditor/**
 !github-issue-planner/
 !github-issue-planner/**
+!optimize-codebase-with-senior-dev/
+!optimize-codebase-with-senior-dev/**
 
 # Secret and generated local files
 **/.env

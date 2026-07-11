@@ -25,11 +25,17 @@
       "skillPath": "implement-with-senior-dev/SKILL.md",
       "computedHash": "23b233b5b21df27ccd3a6f25799e48bc2fada24122e5971dcd1dc6b2be995a60"
     },
+    "optimize-codebase-with-senior-dev": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "optimize-codebase-with-senior-dev/SKILL.md",
+      "computedHash": "94460ab1bbfe2f26e35c1078e74bb995ae734f9d858910a1391fe8bd75bbfb71"
+    },
     "plan-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "plan-with-senior-dev/SKILL.md",
-      "computedHash": "9aeff28cb20e40baee40cecef7ff8b3cb2d636699875925b6ee0dafb5b45b479"
+      "computedHash": "d389e76523285ad61e8cf900d306dd8da26e4b5f92c6a22f27040ec331415430"
     }
   }
 }

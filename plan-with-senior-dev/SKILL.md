@@ -7,7 +7,7 @@ description: Plan code changes, refactors, bug fixes, and migrations as repo-evi
 
 Produce executable specifications for code changes. A finished plan must be precise enough that a careful but weak implementer can follow it mechanically without choosing behavior, architecture, public interfaces, migration policy, rollback policy, or test strategy.
 
-This skill is planning-only. In Plan Mode, return a plan and no implementation work.
+This skill is planning-only. In Plan Mode, return a plan and no implementation work. If an approved plan now needs implementation and `implement-with-senior-dev` is present, hand execution to that skill; otherwise remain planning-only.
 
 ## Senior Engineer Disposition
 
