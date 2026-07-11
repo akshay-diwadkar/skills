@@ -12,6 +12,7 @@ from typing import Any
 # Add parent directory to path so we can import _plan_utils
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
+from plan_model import parse_markdown
 
 
 TIERS: dict[str, dict[str, Any]] = {
@@ -147,6 +148,23 @@ PERMISSION_TO_PROCEED_PATTERNS = [
     r"\bawaiting your approval\b",
 ]
 
+SECTION_EQUIVALENTS: dict[str, tuple[str, ...]] = {
+    "Goal": ("Outcome", "Outcome and Scope"),
+    "Success Criteria": ("Outcome and Scope",),
+    "Current State": ("Evidence", "Evidence and Decisions"),
+    "Scope": ("Outcome and Scope",),
+    "Reasoning Summary": ("Evidence and Decisions",),
+    "Approach": ("Evidence and Decisions",),
+    "Changes": ("Implementation Specification",),
+    "Logic Specification": ("Implementation Specification",),
+    "Test Strategy": ("Verification", "Verification and Risks"),
+    "Test/Verification": ("Verification", "Verification and Risks"),
+    "Rollback Plan": ("Verification and Risks", "Durable Rollback"),
+    "Migration": ("Migration and Rollout",),
+    "Risk": ("Risk Register", "Verification and Risks"),
+    "Pre-Mortem Findings": ("Verification and Risks", "Risk Register"),
+}
+
 
 def extract_fenced_code_blocks(text: str) -> list[tuple[str, str, int]]:
     blocks: list[tuple[str, str, int]] = []
@@ -175,9 +193,13 @@ def has_pseudocode_block(text: str) -> bool:
 def has_any_section(found_names: set[str], alternatives: tuple[str, ...]) -> bool:
     for heading in found_names:
         for alternative in alternatives:
-            if heading == alternative or heading.startswith(alternative + " "):
+            if heading.casefold() == alternative.casefold() or heading.casefold().startswith(alternative.casefold() + " "):
                 return True
     return False
+
+
+def has_required_section(found_names: set[str], required: str) -> bool:
+    return has_any_section(found_names, (required,) + SECTION_EQUIVALENTS.get(required, ()))
 
 
 def parse_args() -> argparse.Namespace:
@@ -284,7 +306,6 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
 
     # 3. Duplicate heading check
     found_headings: list[tuple[str, int]] = []
-    lines = text.splitlines()
     for index, line in enumerate(scan_lines, start=1):
         match = re.match(r"^##\s+(.+?)\s*$", line)
         if match:
@@ -309,26 +330,26 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
 
     # Required sections
     for section in rules["sections"]:
-        if not any(heading == section or heading.startswith(section + " ") for heading in found_names):
+        if not has_required_section(found_names, section):
             diagnostics.append(Diagnostic(
                 code="shape.section.missing_required",
                 message=f"Missing required section: {section}"
             ))
 
     # New structural sections introduced by the six-gate planning workflow.
-    if not has_any_section(found_names, ("Devil's Advocate", "Attack Findings")):
+    if not has_any_section(found_names, ("Devil's Advocate", "Attack Findings", "Verification and Risks", "Risk Register")):
         diagnostics.append(Diagnostic(
             code="shape.section.missing_devils_advocate",
             message="Missing required section: Devil's Advocate or Attack Findings"
         ))
 
     if tier in {"standard", "high-risk"}:
-        if not has_any_section(found_names, ("Change Propagation", "Propagation Map")):
+        if not has_any_section(found_names, ("Change Propagation", "Propagation Map", "Traceability and Constraints")):
             diagnostics.append(Diagnostic(
                 code="shape.section.missing_change_propagation",
                 message="Missing required section: Change Propagation or Propagation Map"
             ))
-        if not has_any_section(found_names, ("Constraint Verification", "Constraints")):
+        if not has_any_section(found_names, ("Constraint Verification", "Constraints", "Traceability and Constraints")):
             diagnostics.append(Diagnostic(
                 code="shape.section.missing_constraints",
                 message="Missing required section: Constraint Verification or Constraints"
@@ -340,45 +361,37 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
             ))
 
     # Optional warnings sections
-    for section in rules.get("optional_warn", []):
-        if not any(heading == section or heading.startswith(section + " ") for heading in found_names):
-            diagnostics.append(Diagnostic(
-                code="shape.section.missing_optional",
-                message=f"Missing optional section: {section}",
-                is_warning=True
-            ))
+    compact_contract = has_any_section(found_names, ("Outcome and Scope", "Implementation Specification"))
+    if not compact_contract:
+        for section in rules.get("optional_warn", []):
+            if not any(heading == section or heading.startswith(section + " ") for heading in found_names):
+                diagnostics.append(Diagnostic(
+                    code="shape.section.missing_optional",
+                    message=f"Missing optional section: {section}",
+                    is_warning=True
+                ))
 
     # 6. Empty section check
-    heading_indices: list[int] = []
-    for i, line in enumerate(scan_lines):
-        if re.match(r"^#{1,6}\s+", line):
-            heading_indices.append(i)
-
-    for idx, start_idx in enumerate(heading_indices):
-        end_idx = heading_indices[idx + 1] if idx + 1 < len(heading_indices) else len(lines)
-        content = "\n".join(lines[start_idx + 1 : end_idx]).strip()
-        clean_content = strip_fenced_code_blocks(content)
-        non_empty_lines = [line for line in clean_content.splitlines() if line.strip()]
-
-        if not non_empty_lines:
-            heading_text = lines[start_idx].strip()
-            heading_match = re.match(r"^#+", heading_text)
-            assert heading_match is not None
-            heading_level = len(heading_match.group(0))
-            heading_name = re.sub(r"^#{1,6}\s+", "", heading_text)
-            heading_name_clean = re.sub(r"\s*\([^)]*\)\s*$", "", heading_name).strip()
-
-            is_required = heading_name_clean in rules["sections"] or any(heading_name_clean.startswith(s + " ") for s in rules["sections"])
-            is_optional = heading_name_clean in rules.get("optional_warn", []) or any(heading_name_clean.startswith(s + " ") for s in rules.get("optional_warn", []))
-
-            if heading_level == 2 or is_required or is_optional:
-                is_warn = is_optional and not is_required
-                diagnostics.append(Diagnostic(
-                    code="shape.section.empty",
-                    message=f"Section {heading_name_clean!r} is empty (has no body content)",
-                    line=start_idx + 1,
-                    is_warning=is_warn
-                ))
+    document = parse_markdown(text)
+    for parsed_section in document.sections:
+        if parsed_section.has_content:
+            continue
+        heading_name_clean = re.sub(r"\s*\([^)]*\)\s*$", "", parsed_section.name).strip()
+        is_required = any(
+            has_required_section({heading_name_clean}, required)
+            for required in rules["sections"]
+        )
+        is_optional = any(
+            heading_name_clean == optional or heading_name_clean.startswith(optional + " ")
+            for optional in rules.get("optional_warn", [])
+        )
+        if parsed_section.level == 2 or is_required or is_optional:
+            diagnostics.append(Diagnostic(
+                code="shape.section.empty",
+                message=f"Section {heading_name_clean!r} is empty (has no body content)",
+                line=parsed_section.line,
+                is_warning=is_optional and not is_required,
+            ))
 
     # 7. Uncertainty checks
     scan_text = strip_fenced_code_blocks(text)

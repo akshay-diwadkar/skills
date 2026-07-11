@@ -70,18 +70,18 @@ VALID_TINY_PLAN = (
 VALID_STANDARD_PLAN = (
     "# Add unit tests for validation scripts\n"
     "## Goal\nFix the bug\n"
-    "## Success Criteria\nReturns exit code 0\n"
+    "## Success Criteria\nSC-1: Returns exit code 0\n"
     "## Current State\n`src/file.py:42` has bug\n"
     "## Scope\nIn scope: fix bug\nOut of scope: refactoring\nPreserve existing return shape unchanged\nBlast radius: affected caller is the local validator command only\n"
     "## Reasoning Summary\nDecompose to input validation and output preservation. Root cause is unchecked missing data at src/file.py:42. Selected approach is smallest because it keeps the existing local validator pattern.\n"
     "## Approach\nFollow existing pattern from nearby files\n"
-    "## Change Propagation Map\nnormalize_value -> files that must be updated\n  - direct caller: src/file.py:42 - update required: yes - reason: add null guard\n  - test: tests/test_file.py:12 - update required: yes - reason: add missing-data assertion\n"
+    "## Change Propagation Map\nSC-1 -> CH-1 -> T-1\nnormalize_value -> files that must be updated\n  - direct caller: src/file.py:42 - CH-1 - update required: yes - reason: add null guard\n  - test: tests/test_file.py:12 - CH-2 - update required: yes - reason: add missing-data assertion\n"
     "## Constraint Verification\n| Constraint | Current value / evidence | Classification | Plan preserves? |\n|---|---|---|---|\n| Return type | src/file.py:42 returns str | Preserved | Yes - assert string output |\n"
-    "## Changes\n1. Add null check\n2. Update tests\n"
+    "## Changes\n1. CH-1: Add null check\n2. CH-2: Update tests\n"
     "## Logic Specification\nPseudo-code for exact behavior:\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n"
     "## Tracer Bullet\n`python -c test_one_path.py` verifies the flow end to end\n"
     "## Failure Modes\nNull pointer on missing data\n"
-    "## Test Strategy\nTest happy path and failure case. Input: None. Output: \"\". Assert `normalize_value(None) == \"\"`. `python test.py` returns 0\n"
+    "## Test Strategy\nT-1: Test happy path and failure case. Input: None. Output: \"\". Assert `normalize_value(None) == \"\"`. `python test.py` returns 0\n"
     "## Devil's Advocate\n"
     "- P1 literal attack: If implementer changes return type, constraint table and assertion fail. Fix: preserve str return.\n"
     "- P2 edge attack: Empty string input could be treated as None. Fix: pseudo-code returns raw for non-None.\n"
@@ -118,6 +118,47 @@ class TestIntegrationStandard:
         code, output = run_checker(text, "standard")
         assert code != 0
 
+    def test_compact_standard_contract_passes(self):
+        text = "\n".join([
+            "# Fix Tenant Feature Flag Cache Isolation",
+            "## Outcome and Scope",
+            "- SC-1: Returns only flags for the requested tenant.",
+            "- In scope: cache identity and regression coverage.",
+            "- Unchanged invariant: loader output remains list[str].",
+            "- Blast radius: flags_for callers and tests only.",
+            "## Evidence and Decisions",
+            "- Fact: flags.py:1 stores the local cache.",
+            "- Fact: flags.py:8 keys only by user ID.",
+            "- Contradictions: none after checking source and tests.",
+            "- Decision: follow the existing tenant/user identity pattern.",
+            "- Rejected: cache clearing hides the root cause.",
+            "## Implementation Specification",
+            "- CH-1: Key cache by tuple[str, str].",
+            "- CH-2: Add cross-tenant regression coverage.",
+            "```pseudocode",
+            "flags_for(tenant_id: str, user_id: str) -> list[str]:",
+            "    key = (tenant_id, user_id)",
+            "    if key not in cache: cache[key] = load_flags(tenant_id, user_id)",
+            "    return cache[key]",
+            "```",
+            "## Traceability and Constraints",
+            "| Criterion / constraint | Implementation | Verification | Status / rollback |",
+            "|---|---|---|---|",
+            "| SC-1 | CH-1, CH-2 | T-1 | Modified cache identity; revert |",
+            "| C-1: tenant isolation preserved | CH-1 | T-1 | Preserved |",
+            "flags_for -> flags.py:7",
+            "- direct caller: flags.py:8 - CH-1 - update required: yes - key gains tenant identity.",
+            "## Verification and Risks",
+            "- T-1: Given one user in two tenants, assert each output contains only its tenant.",
+            "- Command: `python -m pytest` returns exit code 0.",
+            "- R-1 P1: Reversed tuple order breaks invalidation. Resolution: use tenant first. Owner: CH-1/T-1.",
+            "- Rollback: revert CH-1 and CH-2; no persistent data or external side effects.",
+            "## Assumptions",
+            "- Low-impact: no external cache exists.",
+        ])
+        code, output = run_checker(text, "standard")
+        assert code == 0, f"Expected pass, got: {output}"
+
 
 class TestWarnFlag:
     def test_warn_flag_with_warnings(self):
@@ -134,6 +175,7 @@ class TestJsonOutput:
             assert "errors" in data
             assert "warnings" in data
             assert "passed" in data
+            assert "coverage" in data
 
     def test_json_passes_on_valid(self):
         code, data = run_checker_json(VALID_TINY_PLAN, "tiny")

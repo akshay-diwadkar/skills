@@ -1,4 +1,4 @@
 interface:
   display_name: "Plan with Senior Dev"
-  short_description: "Adversarial executable implementation planning"
-  default_prompt: "Use $plan-with-senior-dev in Plan Mode only to explore repo evidence, reason through decomposition and constraints, ask at most two blocking questions, produce pseudo-code-level implementation specs with propagation and constraint maps, attack the draft with Devil's Advocate findings, and verify the final plan with the bundled checker. If an approved plan now needs implementation and `$implement-with-senior-dev` is present, hand execution to that skill; otherwise remain planning-only."
+  short_description: "Evidence-driven one-shot implementation plans"
+  default_prompt: "Use $plan-with-senior-dev to produce a repo-evidenced, decision-complete implementation plan with traceable changes, tests, and risks."

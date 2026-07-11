@@ -15,11 +15,21 @@ from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 
 
 SECTION_ALIASES = {
-    "Test Strategy": ("Test Strategy", "Test/Verification"),
-    "Change Propagation": ("Change Propagation", "Change Propagation Map", "Propagation Map"),
-    "Constraint Verification": ("Constraint Verification", "Constraints"),
-    "Devil's Advocate": ("Devil's Advocate", "Attack Findings"),
-    "Logic Specification": ("Logic Specification", "Pseudo-code", "Pseudocode"),
+    "Success Criteria": ("Success Criteria", "Outcome and Scope"),
+    "Current State": ("Current State", "Evidence", "Evidence and Decisions"),
+    "Scope": ("Scope", "Outcome and Scope"),
+    "Approach": ("Approach", "Evidence and Decisions"),
+    "Changes": ("Changes", "Implementation Specification"),
+    "Test Strategy": ("Test Strategy", "Test/Verification", "Verification", "Verification and Risks"),
+    "Rollback Plan": ("Rollback Plan", "Verification and Risks", "Durable Rollback"),
+    "Change Propagation": ("Change Propagation", "Change Propagation Map", "Propagation Map", "Traceability and Constraints"),
+    "Constraint Verification": ("Constraint Verification", "Constraints", "Traceability and Constraints"),
+    "Devil's Advocate": ("Devil's Advocate", "Attack Findings", "Verification and Risks", "Risk Register"),
+    "Logic Specification": ("Logic Specification", "Pseudo-code", "Pseudocode", "Implementation Specification"),
+    "Compatibility": ("Compatibility",),
+    "Migration": ("Migration", "Migration and Rollout"),
+    "Risk": ("Risk", "Risk Register", "Verification and Risks"),
+    "Pre-Mortem Findings": ("Pre-Mortem Findings", "Verification and Risks"),
 }
 
 EXPECTED_WORDS = (
@@ -200,8 +210,9 @@ def extract_fenced_code_blocks(text: str) -> list[tuple[str, str, int]]:
 
 def section(sections: dict[str, Section], name: str) -> Section | None:
     for alias in SECTION_ALIASES.get(name, (name,)):
-        if alias in sections:
-            return sections[alias]
+        for actual_name, section_obj in sections.items():
+            if actual_name.casefold() == alias.casefold():
+                return section_obj
     return None
 
 
@@ -276,7 +287,7 @@ def references_existing_pattern(body: str) -> bool:
 
 
 def is_ordered(body: str) -> bool:
-    return bool(re.search(r"^\s*(?:\d+\.|[-*]\s+(?:First|Then|Next|Finally)\b)", body, flags=re.MULTILINE | re.IGNORECASE))
+    return bool(re.search(r"^\s*(?:\d+\.|[-*]\s+(?:(?:First|Then|Next|Finally)\b|CH-\d+\s*:))", body, flags=re.MULTILINE | re.IGNORECASE))
 
 
 def has_scenario_language(body: str) -> bool:
@@ -320,7 +331,7 @@ def migration_is_specific(body: str) -> bool:
 
 
 def has_risk_tiers(body: str) -> bool:
-    return all(re.search(rf"\b{tier}\b", body) for tier in ("P0", "P1", "P2"))
+    return bool(re.search(r"\bP[012]\b", body))
 
 
 def has_unresolved_p0(body: str) -> bool:
@@ -415,7 +426,21 @@ def validate_attack_findings(sections: dict[str, Section]) -> list[Diagnostic]:
             code="rubric.devils_advocate.missing",
             message="Missing Devil's Advocate or Attack Findings section",
         )]
-    if count_attack_findings(attack.body) < 3:
+    if attack.name == "Verification and Risks":
+        if re.search(r"\bR-\d+\s+P[012]\b", attack.body):
+            return []
+        if re.search(r"\bno material (?:risk|finding|failure)\b", attack.body, flags=re.IGNORECASE):
+            return []
+        return [fail(
+            "rubric.devils_advocate.depth",
+            "Verification and Risks must contain a concrete R-n finding or evidenced no-material-risk result",
+            attack,
+        )]
+    if count_attack_findings(attack.body) < 3 and not re.search(
+        r"fewer than three|no material (?:risk|finding|failure)",
+        attack.body,
+        flags=re.IGNORECASE,
+    ):
         return [fail(
             "rubric.devils_advocate.depth",
             "Devil's Advocate must contain at least 3 concrete findings",
@@ -564,9 +589,7 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
 
     # 2. Doc Updates awareness (Warning)
     has_doc_signals = bool(re.search(r"\b(glossary|context\.md|adr|adrs|context-map\.md)\b", full_text, flags=re.IGNORECASE))
-    # Capitalized multi-word concepts (not starting a line)
-    has_multiword_cap = bool(re.search(r"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+\b", full_text))
-    if (has_doc_signals or has_multiword_cap) and "Doc Updates" not in sections:
+    if has_doc_signals and "Doc Updates" not in sections:
         diagnostics.append(fail(
             "rubric.docs.missing_section",
             "Plan contains domain terminology or documentation references, but missing 'Doc Updates' section",
@@ -575,7 +598,7 @@ def validate_standard(sections: dict[str, Section], full_text: str) -> list[Diag
 
     # 3. Failure-mode check (Warning)
     has_failure_keywords = bool(re.search(r"\b(error|failure|exception|fail|timeout|fallback|retry)\b", full_text, flags=re.IGNORECASE))
-    if "Failure Modes" not in sections and not has_failure_keywords:
+    if "Failure Modes" not in sections and "Verification and Risks" not in sections and not has_failure_keywords:
         diagnostics.append(fail(
             "rubric.failure_modes.missing",
             "Missing 'Failure Modes' section and no error/failure scenarios found in plan body",
@@ -630,7 +653,7 @@ def validate_high_risk(sections: dict[str, Section], full_text: str) -> list[Dia
         diagnostics.append(fail("rubric.migration.specific", "Migration must include validation, dry-run, backfill, dual-read, or rollback detail", migration))
     if risk:
         if not has_risk_tiers(risk.body):
-            diagnostics.append(fail("rubric.risk.tiers", "Risk must use P0, P1, and P2 language", risk))
+            diagnostics.append(fail("rubric.risk.tiers", "Risk must use P0, P1, and P2 severity labels where applicable", risk))
         if has_unresolved_p0(risk.body):
             diagnostics.append(fail("rubric.risk.unresolved_p0", "Risk must not leave P0 unresolved", risk))
         risk_mitigation_body = risk.body

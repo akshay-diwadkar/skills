@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "cases": [
+    {"case": "cases/tiny-null-normalizer.json"},
+    {"case": "cases/tiny-signature-default.json"},
+    {"case": "cases/standard-cross-layer-export.json"},
+    {"case": "cases/standard-root-cause-cache.json"},
+    {"case": "cases/standard-refactor-transitive.json"},
+    {"case": "cases/high-risk-schema-migration.json"},
+    {"case": "cases/high-risk-authorization.json"},
+    {"case": "cases/high-risk-idempotent-webhook.json"}
+  ]
+}

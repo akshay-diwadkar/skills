@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _plan_utils import Diagnostic, read_plan
 import check_plan_shape
 import check_plan_rubric
+from plan_model import coverage_summary, validate_semantics
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,6 +40,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Separate warnings from errors. If set, warnings do not cause exit code 1.",
     )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        help="Resolve file:line citations against this repository root.",
+    )
     return parser.parse_args()
 
 
@@ -54,7 +60,8 @@ def main() -> int:
     shape_diags = check_plan_shape.validate(text, args.tier)
     rubric_diags = check_plan_rubric.validate(text, args.tier)
 
-    all_diags = shape_diags + rubric_diags
+    semantic_diags = validate_semantics(text, args.tier, args.repo_root)
+    all_diags = shape_diags + rubric_diags + semantic_diags
 
     # Deduplicate diagnostics by code and line
     seen = set()
@@ -73,6 +80,7 @@ def main() -> int:
             "errors": [e.to_dict() for e in errors],
             "warnings": [w.to_dict() for w in warnings],
             "passed": len(errors) == 0 and (args.warn or len(warnings) == 0),
+            "coverage": coverage_summary(text),
         }
         print(json.dumps(output, indent=2))
     else:

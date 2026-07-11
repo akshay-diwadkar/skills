@@ -242,8 +242,8 @@ class TestEmptySection:
         errs = shape_errors(text, "tiny")
         assert any("empty" in e.lower() for e in errs)
 
-    def test_section_with_only_code_block_is_empty(self):
+    def test_section_with_only_code_block_is_not_empty(self):
         text = "# Add unit tests for validation scripts\n## Goal\nFix it\n## Change\n```\nsome code\n```\n## Test/Verification\npytest returns 0\n## Assumptions\nLow"
         errs = shape_errors(text, "tiny")
         empty = [e for e in errs if "empty" in e.lower()]
-        assert any("Change" in e for e in empty)
+        assert not any("Change" in e for e in empty)

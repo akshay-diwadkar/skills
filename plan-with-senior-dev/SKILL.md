@@ -1,166 +1,121 @@
 ---
 name: plan-with-senior-dev
-description: Plan code changes, refactors, bug fixes, and migrations as repo-evidenced, adversarial, decision-complete implementation specifications. Use when the user wants senior planning, assumption-challenging, pseudo-code-level implementation detail, dependency and constraint propagation, domain-doc judgment, or concrete verification before implementation.
+description: Plan code changes, refactors, bug fixes, migrations, public contracts, and risky integrations as repo-evidenced, decision-complete implementation specifications. Use when Codex must challenge assumptions, discover the real change boundary, compare repo-compatible approaches, specify exact interfaces and logic, trace success criteria through tests, or produce a one-shot plan that another engineer can implement without inventing behavior.
 ---
 
 # Plan With Senior Dev
 
-Produce executable specifications for code changes. A finished plan must be precise enough that a careful but weak implementer can follow it mechanically without choosing behavior, architecture, public interfaces, migration policy, rollback policy, or test strategy.
+Produce an executable specification, not a plausible outline. A finished plan must let a literal implementer make the same product, architecture, interface, migration, rollback, and test decisions you intended.
 
-This skill is planning-only. In Plan Mode, return a plan and no implementation work. If an approved plan now needs implementation and `implement-with-senior-dev` is present, hand execution to that skill; otherwise remain planning-only.
+Remain planning-only. Explore and run non-mutating checks, but do not edit implementation files. If the user later approves a plan and requests execution, use `implement-with-senior-dev` when available.
 
-## Senior Engineer Disposition
+## Read Before Acting
 
-- Be skeptical: treat every assumption as wrong until repo evidence proves it. Verify the user's framing against code.
-- Be simplicity-first: choose the smallest solution that satisfies all constraints. Refuse speculative abstraction and premature generalization.
-- Be adversarial: write for literal execution. Every ambiguity is a future bug.
-- Be efficiency-maximizing: minimize files touched, rollback complexity, test churn, and reviewer cognitive load.
-- Be push-back ready: when the request is misguided or overbuilt, say so and propose the simpler repo-backed path.
+- Read `references/plan-contract.md` before drafting or validating any plan.
+- Read the matching sections of `references/task-playbooks.md` after classifying the task.
+- Read `references/adversarial-verification.md` after the first complete draft and repair the draft from its findings.
+- Read `references/benchmark-protocol.md` only when evaluating or changing this skill.
 
-## Reference Routing
-
-Read only the references whose condition fires:
-
-- `references/exploration-protocol.md`: before asking on non-trivial codebase work, or when current-state evidence is thin.
-- `references/cognitive-reasoning.md`: for every Standard or High-risk plan; for Tiny plans when cause, scope, or sequencing is not obvious.
-- `references/change-propagation.md`: whenever a function, type, constant, interface, route, schema, command, or shared helper changes.
-- `references/constraint-propagation.md`: whenever behavior, contracts, persisted data, security, performance, compatibility, or business rules can be affected.
-- `references/question-strategy.md`: when product, scope, interface, migration, terminology, compatibility, or test choices remain unresolved after exploration.
-- `references/devils-advocate.md`: before finalizing every plan.
-- `references/pre-mortem.md`: before finalizing Standard or High-risk plans, risky migrations, public contracts, integrations, rollback-sensitive work, or optimistic plans.
-- `references/plan-quality-rubric.md`: before finalizing, choosing plan tier or length, or running `scripts/check_plan.py`.
-- `references/anti-patterns.md`: when a plan feels vague, overbuilt, under-evidenced, optimistic, or likely to leave decisions to the implementer.
-
-## Contract
+## Non-Negotiable Contract
 
 Always:
 
-- Explore the repo before asking questions on non-trivial work.
-- Separate facts from assumptions; cite facts with `file:line` whenever possible.
-- Prefer existing local patterns, helpers, tests, and architecture.
-- Specify exact changed signatures, parameter types, return types, data shapes, and error behavior.
-- Include pseudo-code for every non-trivial logic path: happy path, branches, loops, errors, and boundary behavior.
-- Trace every changed symbol through direct callers, transitive callers, tests, and config surfaces.
-- Enumerate constraints and mark each as preserved, modified, or at risk with evidence.
-- Ask only questions that change scope, behavior, architecture, risk, docs, migrations, public contracts, or tests.
-- Produce exact verification commands and expected results.
+- Explore the repository before asking questions on non-trivial work.
+- Separate cited facts, user decisions, and assumptions. Never present an inference as a fact.
+- Trace at least one real path from request boundary to observable result.
+- Prefer the smallest solution supported by local patterns and constraints.
+- Specify exact changed interfaces, data shapes, logic branches, errors, side effects, and dependency order.
+- Link every success criterion to implementation steps and assertion-level tests.
+- Attack the draft with concrete counterexamples and repair material failures.
+- Give exact verification commands and expected results.
 
 Never:
 
-- Perform implementation, code changes, or execution-style work.
-- Ask the user for facts that code, tests, docs, config, or schemas can answer.
-- Invent provider, factory, adapter, registry, or interface layers unless the repo already uses them or two concrete cases justify them.
-- Leave product behavior, architecture, interfaces, migrations, rollback, or tests to the implementer.
-- Use hedging such as "might want to", "could potentially", "consider implementing", or "as needed".
-- End by asking permission to proceed.
+- Ask for a fact available in code, tests, docs, config, schemas, history, or generated artifacts.
+- Guess a signature, schema, caller, migration rule, provider behavior, or compatibility promise.
+- Add an abstraction without local precedent or two concrete uses that need it.
+- Use headings, keywords, or generic risk lists as a substitute for reasoning.
+- Leave choices to "implementation," "as needed," "where appropriate," or similar language.
+- end with a request for permission to proceed.
 
-## Gates
+## Mandatory Planning State
 
-### 1. Explore
+Maintain this state while working. Do not draft the final plan until every blocking field is resolved.
 
-Gather repo evidence: request surface, nearest source and tests, one real call path, analogous implementations, config/build/schema surfaces, domain docs when business language appears, test coverage for affected paths, and contradictions with current behavior.
+| State | Required content | Blocking when |
+|---|---|---|
+| Intent | Goal, audience, observable success, in/out of scope | User-visible behavior or scope has multiple plausible meanings |
+| Evidence | Current behavior, entrypoint, call path, analogues, tests, config, contradictions | A proposed change depends on an uncited repo claim |
+| Decisions | Candidate approaches, constraints, selected approach, rejected alternatives | Product, public-interface, migration, or security behavior is undecided |
+| Execution | Exact interfaces, logic, propagation, ordering, failure behavior | A literal implementer must invent any material behavior |
+| Verification | Criterion-to-test traceability, commands, rollback, residual risk | A success criterion or at-risk constraint lacks proof |
 
-Completion criterion: current behavior, change boundary, local patterns, invariants, side-effect surfaces, blast radius, test coverage, and remaining unknowns are clear enough to summarize in cited bullets.
+Classify every statement as one of:
 
-### 2. Reason
+- `Fact`: verified with `file:line`, command output, or authoritative documentation.
+- `Decision`: selected by the user or forced by cited constraints and local precedent.
+- `Assumption`: not verified; label impact as low or blocking.
 
-Decompose before planning. Identify atomic sub-problems, root cause for bugs/refactors, dependencies, constraints, 2-3 candidate approaches, eliminated approaches, selected approach, and dependency order.
+Resolve blocking assumptions before finalization. Keep only low-impact, reversible assumptions in the final plan.
 
-Completion criterion: the chosen approach is the simplest repo-backed option that satisfies every known constraint with the least propagation.
+## Eight Gates
 
-### 3. Question
+### 1. Frame
 
-Resolve only unresolved decisions. Ask at most two blocking questions per plan. Each question must include a concrete recommendation backed by repo evidence. If a third question seems necessary, first prove the repo cannot answer it and collapse lower-risk decisions into conservative assumptions.
+Restate the goal as an observable outcome. Define success criteria before choosing a solution. Select the smallest valid tier:
 
-Completion criterion: every implementation-relevant branch has an owner decision, repo-backed default, explicit assumption, or out-of-scope call.
+- Tiny: local, reversible, one behavior, no durable or public effect.
+- Standard: default for multi-file, multi-layer, unclear-cause, or architectural work.
+- High-Risk: persisted data, public contracts, auth/security, payments, concurrency, migrations, external effects, or hard rollback.
 
-### 4. Plan
+### 2. Prove Current State
 
-Write the executable specification. Order changes by dependency: types/schemas/interfaces, core logic, public surface/orchestration, tests, docs/migrations/release notes.
+Inspect repository guidance, the nearest implementation and tests, one real call path, analogous implementations, direct and transitive references, configuration, schemas, generated surfaces, and domain docs when relevant.
 
-Completion criterion: the plan contains exact signatures, pseudo-code, propagation map, constraints, test assertions, rollback, and assumptions scaled to tier.
+Stop only when current behavior, change boundary, invariants, side effects, blast radius, test gaps, and contradictions are known. Cite facts with `file:line`; cite commands with their relevant result.
 
-### 5. Attack
+### 3. Model the Problem
 
-Switch to Devil's Advocate. Find at least three concrete failure modes across literal interpretation, missing edge cases, dependency surprises, concurrency/ordering, partial failure, and scale. Fix the plan or explicitly accept each risk. P0 findings must modify the plan before finalization.
+Decompose the request into atomic responsibilities with inputs, outputs, constraints, and unknowns. For bugs and refactors, identify the smallest repo-backed root cause and reject symptom-only patches unless containment is explicitly requested.
 
-Completion criterion: every attack finding has a scenario, why the draft failed, and a fix or accepted risk.
+Build a dependency graph covering direct callers, transitive consumers, tests/fixtures, config, schemas, jobs, generated clients, deployment hooks, and documentation contracts.
 
-### 6. Verify
+### 4. Decide
 
-Audit the final draft against the tier. Run `scripts/check_plan.py` when the plan exists as a draft file or can be piped through stdin.
+Generate 2-3 concrete approaches. Eliminate an approach when it violates a constraint, expands propagation unnecessarily, diverges from local patterns without benefit, or creates speculative abstraction.
 
-Completion criterion: claims are cited or marked assumptions; scope, constraints, propagation, invariants, blast radius, side effects, failure behavior, tests, rollback, docs, and assumptions are explicit; no filler or hedging remains.
+Choose the smallest correct approach. Record why it wins and why the nearest alternative loses. If a blocking product or durable-interface decision remains, ask one focused question with a recommendation. Ask at most two blocking questions in total.
 
-## Task Tiers
+### 5. Specify
 
-### Tiny
+Write exact signatures, types, schemas, commands, events, outputs, validation, error behavior, side effects, ordering, idempotency, and boundary behavior. Include typed pseudocode for non-trivial logic.
 
-Use for a single-file, single-behavior, reversible change with no public API, schema, migration, auth, billing, concurrency, cross-service, or durable domain effect.
+Order implementation by dependency: contracts/data foundations, core logic, orchestration/public surface, tests/fixtures, docs/release operations.
 
-Final plan shape:
+### 6. Trace
 
-```markdown
-# [Specific Plan Title]
+For Standard and High-Risk plans, assign stable IDs:
 
-## Goal
-## Current State
-## Change
-## Test/Verification
-## Devil's Advocate
-## Assumptions
-```
+- `SC-n`: success criterion.
+- `CH-n`: implementation change.
+- `T-n`: test or verification case.
+- `C-n`: constraint.
+- `R-n`: material risk.
 
-`Change` must include exact behavior and signatures when any function changes. `Test/Verification` must include at least one exact assertion or input/output pair. `Devil's Advocate` can be compact, but must name real failure checks or why no material risk exists.
+Map every `SC` to at least one `CH` and one `T`. Map every modified or at-risk `C` to a `CH`, a `T`, and rollback when the effect is durable. Map every changed symbol and affected file to a `CH`.
 
-### Standard
+### 7. Attack and Repair
 
-Use for default feature work, bug fixes with unclear cause, refactors, and changes touching more than one layer.
+Use `references/adversarial-verification.md`. Try literal execution, counterexamples, legacy data, permissions, empty values, retries, duplication, interleaving, partial failure, dependency drift, and scale.
 
-Final plan shape:
+Each finding must contain a concrete scenario, the draft defect, consequence, severity, and resolution. Repair P0/P1 findings in the owning plan section; do not merely list them.
 
-```markdown
-# [Specific Plan Title]
+### 8. Validate and Compress
 
-## Goal
-## Success Criteria
-## Current State
-## Scope
-## Reasoning Summary
-## Approach
-## Change Propagation Map
-## Constraint Verification
-## Changes (Dependency Order)
-## Logic Specification
-## Tracer Bullet
-## Failure Modes
-## Test Strategy
-## Devil's Advocate
-## Rollback Plan
-## Assumptions
-## Doc Updates
-```
+Run `python scripts/check_plan.py --tier <tier> --repo-root <repo> -` when possible. Treat a pass as necessary, never sufficient.
 
-Keep sections brief but decision-complete. `Logic Specification` must include pseudo-code with exact function/method signatures, parameter types, return types, branches, and error paths. `Test Strategy` must include assertion-level cases with exact inputs, outputs, and boundary values.
+Perform the final audit from `references/plan-contract.md`. Remove repetition and no-op sections only after traceability and failure behavior remain explicit. Return the decision-complete plan without asking to proceed.
 
-### High-Risk
+## Domain Documentation
 
-Use when the plan touches persisted data, public contracts, security/auth, payments, external integrations, concurrency, migrations, overloaded domain terms, or hard-to-undo rollout behavior.
-
-Use the Standard shape plus:
-
-- `## Compatibility`
-- `## Migration`
-- `## Risk`
-- `## Pre-Mortem Findings`
-
-Every P0 and P1 risk must include `Action:`. No unresolved P0 risk may remain. Rollback must cover code, data, and external side effects.
-
-## Domain Docs
-
-Check existing domain docs before planning when the request introduces or reuses business language.
-
-- `CONTEXT.md`: glossary only. Add or update a term when the session resolves canonical language, rejects a synonym, or fixes an overloaded concept.
-- ADRs: durable tradeoffs only. Recommend or add one only when the decision is hard to reverse, surprising without context, and the result of a real tradeoff.
-
-Do not put APIs, file paths, implementation details, acceptance criteria, or planning notes in `CONTEXT.md`.
+Inspect existing domain docs when business terms appear. Keep `CONTEXT.md` glossary-only. Recommend an ADR only for a durable, surprising, hard-to-reverse tradeoff. Do not put file paths, APIs, acceptance criteria, or implementation notes into domain glossaries.
