@@ -1,2 +1,0 @@
-CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT NULL);
-INSERT INTO orders VALUES ('legacy', NULL);
