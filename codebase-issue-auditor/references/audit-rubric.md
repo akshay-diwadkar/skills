@@ -24,6 +24,39 @@ Accept a candidate only when it has all of these:
 
 Reject candidates that require guessing about product intent, hidden production state, unavailable logs, or unobserved user behavior unless the local code creates a credible failure path.
 
+## Cross-Cutting & Deep Analysis Evidence
+
+Deep analysis findings from `deep-analysis-patterns.md` must meet the standard evidence gate above AND the additional requirements below.
+
+### Cross-file evidence requirement
+
+Every deep analysis finding must cite evidence from at least two files or two distinct system boundaries. Single-file issues are already covered by the standard coverage matrix passes. If the entire finding is contained in one file, it belongs in a standard category pass, not the deep analysis.
+
+### Minimum evidence bar by pattern
+
+- Semantic contract drift: show both the changed contract (source, type, or behavior) AND at least one mismatched call-site or test. A changed function without a broken caller is not a finding.
+- Implicit ordering dependencies: show two or more operations whose order matters AND the absence of an enforcement mechanism. Sequential code that happens to be ordered is not a finding.
+- Error swallowing: show the catch or fallback AND the code path where no caller, user, or operator can detect the failure. Intentional silent handling with a clear comment or design rationale is a reject.
+- Stale cross-references: show the reference on one side AND the missing definition or consumer on the other. Dead CSS in a component library is a reject.
+- Temporal coupling: show the shared mutable state AND the concurrent access path AND the absence of synchronization. Single-threaded code with no concurrent entry is not a race condition.
+- Boundary mismatches: show the encoding or format on the producing side AND the different assumption on the consuming side AND a concrete value that would be corrupted.
+- Default value traps: show the fallback mechanism AND a legitimate input value it would override AND the resulting incorrect behavior.
+- Observability gaps: show the diagnostic mechanism AND the gap between what it claims to verify and what it actually verifies.
+- Dependency graph shadows: show the import in production code AND the dependency's absence from or incorrect position in the manifest.
+- Incomplete lifecycle: show the resource acquisition AND a concrete code path where the release does not execute. Resources managed by framework lifecycle guarantees that apply here are a reject.
+- Invariant violations: show the boundary assertion or type AND the concrete mismatch with actual data crossing the boundary. Type assertions followed by immediate validation are a reject.
+- Git-history signals: show the historical signal AND a concrete current-state risk. High churn alone is not a finding; high churn plus low coverage plus active bugs IS a finding.
+
+### False-positive guardrails
+
+Reject deep analysis candidates when:
+
+- the pattern matches syntactically but the code has an explicit guard, comment, or design rationale that makes the pattern intentional;
+- the affected code path is dead, unreachable, or behind a feature flag that is permanently off;
+- a framework or runtime guarantee makes the theoretical issue impossible in practice (e.g., single-threaded event loop eliminates a race condition, GC eliminates a resource leak);
+- the evidence comes from test-only code, generated code, or vendored third-party code;
+- the finding duplicates a candidate already raised by a standard coverage pass.
+
 ## Ecosystem Optimization Evidence
 
 Ecosystem optimization findings are valid only when local framework, package, runtime, or tool usage leaves a documented capability unused or misconfigured.

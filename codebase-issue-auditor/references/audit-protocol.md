@@ -51,6 +51,29 @@ Audit through these passes. For each pass, record accepted candidates and reject
 
 A pass is complete when the main files and configs for that category have been inspected, relevant commands have been run when cheap and safe, and each plausible candidate has an evidence or reject entry.
 
+## Deep Analysis Pass
+
+Run after the standard coverage matrix passes are complete. Read `deep-analysis-patterns.md` and apply the patterns using the risk map, ecosystem inventory, and repo frame already built by this protocol.
+
+These patterns target cross-cutting issues invisible in single-file review:
+
+- semantic contract drift: function contracts that changed while callers still assume the old behavior;
+- implicit ordering dependencies: initialization, middleware, migration, or event sequences that break silently on reorder;
+- error swallowing and silent degradation: catch blocks, fallbacks, and error boundaries that consume failures no caller or operator can detect;
+- stale cross-references and phantom dependencies: config, env vars, feature flags, routes, or CSS classes referenced on one side but missing on the other;
+- temporal coupling and race conditions: non-atomic read-modify-write, TOCTOU, missing awaits, shared mutable state without synchronization;
+- boundary and encoding mismatches: serialization asymmetry, charset assumptions, timezone inconsistencies, and numeric precision loss across system boundaries;
+- default value traps: fallbacks that silently override legitimate falsy or zero values;
+- observability gaps and misleading diagnostics: health checks, logs, metrics, and error messages that give false confidence;
+- build and dependency graph shadows: undeclared transitive dependencies, devDependencies in production paths, stale lockfiles, and circular imports;
+- incomplete lifecycle management: resources acquired but not released on error, cancellation, or unmount paths;
+- invariant violations at boundaries: type assertions, validation gaps, and schema drift that let invalid data cross module boundaries;
+- git-history signals: hotspot files with high churn and low coverage, patch stacking, stale TODOs, and ownership gaps.
+
+For each selected pattern, record candidates in the candidate ledger with the pattern name as metadata. Deep analysis candidates must cite evidence from at least two files or two distinct system boundaries. Record explicit reject entries for patterns investigated but found clean.
+
+The deep analysis pass is complete when every pattern relevant to the codebase has been investigated and each has either an accepted candidate or a reject reason.
+
 ## Candidate Ledger
 
 Track every plausible finding until it is accepted or rejected:

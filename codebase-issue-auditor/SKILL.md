@@ -32,7 +32,8 @@ Audit a local codebase and turn concrete findings into GitHub issue drafts. Opti
    - Prioritize the user's stated categories and risk areas in the coverage matrix, while still recording reject reasons for other high-risk areas found during framing.
    - Use adjacent skills only when they match a candidate type: `diagnose` for suspected failing behavior, `improve-codebase-architecture` for architectural friction, `to-issues` for converting an approved plan into vertical slices, and `triage` for applying the repo's issue-state vocabulary.
    - If local ecosystem inventory reveals a concrete framework, package, runtime, build tool, test tool, deployment target, or CI/tooling setup that may be misused, read `references/ecosystem-optimization.md` before using web evidence for that candidate. Do not run ecosystem web research without local evidence first.
-   - Complete this step only when every high-risk area in the coverage matrix has either an accepted candidate finding or a recorded reject reason.
+   - After completing the standard coverage matrix passes, read `references/deep-analysis-patterns.md` and run the deep analysis pass. These patterns target cross-cutting issues invisible in single-file review, such as semantic contract drift, implicit ordering dependencies, silent error degradation, temporal coupling, boundary encoding mismatches, and git-history risk signals. Apply the cross-file evidence requirement and the deep analysis rubric section before promoting candidates.
+   - Complete this step only when every high-risk area in the coverage matrix has either an accepted candidate finding or a recorded reject reason, and every applicable deep analysis pattern has been investigated with results recorded in the candidate or reject ledger.
 
 4. **Draft one issue per root cause**
    - Draft only candidates that pass the default threshold in `references/audit-rubric.md`.
