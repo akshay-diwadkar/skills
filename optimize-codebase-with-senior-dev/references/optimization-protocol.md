@@ -15,18 +15,29 @@ Use this protocol for optimization work from a known target. Keep artifacts in w
 - **Execution record**: authorization, patch scope, behavior checks, baseline reruns, deviations, and keep/narrow/revert decision.
 - **Verification record**: comparable before/after results, regression checks, ecosystem/version evidence, conclusion, and residual risks.
 - **Reject ledger**: rejected or deferred candidates, evidence, reason, and revisit condition.
+- **Repo comprehension map**: repo purpose, domain model, architecture overview, major workflows with entry-to-exit traces, data flow, deployment model, and component interaction map.
+- **Documentation research log**: per-component records of version, doc URLs consulted, specific findings, current state in repo, recommended state per docs, expected benefit, confidence, and compatibility notes.
+- **Optimization surface analysis**: per-component delta between current repo usage and documented capabilities, cross-component boundary opportunities, and domain-specific optimization findings.
+- **ROI-ranked candidate ledger**: tiered list (Quick Win, Strategic Win, Speculative, Rejected) with ROI scores, ordered within each tier by ROI, blast radius, reversibility, and independence.
+- **Plan-with-senior-dev handoff brief**: for each approved candidate, a structured brief containing target, goal, constraints, success criteria, affected files and subsystems, ecosystem evidence, baseline reference, and verification approach formatted for consumption by `plan-with-senior-dev`.
 
 ## Required Sequence
 
-1. Trace the named workflow and identify the likely leverage point.
-2. Build the relevant ecosystem inventory and capability matrix.
-3. Establish a baseline or document why measurement is unavailable.
-4. Generate at least two credible candidates when alternatives exist.
-5. Rank candidates and record rejects before planning implementation.
-6. Implement only with explicit authorization, one measurable candidate at a time.
-7. Re-run behavior checks and the comparable baseline before claiming success.
+1. Trace the named workflow OR, in sweep mode, trace all major workflows and identify likely leverage points.
+2. Build a repo comprehension map covering purpose, domain, architecture, workflows, data flow, deployment, and component interactions.
+3. Build the relevant ecosystem inventory and capability matrix.
+4. Research official documentation for each significant component via web search and URL reading. Record findings in the documentation research log.
+5. Produce the optimization surface analysis by cross-referencing actual repo usage against documented capabilities, including cross-component boundary opportunities.
+6. Establish a baseline or document why measurement is unavailable.
+7. Generate at least two credible candidates when alternatives exist. Score each with the ROI formula and assign to tiers.
+8. Rank candidates within tiers and record rejects before planning implementation.
+9. For each approved candidate, produce a plan-with-senior-dev handoff brief. Recommend invoking `plan-with-senior-dev` for Strategic Win candidates.
+10. Implement only with explicit authorization, one measurable candidate at a time.
+11. Re-run behavior checks and the comparable baseline before claiming success.
 
 Do not skip ecosystem inventory merely because the likely change appears to be local code. A framework default, package capability, build transform, ORM behavior, or runtime mode may define the actual leverage point.
+
+Do not skip documentation research. The delta between what the repo does and what official docs recommend is often the highest-ROI optimization surface.
 
 ## Optimization Passes
 

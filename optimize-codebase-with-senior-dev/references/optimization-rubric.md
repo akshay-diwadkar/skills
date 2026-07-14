@@ -58,6 +58,79 @@ Prefer the first option that passes the threshold:
 
 This order is a comparison discipline, not an automatic winner. Reject a native capability when it obscures required behavior, performs worse for the workload, lacks observability, or creates unacceptable coupling.
 
+## ROI Scoring and Tiered Ranking
+
+After scoring each candidate on the standard dimensions, compute a qualitative ROI score to produce a ranked, tiered list.
+
+### ROI Formula
+
+ROI = (Impact × Confidence) / (Effort × Risk)
+
+All factors use the dimension scores mapped to numeric weights:
+- high = 3, medium = 2, low = 1
+
+For dimensions where lower is better (Effort, Risk), the raw score is used as a cost multiplier. Higher ROI values indicate better return.
+
+Example: A candidate with Impact=high(3), Confidence=high(3), Effort=low(1), Risk=low(1) scores ROI = 9.0 — a strong quick win. A candidate with Impact=high(3), Confidence=medium(2), Effort=high(3), Risk=medium(2) scores ROI = 1.0 — a strategic investment requiring justification.
+
+### Tier Definitions
+
+Assign each candidate to exactly one tier based on ROI score and qualitative judgment:
+
+| Tier | ROI Range | Characteristics | Action |
+| --- | --- | --- | --- |
+| **Quick Win** | ROI ≥ 4.0 | High impact, low effort, low risk. Can be implemented independently and verified immediately. | Recommend first. Implement in any order. |
+| **Strategic Win** | 1.5 ≤ ROI < 4.0 | High impact but requires meaningful effort, planning, or carries moderate risk. Worth doing but needs a proper plan. | Recommend after quick wins. Hand off to `plan-with-senior-dev` for implementation planning. |
+| **Speculative** | 0.5 ≤ ROI < 1.5 | Uncertain benefit, high effort, or low confidence. Could pay off but evidence is incomplete. | Present with caveats. Recommend further investigation or measurement before committing. |
+| **Rejected** | ROI < 0.5 or fails threshold | Low benefit relative to cost, unsupported by evidence, version-incompatible, or unacceptable risk. | Move to reject ledger with reason and revisit condition. |
+
+### Ranked Ledger Format
+
+Present the ranked candidates as an ordered list within each tier:
+
+```
+## Quick Wins (implement first)
+
+### QW-1: {title}
+- **What changes**: {concrete description of the change}
+- **Why it helps**: {mechanism of improvement, linked to evidence}
+- **Expected benefit**: {quantified or bounded estimate}
+- **Effort**: {low/medium — specific: e.g., 'one config change' or '~50 lines across 2 files'}
+- **Risk**: {low — specific: e.g., 'fully reversible, no behavior change'}
+- **Evidence**: {doc URL, profile data, or code path reference}
+- **ROI Score**: {numeric}
+
+## Strategic Wins (plan then implement)
+
+### SW-1: {title}
+- {same fields as above}
+- **Planning notes**: {what plan-with-senior-dev should focus on}
+
+## Speculative (investigate further)
+
+### SP-1: {title}
+- {same fields as above}
+- **Missing evidence**: {what needs to be confirmed before promoting}
+
+## Rejected
+
+### RJ-1: {title}
+- **Reason**: {specific reason for rejection}
+- **Revisit when**: {condition under which to reconsider}
+```
+
+### Ordering Within Tiers
+
+Within each tier, order candidates by:
+1. ROI score (descending)
+2. Blast radius (ascending — prefer smaller scope)
+3. Reversibility (most reversible first)
+4. Independence (candidates with no dependencies on other candidates first)
+
+### Sweep Mode Ranking
+
+When running in broad sweep mode (no specific target), present the tiered list as a comprehensive optimization roadmap. Group related candidates when they share an affected subsystem but keep them independently implementable. Note dependencies between candidates when one enables or blocks another.
+
 ## Acceptance Criteria for a Plan
 
 An acceptable plan has:

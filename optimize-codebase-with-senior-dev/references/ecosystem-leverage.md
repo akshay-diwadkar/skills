@@ -9,6 +9,7 @@ Use this reference after the optimization target is known and a relevant framewo
 - Evidence order
 - Dependency rules
 - Optimization passes
+- Cross-component optimization
 - Compatibility and operational gates
 
 ## Ecosystem Inventory
@@ -106,6 +107,62 @@ Inspect critical path, native caching, cache keys, artifacts, job dependencies, 
 ### Deployment and Platform
 
 Inspect platform-native build caching, regions, edge/serverless modes, cold starts, connection constraints, image layers, autoscaling, health checks, compression/CDN behavior, observability, and rollback support. Confirm local recommendations match the actual deployment target.
+
+## Cross-Component Optimization
+
+Optimizations at component boundaries often yield higher ROI than optimizing individual components in isolation. After completing the single-component inventory, analyze interaction patterns.
+
+### Interaction Inventory
+
+For each pair of components on the target path, record:
+
+| Field | Content |
+| --- | --- |
+| Components | The two interacting components and their roles |
+| Boundary type | Data handoff, API call, file I/O, serialization, shared state, event, queue, or network |
+| Current pattern | How data or control flows between them now |
+| Serialization format | What format crosses the boundary (JSON, Pickle, Parquet, Protobuf, Arrow, CSV, custom) |
+| Volume and frequency | Data size, request rate, or batch size at the boundary |
+| Bottleneck evidence | Profiling, timing, or code-path evidence of friction at this boundary |
+
+### Common Cross-Component Optimization Patterns
+
+- **Serialization format mismatch**: Components that serialize to one format and immediately deserialize in another. Look for opportunities to use a shared in-memory or columnar format (e.g., Arrow between Pandas and Spark, Parquet between training and inference).
+- **Redundant data transformation**: Data transformed into an intermediate representation that could be skipped. Look for chains like read CSV → parse → convert DataFrame → serialize → deserialize → convert again.
+- **Connection and client reuse**: Components that create new connections or client instances per request when persistent connections, connection pools, or shared clients are supported.
+- **Batch size mismatch**: A producer generating records one at a time while the consumer supports batch ingestion, or vice versa.
+- **Duplicate computation**: Two components independently computing the same derived value when one could pass it to the other.
+- **Schema enforcement at wrong boundary**: Validation happening at every hop instead of once at ingestion.
+- **Orchestration overhead**: An orchestrator polling or synchronously waiting when event-driven or async handoff is supported.
+- **Infrastructure co-location**: Components that exchange large data volumes running in different regions, zones, or processes when co-location is supported.
+
+### ML + Data Engineering Boundaries
+
+When ML frameworks interact with data engineering infrastructure:
+
+- Check if the training framework supports reading directly from the data platform's native format (e.g., AutoGluon reading Parquet from S3 instead of loading via Pandas from a database).
+- Check if distributed training can leverage the data platform's parallelism (e.g., Spark distributing AutoGluon training across workers).
+- Check if model artifacts can be stored in a format that eliminates conversion at inference time.
+- Check if feature engineering can be pushed down to the data platform instead of running in Python.
+- Check if the inference pipeline can batch requests to amortize model loading cost.
+
+### Web + Database Boundaries
+
+When web frameworks interact with databases or caches:
+
+- Check if the ORM supports batching, prefetching, or dataloader patterns to eliminate N+1 queries.
+- Check if the framework supports response streaming to avoid buffering large database results.
+- Check if the cache layer can serve stale data while revalidating to reduce tail latency.
+- Check if database connection pooling is configured to match the web server's concurrency model.
+
+### Build + Test + CI Boundaries
+
+When build, test, and CI systems interact:
+
+- Check if build artifacts can be shared between CI jobs instead of rebuilding.
+- Check if test runner supports running only tests affected by changed files.
+- Check if the CI platform's native caching can replace custom cache scripts.
+- Check if the build output format is optimal for the deployment target.
 
 ## Compatibility and Operational Gates
 
