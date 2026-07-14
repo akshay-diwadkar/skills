@@ -16,7 +16,6 @@ Remain planning-only. Explore and run non-mutating checks, but do not edit imple
 - Read the matching sections of `references/task-playbooks.md` after classifying the task.
 - Read `references/worked-examples.md` for the matching tier before writing the first draft.
 - Read `references/adversarial-verification.md` after the first complete draft and repair the draft from its findings.
-- Read `references/benchmark-protocol.md` only when evaluating or changing this skill.
 
 ## Non-Negotiable Contract
 
