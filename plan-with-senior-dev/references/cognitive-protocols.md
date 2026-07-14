@@ -151,7 +151,7 @@ Standard and High-Risk plans, any time a function, type, schema, or config key c
 ## Adversarial Thinking Protocol
 
 ### When to use
-Gate 7 (Attack and Repair) for every plan.
+Gate 6 (Attack and Repair) for every plan.
 
 ### Steps
 
@@ -201,7 +201,7 @@ Gate 7 (Attack and Repair) for every plan.
 ## Decision Completeness Check
 
 ### When to use
-Gate 8 (Validate and Compress) for every plan, before finalization.
+Gate 7 (Validate and Compress) for every plan, before finalization.
 
 ### Steps
 
