@@ -14,6 +14,8 @@
 # Tracked skill folders
 !create-diagram/
 !create-diagram/**
+!design-codebase-with-senior-dev/
+!design-codebase-with-senior-dev/**
 !plan-with-senior-dev/
 !plan-with-senior-dev/**
 !plan-with-senior-dev/scripts/*.py

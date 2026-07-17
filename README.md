@@ -1,6 +1,6 @@
 # Skills
 
-Agent skills for AI coding assistants. This repository tracks a small set of reusable skills for diagramming, planning, auditing, and GitHub issue planning.
+Agent skills for AI coding assistants. This repository tracks reusable skills for diagramming, planning, auditing, codebase design, implementation, optimization, and GitHub issue planning.
 
 
 ## Install
@@ -9,6 +9,7 @@ Install individual skills with the `npx skills` CLI:
 
 ```bash
 npx skills add akshay-diwadkar/skills --skill create-diagram
+npx skills add akshay-diwadkar/skills --skill design-codebase-with-senior-dev
 npx skills add akshay-diwadkar/skills --skill plan-with-senior-dev
 npx skills add akshay-diwadkar/skills --skill codebase-issue-auditor
 npx skills add akshay-diwadkar/skills --skill github-issue-planner
@@ -23,6 +24,7 @@ git clone https://github.com/akshay-diwadkar/skills.git
 cd skills
 mkdir -p ~/.agents/skills
 ln -s "$PWD/create-diagram" ~/.agents/skills/
+ln -s "$PWD/design-codebase-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/plan-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/codebase-issue-auditor" ~/.agents/skills/
 ln -s "$PWD/github-issue-planner" ~/.agents/skills/
@@ -33,6 +35,10 @@ ln -s "$PWD/github-issue-planner" ~/.agents/skills/
 ### `create-diagram`
 
 Question-first diagram workflow for architecture maps, workflow visualizations, relationship graphs, and self-contained HTML artifacts. The skill explores the repo, asks only unresolved diagram questions, plans the output, builds through the bundled HTML template, validates the generated file, and verifies browser behavior.
+
+### `design-codebase-with-senior-dev`
+
+Evidence-driven architectural assessment and safe restructuring workflow. It determines whether a design change is justified, selects the smallest sufficient boundary or pattern, and defines or executes an incremental behavior-preserving migration. Unlike `codebase-issue-auditor`, it does not broadly discover issues; it starts from a scoped concern and identifies its structural cause and target design. Unlike `plan-with-senior-dev`, it decides architecture, ownership, dependency direction, pattern admission or removal, and migration shape rather than turning an approved design into a file/symbol-level implementation specification.
 
 ### `plan-with-senior-dev`
 
@@ -114,4 +120,4 @@ python create-diagram/scripts/browser_smoke.py
 
 ## Tracking Policy
 
-The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, `skills-lock.json`, CI workflow files, and the four tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
+The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, `skills-lock.json`, CI workflow files, and the tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.

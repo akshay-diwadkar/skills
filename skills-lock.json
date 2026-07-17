@@ -13,6 +13,12 @@
       "skillPath": "create-diagram/SKILL.md",
       "computedHash": "dba872de71019d9c49245caa42f3025a8f19ac6aaeb6ac68ca31cd3ff0d3e504"
     },
+    "design-codebase-with-senior-dev": {
+      "source": "akshay-diwadkar/skills",
+      "sourceType": "github",
+      "skillPath": "design-codebase-with-senior-dev/SKILL.md",
+      "computedHash": "81a23db9723af4298a2b5255a3bf76cbf3f1659e45cbc8a8aeef05d913c4587b"
+    },
     "github-issue-planner": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",

@@ -6,6 +6,7 @@ on:
     paths:
       - "codebase-issue-auditor/**"
       - "create-diagram/**"
+      - "design-codebase-with-senior-dev/**"
       - "github-issue-planner/**"
       - "implement-with-senior-dev/**"
       - "optimize-codebase-with-senior-dev/**"
@@ -20,6 +21,7 @@ on:
     paths:
       - "codebase-issue-auditor/**"
       - "create-diagram/**"
+      - "design-codebase-with-senior-dev/**"
       - "github-issue-planner/**"
       - "implement-with-senior-dev/**"
       - "optimize-codebase-with-senior-dev/**"
