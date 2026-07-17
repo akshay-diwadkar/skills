@@ -8,11 +8,17 @@ Agent skills for AI coding assistants. This repository tracks reusable skills fo
 Install individual skills with the `npx skills` CLI:
 
 ```bash
+# Interactive menu — select the skills you want
+npx skills add akshay-diwadkar/skills
+
+# Or install individual skills by name
 npx skills add akshay-diwadkar/skills --skill create-diagram
 npx skills add akshay-diwadkar/skills --skill design-codebase-with-senior-dev
 npx skills add akshay-diwadkar/skills --skill plan-with-senior-dev
 npx skills add akshay-diwadkar/skills --skill codebase-issue-auditor
 npx skills add akshay-diwadkar/skills --skill github-issue-planner
+npx skills add akshay-diwadkar/skills --skill implement-with-senior-dev
+npx skills add akshay-diwadkar/skills --skill optimize-codebase-with-senior-dev
 ```
 
 Restart your agent after installing new skills.
@@ -28,6 +34,8 @@ ln -s "$PWD/design-codebase-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/plan-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/codebase-issue-auditor" ~/.agents/skills/
 ln -s "$PWD/github-issue-planner" ~/.agents/skills/
+ln -s "$PWD/implement-with-senior-dev" ~/.agents/skills/
+ln -s "$PWD/optimize-codebase-with-senior-dev" ~/.agents/skills/
 ```
 
 ## Skill Catalog
@@ -51,6 +59,14 @@ Local repository audit workflow for evidence-backed bugs, risks, test gaps, arch
 ### `github-issue-planner`
 
 Fetches open non-PR GitHub issues, treats the local checkout as the implementation source of truth, and writes local Markdown resolution plans. GitHub is read-only by default. Branch creation, commits, pull requests, and post-merge follow-up happen only when the user explicitly opts into that lifecycle.
+
+### `implement-with-senior-dev`
+
+Safely implement an approved plan as a minimal patch. The skill treats the plan as a contract, preserves existing patterns, runs focused verification, and reports exactly what changed. Refuses vague plans instead of inventing missing behavior.
+
+### `optimize-codebase-with-senior-dev`
+
+Evidence-backed codebase optimization workflow with targeted and sweep modes. The skill deeply comprehends the repo, researches official documentation for underexploited capabilities, produces an ROI-ranked optimization ledger, and generates structured briefs for `plan-with-senior-dev`.
 
 ## GitHub Setup
 
@@ -117,7 +133,3 @@ python -m pip install playwright
 python -m playwright install chromium
 python create-diagram/scripts/browser_smoke.py
 ```
-
-## Tracking Policy
-
-The `.gitignore` ignores everything by default, then explicitly un-ignores this README, `pyproject.toml`, `skills-lock.json`, CI workflow files, and the tracked skill folders. Generated payloads, caches, real `.env` files, root issue output such as `issues.json`, and unrelated local skills remain outside version control.
