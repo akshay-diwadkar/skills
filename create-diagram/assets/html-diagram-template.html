@@ -28,7 +28,7 @@
     <h2 id="wt-card-title">Step title</h2>
     <p id="wt-card-desc">Step description</p>
     <div id="wt-card-nav">
-      <button id="wt-card-prev" title="Previous step">&lt;</button>
+      <button id="wt-card-prev" title="Previous step">←</button>
       <button id="wt-card-next" title="Next step">&gt;</button>
     </div>
   </aside>
@@ -1949,6 +1949,7 @@ function renderWalkthroughCard() {
     desc.style.display = 'none';
   }
   const isLast = state.walkthroughCurrentStep >= total - 1;
+  document.getElementById('wt-card-prev').textContent = '\u2190';
   document.getElementById('wt-card-prev').disabled = state.walkthroughCurrentStep <= 0;
   const nextBtn = document.getElementById('wt-card-next');
   nextBtn.textContent = isLast ? '\u2713' : '\u2192';
