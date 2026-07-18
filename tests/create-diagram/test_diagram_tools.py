@@ -10,9 +10,11 @@ import unittest
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[1]
+ROOT = REPO_ROOT / "create-diagram"
 SCRIPTS = ROOT / "scripts"
-FIXTURES = ROOT / "test" / "fixtures"
+FIXTURES = DEV_DIR / "fixtures"
 TEMPLATE = ROOT / "assets" / "html-diagram-template.html"
 SKILL_DOC = ROOT / "SKILL.md"
 REFERENCES = ROOT / "references"
@@ -397,7 +399,7 @@ class DiagramToolTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             html_path = Path(tmp) / "smoke.html"
             commands = [
-                [sys.executable, str(SCRIPTS / "check_template_refs.py")],
+                [sys.executable, str(DEV_DIR / "check_template_refs.py")],
                 [
                     sys.executable,
                     str(SCRIPTS / "build_diagram.py"),

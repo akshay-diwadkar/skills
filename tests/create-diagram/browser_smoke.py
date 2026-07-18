@@ -11,11 +11,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-import build_diagram
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[1]
+SKILL_ROOT = REPO_ROOT / "create-diagram"
+RUNTIME_SCRIPTS = SKILL_ROOT / "scripts"
+FIXTURE = DEV_DIR / "fixtures" / "complex.json"
+sys.path.insert(0, str(RUNTIME_SCRIPTS))
 
-
-ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / "test" / "fixtures" / "complex.json"
+import build_diagram  # noqa: E402
 
 
 def require_playwright():

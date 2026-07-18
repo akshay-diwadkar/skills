@@ -5,43 +5,43 @@
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "codebase-issue-auditor/SKILL.md",
-      "computedHash": "b66bb2e54d5491eb4dd4bc2441cccf832243dfad2f43db3a8f21413a31c1dd6d"
+      "computedHash": "2ab4732b8bbd88f03b0fc9b139bf8dd236ce51a84c7b97892b1a9f7983c1fdf5"
     },
     "create-diagram": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "create-diagram/SKILL.md",
-      "computedHash": "dba872de71019d9c49245caa42f3025a8f19ac6aaeb6ac68ca31cd3ff0d3e504"
+      "computedHash": "aafd3c4ca11aefafa80fa6678d3a6230a95bc735b80bf724d9bb265597ae104f"
     },
     "design-codebase-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "design-codebase-with-senior-dev/SKILL.md",
-      "computedHash": "81a23db9723af4298a2b5255a3bf76cbf3f1659e45cbc8a8aeef05d913c4587b"
+      "computedHash": "98f2519579e4394b83fd62e4ad05848929a50483f2531309fdb6df7df165fb81"
     },
     "github-issue-planner": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "github-issue-planner/SKILL.md",
-      "computedHash": "34fad8d6710b5427655ab03fcc35ea810b433fbc5de6a76a1789d0803a199332"
+      "computedHash": "1d5c672cf66e5d5eae9914380a2e3210bcd696eccb2629578d6c9d0816362428"
     },
     "implement-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "implement-with-senior-dev/SKILL.md",
-      "computedHash": "23b233b5b21df27ccd3a6f25799e48bc2fada24122e5971dcd1dc6b2be995a60"
+      "computedHash": "3e794eec18fe69cfd65dbec8dfdf0f6de771f875c1010d01144b15918cb12bb6"
     },
     "optimize-codebase-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "optimize-codebase-with-senior-dev/SKILL.md",
-      "computedHash": "94460ab1bbfe2f26e35c1078e74bb995ae734f9d858910a1391fe8bd75bbfb71"
+      "computedHash": "7140623bf8cf6c553e99afdaa1318f6df9646bba2e3b27c3046bea07ae055814"
     },
     "plan-with-senior-dev": {
       "source": "akshay-diwadkar/skills",
       "sourceType": "github",
       "skillPath": "plan-with-senior-dev/SKILL.md",
-      "computedHash": "4b61fe4ecbb456ad6b7395aad08ba63d187a9ff06b76fcbbb1456416c7f2a24c"
+      "computedHash": "21c7bdca2848148d521e42f89c249413e76d81eb830aac72f996d0cce4fc34cf"
     }
   }
 }

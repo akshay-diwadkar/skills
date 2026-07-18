@@ -14,11 +14,13 @@ from pathlib import Path
 from unittest import mock
 
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SKILL_ROOT = REPO_ROOT / "github-issue-planner"
+SCRIPTS_DIR = SKILL_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 SPEC = importlib.util.spec_from_file_location("check_github_env", SCRIPTS_DIR / "check_github_env.py")
-SKILL_PATH = SCRIPTS_DIR.parent / "SKILL.md"
+SKILL_PATH = SKILL_ROOT / "SKILL.md"
 assert SPEC is not None
 checker = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None

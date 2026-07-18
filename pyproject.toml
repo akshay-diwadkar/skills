@@ -15,8 +15,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
 testpaths = [
-  "plan-with-senior-dev/scripts/tests",
-  "create-diagram/test",
-  "tests/codebase-issue-auditor",
-  "github-issue-planner/scripts",
+  "tests",
 ]

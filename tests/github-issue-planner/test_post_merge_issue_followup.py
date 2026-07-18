@@ -9,7 +9,8 @@ import unittest
 from pathlib import Path
 
 
-SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = REPO_ROOT / "github-issue-planner" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 SPEC = importlib.util.spec_from_file_location(

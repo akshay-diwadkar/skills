@@ -12,8 +12,9 @@ import sys
 from pathlib import Path
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_TEMPLATE = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[1]
+DEFAULT_TEMPLATE = REPO_ROOT / "create-diagram" / "assets" / "html-diagram-template.html"
 
 
 # JS built-ins, DOM APIs, globals, and Node.js/runtime names that are
@@ -203,7 +204,7 @@ def main():
         for issue in issues:
             print(issue)
         print("\nAdd the function definition or add the name to EXTERNAL_ALLOWLIST")
-        print("in scripts/check_template_refs.py if it's a valid external reference.")
+        print("in tests/create-diagram/check_template_refs.py if it's a valid external reference.")
         sys.exit(1)
     else:
         print("OK - all function references resolve to definitions.")

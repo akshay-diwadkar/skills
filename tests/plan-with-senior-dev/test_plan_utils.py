@@ -1,8 +1,10 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from _plan_utils import Diagnostic, strip_fenced_code_blocks
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = REPO_ROOT / "plan-with-senior-dev" / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
+from _plan_utils import Diagnostic, strip_fenced_code_blocks  # noqa: E402
 
 
 class TestDiagnostic:

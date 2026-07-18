@@ -13,8 +13,7 @@
 
 # Repository-level development tests (not distributed with skills)
 !tests/
-!tests/codebase-issue-auditor/
-!tests/codebase-issue-auditor/**
+!tests/**
 
 # Tracked skill folders
 !create-diagram/
