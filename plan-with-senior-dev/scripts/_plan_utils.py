@@ -37,11 +37,18 @@ def read_plan(path: str | None) -> str:
 def strip_fenced_code_blocks(text: str) -> str:
     lines = text.splitlines()
     output: list[str] = []
-    in_fence = False
+    fence_character: str | None = None
+    fence_length = 0
     for line in lines:
-        if re.match(r"^\s*```", line):
-            in_fence = not in_fence
+        match = re.match(r"^\s*(`{3,}|~{3,})", line)
+        if match:
+            marker = match.group(1)
+            if fence_character is None:
+                fence_character = marker[0]
+                fence_length = len(marker)
+            elif marker[0] == fence_character and len(marker) >= fence_length:
+                fence_character = None
             output.append("")
             continue
-        output.append("" if in_fence else line)
+        output.append("" if fence_character is not None else line)
     return "\n".join(output)

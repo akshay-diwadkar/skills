@@ -1,22 +1,31 @@
-"""Structured Markdown model and semantic checks for implementation plans."""
+"""Structured Markdown model and repository-grounded checks for v2 plans."""
 
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from _plan_utils import Diagnostic
+from plan_contract import load_contract
 
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})([A-Za-z0-9_-]*)\s*$")
-CITATION_RE = re.compile(
-    r"(?P<path>(?:[A-Za-z]:[\\/])?(?:[A-Za-z0-9_@+ .()~-]+[\\/])*"
-    r"[A-Za-z0-9_@+~()-]+\.[A-Za-z0-9_-]+):(?P<line>\d+)"
+CITATION_RE = re.compile(r"`(?P<path>(?:[A-Za-z]:[\\/])?[^`\r\n]+):(?P<line>\d+)`")
+ID_RE = re.compile(r"\b(?P<id>(?:SC|F|D|CH|T|C|R)-[1-9]\d*)\b")
+ID_DEF_RE = re.compile(r"\b(?P<id>(?:SC|F|D|CH|T|C|R)-[1-9]\d*)(?:\s+P[012])?\s*:")
+FACT_RE = re.compile(
+    r"^- (?P<id>F-[1-9]\d*):\s+`(?P<path>(?:[A-Za-z]:[\\/])?[^`\r\n]+):(?P<line>\d+)`"
+    r"\s+\|\s+anchor:\s+`(?P<anchor>[^`\r\n]+)`\s+\|\s+observation:\s+(?P<observation>.+)$",
+    re.MULTILINE,
 )
-ID_RE = re.compile(r"\b(?P<kind>SC|CH|T|C|R)-(?P<number>[1-9]\d*)\b")
-ID_DEF_RE = re.compile(r"\b(?P<id>(?:SC|CH|T|C|R)-[1-9]\d*)\s*:")
+CHANGE_RE = re.compile(
+    r"^- (?P<id>CH-[1-9]\d*):\s+`(?P<path>[^`\r\n]+)`\s+\|\s+anchor:\s+`(?P<anchor>[^`\r\n]+)`"
+    r"\s+\|\s+status:\s+(?P<status>existing|new)\s+\|\s+change:\s+(?P<change>.+)$",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -36,11 +45,7 @@ class Section:
 
     @property
     def has_content(self) -> bool:
-        for raw_line in self.body.splitlines():
-            line = raw_line.strip()
-            if line and not FENCE_RE.match(raw_line):
-                return True
-        return False
+        return bool(self.body.strip())
 
 
 @dataclass(frozen=True)
@@ -50,12 +55,8 @@ class MarkdownDocument:
     code_blocks: tuple[CodeBlock, ...]
     diagnostics: tuple[Diagnostic, ...]
 
-    def find_section(self, *names: str) -> Section | None:
-        normalized = {name.casefold() for name in names}
-        for item in self.sections:
-            if item.name.casefold() in normalized:
-                return item
-        return None
+    def find_section(self, name: str) -> Section | None:
+        return next((item for item in self.sections if item.name == name), None)
 
 
 def parse_markdown(text: str) -> MarkdownDocument:
@@ -63,7 +64,8 @@ def parse_markdown(text: str) -> MarkdownDocument:
     headings: list[tuple[int, int, str]] = []
     blocks: list[CodeBlock] = []
     diagnostics: list[Diagnostic] = []
-    fence_marker: str | None = None
+    fence_character: str | None = None
+    fence_length = 0
     fence_language = ""
     fence_start = 0
     fence_body_start = 0
@@ -72,30 +74,26 @@ def parse_markdown(text: str) -> MarkdownDocument:
         fence = FENCE_RE.match(line)
         if fence:
             marker = fence.group(1)
-            if fence_marker is None:
-                fence_marker = marker[0]
+            if fence_character is None:
+                fence_character = marker[0]
+                fence_length = len(marker)
                 fence_language = fence.group(2).casefold()
                 fence_start = index
-                fence_body_start = index
-            elif marker[0] == fence_marker:
-                body = "\n".join(lines[fence_body_start:index - 1])
+                fence_body_start = index + 1
+            elif marker[0] == fence_character and len(marker) >= fence_length:
+                body = "\n".join(lines[fence_body_start - 1:index - 1])
                 blocks.append(CodeBlock(fence_language, body, fence_start, index))
-                fence_marker = None
+                fence_character = None
             continue
 
-        if fence_marker is None:
+        if fence_character is None:
             heading = HEADING_RE.match(line)
             if heading:
                 headings.append((index, len(heading.group(1)), heading.group(2).strip()))
 
-    if fence_marker is not None:
-        body = "\n".join(lines[fence_body_start:])
-        blocks.append(CodeBlock(fence_language, body, fence_start, None))
-        diagnostics.append(Diagnostic(
-            code="markdown.fence.unclosed",
-            message="Fenced code block is not closed",
-            line=fence_start,
-        ))
+    if fence_character is not None:
+        blocks.append(CodeBlock(fence_language, "\n".join(lines[fence_body_start - 1:]), fence_start, None))
+        diagnostics.append(Diagnostic("markdown.fence.unclosed", "Fenced code block is not closed", fence_start))
 
     sections: list[Section] = []
     for position, (line_number, level, name) in enumerate(headings):
@@ -105,249 +103,231 @@ def parse_markdown(text: str) -> MarkdownDocument:
                 next_line = candidate_line
                 break
         body = "\n".join(lines[line_number:next_line - 1])
-        sections.append(Section(name=name, level=level, line=line_number, body=body))
+        sections.append(Section(name, level, line_number, body))
 
     return MarkdownDocument(text, tuple(sections), tuple(blocks), tuple(diagnostics))
 
 
-def _section_body(document: MarkdownDocument, *names: str) -> str:
-    found = document.find_section(*names)
-    return found.body if found else ""
-
-
-def _definitions(text: str, kind: str) -> set[str]:
-    return {
-        match.group("id")
-        for match in ID_DEF_RE.finditer(text)
-        if match.group("id").startswith(f"{kind}-")
-    }
+def definitions(text: str, kind: str | None = None) -> set[str]:
+    values = {match.group("id") for match in ID_DEF_RE.finditer(text)}
+    if kind is None:
+        return values
+    return {value for value in values if value.startswith(f"{kind}-")}
 
 
 def _line_for(text: str, needle: str) -> int | None:
-    for index, line in enumerate(text.splitlines(), start=1):
-        if needle in line:
-            return index
-    return None
+    return next((index for index, line in enumerate(text.splitlines(), start=1) if needle in line), None)
 
 
-def _trace_row(body: str, item_id: str) -> str | None:
-    for line in body.splitlines():
-        if item_id in line and re.search(r"\bCH-\d+\b", line) and re.search(r"\bT-\d+\b", line):
-            return line
-    return None
+def _resolve_path(root: Path, raw_path: str) -> tuple[Path | None, str | None]:
+    candidate = Path(raw_path)
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(root)
+    except (OSError, ValueError):
+        return None, f"path points outside repository root: {raw_path}"
+    return resolved, None
+
+
+def _normalized_plan_path(raw_path: str) -> str:
+    normalized = raw_path.replace("\\", "/").casefold()
+    return normalized[2:] if normalized.startswith("./") else normalized
+
+
+def _fact_is_grounded(fact: re.Match[str], repo_root: Path) -> bool:
+    resolved, error = _resolve_path(repo_root.resolve(), fact.group("path"))
+    if error or resolved is None or not resolved.is_file():
+        return False
+    lines = resolved.read_text(encoding="utf-8", errors="replace").splitlines()
+    line_number = int(fact.group("line"))
+    return (
+        1 <= line_number <= len(lines)
+        and fact.group("anchor").casefold() in lines[line_number - 1].casefold()
+    )
 
 
 def _validate_citations(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     root = repo_root.resolve()
-    seen: set[tuple[str, int]] = set()
     for match in CITATION_RE.finditer(document.text):
-        raw_path = match.group("path").strip(" `[]()")
+        raw_path = match.group("path")
         line_number = int(match.group("line"))
-        if raw_path.startswith(("http://", "https://")):
+        resolved, error = _resolve_path(root, raw_path)
+        source_line = _line_for(document.text, match.group(0))
+        if error:
+            diagnostics.append(Diagnostic("semantic.evidence.outside_repo", error, source_line))
             continue
-        key = (raw_path, line_number)
-        if key in seen:
-            continue
-        seen.add(key)
-        candidate = Path(raw_path)
-        if not candidate.is_absolute():
-            candidate = root / candidate
-        try:
-            resolved = candidate.resolve()
-            resolved.relative_to(root)
-        except (OSError, ValueError):
-            diagnostics.append(Diagnostic(
-                code="semantic.evidence.outside_repo",
-                message=f"Citation points outside repository root: {raw_path}:{line_number}",
-                line=_line_for(document.text, match.group(0)),
-            ))
-            continue
+        assert resolved is not None
         if not resolved.is_file():
-            diagnostics.append(Diagnostic(
-                code="semantic.evidence.missing_file",
-                message=f"Cited file does not exist: {raw_path}",
-                line=_line_for(document.text, match.group(0)),
-            ))
+            diagnostics.append(Diagnostic("semantic.evidence.missing_file", f"Cited file does not exist: {raw_path}", source_line))
             continue
-        try:
-            count = sum(1 for _ in resolved.open(encoding="utf-8", errors="replace"))
-        except OSError as exc:
+        source_lines = resolved.read_text(encoding="utf-8", errors="replace").splitlines()
+        if line_number < 1 or line_number > len(source_lines):
             diagnostics.append(Diagnostic(
-                code="semantic.evidence.unreadable",
-                message=f"Cannot read cited file {raw_path}: {exc}",
-            ))
-            continue
-        if line_number < 1 or line_number > max(count, 1):
-            diagnostics.append(Diagnostic(
-                code="semantic.evidence.line_out_of_range",
-                message=f"Citation line {line_number} is outside {raw_path} (1-{count})",
-                line=_line_for(document.text, match.group(0)),
+                "semantic.evidence.line_out_of_range",
+                f"Citation line {line_number} is outside {raw_path} (1-{len(source_lines)})",
+                source_line,
             ))
     return diagnostics
 
 
-def _validate_traceability(document: MarkdownDocument, tier: str) -> list[Diagnostic]:
-    if tier == "tiny":
-        return []
-
+def _validate_facts(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
-    trace_body = _section_body(
-        document,
-        "Traceability and Constraints",
-        "Change Propagation Map",
-        "Change Propagation",
-        "Propagation Map",
-        "Constraint Verification",
-    )
-    verification_body = _section_body(document, "Verification and Risks", "Test Strategy", "Test/Verification")
-    implementation_body = _section_body(
-        document,
-        "Implementation Specification",
-        "Changes",
-        "Logic Specification",
-    )
-
-    success_ids = _definitions(document.text, "SC")
-    change_ids = _definitions(document.text, "CH")
-    test_ids = _definitions(document.text, "T")
-    constraint_ids = _definitions(document.text, "C")
-
-    for kind, values in (("SC", success_ids), ("CH", change_ids), ("T", test_ids)):
-        if not values:
+    root = repo_root.resolve()
+    for fact in FACT_RE.finditer(document.text):
+        raw_path = fact.group("path")
+        line_number = int(fact.group("line"))
+        anchor = fact.group("anchor")
+        resolved, error = _resolve_path(root, raw_path)
+        source_line = _line_for(document.text, fact.group(0))
+        if error or resolved is None or not resolved.is_file():
+            continue
+        lines = resolved.read_text(encoding="utf-8", errors="replace").splitlines()
+        if 1 <= line_number <= len(lines) and anchor.casefold() not in lines[line_number - 1].casefold():
             diagnostics.append(Diagnostic(
-                code=f"semantic.traceability.missing_{kind.casefold()}_ids",
-                message=f"{tier} plans must define stable {kind}-n traceability IDs",
+                "semantic.evidence.anchor_mismatch",
+                f"{fact.group('id')} anchor {anchor!r} is absent from {raw_path}:{line_number}",
+                source_line,
             ))
+    return diagnostics
 
-    for success_id in sorted(success_ids):
-        row = _trace_row(trace_body, success_id)
-        if row is None:
+
+def _validate_changes(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    root = repo_root.resolve()
+    grounded_facts = [fact for fact in FACT_RE.finditer(document.text) if _fact_is_grounded(fact, root)]
+    for change in CHANGE_RE.finditer(document.text):
+        if change.group("status").casefold() == "new":
+            continue
+        raw_path = change.group("path")
+        anchor = change.group("anchor")
+        resolved, error = _resolve_path(root, raw_path)
+        source_line = _line_for(document.text, change.group(0))
+        if error:
+            diagnostics.append(Diagnostic("semantic.change.outside_repo", error, source_line))
+            continue
+        assert resolved is not None
+        if not resolved.is_file():
+            diagnostics.append(Diagnostic("semantic.change.missing_file", f"Existing CH target does not exist: {raw_path}", source_line))
+            continue
+        source = resolved.read_text(encoding="utf-8", errors="replace")
+        if anchor.casefold() not in source.casefold():
             diagnostics.append(Diagnostic(
-                code="semantic.traceability.criterion_unmapped",
-                message=f"{success_id} must map to CH-n and T-n in traceability",
-                line=_line_for(document.text, success_id),
+                "semantic.change.missing_anchor",
+                f"{change.group('id')} existing anchor {anchor!r} is absent from {raw_path}",
+                source_line,
             ))
             continue
-        test_match = re.search(r"\bT-\d+\b", row)
-        change_match = re.search(r"\bCH-\d+\b", row)
-        if change_match and change_match.group(0) not in implementation_body:
+        change_path = _normalized_plan_path(raw_path)
+        change_anchor = anchor.casefold()
+        has_matching_fact = any(
+            _normalized_plan_path(fact.group("path")) == change_path
+            and (
+                change_anchor in fact.group("anchor").casefold()
+                or fact.group("anchor").casefold() in change_anchor
+            )
+            for fact in grounded_facts
+        )
+        if not has_matching_fact:
             diagnostics.append(Diagnostic(
-                code="semantic.traceability.change_missing_implementation",
-                message=f"{change_match.group(0)} is mapped from {success_id} but not defined in implementation",
+                "semantic.change.ungrounded_anchor",
+                f"{change.group('id')} existing anchor {anchor!r} needs a grounded F-n for the same path and anchor",
+                source_line,
             ))
-        if test_match and test_match.group(0) not in verification_body:
-            diagnostics.append(Diagnostic(
-                code="semantic.traceability.test_missing_verification",
-                message=f"{test_match.group(0)} is mapped from {success_id} but not defined in verification",
-            ))
+    return diagnostics
 
-    for constraint_id in sorted(constraint_ids):
-        row = _trace_row(trace_body, constraint_id)
-        if row is None:
-            diagnostics.append(Diagnostic(
-                code="semantic.constraints.unmapped",
-                message=f"{constraint_id} must map to CH-n and T-n",
-                line=_line_for(document.text, constraint_id),
-            ))
-        definition_line = next((line for line in document.text.splitlines() if f"{constraint_id}:" in line), "")
-        if re.search(r"\b(modified|at[- ]risk)\b", definition_line, flags=re.IGNORECASE):
-            if not re.search(r"\b(rollback|revert|restore|disable|forward recovery)\b", trace_body + verification_body, flags=re.IGNORECASE):
-                diagnostics.append(Diagnostic(
-                    code="semantic.constraints.rollback_missing",
-                    message=f"{constraint_id} is modified or at risk but lacks rollback or recovery",
-                ))
 
-    for line_number, line in enumerate(document.text.splitlines(), start=1):
-        if re.search(r"update required\s*:\s*yes", line, flags=re.IGNORECASE) and not re.search(r"\bCH-\d+\b", line):
-            diagnostics.append(Diagnostic(
-                code="semantic.propagation.owner_missing",
-                message="Propagation entry requiring an update must name its CH-n owner",
-                line=line_number,
-            ))
+def _validate_ids_and_traceability(document: MarkdownDocument, tier: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    defined_matches = [match.group("id") for match in ID_DEF_RE.finditer(document.text)]
+    for item_id, count in Counter(defined_matches).items():
+        if count > 1:
+            diagnostics.append(Diagnostic("semantic.ids.duplicate", f"{item_id} is defined {count} times", _line_for(document.text, item_id)))
 
+    defined = set(defined_matches)
+    for reference in {match.group("id") for match in ID_RE.finditer(document.text)} - defined:
+        diagnostics.append(Diagnostic("semantic.ids.orphan_reference", f"{reference} is referenced but not defined", _line_for(document.text, reference)))
+
+    contract = load_contract()
+    for kind in contract["tiers"][tier]["required_ids"]:
+        if not definitions(document.text, kind):
+            diagnostics.append(Diagnostic("semantic.ids.missing_required", f"{tier} plans must define at least one {kind}-n item"))
+
+    trace = document.find_section("Traceability")
+    trace_body = trace.body if trace else ""
+    for criterion in sorted(definitions(document.text, "SC") | definitions(document.text, "C")):
+        row = next(
+            (
+                line
+                for line in trace_body.splitlines()
+                if criterion in line and re.search(r"\bCH-\d+\b", line) and re.search(r"\bT-\d+\b", line)
+            ),
+            "",
+        )
+        if not re.search(r"\bCH-\d+\b", row) or not re.search(r"\bT-\d+\b", row):
+            diagnostics.append(Diagnostic("semantic.traceability.criterion_unmapped", f"{criterion} must map to CH-n and T-n", _line_for(document.text, criterion)))
+    for kind in ("CH", "T"):
+        for item_id in sorted(definitions(document.text, kind)):
+            if item_id not in trace_body:
+                diagnostics.append(Diagnostic("semantic.traceability.unmapped_item", f"{item_id} must appear in Traceability", _line_for(document.text, item_id)))
     return diagnostics
 
 
 def _validate_risks(document: MarkdownDocument) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     for line_number, line in enumerate(document.text.splitlines(), start=1):
-        if not re.search(r"\bR-\d+\b", line) or not re.search(r"\bP[01]\b", line):
+        match = re.search(r"\b(R-\d+)\s+P([012])\s*:", line)
+        if not match:
             continue
-        missing = []
-        if not re.search(r"\b(Action|Resolution)\s*:", line, flags=re.IGNORECASE):
-            missing.append("Action/Resolution")
-        if not re.search(r"\b(?:Owner\s*:\s*)?(?:CH|T)-\d+\b", line, flags=re.IGNORECASE):
-            missing.append("CH-n/T-n owner")
-        if missing:
-            diagnostics.append(Diagnostic(
-                code="semantic.risk.action_owner_missing",
-                message=f"P0/P1 risk is missing {', '.join(missing)}",
-                line=line_number,
-            ))
+        if match.group(2) == "0" and re.search(r"\b(unresolved|open|unknown|TBD)\b", line, re.IGNORECASE):
+            diagnostics.append(Diagnostic("semantic.risk.unresolved_p0", f"{match.group(1)} leaves a P0 unresolved", line_number))
+        if match.group(2) in {"0", "1"}:
+            if "Resolution:" not in line or not re.search(r"\bCH-\d+\b", line) or not re.search(r"\bT-\d+\b", line):
+                diagnostics.append(Diagnostic("semantic.risk.resolution_missing", f"{match.group(1)} P0/P1 requires Resolution with CH-n and T-n", line_number))
     return diagnostics
-
-
-def _validate_contradictions(document: MarkdownDocument) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    for line_number, line in enumerate(document.text.splitlines(), start=1):
-        lowered = line.casefold()
-        if "assert" not in lowered and "return" not in lowered and "output" not in lowered:
-            continue
-        true_claim = bool(re.search(r"\b(?:assert|return|returns|output)\b[^.\n]{0,50}\btrue\b", lowered))
-        false_claim = bool(re.search(r"\b(?:assert|return|returns|output)\b[^.\n]{0,50}\bfalse\b", lowered))
-        if true_claim and false_claim:
-            diagnostics.append(Diagnostic(
-                code="semantic.expectation.contradiction",
-                message="The same scenario requires incompatible true and false results",
-                line=line_number,
-            ))
-    return diagnostics
-
-
-def _validate_interface_evidence(document: MarkdownDocument) -> list[Diagnostic]:
-    implementation = _section_body(document, "Implementation Specification", "Changes", "Approach")
-    evidence = _section_body(document, "Evidence and Decisions", "Current State", "Evidence")
-    if not re.search(r"\b(API|schema|interface|event|command|public contract)\b", implementation, flags=re.IGNORECASE):
-        return []
-    if not document.code_blocks:
-        return [Diagnostic(
-            code="semantic.interface.shape_missing",
-            message="Interface changes must include the complete proposed shape in a code block",
-        )]
-    if not CITATION_RE.search(evidence):
-        return [Diagnostic(
-            code="semantic.interface.current_evidence_missing",
-            message="Interface changes must cite the current signature or schema in evidence",
-        )]
-    return []
 
 
 def validate_semantics(text: str, tier: str, repo_root: Path | None = None) -> list[Diagnostic]:
     document = parse_markdown(text)
     diagnostics = list(document.diagnostics)
-    diagnostics.extend(_validate_traceability(document, tier))
+    diagnostics.extend(_validate_ids_and_traceability(document, tier))
     diagnostics.extend(_validate_risks(document))
-    diagnostics.extend(_validate_contradictions(document))
-    diagnostics.extend(_validate_interface_evidence(document))
-    if repo_root is not None:
-        diagnostics.extend(_validate_citations(document, repo_root))
+    root = (repo_root or Path.cwd()).resolve()
+    diagnostics.extend(_validate_citations(document, root))
+    diagnostics.extend(_validate_facts(document, root))
+    diagnostics.extend(_validate_changes(document, root))
     return diagnostics
 
 
-def coverage_summary(text: str) -> dict[str, int | bool]:
+def coverage_summary(text: str, repo_root: Path | None = None) -> dict[str, int | bool]:
     document = parse_markdown(text)
-    ids = {kind: len(_definitions(text, kind)) for kind in ("SC", "CH", "T", "C", "R")}
+    root = (repo_root or Path.cwd()).resolve()
+    facts = list(FACT_RE.finditer(text))
+    citations = list(CITATION_RE.finditer(text))
+    grounded_citations = 0
+    for citation in citations:
+        resolved, error = _resolve_path(root, citation.group("path"))
+        if error or resolved is None or not resolved.is_file():
+            continue
+        line_count = len(resolved.read_text(encoding="utf-8", errors="replace").splitlines())
+        grounded_citations += 1 <= int(citation.group("line")) <= line_count
+    values = {kind: len(definitions(text, kind)) for kind in ("SC", "F", "D", "CH", "T", "C", "R")}
     return {
-        "citations": len({match.group(0) for match in CITATION_RE.finditer(text)}),
-        "success_criteria": ids["SC"],
-        "changes": ids["CH"],
-        "tests": ids["T"],
-        "constraints": ids["C"],
-        "risks": ids["R"],
+        "citations": len(citations),
+        "grounded_citations": grounded_citations,
+        "grounded_facts": sum(_fact_is_grounded(fact, root) for fact in facts),
+        "success_criteria": values["SC"],
+        "facts": values["F"],
+        "decisions": values["D"],
+        "changes": values["CH"],
+        "tests": values["T"],
+        "constraints": values["C"],
+        "risks": values["R"],
         "code_blocks": len(document.code_blocks),
         "traceability_complete": not any(
-            diagnostic.code.startswith("semantic.traceability")
-            for diagnostic in _validate_traceability(document, "standard")
+            item.code.startswith("semantic.traceability")
+            for item in _validate_ids_and_traceability(document, "standard")
         ),
     }

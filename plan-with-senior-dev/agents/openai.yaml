@@ -1,4 +1,4 @@
 interface:
   display_name: "Plan with Senior Dev"
-  short_description: "Evidence-driven one-shot implementation plans"
-  default_prompt: "Use $plan-with-senior-dev to produce a repo-evidenced, decision-complete implementation plan with traceable changes, tests, and risks."
+  short_description: "Grounded v2 implementation specifications"
+  default_prompt: "Use $plan-with-senior-dev to produce a grounded v2 plan with verified facts, resolved decisions, exact changes, traceability, tests, and repaired risks."

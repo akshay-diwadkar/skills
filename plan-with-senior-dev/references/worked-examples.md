@@ -1,230 +1,141 @@
-
 # Worked Examples
 
-These examples demonstrate the reasoning process, not just the output format. Study how evidence drives decisions, not how sections are arranged.
+Read only the matching tier. Each fenced plan validates against the corresponding repository under `tests/plan-with-senior-dev/fixtures/`.
 
-## Tiny Example: Adding a Null Guard to normalize_name
+## Tiny
 
-### The request
-"Fix normalize_name so it handles a missing value without changing valid strings."
+```plan
+# Handle Missing Names Without Changing Valid Normalization
+<!-- plan-contract: 2 -->
+<!-- tier: tiny; task-type: bug-fix -->
 
-### Gate 0 — Orient
-- Task type: Bug fix
-- Blast radius estimate: Single function, likely 1-3 callers
-- Tier: Tiny (one local, reversible behavior, no public API or schema)
+## Outcome and Scope
+- SC-1: `normalize_name(None)` returns `""`; non-null strings retain strip-and-lower behavior.
+- In scope: the null branch and focused regression coverage.
+- Unchanged: non-null input normalization and the `str` return type.
 
-### Gate 1 — Frame
-- Observable outcome: `normalize_name(None)` returns a safe value instead of raising `AttributeError`
-- Success: Null input handled; all existing non-null behavior unchanged
+## Evidence Ledger
+- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: The declared input is nullable and the return type is `str`.
+- F-2: `src/names.py:2` | anchor: `strip` | observation: The implementation dereferences the nullable input without a guard.
 
-### Gate 2 — Prove Current State (evidence gathering)
+## Decisions
+- D-1: selected: return an empty string for `None` before normalization | because: the request preserves a non-null `str` result | rejected: return `None`, which widens the return contract and callers.
 
-**Search sequence:**
-```
-grep -rn "normalize_name" → names.py:5, test_names.py:8, test_names.py:12
-```
+## Implementation Specification
+- CH-1: `src/names.py` | anchor: `normalize_name` | status: existing | change: if `name is None`, return `""`; otherwise return `name.strip().lower()` unchanged.
+- CH-2: `tests/test_names.py` | anchor: `test_returns_empty_string_for_missing_name` | status: new | change: add exact null and existing valid-string regression assertions.
 
-**Read names.py:**
-```python
-# names.py:5
-def normalize_name(name: str) -> str:
-    return name.strip().lower()  # line 6
-```
-- Fact: `names.py:6` — calls `.strip()` on `name` before any null check.
-- Fact: `names.py:5` — type hint says `str`, not `Optional[str]`.
-- Fact: `None.strip()` raises `AttributeError`.
-
-**Read tests:**
-```python
-# test_names.py:8
-def test_normalizes_casing():
-    assert normalize_name("Alice") == "alice"
-
-# test_names.py:12  
-def test_strips_whitespace():
-    assert normalize_name("  Bob  ") == "bob"
-```
-- Fact: No test for `None` input.
-- Fact: No test for empty string input.
-- Gap: Empty string behavior is untested but returns `""` (verified by reading line 6).
-
-**Trace callers:**
-```
-grep -rn "normalize_name" --include="*.py" | grep -v test | grep -v def
-→ app.py:23: display = normalize_name(user.name)
-→ cli.py:41: key = normalize_name(input_val)
-```
-- Fact: `app.py:23` — `user.name` could be `None` if the field is optional in the DB.
-- Fact: `cli.py:41` — `input_val` comes from user input, theoretically always a string.
-
-**Contradictions:** None found. Comments and code agree.
-
-### Gate 3 — Model the Problem
-- Root cause: `name.strip()` at `names.py:6` is called before any null check.
-- The fix belongs at the entry of the function, not at each caller.
-- Empty string currently returns `""` — this is valid behavior and must be preserved.
-
-### Gate 4 — Decide
-- **Option A**: Add `if name is None: return ""` before `.strip()`. Preserves type hint as `str`.
-- **Option B**: Change signature to `Optional[str]` and return `None` for `None` input.
-- **Selected: A** — because both callers currently expect a `str` return (Fact: `app.py:23` assigns to a display variable, `cli.py:41` uses as a dict key). Returning `None` would break callers.
-- **Rejected: B** — would require updating callers to handle `Optional[str]` return, expanding scope.
-
-### Gate 5 — Specify + Trace
-```
-## Change
-names.py:6 — add null guard before .strip():
-
-def normalize_name(name: str) -> str:
-    if name is None:
-        return ""
-    return name.strip().lower()
-
-Preserved: non-None string behavior unchanged (strip + lower).
-Preserved: empty string returns "".
-Preserved: return type remains str.
-```
-
-### Gate 6 — Attack
-- **A1 Forgotten Caller**: Both callers (`app.py:23`, `cli.py:41`) receive `str` before and after. No change needed. ✓
-- **A2 Empty Input**: `normalize_name("")` → `""` (unchanged, `.strip()` on empty string = `""`). ✓
-- **A2 Whitespace-only**: `normalize_name("   ")` → `""` (unchanged). ✓
-- No P0/P1 findings.
-
-### Gate 7 — Verify
-```
-## Verification
-- normalize_name(None) → "" (new behavior)
-- normalize_name("Alice") → "alice" (unchanged)
-- normalize_name("  Bob  ") → "bob" (unchanged)
-- normalize_name("") → "" (unchanged)
-- `python -m pytest test_names.py` → all pass + new test passes
-
-## Assumptions
-- Low-impact: callers that pass None will now silently get "" instead of crashing.
-  This is the desired behavior per the request.
-```
-
----
-
-## Standard Example: Adding CSV Export Through Existing Route
-
-### The request
-"Add CSV export for completed reports through the existing HTTP route and service."
-
-### Gate 0 — Orient
-- Task type: Feature (cross-layer: route → service → response)
-- Blast radius estimate: Route file, service file, response helpers, tests
-- Tier: Standard (multi-file, multi-layer, internal interface change)
-
-### Gate 2 — Prove Current State (abbreviated to show key reasoning)
-
-**Critical evidence gathered:**
-- Fact: `route.py:12` — `GET /reports/:id` calls `service.load_report(id, tenant_id)` then `responses.json_ok(report)`.
-- Fact: `route.py:8` — route checks `report.status == 'completed'` and returns 403 if not.
-- Fact: `service.py:15` — `load_report` filters by `tenant_id` (tenant isolation exists).
-- Fact: `responses.py:3` — `json_ok` sets `Content-Type: application/json`.
-- Fact: `responses.py:7` — `csv_ok` already exists in responses.py, sets `Content-Type: text/csv` and `Content-Disposition: attachment`.
-- Fact: No test for CSV response path.
-
-**Key insight from analogue search:**
-Grepped for other uses of `csv_ok` → Found in `billing_route.py:34` which uses `Accept` header to switch between JSON and CSV. This is the local precedent.
-
-### Gate 4 — Decide (showing reasoning, not just conclusion)
-
-**Question: How does the client request CSV vs JSON?**
-- Option A: Query parameter `?format=csv`
-- Option B: `Accept` header `text/csv`
-- **Selected: B** — because `billing_route.py:34` uses `Accept` header (local precedent). Introducing a query parameter would be a new pattern.
-
-**Question: What fields appear in CSV?**
-- Could ask the user, but the report object's fields are visible at `service.py:20`. Using all non-internal fields follows the JSON response's existing behavior.
-- **Decision**: Same fields as JSON response, excluding `_internal_id`. No user question needed.
-
-### Gate 5 — Specify + Trace (showing traceability built inline)
-
-```
-SC-1: GET /reports/:id with Accept: text/csv returns CSV for completed reports.
-SC-2: JSON response behavior is unchanged.
-SC-3: Tenant isolation is preserved for CSV path.
-
-CH-1: route.py — add Accept header check after completion validation:
-  if request.accepts('text/csv'):
-      return responses.csv_ok(report.to_csv_row(), filename=f"report-{id}.csv")
-  return responses.json_ok(report)
-
-CH-2: service.py — add to_csv_row() method to Report:
-  def to_csv_row(self) -> list[str]:
-      return [self.id, self.title, self.created_at, self.status]
-  (Excludes _internal_id per decision above.)
-
-Traceability:
-| SC | CH | T | Status |
+## Traceability
+| Criterion / constraint | Changes | Tests | Status / rollback |
 |---|---|---|---|
-| SC-1 | CH-1, CH-2 | T-1 | New |
-| SC-2 | CH-1 | T-2 | Preserved |
-| SC-3 | CH-1 | T-3 | Preserved |
+| SC-1 | CH-1, CH-2 | T-1 | Revert both files; no durable state |
 
-Propagation:
-- route.py:12 → CH-1 → update required: yes — add Accept check
-- service.py:15 → CH-2 → update required: yes — add to_csv_row
-- responses.py:7 → no change — csv_ok already exists
-- test_route.py → update required: yes — add T-1, T-2, T-3
+## Verification
+- T-1: given: `None`, `"  Alice  "`, and `""` | expect: `""`, `"alice"`, and `""` respectively | command: `python -m pytest -q`
+
+## Risks, Assumptions, and Attack
+- Assumptions: None.
+- A1: dismissed | evidence: CH-1 preserves the return type and non-null behavior, so existing callers require no update.
+- A2: repaired | evidence: CH-1 and T-1 specify null, empty, and whitespace-bearing input behavior.
+- A6: dismissed | evidence: CH-1 supplies both branches and CH-2 supplies exact assertions.
 ```
 
-### Gate 6 — Attack (showing real vs. cosmetic findings)
+## Standard
 
-**Real finding (P1):**
-> R-1 P1 [A2 Empty Input]: If `report.to_csv_row()` returns fields containing commas or quotes, the CSV output will be malformed. `responses.csv_ok` at `responses.py:7` does not escape fields.
-> Consequence: Downloaded CSV cannot be parsed by Excel.
-> Resolution: CH-2 must use Python's `csv` module with proper quoting, or CH-1 must pass through `csv.writer`. Update CH-2 to use `csv.writer` with `QUOTE_MINIMAL`.
+```plan
+# Isolate Cached Feature Flags by Tenant and User
+<!-- plan-contract: 2 -->
+<!-- tier: standard; task-type: bug-fix -->
 
-**Dismissed attack (with evidence):**
-> A1 Forgotten Caller: No other code calls `to_csv_row` — it's a new method. No callers to miss. ✓
-> A3 Concurrent Request: CSV export is read-only. No shared state mutation. ✓
+## Outcome and Scope
+- SC-1: Two tenants using the same user ID receive only their own tenant-scoped flags.
+- In scope: cache identity and cross-tenant regression coverage.
+- Unchanged: `flags_for` parameters, return type, and flag loading format.
 
----
+## Evidence Ledger
+- F-1: `src/flags.py:1` | anchor: `_cache` | observation: The module stores feature flags in shared process state.
+- F-2: `src/flags.py:8` | anchor: `flags_for` | observation: The lookup receives both tenant and user identity.
+- F-3: `src/flags.py:9` | anchor: `user_id` | observation: The cache check uses only user identity.
 
-## Common Mistakes: Bad vs. Good
+## Decisions
+- D-1: selected: key the cache by `(tenant_id, user_id)` | because: both identities already reach `flags_for` and define the loaded value | rejected: clear the cache between tenants, which hides the missing identity and remains order-dependent.
 
-### Vague evidence vs. specific evidence
+## Implementation Specification
+- CH-1: `src/flags.py` | anchor: `_cache` | status: existing | change: type the cache as `dict[tuple[str, str], list[str]]`; construct `key = (tenant_id, user_id)` and use it for lookup, assignment, and return.
+- CH-2: `tests/test_flags.py` | anchor: `test_isolates_same_user_id_across_tenants` | status: new | change: call the function for two tenants sharing one user ID and assert distinct exact lists.
 
-❌ **Bad:**
-> Current State: The route handles report loading and validation.
+## Traceability
+- C-1: Tenant identity participates in every cache read and write | status: modified
+| Criterion / constraint | Changes | Tests | Status / rollback |
+|---|---|---|---|
+| SC-1 | CH-1, CH-2 | T-1 | Modified cache identity; process restart or revert clears ephemeral state |
+| C-1 | CH-1 | T-1 | Preserved after tuple-key change |
 
-✅ **Good:**
-> Current State:
-> - Fact: `route.py:8` — validates `report.status == 'completed'`, returns 403 if not
-> - Fact: `route.py:12` — calls `service.load_report(id, tenant_id)`, tenant-scoped
-> - Fact: `responses.py:7` — `csv_ok` helper already exists with proper Content-Type
+## Verification
+- T-1: given: tenant `acme` and tenant `globex` with user `u1` | expect: `["acme:u1:enabled"]` and `["globex:u1:enabled"]` | command: `python -m pytest -q`
 
-### Cosmetic vs. real adversarial finding
+## Risks, Assumptions, and Attack
+- Assumptions: Low-impact and reversible: the cache is process-local, as shown by F-1.
+- A1: dismissed | evidence: CH-1 does not change the `flags_for` signature or return type.
+- A2: dismissed | evidence: CH-1 preserves existing string inputs and exact output construction.
+- A3: dismissed | evidence: duplicate concurrent loads assign the same deterministic value and create no durable effect in the fixture.
+- A4: dismissed | evidence: the cache is ephemeral and a restart or revert removes tuple-key entries.
+- A5: dismissed | evidence: CH-1 keeps one dictionary lookup and one load per cache miss.
+- A6: dismissed | evidence: CH-1 names every changed cache operation and T-1 names exact inputs and outputs.
+```
 
-❌ **Bad:**
-> R-1 P2: Consider adding logging for CSV downloads.
-> R-2 P2: The CSV filename could be more descriptive.
-> R-3 P2: Consider rate-limiting CSV downloads.
+## High-Risk
 
-✅ **Good:**
-> R-1 P1 [A2 Empty Input]: Report titles containing commas will produce malformed CSV rows because `responses.csv_ok` does not escape fields. Resolution: Use `csv.writer` with `QUOTE_MINIMAL` in CH-2.
+```plan
+# Add Tenant Identity to User Events Compatibly
+<!-- plan-contract: 2 -->
+<!-- tier: high-risk; task-type: public-contract -->
 
-### Deferred vs. resolved decision
+## Outcome and Scope
+- SC-1: New events carry a non-empty tenant ID while old events remain readable as tenant `unknown`.
+- SC-2: Existing producer callers that omit tenant identity continue producing the old one-field event.
+- In scope: event type, producer shape, validation, compatibility tests, and rollout order.
+- Unchanged: `user_id` spelling and type; consumers may continue ignoring unknown keys.
 
-❌ **Bad:**
-> The CSV format will be determined during implementation based on the report structure.
+## Evidence Ledger
+- F-1: `src/schema.py:4` | anchor: `UserEvent` | observation: The shared event contract is a `TypedDict`.
+- F-2: `src/schema.py:5` | anchor: `user_id` | observation: The current contract contains only required `user_id`.
+- F-3: `src/producer.py:4` | anchor: `build_event` | observation: Existing producer callers provide only user identity.
+- F-4: `src/consumer.py:5` | anchor: `tenant_id` | observation: The consumer already maps a missing tenant field to `unknown`.
 
-✅ **Good:**
-> CSV columns: id, title, created_at, status (same fields as JSON response, excluding _internal_id per `service.py:20`). Header row included. Fields quoted with `csv.QUOTE_MINIMAL`.
+## Decisions
+- D-1: selected: add `tenant_id` as `NotRequired[str]` and make the producer parameter optional | because: F-4 proves old events have an explicit read fallback | rejected: make the field required immediately, which breaks old producers and stored events.
 
-### Missing vs. complete propagation
+## Implementation Specification
+- CH-1: `src/schema.py` | anchor: `UserEvent` | status: existing | change: import `NotRequired`, then add `tenant_id: NotRequired[str]` while preserving required `user_id`.
+- CH-2: `src/producer.py` | anchor: `build_event` | status: existing | change: add `tenant_id: str | None = None`; omit the key for `None`, raise `ValueError("tenant_id must not be empty")` for `""`, and include the key otherwise.
+- CH-3: `tests/test_events.py` | anchor: `test_old_and_new_event_versions_are_compatible` | status: new | change: cover old producer calls, new tenant events, empty tenant rejection, and consumer reads of old/new shapes.
 
-❌ **Bad:**
-> Update route.py and service.py. Update tests as needed.
+## Traceability
+- C-1: Old event readers and writers remain compatible during mixed-version rollout | status: at-risk
+| Criterion / constraint | Changes | Tests | Status / rollback |
+|---|---|---|---|
+| SC-1 | CH-1, CH-2, CH-3 | T-1, T-2 | Additive optional field; disable new argument to roll back |
+| SC-2 | CH-2, CH-3 | T-1 | Optional default preserves old calls |
+| C-1 | CH-1, CH-2 | T-1 | Consumer-first rollout and omission default preserve compatibility |
 
-✅ **Good:**
-> Propagation:
-> - `route.py:12` → CH-1 → update required: yes — add Accept header check
-> - `service.py:15` → CH-2 → update required: yes — add to_csv_row method
-> - `responses.py:7` → no change — csv_ok already exists, verified at responses.py:7
-> - `test_route.py:1` → update required: yes — add T-1 (CSV happy path), T-2 (JSON unchanged), T-3 (tenant isolation for CSV)
-> - `openapi.yaml:45` → update required: no — CSV is content-negotiated, same endpoint
+## Verification
+- T-1: given: old call `build_event("u1")` and new call `build_event("u1", "acme")` | expect: `{"user_id": "u1"}` and `{"user_id": "u1", "tenant_id": "acme"}`; consumer returns `unknown` and `acme` | command: `python -m pytest -q`
+- T-2: given: `build_event("u1", "")` | expect: `ValueError("tenant_id must not be empty")` | command: `python -m pytest -q`
+
+## Risks, Assumptions, and Attack
+- Assumptions: None.
+- R-1 P1: A blank tenant ID becomes indistinguishable from missing identity | Resolution: CH-2/T-2
+- A1: repaired | evidence: CH-3 covers the existing producer call and the consumer fallback.
+- A2: repaired | evidence: CH-2 and T-2 specify `None`, empty, and non-empty tenant behavior.
+- A3: not-applicable | evidence: the change constructs immutable event values and touches no shared mutable state.
+- A4: repaired | evidence: tenant identity is optional and rollback stops passing it without rewriting stored events.
+- A5: dismissed | evidence: the change adds one constant-time validation and dictionary field.
+- A6: dismissed | evidence: CH-1 and CH-2 specify complete types, defaults, branches, and errors.
+
+## Compatibility and Rollout
+Deployment order is new consumer behavior first, then the schema and producer. Old readers ignore the new dictionary key; new readers return `unknown` for old events. Monitor empty-tenant validation failures and the fraction of events without tenant identity. Stop rollout if validation failures exceed the existing error baseline or any consumer rejects the additive key.
+
+## Durable Rollback
+Code rollback stops producers from supplying tenant identity. Existing data remains readable because the field is optional; queued old and new events are both accepted. No cache format changes exist. No irreversible external effect is introduced.
+```

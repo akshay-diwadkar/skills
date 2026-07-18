@@ -1,0 +1,74 @@
+{
+  "tiny-boundary-bug": {
+    "tier": "tiny",
+    "minimum_score": 90,
+    "grounding": [["normalize_name"], ["strip"]],
+    "decisions": [["return", "empty string||\"\""]],
+    "propagation": [["src/names.py", "normalize_name"], ["tests/test_names.py"]],
+    "verification": [["none", "alice"]],
+    "adversarial": [["a1:"], ["a2:"], ["a6:"]],
+    "critical": [{"id": "nullable-root", "keywords": ["src/names.py", "normalize_name"]}],
+    "forbidden": [{"id": "nullable-return", "keywords": ["change: return `none`"]}]
+  },
+  "root-cause-decoy": {
+    "tier": "tiny",
+    "minimum_score": 90,
+    "grounding": [["retry_limit"], ["raw or"], ["run_job"]],
+    "decisions": [["none", "default"]],
+    "propagation": [["src/config.py", "retry_limit"], ["tests/test_config.py"]],
+    "verification": [["0", "3"]],
+    "adversarial": [["a2:"], ["a6:"]],
+    "critical": [{"id": "fix-default-root", "keywords": ["ch-", "src/config.py", "retry_limit"]}],
+    "forbidden": [
+      {"id": "symptom-only-worker-patch", "keywords": ["ch-", "src/worker.py", "clamp"]},
+      {"id": "unrequested-input-widening", "keywords": ["src/config.py", "str | int | none"]}
+    ]
+  },
+  "multi-layer-feature": {
+    "tier": "standard",
+    "minimum_score": 90,
+    "grounding": [["get_report"], ["load_report"], ["json_response"]],
+    "decisions": [["accept", "text/csv"]],
+    "propagation": [["src/route.py", "get_report"], ["report_to_csv"], ["tests/test_route.py"]],
+    "verification": [["text/csv"], ["application/json"]],
+    "adversarial": [["a1:"], ["a2:"], ["a6:"]],
+    "critical": [{"id": "preserve-json", "keywords": ["application/json"]}],
+    "forbidden": [{"id": "new-route", "keywords": ["post", "/reports/export"]}]
+  },
+  "hidden-consumer-refactor": {
+    "tier": "standard",
+    "minimum_score": 90,
+    "grounding": [["parse_document"], ["__init__"], ["cli.py"], ["patch"]],
+    "decisions": [["rename", "alias"]],
+    "propagation": [["src/parser.py"], ["src/__init__.py"], ["src/cli.py"], ["tests/test_cli.py"]],
+    "verification": [["invoice", "invoice"]],
+    "adversarial": [["a1:"], ["a6:"]],
+    "critical": [{"id": "all-hidden-consumers", "keywords": ["src/__init__.py", "src/cli.py", "tests/test_cli.py"]}],
+    "forbidden": []
+  },
+  "public-contract-migration": {
+    "tier": "high-risk",
+    "minimum_score": 90,
+    "grounding": [["userevent"], ["build_event"], ["tenant_id"]],
+    "decisions": [["tenant_id", "optional||notrequired"]],
+    "propagation": [["src/schema.py"], ["src/producer.py"], ["tests/test_events.py"]],
+    "verification": [["unknown", "acme"], ["valueerror", "empty"]],
+    "adversarial": [["old", "new", "deploy"], ["roll", "back"], ["a4:"]],
+    "critical": [{"id": "mixed-version", "keywords": ["old", "new", "rollout"]}],
+    "forbidden": [{"id": "required-immediately", "keywords": ["tenant_id", "required", "immediately"]}]
+  },
+  "concurrent-external-effect": {
+    "tier": "high-risk",
+    "minimum_score": 90,
+    "grounding": [["charge_invoice"], ["gateway.charge"], ["charged"]],
+    "decisions": [["idempotency||idempotent", "invoice_id||invoice id||invoice key"]],
+    "propagation": [["src/billing.py", "charge_invoice"], ["src/gateway.py", "charge"], ["tests/test_billing.py"]],
+    "verification": [
+      ["timeout", "retry", "one||1", "charge||provider create"],
+      ["concurrent||synchronized||threads", "one||1||exactly one", "charge||gateway||provider"]
+    ],
+    "adversarial": [["a3:"], ["a4:"], ["idempotency"]],
+    "critical": [{"id": "deduplicate-charge", "keywords": ["idempotency", "gateway"]}],
+    "forbidden": [{"id": "in-memory-only-lock", "keywords": ["global lock", "solution"]}]
+  }
+}

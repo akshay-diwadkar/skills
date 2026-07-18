@@ -59,6 +59,7 @@ At each level, before going deeper:
 
 ### Common Traps
 - **Symptom patching**: Fixing where the error surfaces instead of where the defect originates.
+- **Unrequested interface widening**: Adding accepted input types, nullable returns, or new errors when the root-cause fix works inside the existing signature. Preserve the boundary unless a success criterion requires changing it.
 - **Single-example regression test**: Writing a test for only the reported input, missing the broader class.
 - **Assuming the report is complete**: The reported example may be one of several triggers. Search for other inputs that hit the same code path.
 - **Test that was wrong**: Sometimes a passing test encodes incorrect expectations. Check if existing tests assert the wrong behavior.

@@ -78,3 +78,7 @@ class TestStripFencedCodeBlocks:
         assert "  code" not in expected_lines
         assert expected_lines[0] == "A"
         assert expected_lines[-1] == "B"
+
+    def test_tilde_fence(self):
+        text = "A\n~~~python\nx = 1\n~~~\nB"
+        assert strip_fenced_code_blocks(text) == "A\n\n\n\nB"

@@ -1,0 +1,54 @@
+{
+  "contract_version": 2,
+  "marker": "<!-- plan-contract: 2 -->",
+  "task_types": [
+    "feature",
+    "bug-fix",
+    "refactor",
+    "public-contract",
+    "security",
+    "concurrency",
+    "external-integration"
+  ],
+  "base_sections": [
+    "Outcome and Scope",
+    "Evidence Ledger",
+    "Decisions",
+    "Implementation Specification",
+    "Traceability",
+    "Verification",
+    "Risks, Assumptions, and Attack"
+  ],
+  "tiers": {
+    "tiny": {
+      "required_ids": ["SC", "F", "D", "CH", "T"],
+      "required_attacks": ["A1", "A2", "A6"],
+      "minimum_non_empty_lines": 16,
+      "advisory_max_non_empty_lines": 90,
+      "extra_sections": []
+    },
+    "standard": {
+      "required_ids": ["SC", "F", "D", "CH", "T", "C"],
+      "required_attacks": ["A1", "A2", "A3", "A4", "A5", "A6"],
+      "minimum_non_empty_lines": 28,
+      "advisory_max_non_empty_lines": 200,
+      "extra_sections": []
+    },
+    "high-risk": {
+      "required_ids": ["SC", "F", "D", "CH", "T", "C", "R"],
+      "required_attacks": ["A1", "A2", "A3", "A4", "A5", "A6"],
+      "minimum_non_empty_lines": 40,
+      "advisory_max_non_empty_lines": 300,
+      "extra_sections": ["Compatibility and Rollout", "Durable Rollback"]
+    }
+  },
+  "formats": {
+    "fact": "- F-n: `path:line` | anchor: `existing_symbol_or_text` | observation: exact current behavior",
+    "decision": "- D-n: selected: exact approach | because: cited constraint or precedent | rejected: nearest alternative and drawback",
+    "change": "- CH-n: `path` | anchor: `symbol` | status: existing|new | change: exact behavior and branches",
+    "test": "- T-n: given: exact input and state | expect: exact output, error, or side effect | command: `exact command`",
+    "constraint": "- C-n: constraint text | status: preserved|modified|at-risk",
+    "risk": "- R-n P0|P1|P2: scenario and consequence | Resolution: CH-n/T-n or accepted P2 rationale",
+    "attack": "- A1..A6: repaired|dismissed|not-applicable | evidence: concrete plan change or cited reason"
+  }
+}

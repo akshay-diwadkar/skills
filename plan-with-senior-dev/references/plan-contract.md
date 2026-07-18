@@ -1,121 +1,44 @@
-# Plan Contract
+# Plan Contract v2
 
-Use the smallest template that remains decision-complete. Sections may contain compact tables, but every required field must carry real content rather than “N/A” theater.
+The executable source of truth is `plan-contract.json`. Generate a plan with `scripts/scaffold_plan.py`; do not recreate headings or field formats from memory.
 
-## Tiny
+## Common skeleton
 
-Use only for one local, reversible behavior with no public API, schema, auth, concurrency, migration, external side effect, or durable domain effect.
+Every plan starts with an action-oriented H1 followed by `<!-- plan-contract: 2 -->` and the generated tier/task marker. Every tier uses these exact H2 headings in order:
 
-```markdown
-# [Action-oriented outcome]
+1. Outcome and Scope
+2. Evidence Ledger
+3. Decisions
+4. Implementation Specification
+5. Traceability
+6. Verification
+7. Risks, Assumptions, and Attack
 
-## Outcome
-[Observable goal and success condition]
+High-Risk plans additionally include `Compatibility and Rollout` and `Durable Rollback`.
 
-## Evidence
-- Fact: `path:line` [current behavior]
+## Records
 
-## Change
-[Exact file/symbol, signature when changed, behavior, branches, and preserved invariant]
+- `SC-n`: one measurable observable success condition.
+- `F-n`: one grounded fact using a backticked `path:line`, an anchor present on that exact line, and a precise observation.
+- `D-n`: selected approach, cited reason, and nearest rejected alternative with a concrete drawback.
+- `CH-n`: backticked path, backticked anchor, `existing` or `new` status, and exact change behavior.
+- `T-n`: exact given state/input, exact expected output/error/side effect, and exact command.
+- `C-n`: material constraint classified as `preserved`, `modified`, or `at-risk`.
+- `R-n P0/P1/P2`: concrete scenario and consequence plus a `Resolution` owned by `CH-n` and `T-n` for every P0/P1.
+- `A1`–`A6`: attack result classified as `repaired`, `dismissed`, or `not-applicable`, always with evidence.
 
-## Verification
-- [Exact input/action] -> [exact output/assertion]
-- `[command]` -> [expected result]
+Define each ID once. References may repeat. Every `SC-n` and `C-n` needs a Traceability row with `CH-n` and `T-n`; every `CH-n` and `T-n` must appear in Traceability.
 
-## Assumptions
-- Low-impact: [reversible assumption, or “None”]
-```
+## Grounding rules
 
-## Standard
+The checker resolves paths against `--repo-root`, or the current directory when the flag is omitted. Existing `CH-n` anchors must exist somewhere in the target file. New anchors must use `status: new`. A citation whose path, line, or anchor is wrong fails validation.
 
-Use for the default multi-file or multi-layer feature, unclear-cause bug, refactor, or internal interface change.
+The checker cannot prove arbitrary natural-language observations. The author must re-read every cited line and ensure the observation follows from the source and surrounding call path.
 
-```markdown
-# [Action-oriented outcome]
+## Tier requirements
 
-## Outcome and Scope
-- SC-1: [measurable result]
-- In scope: [behavior/surfaces]
-- Unchanged: [explicit invariants and exclusions]
+- Tiny requires `SC`, `F`, `D`, `CH`, and `T`, plus attacks A1, A2, and A6.
+- Standard additionally requires `C` and all A1–A6 records.
+- High-Risk additionally requires `R`, Compatibility and Rollout, and Durable Rollback.
 
-## Evidence and Decisions
-- Fact: `path:line` [current behavior]
-- Contradictions: [specific conflict, or checked surfaces and none found]
-- Decision: [selected approach] because [constraint/local precedent]
-- Rejected: [nearest valid alternative] because [specific drawback]
-
-## Implementation Specification
-- CH-1: [dependency-ordered change with exact file/symbol/interface]
-```pseudocode
-operation(input: Type) -> ResultType:
-    [branches, errors, and side effects]
-```
-
-## Traceability and Constraints
-| Criterion / constraint | Implementation | Verification | Status / rollback |
-|---|---|---|---|
-| SC-1 | CH-1 | T-1 | Preserved / modified / at-risk |
-
-Changed symbol -> affected surface
-- `path:line` - CH-1 - update required: yes/no - [reason]
-
-## Verification and Risks
-- T-1: Given [exact state/input], assert [exact output/side effect/error].
-- Command: `[command]` -> [expected result].
-- R-1 P1: [scenario, consequence, resolution and owning CH/T].
-- Rollback: [concrete revert/disable/restore path and side-effect handling].
-
-## Assumptions
-- Low-impact: [assumption, or “None”]
-```
-
-## High-Risk
-
-Use the Standard template and add these sections:
-
-```markdown
-## Compatibility
-[old/new reader, writer, client, event, and deployment-order behavior]
-
-## Migration and Rollout
-[preconditions, validation, batching/checkpoints, mixed-version behavior, observability, stop conditions]
-
-## Durable Rollback
-[code, data, queued work, cache, and irreversible external-effect recovery]
-
-## Risk Register
-- R-1 P0/P1/P2: [scenario and consequence]. Action: [mitigation]. Owner: CH-n/T-n.
-```
-
-No unresolved P0 may remain. Every P1 must have an action and verification owner.
-
-## Interface Rules
-
-When any public or shared interface changes, show the complete proposed shape, not a prose delta. Include:
-
-- exact name, parameters, types, defaults, return type, and errors;
-- serialization and nullability;
-- old/new client behavior and version boundary;
-- generated artifacts and downstream consumers;
-- validation ownership and stable error representation.
-
-## Traceability Rules
-
-- Define each ID once; references may appear many times.
-- Every `SC-n` must appear in implementation traceability and verification.
-- Every `CH-n` must name its affected symbol or surface.
-- Every `T-n` must contain an exact assertion or observable result.
-- Every modified or at-risk `C-n` must map to `CH-n` and `T-n`; add rollback when persistent or external.
-- Every `R-n` P0/P1 must map to an action and owner.
-
-## Final Audit
-
-- Are facts cited and assumptions labeled?
-- Would two literal implementers choose the same behavior and interfaces?
-- Does the plan repair root cause rather than symptoms?
-- Do changed symbols cover callers, transitive consumers, tests, config, schemas, generated surfaces, and docs?
-- Are mixed-version, retry, duplicate, ordering, partial-failure, and rollback states explicit when relevant?
-- Does every success criterion have an implementation step and exact test?
-- Can each command’s expected result prove the intended behavior?
-- Has every P0/P1 attack changed the plan or been resolved by a user decision?
-
+The line maximum is advisory only. Completeness outranks brevity, but remove duplication that does not strengthen evidence, decisions, or verification.

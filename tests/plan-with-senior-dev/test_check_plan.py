@@ -1,189 +1,79 @@
 import json
+import re
+import subprocess
 import sys
-from io import StringIO
 from pathlib import Path
 
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPTS_DIR = REPO_ROOT / "plan-with-senior-dev" / "scripts"
-sys.path.insert(0, str(SCRIPTS_DIR))
-from check_plan import main as check_plan_main  # noqa: E402
+CHECKER = REPO_ROOT / "plan-with-senior-dev" / "scripts" / "check_plan.py"
+EXAMPLES = REPO_ROOT / "plan-with-senior-dev" / "references" / "worked-examples.md"
+FIXTURES = REPO_ROOT / "tests" / "plan-with-senior-dev" / "fixtures"
+TIERS = ("tiny", "standard", "high-risk")
 
 
-def run_checker(text: str, tier: str = "tiny", warn: bool = False) -> tuple[int, str]:
-    old_stdin = sys.stdin
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdin = StringIO(text)
-    sys.stdout = StringIO()
-    sys.stderr = StringIO()
-    try:
-        args = ["--tier", tier]
-        if warn:
-            args.append("--warn")
-        sys.argv = ["check_plan.py"] + args
-        exit_code: int | str = check_plan_main()
-    except SystemExit as e:
-        exit_code = e.code if e.code is not None else 0
-    finally:
-        output = sys.stdout.getvalue()
-        sys.stdin = old_stdin
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-    code = int(exit_code) if not isinstance(exit_code, str) else (1 if exit_code else 0)
-    return code, output
+def example_plan(tier: str) -> str:
+    blocks = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)
+    return blocks[TIERS.index(tier)]
 
 
-def run_checker_json(text: str, tier: str = "tiny") -> tuple[int, dict]:
-    old_stdin = sys.stdin
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdin = StringIO(text)
-    sys.stdout = StringIO()
-    sys.stderr = StringIO()
-    try:
-        sys.argv = ["check_plan.py", "--tier", tier, "--format", "json"]
-        exit_code: int | str = check_plan_main()
-    except SystemExit as e:
-        exit_code = e.code if e.code is not None else 0
-    finally:
-        output = sys.stdout.getvalue()
-        sys.stdin = old_stdin
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-    code = int(exit_code) if not isinstance(exit_code, str) else (1 if exit_code else 0)
-    if code != 0:
-        return code, {}
-    return code, json.loads(output) if output.strip() else {}
+def run_checker(text: str, tier: str, repo_root: Path | None = None, cwd: Path = REPO_ROOT) -> tuple[int, dict]:
+    command = [sys.executable, str(CHECKER), "--tier", tier, "-", "--format", "json"]
+    if repo_root is not None:
+        command.extend(["--repo-root", str(repo_root)])
+    result = subprocess.run(command, input=text, text=True, capture_output=True, cwd=cwd, check=False)
+    return result.returncode, json.loads(result.stdout)
 
 
-VALID_TINY_PLAN = (
-    "# Add unit tests for validation scripts\n"
-    "## Goal\nFix the bug\n"
-    "## Current State\n`src/file.py:42` has bug\n"
-    "## Change\nAdd null check before access\n"
-    "## Test/Verification\nInput: missing value. Output: default value. Assert `normalize(None) == \"\"`. `python -m pytest tests/` returns 0\n"
-    "## Devil's Advocate\n"
-    "- P2 literal attack: If caller passes None, fix adds explicit default.\n"
-    "- P2 edge attack: Empty string remains unchanged by assertion.\n"
-    "- P2 rollback attack: No persistent data changes, so revert restores old behavior.\n"
-    "## Assumptions\nLow impact: no schema change"
-)
-
-VALID_STANDARD_PLAN = (
-    "# Add unit tests for validation scripts\n"
-    "## Goal\nFix the bug\n"
-    "## Success Criteria\nSC-1: Returns exit code 0\n"
-    "## Current State\n`src/file.py:42` has bug\n"
-    "## Scope\nIn scope: fix bug\nOut of scope: refactoring\nPreserve existing return shape unchanged\nBlast radius: affected caller is the local validator command only\n"
-    "## Reasoning Summary\nDecompose to input validation and output preservation. Root cause is unchecked missing data at src/file.py:42. Selected approach is smallest because it keeps the existing local validator pattern.\n"
-    "## Approach\nFollow existing pattern from nearby files\n"
-    "## Change Propagation Map\nSC-1 -> CH-1 -> T-1\nnormalize_value -> files that must be updated\n  - direct caller: src/file.py:42 - CH-1 - update required: yes - reason: add null guard\n  - test: tests/test_file.py:12 - CH-2 - update required: yes - reason: add missing-data assertion\n"
-    "## Constraint Verification\n| Constraint | Current value / evidence | Classification | Plan preserves? |\n|---|---|---|---|\n| Return type | src/file.py:42 returns str | Preserved | Yes - assert string output |\n"
-    "## Changes\n1. CH-1: Add null check\n2. CH-2: Update tests\n"
-    "## Logic Specification\nPseudo-code for exact behavior:\n```pseudocode\nnormalize_value(raw: str | None) -> str:\n    if raw is None:\n        return \"\"\n    return raw\n```\n"
-    "## Tracer Bullet\n`python -c test_one_path.py` verifies the flow end to end\n"
-    "## Failure Modes\nNull pointer on missing data\n"
-    "## Test Strategy\nT-1: Test happy path and failure case. Input: None. Output: \"\". Assert `normalize_value(None) == \"\"`. `python test.py` returns 0\n"
-    "## Devil's Advocate\n"
-    "- P1 literal attack: If implementer changes return type, constraint table and assertion fail. Fix: preserve str return.\n"
-    "- P2 edge attack: Empty string input could be treated as None. Fix: pseudo-code returns raw for non-None.\n"
-    "- P2 dependency attack: Local command expects str. Fix: propagation map keeps caller contract unchanged.\n"
-    "## Rollback Plan\nTrivial revert; no persistent data or external side effects\n"
-    "## Doc Updates\nNo terminology changes\n"
-    "## Assumptions\nLow-impact: no data change"
-)
+def test_every_published_example_passes_repository_aware_validation() -> None:
+    for tier in TIERS:
+        code, output = run_checker(example_plan(tier), tier, FIXTURES / tier)
+        assert code == 0, output
+        assert output["passed"] is True
+        assert output["contract_version"] == 2
+        assert output["coverage"]["grounded_facts"] == output["coverage"]["facts"]
+        assert output["coverage"]["grounded_citations"] == output["coverage"]["citations"]
 
 
-class TestIntegrationTiny:
-    def test_valid_tiny_passes(self):
-        code, output = run_checker(VALID_TINY_PLAN, "tiny")
-        assert code == 0, f"Expected pass, got: {output}"
-
-    def test_invalid_tiny_fails(self):
-        text = "# X\n## Goal\n## Current State"
-        code, output = run_checker(text, "tiny")
-        assert code != 0
-
-    def test_missing_goal_fails(self):
-        text = "# Add test suite\n## Current State\nBug\n## Change\nFix\n## Test/Verification\nRun test\n## Assumptions\nLow"
-        code, output = run_checker(text, "tiny")
-        assert code != 0
+def test_repo_root_defaults_to_current_directory() -> None:
+    code, output = run_checker(example_plan("tiny"), "tiny", cwd=FIXTURES / "tiny")
+    assert code == 0, output
 
 
-class TestIntegrationStandard:
-    def test_valid_standard_passes(self):
-        code, output = run_checker(VALID_STANDARD_PLAN, "standard")
-        assert code == 0, f"Expected pass, got: {output}"
-
-    def test_invalid_standard_fails(self):
-        text = "# Add test suite\n## Goal\nFix\n## Current State\nfile.py:42"
-        code, output = run_checker(text, "standard")
-        assert code != 0
-
-    def test_compact_standard_contract_passes(self):
-        text = "\n".join([
-            "# Fix Tenant Feature Flag Cache Isolation",
-            "## Outcome and Scope",
-            "- SC-1: Returns only flags for the requested tenant.",
-            "- In scope: cache identity and regression coverage.",
-            "- Unchanged invariant: loader output remains list[str].",
-            "- Blast radius: flags_for callers and tests only.",
-            "## Evidence and Decisions",
-            "- Fact: flags.py:1 stores the local cache.",
-            "- Fact: flags.py:8 keys only by user ID.",
-            "- Contradictions: none after checking source and tests.",
-            "- Decision: follow the existing tenant/user identity pattern.",
-            "- Rejected: cache clearing hides the root cause.",
-            "## Implementation Specification",
-            "- CH-1: Key cache by tuple[str, str].",
-            "- CH-2: Add cross-tenant regression coverage.",
-            "```pseudocode",
-            "flags_for(tenant_id: str, user_id: str) -> list[str]:",
-            "    key = (tenant_id, user_id)",
-            "    if key not in cache: cache[key] = load_flags(tenant_id, user_id)",
-            "    return cache[key]",
-            "```",
-            "## Traceability and Constraints",
-            "| Criterion / constraint | Implementation | Verification | Status / rollback |",
-            "|---|---|---|---|",
-            "| SC-1 | CH-1, CH-2 | T-1 | Modified cache identity; revert |",
-            "| C-1: tenant isolation preserved | CH-1 | T-1 | Preserved |",
-            "flags_for -> flags.py:7",
-            "- direct caller: flags.py:8 - CH-1 - update required: yes - key gains tenant identity.",
-            "## Verification and Risks",
-            "- T-1: Given one user in two tenants, assert each output contains only its tenant.",
-            "- Command: `python -m pytest` returns exit code 0.",
-            "- R-1 P1: Reversed tuple order breaks invalidation. Resolution: use tenant first. Owner: CH-1/T-1.",
-            "- Rollback: revert CH-1 and CH-2; no persistent data or external side effects.",
-            "## Assumptions",
-            "- Low-impact: no external cache exists.",
-        ])
-        code, output = run_checker(text, "standard")
-        assert code == 0, f"Expected pass, got: {output}"
+def test_unrelated_fact_anchor_is_rejected() -> None:
+    plan = example_plan("standard").replace("anchor: `_cache`", "anchor: `imaginary_cache`")
+    code, output = run_checker(plan, "standard", FIXTURES / "standard")
+    assert code == 1
+    assert any(item["code"] == "semantic.evidence.anchor_mismatch" for item in output["errors"])
 
 
-class TestWarnFlag:
-    def test_warn_flag_with_warnings(self):
-        text = "# Add a test suite for the format checker\n## Goal\nFix\n## Current State\nfile.py:42\n## Scope\nIn scope: fix\nOut of scope: refactor\n## Approach\nFollow existing pattern\n## Changes\n1. Fix\n## Test Strategy\nTest for pass\npython test.py returns 0\n## Rollback Plan\nTrivial revert\n## Assumptions\nLow impact"
-        code, output = run_checker(text, "standard", warn=True)
-        warnings_in_output = "Warning" in output
-        assert code == 0 or warnings_in_output
+def test_nonexistent_existing_change_symbol_is_rejected() -> None:
+    plan = example_plan("standard").replace("anchor: `_cache` | status: existing", "anchor: `imaginary_cache` | status: existing", 1)
+    code, output = run_checker(plan, "standard", FIXTURES / "standard")
+    assert code == 1
+    assert any(item["code"] == "semantic.change.missing_anchor" for item in output["errors"])
 
 
-class TestJsonOutput:
-    def test_json_output_format(self):
-        code, data = run_checker_json(VALID_TINY_PLAN, "tiny")
-        if code == 0 and data:
-            assert "errors" in data
-            assert "warnings" in data
-            assert "passed" in data
-            assert "coverage" in data
+def test_existing_change_anchor_requires_matching_grounded_fact() -> None:
+    plan = example_plan("standard").replace(
+        "anchor: `_cache` | status: existing",
+        "anchor: `load_flags` | status: existing",
+        1,
+    )
+    code, output = run_checker(plan, "standard", FIXTURES / "standard")
+    assert code == 1
+    assert any(item["code"] == "semantic.change.ungrounded_anchor" for item in output["errors"])
 
-    def test_json_passes_on_valid(self):
-        code, data = run_checker_json(VALID_TINY_PLAN, "tiny")
-        if data:
-            assert "passed" in data
 
-    def test_json_output_on_invalid(self):
-        code, data = run_checker_json("# X", "tiny")
-        assert code != 0
+def test_keyword_shaped_legacy_plan_is_rejected_with_migration_command() -> None:
+    legacy = "# Fix imaginary production outage now\n## Goal\nReturns green\n## Current State\nfile.py:1\n## Change\nFix it\n"
+    code, output = run_checker(legacy, "standard", FIXTURES / "standard")
+    assert code == 1
+    version = next(item for item in output["errors"] if item["code"] == "contract.version.legacy")
+    assert "scaffold_plan.py" in version["message"]
+
+
+def test_high_risk_coverage_counts_severity_qualified_risk_ids() -> None:
+    code, output = run_checker(example_plan("high-risk"), "high-risk", FIXTURES / "high-risk")
+    assert code == 0, output
+    assert output["coverage"]["risks"] == 1
