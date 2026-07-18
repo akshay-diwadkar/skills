@@ -1,0 +1,599 @@
+{
+  "hot-path-decoy": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "acceptance_note": "hot path evidence rejects the irrelevant decoy",
+    "critical": [
+      {
+        "id": "hot-path-over-decoy",
+        "keywords": [
+          "hot path",
+          "decoy"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "cargo-cult-cache",
+        "keywords": [
+          "quick-win",
+          "shared cache"
+        ]
+      }
+    ]
+  },
+  "sweep-depth": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "sweep",
+    "stage": "plan",
+    "acceptance_note": "sweep coverage keeps deferred surfaces resumable",
+    "critical": [
+      {
+        "id": "coverage-accounted-sweep",
+        "keywords": [
+          "sweep",
+          "deferred",
+          "resume"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "false-complete-sweep",
+        "keywords": [
+          "sweep status: complete",
+          "deferred"
+        ]
+      }
+    ]
+  },
+  "ci-trust": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "acceptance_note": "coverage and release gates stay visible while CI is optimized",
+    "critical": [
+      {
+        "id": "preserve-time-to-trust",
+        "keywords": [
+          "coverage",
+          "release gates"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "skip-tests-quick-win",
+        "keywords": [
+          "quick-win",
+          "skip tests"
+        ]
+      }
+    ]
+  },
+  "unsupported-version": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "investigate": true,
+    "acceptance_note": "unsupported version evidence stays investigate until compatibility is resolved",
+    "critical": [
+      {
+        "id": "version-gated",
+        "keywords": [
+          "unsupported version",
+          "investigate"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "latest-docs-quick-win",
+        "keywords": [
+          "latest",
+          "quick-win"
+        ]
+      }
+    ]
+  },
+  "static-maintainability": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "static": true,
+    "acceptance_note": "static evidence supports the maintainability benefit without invented timing",
+    "critical": [
+      {
+        "id": "bounded-static-evidence",
+        "keywords": [
+          "static evidence",
+          "maintainability"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "fabricated-speedup",
+        "keywords": [
+          "20% faster",
+          "benchmark"
+        ]
+      }
+    ]
+  },
+  "medium-confidence": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "investigate": true,
+    "acceptance_note": "medium confidence remains investigate until the safe experiment passes",
+    "critical": [
+      {
+        "id": "no-medium-quick-win",
+        "keywords": [
+          "medium confidence",
+          "investigate"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "medium-quick-win",
+        "keywords": [
+          "confidence: medium",
+          "band: quick-win"
+        ]
+      }
+    ]
+  },
+  "authorization-routing": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "plan",
+    "acceptance_note": "plan-only authorization forbids repository mutation",
+    "critical": [
+      {
+        "id": "plan-only-routing",
+        "keywords": [
+          "plan-only",
+          "authorization"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "plan-only-mutation",
+        "keywords": [
+          "implementation complete"
+        ]
+      }
+    ]
+  },
+  "inconclusive-result": {
+    "minimum_score": 90,
+    "grounding": [
+      [
+        "F-1",
+        "Protected behavior"
+      ]
+    ],
+    "coverage": [
+      [
+        "CV-1",
+        "status:"
+      ]
+    ],
+    "baseline": [
+      [
+        "B-1",
+        "confidence:"
+      ]
+    ],
+    "ecosystem": [
+      [
+        "R-1",
+        "version:"
+      ]
+    ],
+    "gating": [
+      [
+        "C-1",
+        "band:"
+      ],
+      [
+        "gates:",
+        "rollback:"
+      ]
+    ],
+    "plan": [
+      [
+        "Selected candidate",
+        "V-1"
+      ],
+      [
+        "Rollback action",
+        "H-1"
+      ]
+    ],
+    "safety": [
+      [
+        "Authorization:",
+        "X-1"
+      ]
+    ],
+    "scope": "targeted",
+    "stage": "implementation",
+    "inconclusive": true,
+    "acceptance_note": "inconclusive comparable evidence requires rollback",
+    "critical": [
+      {
+        "id": "honest-inconclusive-result",
+        "keywords": [
+          "inconclusive",
+          "rollback"
+        ]
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "false-success",
+        "keywords": [
+          "inconclusive",
+          "optimization succeeded"
+        ]
+      }
+    ]
+  }
+}
+

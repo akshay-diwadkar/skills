@@ -1,290 +1,135 @@
 ---
 name: optimize-codebase-with-senior-dev
-description: Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use after an approved audit finding, performance complaint, explicit optimization goal, DX pain, architecture concern, modernization target, or when asked to broadly discover optimization opportunities across a codebase. The skill deeply comprehends the repo, actively researches official framework and library documentation via web search to find underexploited capabilities, produces an ROI-ranked optimization ledger, and generates structured briefs for plan-with-senior-dev.
+description: Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use for a known bottleneck or optimization goal, an approved audit finding, or an explicit repository-wide optimization sweep. Produces a validated coverage map, baseline, deterministic candidate decision, and decision-complete plan before any implementation.
 ---
 
 # Optimize Codebase With Senior Dev
 
-Answer: "What is the highest-leverage way to optimize this codebase or subsystem without breaking behavior?"
+Find the highest-leverage way to improve a named workflow without silently changing behavior. Use **targeted** scope for a known pain or finding. Use **sweep** scope only when the user explicitly asks for repository-wide optimization discovery.
 
-Two modes of operation:
+Planning is mandatory. Implementation remains available only after the planning artifact validates and the user explicitly authorizes code changes. Prefer configuration and supported capabilities already present in the resolved stack over custom machinery, new dependencies, upgrades, or rewrites.
 
-- **Targeted mode**: start from a stated target, pain signal, or approved finding. Optimize the specific area.
-- **Sweep mode**: when no specific target is given, systematically analyze the entire stack to discover and rank all optimization opportunities.
+## Non-Negotiables
 
-In both modes: work from evidence, not vibes. Preserve behavior unless the user explicitly approves a change. Prefer deeper use of proven capabilities already present in the stack over custom machinery, new dependencies, upgrades, or broad rewrites.
+1. Evidence selects the leverage point; documentation does not create one.
+2. Preserve APIs, outputs, errors, side effects, persistence, security, release gates, and operational promises unless the user names an authorized change.
+3. Establish a comparable baseline or bounded static evidence before researching an ecosystem solution.
+4. Never rank candidates with ordinal arithmetic. Apply the deterministic promotion gates in `references/optimization-rubric.md`.
+5. Sweep breadth is coverage-accounted and depth-bounded. Deferred work is visible and resumable.
+6. Never implement from an unvalidated report or execute more than one candidate at a time.
 
-Planning is the default. Implement only when the user explicitly requests code changes.
+## Canonical Records
 
-## Boundary
+- `F-n` — verified local fact with an existing `path:line`, anchor, and observation.
+- `CV-n` — subsystem/pass coverage with terminal status, evidence, priority, and resume action.
+- `B-n` — raw baseline or bounded static/blocked measurement record.
+- `R-n` — version-matched official research tied to a `B-n`, or an explicit not-applicable record.
+- `C-n` — independently measurable candidate with promotion gates and deterministic band.
+- `V-n` — exact check and expected observable result.
+- `X-n` — rejection or deferral with evidence and revisit condition.
+- `H-n` — exactly one next owner.
+- `E-n` — explicitly authorized implementation action and result; implementation stage only.
 
-This is not a broad issue-discovery or issue-publishing skill. In targeted mode, start from an explicit optimization goal, approved finding, complaint, DX pain, architecture concern, or modernization target. In sweep mode, start from an explicit request to "find optimizations" or "optimize everything." Use `codebase-issue-auditor` when the work is to discover and prove bugs, risks, or architectural issues rather than optimize performance and capabilities.
+## Contract and Reference Routing
 
-## Reference Routing
+1. Read `references/optimization-protocol.md` before starting non-trivial work.
+2. `references/optimization-contract.json` is the executable source of truth for output sections, records, bands, and sweep limits. Do not recreate its grammar from memory.
+3. Generate the artifact before filling it:
+   ```bash
+   python scripts/scaffold_optimization.py --scope targeted|sweep --stage plan|implementation
+   ```
+4. Read `references/optimization-rubric.md` before classifying candidates.
+5. Read `references/ecosystem-leverage.md` and `references/docs-research-protocol.md` only after a `B-n` or evidenced static leverage point names a relevant component.
+6. Read only the applicable pass in `references/optimization-patterns.md`. Read only the matching example in `references/worked-examples.md`.
+7. Validate before finalizing:
+   ```bash
+   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
+   ```
 
-For non-trivial work, read:
+## Seven Gates
 
-- `references/optimization-protocol.md` before creating baselines, candidate ledgers, plans, execution records, or verification records.
-- `references/ecosystem-leverage.md` whenever a framework, package, runtime, database, build tool, test tool, CI system, or deployment platform affects the target.
-- `references/docs-research-protocol.md` before researching official documentation for any framework, library, or tool.
-- `references/optimization-rubric.md` before ranking candidates, computing ROI scores, or authorizing implementation.
-- `references/optimization-patterns.md` when selecting patterns or checking anti-patterns.
+Complete Gates 1-7 in order. If later evidence changes scope, stage, or the selected candidate, regenerate the scaffold and re-run every affected gate.
 
-## Workflow
+### Gate 1: Frame and Protect
 
-### A. Grill the Optimization Brief
+- Inspect repository guidance and worktree state before asking questions.
+- Record scope, stage, authorization, named workflow, observable goal, success metric, constraints, exclusions, and risk tolerance.
+- State protected behavior. Treat implementation as unauthorized unless the user explicitly requested edits.
+- Record blocking product choices rather than deciding them on the user's behalf.
 
-Ask focused questions only when the user has not supplied enough context. Capture:
+**Completion gate:** target and success are observable, authorization is exact, protected behavior is explicit, and no discoverable repository fact is being asked of the user.
 
-- target repo/path and affected workflow, or confirmation of sweep mode;
-- goal, pain signal, and optimization category (or "broad optimization" for sweep);
-- constraints, exclusions, success metric, and acceptable risk;
-- plan-only or implementation request;
-- required output format.
+### Gate 2: Trace and Cover
 
-Use an approved audit finding as the brief when supplied. In sweep mode, the brief is "discover and rank all optimization opportunities in this repo."
+For targeted scope, trace the workflow from entry point through validation, core logic, I/O, external calls, transformations, and observable outcome. Record relevant data sizes, frequency, concurrency, and failure behavior.
 
-Complete only when you can restate the target (or sweep scope), goal, constraints, metric, risk tolerance, and authorization level.
+For sweep scope:
 
-### B. Deep Repo Comprehension
+- Inventory stable subsystem IDs and applicable optimization passes.
+- Create exactly one `CV-n` for every subsystem/pass pair with `candidate`, `clean`, `rejected`, or `deferred` status.
+- Use a lightweight repository-wide pass first. Deep-dive at most three highest-signal candidate surfaces per wave.
+- Give every deferral a priority, limitation, evidence, and concrete resume action.
+- Mark the sweep `incomplete` while any coverage record is deferred.
 
-Go beyond config files. Build a thorough mental model of what the repo does and how it works.
+**Completion gate:** the targeted path is end-to-end grounded, or the sweep matrix is complete with no silent omissions and no more than three candidate surfaces in the current wave.
 
-#### B.1 Read All Guidance
+### Gate 3: Baseline the Named Workflow
 
-- `AGENTS.md`, `CLAUDE.md`, `CONTEXT.md`, README files, docs, and ADRs;
-- manifests, lockfiles, version files, package-manager and workspace config;
-- build, test, lint, CI, deployment, runtime, database, and observability config;
-- existing benchmarks, profiles, source paths, and regression tests.
+- Prefer existing commands, profiles, timings, query plans, bundle reports, CI data, dependency metadata, or change-propagation evidence.
+- Record command or method, directory, workload, environment, cache state, raw result, variance, limitations, and confidence.
+- Use bounded static evidence for maintainability or DX when timing is not the claimed benefit. Never invent a performance number.
+- If measurement is blocked, state why and cap the candidate at `investigate` until a safe confirmation experiment succeeds.
 
-#### B.2 Trace Workflows End-to-End
+**Completion gate:** every candidate surface has a `B-n` that measures the named workflow, supplies bounded static evidence, or records an actionable blocker.
 
-In targeted mode, trace the target workflow. In sweep mode, trace every major workflow:
+### Gate 4: Research the Evidence-Selected Components
 
-- Identify entry points (API endpoints, CLI commands, scheduled jobs, event handlers, UI pages, training scripts, pipeline definitions).
-- For each entry point, trace: input → validation → core logic → data access → external calls → transformation → output/side-effects.
-- Record the exact code path with file:line references.
-- Note performance-relevant characteristics: data volumes, loop structures, I/O patterns, serialization boundaries, concurrency model.
+- Build the relevant component/version/usage inventory only for components connected to a `B-n`.
+- Confirm resolved version, configuration, execution mode, deployment target, direct/transitive ownership, and actual use.
+- Consult specific official documentation matching the resolved major version; same minor is preferred.
+- Record only capabilities that address the evidenced leverage point and preserve required semantics.
+- Reject generic best practices, unsupported versions, undirected configuration deltas, and “upgrade because newer.”
 
-#### B.3 Build the Component Usage Map
+**Completion gate:** each ecosystem claim has local usage evidence, a version-matched URL, compatibility analysis, and a direct link to a baseline; local-code candidates carry an explicit not-applicable `R-n`.
 
-For every framework, library, tool, runtime, and platform identified:
+### Gate 5: Compare and Classify
 
-- Record what it is, its resolved version, and how the repo actually uses it (not just that it's installed).
-- Classify usage: configuration-driven, API-driven, custom wrappers, partial adoption, or unused-but-installed.
-- Map which workflows depend on which components.
-- Note any custom code that might duplicate library capabilities.
+- Generate at least two credible candidates when alternatives exist, including the smallest direct or configuration option.
+- Record impact, confidence, effort, risk, verification strength, blast radius, reversibility, independence, operational cost, expected benefit, verification, and rollback.
+- Apply every promotion gate from `references/optimization-rubric.md` literally.
+- Classify each candidate as `quick-win`, `strategic-win`, `investigate`, or `rejected` without arithmetic.
+- Keep rejected and deferred options as `X-n` records with revisit conditions.
 
-#### B.4 Map Component Interactions
+**Completion gate:** every candidate has one deterministic band, all gate answers are evidenced, the selected option beats serious alternatives under the user's constraints, and ordering follows the rubric's tie-breaks.
 
-Identify how components interact at boundaries:
+### Gate 6: Plan, Then Optionally Implement
 
-- What data formats cross boundaries (JSON, Pickle, Parquet, Arrow, CSV, Protobuf, custom);
-- What connection/client patterns are used (per-request, pooled, persistent, shared);
-- Where serialization/deserialization happens;
-- What orchestration patterns exist (synchronous, async, event-driven, polling, batch).
+For plan stage, produce dependency-ordered changes with exact file areas, behavior guardrails, compatibility, tests, acceptance criteria, rollback, residual risk, and one `H-n`. Strategic Wins should hand off to `plan-with-senior-dev` when further implementation-level specification is needed.
 
-State repo purpose, architecture, relevant subsystems, runtime/tooling, deployment shape, verification surface, and component interaction map. Complete only when every workflow on the target path can be traced through code and configuration.
+For implementation stage:
 
-### C. Live Documentation Research
+1. Require explicit authorization in the brief and `E-n`.
+2. Require a checker-passing plan whose selected candidate is an eligible Quick or Strategic Win.
+3. Confirm regression coverage and a comparable baseline before editing.
+4. Apply one independently measurable candidate as a minimal patch.
+5. Run focused behavior checks and the comparable baseline.
+6. Stop, narrow, or revert only the introduced patch when behavior regresses, compatibility fails, or benefit is inconclusive.
 
-Read `references/docs-research-protocol.md` before starting this phase.
+**Completion gate:** plan stage is decision-complete without edits, or implementation stage contains one authorized candidate with an attributable patch, comparable evidence, and rollback status.
 
-For every significant framework, library, tool, and platform identified in Phase B, actively research official documentation to find optimization opportunities the repo is not currently exploiting.
+### Gate 7: Validate and Handoff
 
-#### C.1 Identify Research Targets
+- Run `check_optimization.py` and repair every diagnostic.
+- Re-read citations, coverage, baselines, research/version claims, candidate gates, verification, rollback, authorization, deferrals, and residual risks after the last repair.
+- Emit exactly one `H-n`: `finish optimization`, `plan-with-senior-dev`, or `implement-with-senior-dev`.
+- Report neutral, worse, or inconclusive results honestly; do not claim weaker-model reliability without a completed live evaluation.
 
-Prioritize components that:
+**Completion gate:** the checker passes, no blocking decision is disguised as settled, sweep limitations are explicit, and exactly one next owner is named.
 
-- Handle performance-sensitive workflows (training, inference, data pipelines, API serving, builds, deployments);
-- Have rich configuration surfaces (many tunable parameters);
-- Are core frameworks with deep feature sets likely only partially adopted;
-- Are infrastructure components (Spark, Kubernetes, databases, CI platforms) with performance tuning guides;
-- Show signs of default configuration or minimal customization in the repo.
+## Handoff Boundaries
 
-#### C.2 Research Each Component
-
-For each research target, use web search and URL reading to find and read:
-
-- Official documentation for the resolved version;
-- Performance tuning guides and best practices;
-- Configuration references (especially parameters the repo hasn't set);
-- Changelog and what's-new for the installed version (capabilities available but unused);
-- Known performance pitfalls and anti-patterns.
-
-Search queries should be specific and version-matched:
-
-- `{library} {version} performance tuning`
-- `{library} {version} configuration reference`
-- `{library} best practices production deployment`
-- `{framework} {version} optimization guide`
-
-#### C.3 Cross-Reference Against Repo Usage
-
-For each finding from documentation research, compare:
-
-- What the repo configures vs. what the docs say CAN be configured;
-- What the repo implements in custom code vs. what the library provides natively;
-- What parameters are at defaults vs. what the docs recommend for production workloads;
-- What the repo's deployment model is vs. what the docs recommend for that model.
-
-The delta between "what the repo does" and "what the docs say is possible or recommended" is the optimization surface.
-
-#### C.4 Record in Documentation Research Log
-
-For each finding, record: component, version, doc URL, specific finding, current repo state, recommended state, expected benefit, confidence, and compatibility notes. See `references/docs-research-protocol.md` for the full format.
-
-Complete only when every significant component has been researched and cross-referenced, and findings are recorded with version-matched evidence.
-
-### D. Optimization Surface Discovery
-
-Synthesize the repo comprehension (Phase B) and documentation research (Phase C) into a structured optimization surface.
-
-#### D.1 Single-Component Opportunities
-
-For each component, identify optimizations from:
-
-- Configuration options not currently set that the docs recommend;
-- Native capabilities that could replace custom code;
-- Anti-patterns the docs warn about that the repo exhibits;
-- Advanced features in the installed version that the repo doesn't use;
-- Default values that are suboptimal for the repo's workload characteristics.
-
-#### D.2 Cross-Component Opportunities
-
-Read the Cross-Component Optimization section of `references/ecosystem-leverage.md`. Identify optimizations at component boundaries:
-
-- Serialization format mismatches between components;
-- Redundant data transformations across boundaries;
-- Connection/client reuse opportunities;
-- Batch size mismatches between producers and consumers;
-- Duplicate computation across components;
-- Orchestration overhead that could be eliminated.
-
-#### D.3 Domain-Specific Passes
-
-Run the domain-specific optimization passes from `references/ecosystem-leverage.md` and `references/docs-research-protocol.md`, but now informed by the live documentation research. Only run passes connected to the target (targeted mode) or all applicable passes (sweep mode).
-
-For each finding, record: what the repo does now, what could be done instead, the evidence source (code path + doc reference), and the expected benefit.
-
-Complete only when the optimization surface is fully mapped with evidence for each finding.
-
-### E. Establish the Baseline
-
-Do not optimize from vibes. Collect cheap, safe evidence such as timings, profiles, build/test/lint output, bundle stats, query plans, dependency metadata, code-path analysis, or complexity/coupling evidence.
-
-Record command, environment, workload, raw result, variance, limitations, and confidence. If measurement is impossible, explain why and downgrade static evidence accordingly.
-
-In sweep mode, establish baselines for the highest-priority candidates first. Not every candidate needs a baseline before ranking — low-effort candidates with clear code-path evidence can be ranked on static analysis alone.
-
-Complete only when the proposed success metric has a reproducible baseline or an explicit measurement blocker.
-
-### F. ROI-Ranked Candidate Ledger
-
-Read `references/optimization-rubric.md` before scoring.
-
-#### F.1 Generate Candidates
-
-Generate multiple candidates from the optimization surface (Phase D), including relevant comparisons among:
-
-- configuring an existing capability;
-- adopting an unused framework-native or direct-dependency capability;
-- replacing custom code that duplicates supported behavior;
-- simplifying redundant wrappers or integrations;
-- making a focused local code change;
-- optimizing cross-component boundaries;
-- adding a dependency only when it reduces net complexity;
-- upgrading only when a specific required capability or fix is unavailable locally.
-
-For each candidate record: leverage point, expected benefit, affected files/subsystems, ecosystem fit, version compatibility, effort, risk, blast radius, reversibility, operational cost, net-complexity effect, verification path, side effects, and evidence sources.
-
-#### F.2 Score and Rank
-
-Apply the ROI scoring formula from `references/optimization-rubric.md`:
-
-ROI = (Impact × Confidence) / (Effort × Risk)
-
-Assign each candidate to a tier:
-
-- **Quick Win** (ROI ≥ 4.0): High impact, low effort, low risk. Recommend first.
-- **Strategic Win** (1.5 ≤ ROI < 4.0): High impact, needs proper planning. Hand off to `plan-with-senior-dev`.
-- **Speculative** (0.5 ≤ ROI < 1.5): Uncertain benefit. Recommend further investigation.
-- **Rejected** (ROI < 0.5 or fails threshold): Record in reject ledger with reason and revisit condition.
-
-Within each tier, order by ROI score (descending), blast radius (ascending), reversibility (most reversible first), and independence (no dependencies on other candidates first).
-
-#### F.3 Produce the Ranked Ledger
-
-For each candidate, produce a summary with: title, what changes, why it helps, expected benefit, effort estimate, risk, evidence sources, and ROI score. See `references/optimization-rubric.md` for the full format.
-
-Separate quick wins from deeper work and unrelated optimizations. Complete only when every candidate beats the rejected alternatives under the user's constraints, and the tiered list is ordered by ROI.
-
-### G. Plan Generation
-
-For plan-only work, produce the recommended strategy per tier:
-
-- **Quick Wins**: direct implementation guidance with exact file areas, ordered changes, guardrails, checks, acceptance criteria, and rollback.
-- **Strategic Wins**: a structured handoff brief for `plan-with-senior-dev` containing: target, goal, constraints, success criteria, affected files/subsystems, ecosystem evidence with doc URLs, baseline reference, verification approach, and residual risks.
-- **Speculative**: the missing evidence and recommended investigation steps.
-
-When `plan-with-senior-dev` is available, explicitly recommend using it for Strategic Win candidates. The handoff brief should contain enough context for `plan-with-senior-dev` to produce a decision-complete implementation specification without re-researching the codebase or docs.
-
-For explicitly authorized implementation:
-
-1. Confirm baseline and regression coverage before editing.
-2. Apply one independently measurable candidate as a minimal patch.
-3. Run focused behavior checks after each meaningful change.
-4. Re-run the baseline under comparable conditions.
-5. Continue to another candidate only when it is independently authorized by the brief and the previous result is understood.
-
-Stop and narrow or revert the optimization patch you introduced when behavior regresses, compatibility evidence fails, or the measured benefit is inconclusive. Do not revert unrelated user changes.
-
-When `implement-with-senior-dev` is available, recommend using it for implementation work that follows an approved plan.
-
-### H. Verify and Report
-
-Compare raw before/after results and account for variance, cache state, workload, and environment. Confirm public behavior, correctness, types, validation, tests, and operational semantics remain intact.
-
-Validate ROI: does the measured improvement match the expected benefit from the candidate ledger? If not, explain the discrepancy and adjust the ROI score for remaining candidates from the same evidence source.
-
-Do not claim success without evidence. If the result is neutral or worse, report it honestly and recommend keeping, narrowing, or reverting based on the stated goal, including maintainability goals that may rely on static evidence.
-
-Complete only when the report includes ecosystem fit, version evidence, doc research references, before/after evidence, regression checks, ROI validation, rollback status, and residual risks.
-
-## Guardrails
-
-- No optimization without a target (targeted mode) or an explicit sweep request (sweep mode).
-- No broad rewrites, speculative abstractions, or unrelated optimization bundles by default.
-- No public API or behavior changes without explicit approval.
-- No framework feature recommendation without confirming framework, resolved version, configuration, execution mode, and target code path.
-- No documentation from a newer major version as evidence for the installed version.
-- No upgrade merely because a newer version exists; require a specific local benefit and compatibility plan.
-- No assumption that every installed package is beneficial; account for runtime, bundle, maintenance, security, and overlap costs.
-- No direct import of a transitive dependency unless it becomes declared and compatibility ownership is accepted.
-- No caching, memoization, concurrency, lazy loading, indexes, workers, batching, pooling, or parallelism without workload evidence and correctness controls.
-- No deleting tests or weakening types, lint, validation, or release gates merely to improve speed.
-- No documentation research claim without a specific URL and version match.
-- No ROI score without explicit Impact, Confidence, Effort, and Risk ratings.
-- Prefer reversible changes and split high-risk or unrelated work into separate PRs.
-
-## Output Modes
-
-- Local optimization report.
-- Ecosystem leverage report.
-- ROI-ranked optimization ledger with tiered candidates.
-- Documentation research log with findings and evidence.
-- Optimization surface analysis.
-- Plan-with-senior-dev handoff brief for strategic candidates.
-- Implementation plan or Codex-ready prompt.
-- Patch plan or explicitly authorized implementation run.
-- Before/after verification report with ROI validation.
-- Follow-up after implementation.
-- GitHub issue update note; never publish issues from this skill.
-
-## Handoff Guidance
-
-- Use `codebase-issue-auditor` to discover and prove bugs, risks, and architectural issues.
-- Use `plan-with-senior-dev` to turn Strategic Win candidates into decision-complete implementation plans. Pass the structured handoff brief from Phase G.
-- Use `implement-with-senior-dev` to execute an approved implementation plan as a minimal patch.
-- Use `improve-codebase-architecture` when the primary goal is architectural redesign rather than measurable optimization.
-- Use `diagnose` first when concrete failing behavior or a performance regression must be reproduced.
+- Use `codebase-issue-auditor` when bugs, risks, or architectural problems have not yet been proved.
+- Use `diagnose` first for a concrete regression that must be reproduced and minimized.
+- Use `plan-with-senior-dev` for a Strategic Win requiring exact implementation contracts and propagation.
+- Use `implement-with-senior-dev` for an approved decision-complete plan, or retain this skill's implementation stage when the user explicitly requests the measured candidate directly.
+- Use `improve-codebase-architecture` when the primary objective is structural redesign rather than measurable optimization.

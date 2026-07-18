@@ -1,152 +1,65 @@
-# Optimization Rubric
+# Optimization Promotion Rubric
 
-Use this rubric to decide which candidates deserve planning or implementation.
+Use this rubric as the single source of truth for candidate promotion and ordering. Do not multiply ordinal labels or add them into a synthetic ROI number.
 
-## Scoring Dimensions
+## Anchored Dimensions
 
-Score each dimension as `high`, `medium`, or `low`. For effort, risk, blast radius, and operational cost, lower is better.
+- **Impact** — `high`: meets or materially advances the named success threshold; `medium`: meaningful bounded improvement; `low`: marginal or disconnected benefit.
+- **Confidence** — `high`: comparable measurement plus code-path evidence, or complete bounded static evidence; `medium`: credible local evidence with one explicit measurement or compatibility confirmation outstanding; `low`: intuition, generic best practice, or hidden-production assumptions.
+- **Effort** — `low`: one focused reversible patch and existing verification; `medium`: several coordinated files or new focused tests/configuration; `high`: migration, broad rollout, new operations, or cross-team work.
+- **Risk** — `low`: local, behavior-preserving, strongly verified, trivially reversible; `medium`: shared configuration, multiple paths, or changed runtime characteristics; `high`: public contracts, persistence, security, concurrency, deployment, shared caching, or release paths.
+- **Verification strength** — `strong`: comparable direct workflow evidence and regression checks; `bounded`: complete static evidence or safe confirmation experiment; `missing`: no credible proof path.
+- **Blast radius** — `low`: one cohesive owner; `medium`: several files or one shared subsystem; `high`: multiple subsystems, environments, teams, or users.
 
-- **Impact**: expected improvement to the named workflow, cost, reliability, maintainability, or feedback loop.
-- **Confidence**: strength of baseline, profiling, source-path evidence, local metadata, and version-matched documentation.
-- **Effort**: implementation, review, test, documentation, migration, and rollout cost.
-- **Risk**: likelihood of regression, incompatibility, operational failure, or hidden production effect.
-- **Reversibility**: ability to undo the change without data, contract, deployment, or workflow damage.
-- **Blast radius**: files, subsystems, commands, environments, teams, or users affected.
-- **Verification strength**: quality of before/after measurement and behavior checks.
-- **Ecosystem fit**: how directly the candidate uses a supported capability of the actual local stack without fighting established patterns.
-- **Compatibility certainty**: evidence that the resolved version, configuration, runtime mode, plugins, and deployment target support the candidate.
-- **Operational cost**: ongoing memory, CPU, storage, network, cache, observability, deployment, security, and maintenance burden.
-- **Net-complexity effect**: whether total concepts, custom code, configuration, dependencies, and ownership decrease or increase.
+Also record reversibility, independence, operational cost, and net-complexity effect explicitly.
 
-## Recommendation Threshold
+## Promotion Gates
 
-Recommend a candidate only when it is:
+Answer every gate `yes` or `no` with cited evidence:
 
-- high confidence, or medium confidence with a concrete confirmation step before implementation;
-- linked to the named target and root cause;
-- supported by a reproducible baseline or appropriately bounded static evidence;
-- independently reviewable and behavior-preserving by default;
-- compatible with the resolved ecosystem or accompanied by a separately justified migration;
-- reversible enough for the user's risk tolerance;
-- neutral or favorable in operational cost and net complexity, unless the measured benefit explicitly justifies the tradeoff.
+1. `target`: named workflow and optimization mechanism are supported by local facts.
+2. `baseline`: reproducible baseline or complete bounded static evidence exists.
+3. `behavior`: protected behavior is preserved or a named authorization permits the change.
+4. `compatibility`: resolved versions, configuration, runtime mode, plugins, and deployment support the change, or ecosystem research is not applicable.
+5. `verification`: exact proof method and expected result are defined.
+6. `rollback`: executable trigger and reversal are defined.
+7. `operational-cost`: CPU, memory, storage, network, security, observability, deployment, and maintenance effects are acceptable.
+8. `decisions`: the candidate is independent and no blocking product or ownership choice remains.
 
-Hold back low-confidence, unsupported-version, transitive-only, high-blast-radius, or weakly verifiable options unless the user asks for speculative alternatives. Record the evidence needed to revisit them.
+## Deterministic Bands
 
-## Risk Levels
+### Quick Win
 
-- **Low**: local, behavior-preserving, strongly verified, and trivially reversible.
-- **Medium**: touches shared config or several files, changes runtime characteristics, or has incomplete environment coverage.
-- **High**: affects public APIs, persistence, deployment, release gates, framework/runtime modes, shared caching, concurrency, or broad code paths.
-- **Critical**: risks data loss, security exposure, outage, broken releases, irreversible migration, or widespread behavior change.
+All gates are `yes`; confidence is high; impact is medium or high; effort and risk are low; verification is strong; the change is independent and reversible.
 
-## Confidence Levels
+### Strategic Win
 
-- **High**: direct measurement plus clear code-path evidence; ecosystem claims match the resolved version and local configuration.
-- **Medium**: credible local evidence with one explicit measurement or compatibility question remaining.
-- **Low**: intuition, generic best practice, latest-version docs applied to an older version, hidden production assumptions, or unmeasured symptoms.
+All gates are `yes`; impact is high; verification is at least bounded; the change is independent and reversible; and effort, risk, or blast radius is medium/high. Produce a full implementation-planning handoff.
 
-## Ecosystem Decision Order
+### Investigate
 
-Prefer the first option that passes the threshold:
+Only `baseline` or `compatibility` may be `no`, and the candidate names a safe, concrete confirmation experiment. Do not authorize implementation or describe it as a win.
 
-1. Configure a capability already present and supported.
-2. Adopt an unused native capability in the installed framework or direct dependency.
-3. Remove or simplify custom code that duplicates supported behavior without required custom semantics.
-4. Make a focused local-code optimization.
-5. Add a dependency only when total complexity and operational cost decrease.
-6. Upgrade only for a specific required capability or fix with a compatibility and rollback plan.
+### Rejected
 
-This order is a comparison discipline, not an automatic winner. Reject a native capability when it obscures required behavior, performs worse for the workload, lacks observability, or creates unacceptable coupling.
+Use when target linkage is weak, impact is low, evidence is low-confidence, the version is unsupported, behavior change is unauthorized, risk or operational cost is unacceptable, verification/rollback is missing, or the candidate is not independently actionable. Record reason and revisit condition.
 
-## ROI Scoring and Tiered Ranking
+## Ordering Within Bands
 
-After scoring each candidate on the standard dimensions, compute a qualitative ROI score to produce a ranked, tiered list.
+Sort lexicographically by:
 
-### ROI Formula
+1. higher impact;
+2. higher confidence;
+3. stronger verification;
+4. lower effort;
+5. lower risk;
+6. lower blast radius;
+7. reversible before irreversible;
+8. independent before dependent;
+9. candidate ID.
 
-ROI = (Impact × Confidence) / (Effort × Risk)
+The first option does not win automatically. Compare in this order when semantics fit: configure an existing capability, adopt a supported direct capability, remove duplicate custom machinery, make a focused local change, add a dependency only when total complexity falls, then upgrade only for a named locally unavailable capability or fix.
 
-All factors use the dimension scores mapped to numeric weights:
-- high = 3, medium = 2, low = 1
+## Plan Acceptance
 
-For dimensions where lower is better (Effort, Risk), the raw score is used as a cost multiplier. Higher ROI values indicate better return.
-
-Example: A candidate with Impact=high(3), Confidence=high(3), Effort=low(1), Risk=low(1) scores ROI = 9.0 — a strong quick win. A candidate with Impact=high(3), Confidence=medium(2), Effort=high(3), Risk=medium(2) scores ROI = 1.0 — a strategic investment requiring justification.
-
-### Tier Definitions
-
-Assign each candidate to exactly one tier based on ROI score and qualitative judgment:
-
-| Tier | ROI Range | Characteristics | Action |
-| --- | --- | --- | --- |
-| **Quick Win** | ROI ≥ 4.0 | High impact, low effort, low risk. Can be implemented independently and verified immediately. | Recommend first. Implement in any order. |
-| **Strategic Win** | 1.5 ≤ ROI < 4.0 | High impact but requires meaningful effort, planning, or carries moderate risk. Worth doing but needs a proper plan. | Recommend after quick wins. Hand off to `plan-with-senior-dev` for implementation planning. |
-| **Speculative** | 0.5 ≤ ROI < 1.5 | Uncertain benefit, high effort, or low confidence. Could pay off but evidence is incomplete. | Present with caveats. Recommend further investigation or measurement before committing. |
-| **Rejected** | ROI < 0.5 or fails threshold | Low benefit relative to cost, unsupported by evidence, version-incompatible, or unacceptable risk. | Move to reject ledger with reason and revisit condition. |
-
-### Ranked Ledger Format
-
-Present the ranked candidates as an ordered list within each tier:
-
-```
-## Quick Wins (implement first)
-
-### QW-1: {title}
-- **What changes**: {concrete description of the change}
-- **Why it helps**: {mechanism of improvement, linked to evidence}
-- **Expected benefit**: {quantified or bounded estimate}
-- **Effort**: {low/medium — specific: e.g., 'one config change' or '~50 lines across 2 files'}
-- **Risk**: {low — specific: e.g., 'fully reversible, no behavior change'}
-- **Evidence**: {doc URL, profile data, or code path reference}
-- **ROI Score**: {numeric}
-
-## Strategic Wins (plan then implement)
-
-### SW-1: {title}
-- {same fields as above}
-- **Planning notes**: {what plan-with-senior-dev should focus on}
-
-## Speculative (investigate further)
-
-### SP-1: {title}
-- {same fields as above}
-- **Missing evidence**: {what needs to be confirmed before promoting}
-
-## Rejected
-
-### RJ-1: {title}
-- **Reason**: {specific reason for rejection}
-- **Revisit when**: {condition under which to reconsider}
-```
-
-### Ordering Within Tiers
-
-Within each tier, order candidates by:
-1. ROI score (descending)
-2. Blast radius (ascending — prefer smaller scope)
-3. Reversibility (most reversible first)
-4. Independence (candidates with no dependencies on other candidates first)
-
-### Sweep Mode Ranking
-
-When running in broad sweep mode (no specific target), present the tiered list as a comprehensive optimization roadmap. Group related candidates when they share an affected subsystem but keep them independently implementable. Note dependencies between candidates when one enables or blocks another.
-
-## Acceptance Criteria for a Plan
-
-An acceptable plan has:
-
-- a clear target, workflow, constraints, success metric, and risk tolerance;
-- baseline or bounded static evidence;
-- relevant ecosystem inventory and resolved versions;
-- a capability-to-target link with local and official evidence where applicable;
-- proposed change mapped to the root cause;
-- behavior preservation, compatibility, and operational effects addressed;
-- exact verification commands and before/after criteria;
-- rollback path and residual risks;
-- rejected alternatives with reasons when meaningful options existed.
-
-Do not finalize while the implementer must choose the target, package/framework feature, version assumptions, metric, public behavior, verification path, or rollback.
-
-## Authorization Threshold for Execution
-
-Implement only when the user explicitly requested code changes and the chosen candidate passes the recommendation threshold. Before editing, require a baseline, regression surface, exact patch scope, compatibility evidence, acceptance criteria, and rollback. Do not interpret a request for analysis, options, or a plan as implementation authorization.
+Do not finalize while the implementer must choose the workflow, package feature, version assumption, public behavior, metric, confirmation experiment, verification, rollout, or rollback. Every recommended candidate needs an observable acceptance threshold and a checker-passing artifact.

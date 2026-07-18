@@ -1,6 +1,6 @@
 # Ecosystem Leverage
 
-Use this reference after the optimization target is known and a relevant framework, package, runtime, database, build/test tool, CI system, or deployment platform is present. Local evidence selects what to research; ecosystem research does not create an optimization target.
+Use this reference after a baseline or bounded static leverage point names a relevant framework, package, runtime, database, build/test tool, CI system, or deployment platform. Local evidence selects what to research; ecosystem research does not create an optimization target.
 
 ## Contents
 
@@ -14,7 +14,7 @@ Use this reference after the optimization target is known and a relevant framewo
 
 ## Ecosystem Inventory
 
-Inventory only components that can affect the target:
+Inventory only components that participate in the evidenced target path:
 
 - language and runtime versions from version files, manifests, containers, CI, and deployment config;
 - application frameworks, routers, renderers, ORMs, clients, state/data libraries, and major integrations;

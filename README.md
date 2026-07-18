@@ -48,7 +48,7 @@ The skills form a composable engineering lifecycle. Start at the stage that matc
 |---|---|---|---|
 | Discover | You need to find and prove codebase risks. | `codebase-issue-auditor` | Evidence-backed findings and reviewable issue drafts. Send an approved finding to optimization, design, or planning. |
 | Discover | Open GitHub issues need actionable local plans. | `github-issue-planner` | One evidence-backed Markdown resolution plan per issue. Escalate only complex issues to senior planning. |
-| Decide | You know the performance, tooling, or developer-experience goal. | `optimize-codebase-with-senior-dev` | A baseline, ROI-ranked optimization ledger, and structured brief for the highest-value change. |
+| Decide | You know the performance, tooling, or developer-experience goal. | `optimize-codebase-with-senior-dev` | A validated coverage map, baseline, deterministically ranked candidate ledger, and structured brief for the highest-value change. |
 | Decide | Boundaries, ownership, dependencies, or patterns may need to change. | `design-codebase-with-senior-dev` | A validated assessment, justified target design, and incremental behavior-preserving migration shape. This stage never edits implementation files. |
 | Specify | An approved finding, brief, or target design needs exact implementation decisions. | `plan-with-senior-dev` | A decision-complete specification covering interfaces, logic, propagation, tests, and verification. |
 | Communicate | Reviewers need a shared view of the current system, proposed design, or workflow. | `create-diagram` | A validated, self-contained HTML diagram for review or documentation. Use it before or after a design decision. |
@@ -68,7 +68,7 @@ The common path is **discover → decide → specify → deliver**. Diagramming 
 
 ### Recipe 2: Optimize a known bottleneck or developer workflow
 
-1. Start with `optimize-codebase-with-senior-dev` to establish a baseline, research capabilities already available in the stack, and rank candidates by ROI.
+1. Start with `optimize-codebase-with-senior-dev` to establish a baseline, research only evidence-linked capabilities available in the stack, and classify candidates through deterministic promotion gates.
 2. If the best candidate changes architecture, use `design-codebase-with-senior-dev` to approve the smallest safe structural change. Otherwise, continue directly.
 3. Hand the optimization brief or approved design to `plan-with-senior-dev`, then execute it with `implement-with-senior-dev`.
 4. Compare the verified result with the original baseline. Stop if the success metric is met; return to the candidate ledger if it is not.
@@ -104,7 +104,7 @@ Audit a repository for evidence-backed bugs, risks, test gaps, architectural fri
 
 #### `optimize-codebase-with-senior-dev`
 
-Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use after an approved audit finding, performance complaint, explicit optimization goal, DX pain, architecture concern, modernization target, or when asked to broadly discover optimization opportunities across a codebase. The skill deeply comprehends the repo, actively researches official framework and library documentation via web search to find underexploited capabilities, produces an ROI-ranked optimization ledger, and generates structured briefs for plan-with-senior-dev.
+Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. The skill produces a validated targeted trace or sweep coverage map, establishes workflow evidence before researching official version-matched capabilities, classifies candidates with deterministic promotion gates, and generates decision-complete plans or structured briefs for `plan-with-senior-dev`.
 
 ### Architecture & Design
 
@@ -176,10 +176,11 @@ CI runs repository quality checks on Python 3.11:
 
 ```bash
 python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts tests .github/scripts
+ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts optimize-codebase-with-senior-dev/scripts tests .github/scripts
 mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
 mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
 mypy design-codebase-with-senior-dev/scripts tests/design-codebase-with-senior-dev
+mypy optimize-codebase-with-senior-dev/scripts tests/optimize-codebase-with-senior-dev
 mypy github-issue-planner/scripts tests/github-issue-planner
 mypy create-diagram/scripts tests/create-diagram
 mypy .github/scripts tests/repository
@@ -197,6 +198,25 @@ python tests/design-codebase-with-senior-dev/run_live_evaluations.py \
 ```
 
 The runner copies and hashes each fixture, treats mutations and adapter failures as hard failures, and requires a median score of 90 with no individual score below 80.
+
+`optimize-codebase-with-senior-dev` uses an executable report contract. Generate and validate reports from the skill directory:
+
+```bash
+python scripts/scaffold_optimization.py --scope targeted --stage plan > optimization.md
+python scripts/check_optimization.py --scope targeted --stage plan --repo-root /path/to/repo optimization.md
+```
+
+Its provider-neutral live evaluation adapter reads one JSON request from stdin and writes one JSON response containing `optimization_markdown` to stdout:
+
+```bash
+python tests/optimize-codebase-with-senior-dev/run_live_evaluations.py \
+  --adapter-command python path/to/adapter.py \
+  --model-label weaker-model \
+  --runs 3 \
+  --output-dir .scratch/optimize-codebase-evals
+```
+
+The runner hashes copied fixtures, treats mutation and adapter failures as hard failures, and requires a median score of 90 with every run at least 80. Without a configured adapter, weaker-model reliability remains unverified.
 
 CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
 

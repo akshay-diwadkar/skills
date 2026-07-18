@@ -1,105 +1,60 @@
 # Optimization Protocol
 
-Use this protocol for optimization work from a known target. Keep artifacts in working notes unless the user asks for a report.
+Use this protocol to do the legwork behind the seven gates in `SKILL.md`. The JSON contract owns artifact shape; this reference owns evidence collection and completion discipline.
 
-## Working Artifacts
+## Frame
 
-- **Optimization brief**: target, workflow, pain signal, category, constraints, exclusions, success metric, risk tolerance, authorization level, and output mode.
-- **System frame**: repo purpose, target subsystem, runtime, deployment surface, test/build/CI shape, guidance, and traced workflow.
-- **Ecosystem inventory**: relevant runtimes, frameworks, direct/dev/transitive dependencies, resolved versions, plugins, platforms, config, and usage state.
-- **Capability matrix**: component and version, current use, applicable native capability, target link, local evidence, official evidence, adoption type, compatibility, and operational cost.
-- **Baseline record**: command, directory, environment, workload, cache state, raw measurements, variance, confidence, and limitations.
-- **Candidate ledger**: leverage point, benefit, files/subsystems, ecosystem fit, compatibility, effort, risk, blast radius, reversibility, operational cost, net complexity, verification, side effects, and decision.
-- **Ranking matrix**: candidate scores from `optimization-rubric.md` plus user constraints.
-- **Implementation plan**: chosen strategy, ordered steps, guardrails, checks, acceptance criteria, rollback, and residual risks.
-- **Execution record**: authorization, patch scope, behavior checks, baseline reruns, deviations, and keep/narrow/revert decision.
-- **Verification record**: comparable before/after results, regression checks, ecosystem/version evidence, conclusion, and residual risks.
-- **Reject ledger**: rejected or deferred candidates, evidence, reason, and revisit condition.
-- **Repo comprehension map**: repo purpose, domain model, architecture overview, major workflows with entry-to-exit traces, data flow, deployment model, and component interaction map.
-- **Documentation research log**: per-component records of version, doc URLs consulted, specific findings, current state in repo, recommended state per docs, expected benefit, confidence, and compatibility notes.
-- **Optimization surface analysis**: per-component delta between current repo usage and documented capabilities, cross-component boundary opportunities, and domain-specific optimization findings.
-- **ROI-ranked candidate ledger**: tiered list (Quick Win, Strategic Win, Speculative, Rejected) with ROI scores, ordered within each tier by ROI, blast radius, reversibility, and independence.
-- **Plan-with-senior-dev handoff brief**: for each approved candidate, a structured brief containing target, goal, constraints, success criteria, affected files and subsystems, ecosystem evidence, baseline reference, and verification approach formatted for consumption by `plan-with-senior-dev`.
+Record the repository and audited commit, dirty-worktree state, target workflow or sweep request, goal, metric, constraints, exclusions, protected behavior, risk tolerance, output destination, and plan/implementation authorization. Resolve repository facts locally. Ask only about product choices that materially change the optimization.
 
-## Required Sequence
+## Targeted Trace
 
-1. Trace the named workflow OR, in sweep mode, trace all major workflows and identify likely leverage points.
-2. Build a repo comprehension map covering purpose, domain, architecture, workflows, data flow, deployment, and component interactions.
-3. Build the relevant ecosystem inventory and capability matrix.
-4. Research official documentation for each significant component via web search and URL reading. Record findings in the documentation research log.
-5. Produce the optimization surface analysis by cross-referencing actual repo usage against documented capabilities, including cross-component boundary opportunities.
-6. Establish a baseline or document why measurement is unavailable.
-7. Generate at least two credible candidates when alternatives exist. Score each with the ROI formula and assign to tiers.
-8. Rank candidates within tiers and record rejects before planning implementation.
-9. For each approved candidate, produce a plan-with-senior-dev handoff brief. Recommend invoking `plan-with-senior-dev` for Strategic Win candidates.
-10. Implement only with explicit authorization, one measurable candidate at a time.
-11. Re-run behavior checks and the comparable baseline before claiming success.
+Trace input → validation → core logic → data access → external calls → transformations → output or side effects. Record entry points, callers, configuration, data shape and volume, concurrency, lifecycle, error handling, tests, observability, and deployment context. Stop tracing when every proposed leverage point can be tied to an existing `F-n` and the affected workflow is end-to-end understood.
 
-Do not skip ecosystem inventory merely because the likely change appears to be local code. A framework default, package capability, build transform, ORM behavior, or runtime mode may define the actual leverage point.
+## Sweep Coverage
 
-Do not skip documentation research. The delta between what the repo does and what official docs recommend is often the highest-ROI optimization surface.
+1. Inventory subsystems from repository boundaries, entry points, manifests, deployment units, and build/test ownership.
+2. Select applicable passes: runtime, frontend/rendering, backend/API, database/data, build/test/CI, dependencies/tooling, architecture/maintainability, developer experience, framework/platform.
+3. Create the full subsystem/pass matrix before deep research.
+4. Triage each pair cheaply from code, configuration, tests, existing metrics, and history.
+5. Mark it `candidate`, `clean`, `rejected`, or `deferred`; every record needs local evidence.
+6. Deep-dive at most three highest-signal candidate surfaces in one wave. Use impact, current evidence, user priority, and risk to choose them.
+7. Give every deferral a priority and resume action. High-priority deferrals must appear in limitations. A sweep with any deferral is incomplete.
 
-## Optimization Passes
+The matrix proves breadth; the wave limit protects depth. Never substitute a sample of interesting files for coverage.
 
-Run only passes that can affect the brief.
+## Baselines
 
-### Runtime Hot Path
+- Measure the workflow the user named, not a convenient proxy.
+- Reuse documented or CI commands. Record exact command, directory, relevant environment, representative workload, cache state, timestamp, raw observations, variance, limitations, and confidence.
+- Repeat noisy measurements and report raw values plus median. Separate cold and warm results when both matter.
+- Prefer read-only plans, safe fixtures, profiles, traces, bundle reports, and query plans before adding instrumentation.
+- For maintainability or DX, bounded static evidence may measure propagation count, duplicated policy, setup steps, feedback delay, or navigation cost.
+- A blocker must name the missing access/data/environment and a safe experiment. It caps promotion at `investigate`.
 
-Inspect call paths, data sizes, algorithmic scaling, repeated I/O, serialization, startup, memory, allocation, scheduling, concurrency, and network boundaries. Prefer profiles, traces, focused timings, logs, or clear source-path evidence.
+Reject cold-versus-warm comparisons, single noisy runs, tiny fixtures used for production claims, unrelated microbenchmarks, percentage-only claims, or CI speed obtained by moving or hiding failures.
 
-### Build, Test, and CI
+## Candidate Construction
 
-Inspect task graphs, incremental modes, caches and keys, duplicate setup, test selection, workers, sharding, artifact reuse, flaky retries, job dependencies, and feedback latency. Preserve coverage and failure visibility.
+Each `C-n` owns one independently measurable mechanism. Compare configuration, supported native capability, duplicate-code removal, focused local code, boundary optimization, justified dependency addition, and justified upgrade only when each is plausible.
 
-### Dependency and Tooling
+Record:
 
-Inspect manifests, lockfiles, resolved versions, package-manager behavior, config, overlapping tools, generated-code boundaries, plugins, and direct versus transitive use. Compare configuration-first, native-capability, local-code, new-dependency, and upgrade options.
+- workflow and mechanism;
+- expected benefit and evidence references;
+- impact, confidence, effort, risk, verification strength, and blast radius;
+- behavior preservation and compatibility;
+- reversibility, independence, operational cost, and net-complexity effect;
+- exact verification, rollback, and confirmation experiment when needed;
+- deterministic band and all promotion-gate answers.
 
-### Architecture and Maintainability
+Do not bundle unrelated optimizations. Merge symptoms that share one mechanism; split candidates that can be measured or reverted independently.
 
-Inspect coupling, duplicated policy, ownership, change locality, dead complexity, pass-through wrappers, testability, and agent navigation. Prefer behavior-preserving deletion or simplification before new abstractions.
+## Planning and Execution
 
-### Developer Experience
+A plan states dependency-ordered file areas and symbols, behavioral invariants, compatibility, exact checks and expected results, rollout when applicable, rollback triggers/actions, and residual risks. It must leave no target, feature, metric, interface, verification, or rollback choice to the implementer.
 
-Inspect setup, command discoverability, feedback loops, docs, error messages, local/CI parity, repo maps, and repeated human or agent navigation cost.
+Implementation requires explicit authorization and a checker-passing report. Reconfirm the worktree, baseline, regression surface, selected candidate, and rollback before editing. Apply one candidate. Re-run the same workload and behavior checks. Preserve unrelated user changes. Treat inconclusive benefit as failed evidence unless another stated non-performance goal independently meets acceptance criteria.
 
-### Framework and Platform
+## Reconciliation
 
-Follow `ecosystem-leverage.md`. Confirm the resolved version and execution mode before evaluating native rendering, data loading, caching, compilation, querying, scheduling, deployment, or observability capabilities.
-
-## Safe Baseline Collection
-
-- Use existing documented, scripted, or CI commands where possible.
-- Record exact command, working directory, relevant environment, representative input, cache state, and timestamp.
-- Measure the workflow the user cares about, not a convenient proxy.
-- Use repeated runs for noisy measurements and report raw values plus a robust summary such as median.
-- Separate cold and warm results when both are operationally relevant.
-- Keep production-affecting commands read-only unless side effects are explicitly approved.
-- Prefer safe fixtures, staging data, captured traces, or read-only plans for databases and external systems.
-- Use existing bundle analyzers, profilers, query tools, and test reports before adding instrumentation.
-- Record static evidence with lower confidence when direct measurement is blocked.
-
-## Measurement Traps
-
-- Different workload, hardware, runtime version, environment, or configuration before and after.
-- Cold-cache baseline compared with warm-cache result.
-- One noisy run presented as proof.
-- Microbenchmark improvement that does not improve the named workflow.
-- Tiny fixtures used to justify production-scale claims.
-- Dependency downloads or unrelated caches attributed to the patch.
-- Throughput gains that worsen latency, memory, correctness, cost, or failure recovery.
-- CI speed gained by moving failures later, skipping coverage, or hiding errors.
-- Percentage claims without raw values and variance.
-
-## Execution and Revert Rules
-
-- Establish behavior checks and rollback before editing.
-- Keep each patch attributable to one candidate.
-- Stop on failed compatibility assumptions or behavior regression.
-- Revert only changes introduced by the optimization run; preserve unrelated worktree changes.
-- Treat an inconclusive performance result as failed evidence. Keep the patch only when another stated goal, such as verified complexity reduction, independently satisfies acceptance criteria.
-- Record deviations from the plan before continuing.
-
-## Reject Ledger
-
-For each reject record candidate, reason, evidence or missing evidence, and revisit condition. Common reasons include weak target linkage, unsupported installed version, transitive-only API, custom semantics not covered by the native feature, low confidence, high blast radius, poor reversibility, increased operational cost, net complexity growth, unavailable verification, or unapproved behavior change.
+Before finalizing, account for every subsystem/pass pair, candidate, rejection, deferral, baseline, research claim, verification, and protected behavior. Run the checker, repair findings, and name one handoff. Report skipped checks and live-evaluation limitations explicitly.
