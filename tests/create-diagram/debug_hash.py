@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 
 
-TEMPLATE = Path(__file__).resolve().parent.parent / "assets" / "html-diagram-template.html"
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[1]
+TEMPLATE = REPO_ROOT / "create-diagram" / "assets" / "html-diagram-template.html"
 
 
 def strip_data_sections(text: str) -> str:

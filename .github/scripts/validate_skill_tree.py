@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +18,34 @@ FORBIDDEN_PATH_PARTS = {
     ".pytest_cache",
     ".ruff_cache",
     ".mypy_cache",
+}
+FORBIDDEN_SKILL_DIR_NAMES = {
+    "benchmark",
+    "benchmarks",
+    "eval",
+    "evals",
+    "fixture",
+    "fixtures",
+    "test",
+    "testdata",
+    "tests",
+}
+FORBIDDEN_SKILL_FILE_NAMES = {
+    "browser_smoke.py",
+    "check_template_refs.py",
+    "conftest.py",
+    "debug_hash.py",
+}
+TEST_FILE_RE = re.compile(r"(?:^test_.+|.+_test)\.(?:js|jsx|py|sh|ts|tsx)$", re.IGNORECASE)
+SCORER_FILE_RE = re.compile(r"^score_.+\.(?:js|py|ts)$", re.IGNORECASE)
+EXPECTED_RUNTIME_FILE_COUNTS = {
+    "codebase-issue-auditor": 12,
+    "create-diagram": 11,
+    "design-codebase-with-senior-dev": 4,
+    "github-issue-planner": 8,
+    "implement-with-senior-dev": 5,
+    "optimize-codebase-with-senior-dev": 6,
+    "plan-with-senior-dev": 12,
 }
 
 
@@ -38,13 +68,13 @@ def parse_frontmatter(text: str) -> dict[str, str]:
 
 def git_tracked_files() -> list[str]:
     result = subprocess.run(
-        ["git", "ls-files"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=True,
     )
-    return [line for line in result.stdout.splitlines() if line]
+    return [line for line in result.stdout.splitlines() if line and (ROOT / line).is_file()]
 
 
 def has_forbidden_marker(path: str) -> bool:
@@ -52,12 +82,19 @@ def has_forbidden_marker(path: str) -> bool:
     return path.endswith("/.env") or bool(parts & FORBIDDEN_PATH_PARTS)
 
 
-def validate_locked_skills() -> list[str]:
-    errors: list[str] = []
+def load_skills_lock() -> tuple[dict[str, Any] | None, list[str]]:
     try:
         lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        return [f"{LOCK_PATH.relative_to(ROOT)} is invalid: {exc}"]
+        return None, [f"{LOCK_PATH.relative_to(ROOT)} is invalid: {exc}"]
+
+    if not isinstance(lock, dict):
+        return None, ["skills-lock.json must contain a JSON object"]
+    return lock, []
+
+
+def validate_locked_skills(lock: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
 
     skills = lock.get("skills")
     if not isinstance(skills, dict) or not skills:
@@ -93,13 +130,54 @@ def validate_locked_skills() -> list[str]:
     return errors
 
 
-def validate_tracked_files() -> list[str]:
-    forbidden = [path for path in git_tracked_files() if has_forbidden_marker(path)]
+def forbidden_skill_artifact(path: str, skill_names: set[str]) -> bool:
+    parts = Path(path).as_posix().split("/")
+    if len(parts) < 2 or parts[0] not in skill_names:
+        return False
+
+    directories = {part.lower() for part in parts[1:-1]}
+    filename = parts[-1].lower()
+    return bool(
+        directories & FORBIDDEN_SKILL_DIR_NAMES
+        or filename in FORBIDDEN_SKILL_FILE_NAMES
+        or TEST_FILE_RE.fullmatch(filename)
+        or SCORER_FILE_RE.fullmatch(filename)
+    )
+
+
+def validate_tracked_files(tracked_files: list[str]) -> list[str]:
+    forbidden = [path for path in tracked_files if has_forbidden_marker(path)]
     return [f"forbidden tracked file: {path}" for path in forbidden]
 
 
+def validate_skill_distribution(tracked_files: list[str], skill_names: set[str]) -> list[str]:
+    forbidden = [path for path in tracked_files if forbidden_skill_artifact(path, skill_names)]
+    return [f"development artifact inside distributable skill: {path}" for path in forbidden]
+
+
+def validate_runtime_file_counts(tracked_files: list[str], expected_counts: dict[str, int]) -> list[str]:
+    errors: list[str] = []
+    for skill_name, expected in expected_counts.items():
+        actual = sum(path.startswith(f"{skill_name}/") for path in tracked_files)
+        if actual != expected:
+            errors.append(f"{skill_name}: expected {expected} runtime files, found {actual}")
+    return errors
+
+
 def main() -> int:
-    errors = validate_locked_skills() + validate_tracked_files()
+    lock, errors = load_skills_lock()
+    tracked_files = git_tracked_files()
+    errors.extend(validate_tracked_files(tracked_files))
+    if lock is not None:
+        errors.extend(validate_locked_skills(lock))
+        skills = lock.get("skills")
+        if isinstance(skills, dict):
+            skill_names = set(skills)
+            errors.extend(validate_skill_distribution(tracked_files, skill_names))
+            expected_counts = {
+                name: count for name, count in EXPECTED_RUNTIME_FILE_COUNTS.items() if name in skill_names
+            }
+            errors.extend(validate_runtime_file_counts(tracked_files, expected_counts))
     if errors:
         print("Skill tree validation failed:", file=sys.stderr)
         for error in errors:

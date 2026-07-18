@@ -176,21 +176,21 @@ CI runs repository quality checks on Python 3.11:
 
 ```bash
 python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts create-diagram/test codebase-issue-auditor/scripts tests/codebase-issue-auditor github-issue-planner/scripts .github/scripts
-mypy plan-with-senior-dev/scripts
+ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts github-issue-planner/scripts tests .github/scripts
+mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
 mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
-mypy github-issue-planner/scripts
-mypy create-diagram/scripts create-diagram/test
-mypy .github/scripts
+mypy github-issue-planner/scripts tests/github-issue-planner
+mypy create-diagram/scripts tests/create-diagram
+mypy .github/scripts tests/repository
 python -m pytest -q
 ```
 
 CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
 
 ```bash
-python -m unittest discover -s create-diagram/test -v
-python create-diagram/scripts/check_template_refs.py
-python create-diagram/scripts/build_diagram.py --data create-diagram/test/fixtures/complex.json --output create-diagram-smoke.html --overwrite
+python -m unittest discover -s tests/create-diagram -v
+python tests/create-diagram/check_template_refs.py
+python create-diagram/scripts/build_diagram.py --data tests/create-diagram/fixtures/complex.json --output create-diagram-smoke.html --overwrite
 python create-diagram/scripts/validate_diagram.py create-diagram-smoke.html
 ```
 
@@ -199,5 +199,5 @@ The optional browser smoke check requires Playwright:
 ```bash
 python -m pip install playwright
 python -m playwright install chromium
-python create-diagram/scripts/browser_smoke.py
+python tests/create-diagram/browser_smoke.py
 ```

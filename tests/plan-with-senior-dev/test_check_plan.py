@@ -3,8 +3,10 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from check_plan import main as check_plan_main
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = REPO_ROOT / "plan-with-senior-dev" / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
+from check_plan import main as check_plan_main  # noqa: E402
 
 
 def run_checker(text: str, tier: str = "tiny", warn: bool = False) -> tuple[int, str]:

@@ -1,8 +1,10 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from plan_model import coverage_summary, parse_markdown, validate_semantics
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = REPO_ROOT / "plan-with-senior-dev" / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
+from plan_model import coverage_summary, parse_markdown, validate_semantics  # noqa: E402
 
 
 def messages(text: str, tier: str = "standard", repo_root: Path | None = None) -> list[str]:
