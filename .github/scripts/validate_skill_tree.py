@@ -41,7 +41,7 @@ SCORER_FILE_RE = re.compile(r"^score_.+\.(?:js|py|ts)$", re.IGNORECASE)
 EXPECTED_RUNTIME_FILE_COUNTS = {
     "codebase-issue-auditor": 12,
     "create-diagram": 11,
-    "design-codebase-with-senior-dev": 4,
+    "design-codebase-with-senior-dev": 8,
     "github-issue-planner": 8,
     "implement-with-senior-dev": 5,
     "optimize-codebase-with-senior-dev": 6,

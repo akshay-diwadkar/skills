@@ -1,6 +1,6 @@
 # Design Decision Rubric
 
-Use this reference to judge whether structural change is warranted and whether a proposed pattern earns its cost. Apply the parts relevant to the assessed path; apply every section when admitting an architectural migration.
+Use this reference to judge whether structural change is warranted and whether an in-scope pattern earns its cost. Apply the parts relevant to L0-L2; apply every section when admitting L3.
 
 ## Contents
 
@@ -51,7 +51,7 @@ Do not convert every weak score into a redesign. Rank only pressures linked to a
 
 ## 3. Simplicity Controls
 
-Apply these controls before approving L2 or L3:
+Apply direct-change, concept-budget, and reversibility controls at every level. Apply all controls before approving L2 or L3:
 
 1. **Direct-change control:** describe the smallest direct edit that solves the observed problem. Reject a stronger design unless it materially fails a named constraint.
 2. **Concept budget:** list every new interface, type, service, mapper, factory, datastore, queue, flag, job, and operational obligation. Every item needs a current payer.
@@ -85,7 +85,7 @@ Record the strongest argument for and against each option. A rejected option nee
 
 ## 5. Fourteen-Question Pattern Admission Test
 
-Run all 14 questions for every pattern introduced or deliberately retained. Answer `yes`, `no`, or `unknown`, with evidence. Questions 1, 3, 4, 8, 9, 11, 13, and 14 are hard gates: a `no` rejects the pattern; an `unknown` blocks implementation.
+Run all 14 questions only for every pattern materially introduced, removed, or deliberately relied upon by the scoped decision. Do not inventory unrelated repository patterns. Answer `yes`, `no`, or `unknown`, with evidence. Questions 1, 3, 4, 8, 9, 11, 13, and 14 are hard gates: a `no` rejects the pattern; an `unknown` blocks design approval.
 
 1. **Concrete pressure:** Is there a current, evidenced problem or correctness risk that this pattern directly resolves?
 2. **Recurrence or volatility:** Is the pressure repeated across real change sites, consumers, or a demonstrably volatile external boundary?

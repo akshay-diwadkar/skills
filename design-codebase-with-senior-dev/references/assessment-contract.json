@@ -1,0 +1,79 @@
+{
+  "contract_version": 1,
+  "levels": {
+    "L0": {
+      "minimum_alternatives": 2,
+      "extra_sections": [],
+      "requires_pattern_gate": false,
+      "requires_migration": false,
+      "requires_operational_semantics": false
+    },
+    "L1": {
+      "minimum_alternatives": 3,
+      "extra_sections": [
+        "Local Simplification and Preservation"
+      ],
+      "requires_pattern_gate": false,
+      "requires_migration": false,
+      "requires_operational_semantics": false
+    },
+    "L2": {
+      "minimum_alternatives": 3,
+      "extra_sections": [
+        "Target Boundary",
+        "Migration and Rollback",
+        "Operational Semantics"
+      ],
+      "requires_pattern_gate": true,
+      "requires_migration": true,
+      "requires_operational_semantics": true
+    },
+    "L3": {
+      "minimum_alternatives": 3,
+      "extra_sections": [
+        "Target Boundary",
+        "Migration and Rollback",
+        "Operational Semantics",
+        "System Ownership and Evolution"
+      ],
+      "requires_pattern_gate": true,
+      "requires_migration": true,
+      "requires_operational_semantics": true
+    }
+  },
+  "base_sections": [
+    "Scope and Protected Contracts",
+    "Evidence and Current State",
+    "Design Pressures and Classification",
+    "Alternatives and Pattern Decisions",
+    "Verification and Residual Risk"
+  ],
+  "hard_pattern_questions": [
+    1,
+    3,
+    4,
+    8,
+    9,
+    11,
+    13,
+    14
+  ],
+  "operational_fields": [
+    "source of truth",
+    "failures",
+    "timeouts",
+    "retries",
+    "idempotency",
+    "ordering",
+    "transactions",
+    "observability",
+    "resource limits"
+  ],
+  "l3_evolution_fields": [
+    "system invariant",
+    "deployment compatibility",
+    "durable state evolution",
+    "reconciliation",
+    "rollback compatibility"
+  ]
+}

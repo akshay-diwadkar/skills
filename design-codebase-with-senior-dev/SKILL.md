@@ -1,179 +1,157 @@
 ---
 name: design-codebase-with-senior-dev
-description: Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define or execute an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. Do not use for generic issue discovery or ordinary file-and-symbol implementation planning.
+description: Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill is assessment-only; use plan-with-senior-dev and implement-with-senior-dev after design approval.
 ---
 
 # Design Codebase With Senior Dev
 
-Determine whether the codebase needs a structural change at all. Reconstruct the current design from evidence, expose the forces that make it costly or unsafe, and choose the least powerful design that resolves those forces without silently changing behavior.
+Determine whether the codebase needs a structural change at all. Reconstruct the current design from repository evidence, expose the forces that make it costly or unsafe, and choose the least powerful design that resolves those forces without silently changing behavior.
 
-Act as an adversarial senior engineer. Challenge the requested pattern, the current architecture, and your own preferred design. Cite repository facts; label inferences; keep rejected options visible; and treat operational correctness as part of design correctness.
+This skill is **assessment-only**. Inspect and run non-mutating checks, but never edit implementation files. Finish with a validated `Codebase Design Assessment` and a deterministic handoff.
 
-## Governing Rules
+## Non-Negotiables
 
-Apply both pattern-cost rules:
+1. **Admission rule:** introduce or retain an in-scope pattern only when current, evidenced change pressure or correctness risk repays its indirection, concepts, runtime behavior, migration cost, and long-term ownership.
+2. **Removal rule:** remove an in-scope pattern only when its present protection is worth less than its cognitive and operational cost, and its contracts can be preserved through an incremental, reversible migration.
+3. Preserve public APIs, schemas, events, files, CLIs, persistence, errors, side effects, user workflows, and operational promises unless explicit authorization names the permitted change.
+4. Prefer L0 over L1, L1 over L2, and L2 over L3 whenever the lower level satisfies the evidenced constraints.
+5. A fashionable pattern name, long file, large class, duplicate branch, disliked abstraction, or clean diagram is never sufficient evidence.
 
-1. **Admission rule:** introduce or retain a pattern only when current, evidenced change pressure or correctness risk repays its added indirection, concepts, runtime behavior, migration cost, and long-term ownership.
-2. **Removal rule:** remove a pattern only when its present protection is worth less than its cognitive and operational cost, and its contracts can be preserved through an incremental, reversible change.
+## Evidence Records
 
-Prefer no structural change over speculative flexibility. Prefer a local simplification over a boundary. Prefer a boundary over a system-wide migration. A fashionable name is never evidence.
+Use stable records throughout the assessment:
 
-## Modes and Authorization
+- `F-n` — verified fact with an existing `path:line`, anchor, and observation.
+- `P-n` — ranked structural pressure citing the facts that establish its cost or risk.
+- `C-n` — protected contract classified as `preserved`, `authorized-change`, or `at-risk`.
+- `D-n` — selected L0-L3 decision, cited reasons, and nearest rejected level or option.
+- `A-n` — assumption with status, impact, and verification path.
+- `O-n` — serious alternative with level, concept cost, strongest arguments, and revisit trigger.
+- `G-n` — pattern decision for a pattern introduced, removed, or deliberately relied upon by the scoped design.
+- `V-n` — exact command, test, or manual check and its expected observable result.
+- `M-n` — reversible L2/L3 migration slice with proof, rollback, and cleanup.
+- `R-n` — residual risk with severity, scenario, consequence, owner, and follow-up.
+- `H-n` — assessment-only handoff state.
 
-Choose one mode in Phase 0 and state it explicitly.
+Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption]` when they are not already expressed by one of these records. Do not guess a repository fact or erase contradictory evidence.
 
-- **Analysis/planning mode — default:** inspect, reconstruct, compare, and produce the `Codebase Design Assessment`. Do not edit implementation files. The migration may identify slices and proof obligations, but ordinary file/symbol-level implementation planning belongs to `plan-with-senior-dev` after the target design is approved.
-- **Implementation mode — explicit authorization required:** implement only when the user clearly requests restructuring, not merely assessment or a proposal. Require an approved target design and migration boundary. If material behavior, public contracts, or durable state decisions remain unresolved, return to analysis/planning or hand off to `plan-with-senior-dev` before editing.
+## Reference and Tool Routing
 
-In either mode, preserve existing contracts by default. Public APIs, schemas, events, files, CLIs, and user workflows may change only with explicit authorization that names the allowed change.
-
-## Evidence Discipline
-
-Label material claims in working notes and the assessment:
-
-- `[Fact]` — verified in code, tests, configuration, history, runtime evidence, or authoritative documentation; cite `file:line`, command output, or URL.
-- `[Inference]` — conclusion drawn from facts; state the reasoning and confidence.
-- `[Decision]` — selected design choice and the evidence or constraint that forces it.
-- `[Assumption]` — unverified premise; state impact and a way to verify it.
-
-Do not let a blocking assumption survive into an implementation migration. Re-check facts after significant edits or repository changes.
-
-## Reference Routing
-
-- Read `references/design-decision-rubric.md` before Phase 3. Use it for analysis dimensions, simplicity controls, alternative comparison, the 14-question pattern admission test, removal signals, language idioms, and runtime/distributed hazards.
-- Read `references/worked-examples.md` before Phase 5 when the problem resembles conditional dispatch, volatile integrations, redundant abstraction stacks, or distributed processing.
+1. Read `references/design-decision-rubric.md` before classifying the change. Apply the analysis dimensions and simplicity controls relevant to the scoped path; apply the full runtime and distributed-system analysis for L3.
+2. Read only the matching scenario in `references/worked-examples.md` when the concern resembles conditional dispatch, volatile integrations, redundant abstraction stacks, or distributed processing.
+3. `references/assessment-contract.json` is the executable source of truth for output sections and hard gates. Do not recreate its headings or field grammar from memory.
+4. After the provisional level is grounded, generate the matching scaffold:
+   ```bash
+   python scripts/scaffold_assessment.py --level L0|L1|L2|L3
+   ```
+5. Before finalizing, validate from the repository root:
+   ```bash
+   python scripts/check_assessment.py --level <L0|L1|L2|L3> --repo-root <repo> <assessment>
+   ```
 
 ## Workflow
 
-Complete Phases 0–10 in order. Earlier conclusions may be revised when later evidence contradicts them.
+Complete Gates 1-6 in order. If later evidence changes the level, regenerate the scaffold for the new level and re-run every applicable gate.
 
-### Phase 0: Establish Constraints and Authorization
+### Gate 1: Frame and Protect
 
-- Restate the observable goal, scope, exclusions, constraints, invariants, and success measures.
-- Select analysis/planning or implementation mode.
-- Inventory protected contracts: public APIs, schemas, events, files, CLIs, user workflows, persistence, and operational promises.
-- Record explicit authorization for any protected-contract change; otherwise mark it invariant.
-- Inspect repository guidance and worktree state. In implementation mode, stop before overwriting targeted user changes.
+- Restate the observable goal, audience, scope, exclusions, constraints, invariants, and success measures.
+- Inspect repository guidance and worktree state before drawing conclusions.
+- Inventory public, durable, user-visible, and operational contracts as `C-n` records. Default each to `preserved` unless the user explicitly authorizes a named change.
+- Record assumptions as `A-n`. A blocking product, contract, state-ownership, or failure-semantics choice prevents design approval; do not choose it on the user's behalf.
 
-### Phase 1: Reconnaissance
+**Completion gate:** scope and success are observable, protected contracts are recorded, and no discoverable repository fact is being asked of the user.
 
-- Identify entry points, modules, packages, deployments, storage, queues, external systems, tests, configuration, and observability on the target path.
-- Find local analogues and recently changed hotspots. Use history when it can prove churn or ownership boundaries.
-- Trace at least one real request, command, job, or event from input to observable outcome.
-- Build an evidence ledger. Do not infer architecture solely from directory names or diagrams.
+### Gate 2: Ground the Current Design
 
-### Phase 2: Reconstruct the Current State
+- Identify entry points, modules, packages, deployments, storage, queues, external systems, tests, configuration, observability, and ownership on the scoped path.
+- Trace at least one real request, command, job, or event from input through owner and dependencies to side effect and observable outcome.
+- Map responsibility, dependency direction, data/control flow, state ownership, consistency boundaries, failure paths, and deployment units.
+- Find local analogues and use history only when it can prove churn, repeated propagation, or ownership boundaries.
+- Record facts as canonical `F-n` citations. Directory names and diagrams may guide discovery but cannot establish current behavior.
 
-- Map responsibilities, dependency direction, data and control flow, state ownership, consistency boundaries, failure paths, and deployment units.
-- Distinguish intended contracts from accidental coupling.
-- Record where behavior is encoded: code, types, tests, configuration, schema, message semantics, ordering, retries, and operator runbooks.
-- Describe the current design before judging it. Preserve contradictory evidence rather than smoothing it over.
+**Completion gate:** current behavior, ownership, dependencies, state, failures, contracts, and at least one end-to-end flow are grounded in existing repository evidence.
 
-### Phase 3: Identify Design Pressures
+### Gate 3: Rank Pressures and Classify L0-L3
 
-- Use the analysis dimensions in `references/design-decision-rubric.md`.
-- Tie each pressure to concrete evidence: repeated change propagation, unstable dependency, ambiguous ownership, defect history, test friction, runtime risk, or team coordination cost.
-- Separate symptoms from structural causes. A long file, many classes, or disliked pattern is not a cause by itself.
-- Rank pressures by correctness risk, frequency, blast radius, and cost of leaving them unchanged.
+Separate symptoms from structural causes and rank each accepted cause as `P-n` by correctness risk, frequency, blast radius, and cost of leaving it unchanged.
 
-### Phase 4: Classify the Change
+Apply this decision tree literally:
 
-Choose exactly one minimum sufficient level:
+1. **L0 — No structural change:** choose L0 when no structural cause is demonstrated. Tests, evidence, naming, documentation, configuration, or a direct behavior fix may still be recommended.
+2. **L1 — Local simplification:** choose L1 when an evidenced cause can be resolved inside one cohesive module without changing ownership or adding a shared boundary.
+3. **L2 — Boundary redesign:** choose L2 only when evidence identifies an independently changing or externally volatile boundary, L1 is demonstrably insufficient, and the boundary has a precise owner and more stable contract than the details it hides.
+4. **L3 — Architectural migration:** choose L3 only when cross-system pressure is proven, L2 is demonstrably insufficient, a system-level invariant and authoritative state owner are named, operational semantics are defined, and an incremental rollback path exists.
 
-| Level | Meaning | Admission gate |
-|---|---|---|
-| **L0 — No structural change** | Keep the design; improve evidence, tests, naming, documentation, configuration, or a direct local behavior. | No demonstrated structural cause. |
-| **L1 — Local simplification** | Reshape implementation within one cohesive module without changing ownership or a shared boundary. | A local cause exists and can be resolved without new cross-module contracts. |
-| **L2 — Boundary redesign** | Add, replace, or remove a boundary between independently changing code, such as an Adapter or explicit port. | Evidence shows volatility, propagation, or ownership pressure across multiple consumers/modules, and L1 cannot contain it. |
-| **L3 — Architectural migration** | Change subsystem boundaries, dependency direction, state ownership, consistency model, deployment topology, or public/durable contracts. | Cross-system pressure is proven, L0–L2 are insufficient, operational semantics are defined, and an incremental rollback path exists. |
+The caps are distinct:
 
-**Local-to-architecture gate:** never promote a local readability, duplication, testability, or two-branch problem to L2 or L3 without evidence that the cause crosses an independently changing boundary. For L3, prove why a boundary-level design cannot solve the problem and identify the system-level invariant at risk. If the proof is absent, cap the recommendation at L1.
+- Missing evidence of an independently changing boundary caps the decision at **L1**.
+- When evidence supports a boundary but not the L3-only obligations, cap the decision at **L2**, never L1.
 
-### Phase 5: Generate Alternatives
+Record exactly one canonical `D-n` classification citing both `F-n` and `P-n`.
 
-- Generate at least three serious options: keep/current design with targeted relief, the minimum sufficient redesign, and one credible stronger or differently shaped design.
-- Include pattern removal and consolidation when existing indirection is part of the pressure.
-- Compare options using the rubric, including behavior preservation, net complexity, operational semantics, migration, rollback, team ownership, and likely future change—not diagram neatness.
-- Run the complete 14-question admission test for every introduced or retained pattern. A failed hard question rejects or narrows the pattern.
+**Completion gate:** the selected level satisfies its gate, every lower level has a concrete insufficiency argument when applicable, and no stronger level is admitted speculatively.
 
-### Phase 6: Adversarial Review
+### Gate 4: Compare, Admit, and Attack
 
-Attack the leading option with concrete counterexamples:
+- For L0, compare the current design with direct targeted relief using at least two `O-n` records.
+- For L1-L3, compare at least three serious options: keep/current with relief, the minimum sufficient design, and one credible stronger or differently shaped design.
+- Give each option the same criteria: pressure fit, change level, behavior safety, net complexity, ownership, operational correctness, migration, repository/language fit, testability, security/performance, and revisitability.
+- Run the complete 14-question admission test only for each pattern materially **introduced**, **removed**, or **deliberately relied upon** by the scoped decision. Do not inventory every pattern in the repository.
+- Attack the leading option with concrete counterexamples: lower-level sufficiency, accidental contract changes, hidden coupling, ambiguous state or retry ownership, partial failure, coexistence, observability, rollback, and evidence that would make a rejected option win.
+- Repair the design or lower its level. Do not leave an attack as an unowned risk list.
 
-- Can the pressure be removed with L0 or L1?
-- Which current behavior, caller, file format, schema, event, CLI, or workflow could change accidentally?
-- Does the design hide a dependency rather than remove coupling?
-- Who owns state, retries, idempotency, transactions, ordering, timeouts, cancellation, and partial failure?
-- Can old and new paths coexist during deployment? Can operators observe and reverse the change?
-- What evidence would make the rejected alternative win?
+**Completion gate:** required alternatives exist, the selected option survives adversarial review, every applicable `G-n` is scoped and evidenced, and rejected options have revisit triggers.
 
-Repair the design or lower its change level. Do not turn attacks into a generic risk list.
+### Gate 5: Define the Level-Specific Assessment
 
-### Phase 7: Define the Target Design
+Use the generated scaffold and complete only the sections required by the selected level:
 
-- Assign one responsibility and owner to each component or boundary.
-- Specify dependency direction, allowed calls, state ownership, data contracts, failure semantics, and operational ownership.
-- Name patterns only after describing the problem they solve and their admitted cost.
-- Show what is removed as well as what is added.
-- Define invariants and protected contracts in testable terms.
+- **L0:** current design, evidence, targeted relief, verification, residual risk, and revisit trigger.
+- **L1:** L0 obligations plus the cohesive local owner, concepts removed/retained, and behavior-preservation proof.
+- **L2:** full alternatives and pattern gates plus target boundary, dependency direction, state/contract ownership, operational semantics, and reversible `M-n` migration slices.
+- **L3:** all L2 obligations plus the full runtime/distributed hazard analysis, system invariant, deployment compatibility, durable-state evolution, reconciliation, and rollback compatibility.
 
-### Phase 8: Design the Incremental Migration
+For every L2/L3 `M-n`, state prerequisite, changed boundary, preserved `C-n`, proving `V-n`, rollback trigger, rollback action, and cleanup condition. Avoid unguarded dual writes; when dual operation is unavoidable, define source of truth, reconciliation, idempotency, ordering, and recovery.
 
-- Split the migration into independently verifiable, reversible slices.
-- Prefer branch-by-abstraction, compatibility shims, parallel reads, shadow comparison, or staged caller migration only when their temporary complexity has a named removal point.
-- For each slice, state prerequisites, changed boundary, preserved behavior, proof, telemetry, rollback trigger, rollback action, and cleanup condition.
-- Avoid unguarded dual writes. When dual operation is unavoidable, define source of truth, reconciliation, idempotency, ordering, and failure recovery.
-- Keep the old path until the new path proves the required invariants, unless explicit authorization accepts irreversible cutover risk.
+Do not write file/symbol-level implementation instructions. The assessment owns structural diagnosis, target boundaries, and migration shape; `plan-with-senior-dev` owns the exact implementation specification.
 
-### Phase 9: Validate Design and Implementation
+**Completion gate:** every contract field is concrete, the assessment contains no scaffold placeholders, and the target design assigns responsibility, ownership, dependencies, failures, proof, and rollback at the depth required by its level.
 
-- Define characterization tests before structural edits when current behavior is not already pinned down.
-- Validate public contracts, domain behavior, state transitions, failure behavior, performance budgets, security boundaries, and operator workflows.
-- In implementation mode, verify after each slice. Stop and narrow or roll back the introduced slice when behavior, compatibility, or operational evidence fails.
-- Record raw commands, results, limitations, and residual risks. Do not claim preservation from passing unit tests alone.
+### Gate 6: Validate and Handoff
 
-### Phase 10: Clean Up and Close
+- Run `check_assessment.py` and repair every diagnostic.
+- Re-read citations, protected-contract statuses, classification, lower-level rejection evidence, pattern gates, migration proof, rollback, and residual risks after the last repair.
+- Record exactly one `H-n` state:
+  - `finish assessment` when the design is not approved or no further work is requested;
+  - `plan-with-senior-dev` when the target design is approved but no decision-complete implementation specification exists;
+  - `implement-with-senior-dev` only when an approved decision-complete plan already exists.
+- Never edit implementation files, even when the request combines assessment and implementation. Complete this assessment, then hand off according to the state above.
 
-- Remove temporary shims, flags, duplicate paths, dead types, obsolete adapters, stale factories, and migration-only telemetry when their exit criteria are met.
-- Update diagrams, ADRs, ownership docs, runbooks, and examples only where the final design makes them stale.
-- Confirm no accidental public surface, orphan abstraction, or permanent “temporary” complexity remains.
-- Recompute the net complexity and pattern admission decisions against the final state.
+**Completion gate:** the checker passes, no unowned blocking decision is presented as approved, and exactly one next owner is named.
 
-## Implementation Safeguards
+## Pattern Admission Questions
 
-When implementation is authorized:
+For each applicable `G-n`, answer Q1-Q14 as `yes`, `no`, or `unknown` with evidence. Questions 1, 3, 4, 8, 9, 11, 13, and 14 are hard gates: `no` rejects the pattern and `unknown` blocks its approval.
 
-- Characterize behavior before restructuring and keep each patch small enough to attribute failures.
-- Preserve names, wire shapes, persistence semantics, ordering, errors, side effects, and workflows unless explicitly authorized otherwise.
-- Do not combine behavior change, dependency upgrade, performance optimization, or unrelated cleanup with a structural slice.
-- Keep rollback executable, not aspirational. Name the last safe state and the evidence that triggers reversal.
-- Stop on a material design–repository contradiction. Report the contradiction; do not improvise a broader architecture.
-- Never discard unrelated user changes or use destructive repository commands to manufacture a clean state.
+1. Does it resolve a current evidenced pressure or correctness risk?
+2. Is that pressure recurrent or tied to a demonstrably volatile boundary?
+3. Are lower-level alternatives described and insufficient?
+4. Does each abstraction have one precise responsibility and owner?
+5. Is its contract more stable than the details it hides?
+6. Does it reduce propagation across independently changing modules or contracts?
+7. Does it constrain rather than hide dependencies?
+8. Is affected state ownership unambiguous?
+9. Are protected contracts preserved or explicitly authorized to change?
+10. Can behavior and production outcomes be verified without mock-only proof?
+11. Are applicable operational semantics explicit?
+12. Does it fit repository and language idioms?
+13. Can it be introduced in independently verifiable, reversible slices?
+14. Does evidenced value exceed cognitive, runtime, operational, migration, and ownership cost?
 
-## Required Output: Codebase Design Assessment
+## Handoff Boundaries
 
-Produce these 14 sections in this exact order, even when a section concludes “none” with evidence:
-
-1. **Decision Summary** — recommended change level, target, and why it is the minimum sufficient design.
-2. **Scope, Authorization, and Constraints** — mode, in/out of scope, protected contracts, explicit permissions, and hard constraints.
-3. **Evidence Ledger** — labeled facts, inferences, decisions, assumptions, citations, contradictions, and confidence.
-4. **Current-State Reconstruction** — responsibilities, dependency/data/control flow, state ownership, failures, and deployments.
-5. **Design Pressures** — ranked structural causes and the evidence connecting each cause to observed cost or risk.
-6. **Change Classification** — L0–L3 choice and proof that lower levels are insufficient.
-7. **Pattern Decisions** — admission-test result for every introduced, retained, or removed pattern and its net cost.
-8. **Alternatives and Rejected Alternatives** — comparison, rejection evidence, and revisit conditions.
-9. **Target Design** — components, boundaries, dependency rules, state/contract ownership, failure semantics, and removals.
-10. **Behavior and Contract Preservation** — unchanged behavior, characterized gaps, authorized changes, and compatibility rules.
-11. **Incremental Migration and Rollback** — ordered slices, coexistence strategy, proof, cutover, rollback triggers/actions, and cleanup gates.
-12. **Validation and Operational Analysis** — tests, commands, telemetry, deployment safety, runtime/distributed hazards, and residual proof gaps.
-13. **Unchanged Areas** — modules, contracts, data, workflows, and infrastructure intentionally left untouched, with reasons.
-14. **Non-Goals and Residual Risks** — excluded work, accepted tradeoffs, remaining uncertainty, owners, and follow-up evidence.
-
-In implementation mode, append a concise change record mapping each edited file and migration slice to its authorization and verification result. Do not replace the assessment with a patch summary.
-
-## Adjacent Skill Boundaries
-
-- Use `codebase-issue-auditor` to discover and prove problems across a repository. This skill starts from a scoped concern or accepted finding and decides whether its cause is structural and what target design, if any, is justified.
-- Use `plan-with-senior-dev` after a target design is approved to convert it into a decision-complete file/symbol-level implementation specification. This skill owns structural diagnosis, pattern choice, target boundaries, and migration shape—not ordinary implementation planning.
-- Use `optimize-codebase-with-senior-dev` when the primary objective is measurable performance, build/runtime efficiency, dependency/tooling leverage, or ecosystem capability. This skill may consider performance as a constraint but does not invent an architecture to chase unmeasured speed.
-- Use `implement-with-senior-dev` to execute an approved, specific implementation plan when design decisions are already settled.
+- Use `codebase-issue-auditor` before this skill when the structural concern has not yet been discovered and proven.
+- Use `plan-with-senior-dev` after a target design is approved to produce an exact file/symbol-level implementation specification.
+- Use `implement-with-senior-dev` only when that decision-complete plan is approved.
+- Use `optimize-codebase-with-senior-dev` when the primary objective is measured performance, build/runtime efficiency, dependency/tooling leverage, or ecosystem capability.

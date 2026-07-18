@@ -52,6 +52,7 @@ jobs:
           plan-with-senior-dev/scripts
           create-diagram/scripts
           codebase-issue-auditor/scripts
+          design-codebase-with-senior-dev/scripts
           github-issue-planner/scripts
           tests
           .github/scripts
@@ -59,6 +60,8 @@ jobs:
         run: mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
       - name: Type check codebase-issue-auditor
         run: mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
+      - name: Type check design-codebase-with-senior-dev
+        run: mypy design-codebase-with-senior-dev/scripts tests/design-codebase-with-senior-dev
       - name: Type check github-issue-planner
         run: mypy github-issue-planner/scripts tests/github-issue-planner
       - name: Type check create-diagram

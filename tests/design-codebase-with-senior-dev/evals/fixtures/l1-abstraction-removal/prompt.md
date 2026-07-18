@@ -1,0 +1,1 @@
+Assess whether the one-interface, one-factory repository stack in `src/system.py` should be simplified. There is no alternate datastore or runtime discovery. Preserve the public `load_preferences` behavior and do not edit files.

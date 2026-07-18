@@ -49,7 +49,7 @@ The skills form a composable engineering lifecycle. Start at the stage that matc
 | Discover | You need to find and prove codebase risks. | `codebase-issue-auditor` | Evidence-backed findings and reviewable issue drafts. Send an approved finding to optimization, design, or planning. |
 | Discover | Open GitHub issues need actionable local plans. | `github-issue-planner` | One evidence-backed Markdown resolution plan per issue. Escalate only complex issues to senior planning. |
 | Decide | You know the performance, tooling, or developer-experience goal. | `optimize-codebase-with-senior-dev` | A baseline, ROI-ranked optimization ledger, and structured brief for the highest-value change. |
-| Decide | Boundaries, ownership, dependencies, or patterns may need to change. | `design-codebase-with-senior-dev` | A design assessment, justified target design, and incremental behavior-preserving migration. |
+| Decide | Boundaries, ownership, dependencies, or patterns may need to change. | `design-codebase-with-senior-dev` | A validated assessment, justified target design, and incremental behavior-preserving migration shape. This stage never edits implementation files. |
 | Specify | An approved finding, brief, or target design needs exact implementation decisions. | `plan-with-senior-dev` | A decision-complete specification covering interfaces, logic, propagation, tests, and verification. |
 | Communicate | Reviewers need a shared view of the current system, proposed design, or workflow. | `create-diagram` | A validated, self-contained HTML diagram for review or documentation. Use it before or after a design decision. |
 | Deliver | A specific plan is approved and implementation is explicitly requested. | `implement-with-senior-dev` | A minimal, pattern-preserving patch with focused verification and an exact implementation report. |
@@ -77,7 +77,7 @@ The common path is **discover → decide → specify → deliver**. Diagramming 
 
 ### Recipe 3: Redesign a critical subsystem safely
 
-1. Use `design-codebase-with-senior-dev` to reconstruct the current design, test whether structural change is justified, and define reversible migration slices.
+1. Use `design-codebase-with-senior-dev` to reconstruct the current design, test whether structural change is justified, and define reversible migration slices. The skill remains assessment-only.
 2. Use `create-diagram` when reviewers need a shared current-state or target-state model before approving the design.
 3. Convert the approved design into exact contracts, migration logic, rollback, and tests with `plan-with-senior-dev`.
 4. Apply the slices with `implement-with-senior-dev`; optionally diagram the delivered design or run a targeted audit afterward.
@@ -110,7 +110,7 @@ Plan and, when explicitly requested, implement safe, evidence-backed codebase op
 
 #### `design-codebase-with-senior-dev`
 
-Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define or execute an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. Do not use for generic issue discovery or ordinary file-and-symbol implementation planning.
+Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill never edits implementation files; approved designs move to planning and then implementation.
 
 ### Planning & Specification
 
@@ -176,14 +176,27 @@ CI runs repository quality checks on Python 3.11:
 
 ```bash
 python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts github-issue-planner/scripts tests .github/scripts
+ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts tests .github/scripts
 mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
 mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
+mypy design-codebase-with-senior-dev/scripts tests/design-codebase-with-senior-dev
 mypy github-issue-planner/scripts tests/github-issue-planner
 mypy create-diagram/scripts tests/create-diagram
 mypy .github/scripts tests/repository
 python -m pytest -q
 ```
+
+`design-codebase-with-senior-dev` also has an opt-in provider-neutral live evaluation runner. The adapter command reads one JSON request from stdin and writes one JSON response containing `assessment_markdown` to stdout. Model credentials and provider SDKs stay in the adapter, outside this repository.
+
+```bash
+python tests/design-codebase-with-senior-dev/run_live_evaluations.py \
+  --adapter-command python path/to/adapter.py \
+  --model-label weaker-model \
+  --runs 3 \
+  --output-dir .scratch/design-codebase-evals
+```
+
+The runner copies and hashes each fixture, treats mutations and adapter failures as hard failures, and requires a median score of 90 with no individual score below 80.
 
 CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
 

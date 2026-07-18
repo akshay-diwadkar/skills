@@ -1,0 +1,1 @@
+Assess the smallest justified level for `src/system.py`. Two independently maintained consumers duplicate translation for an external provider. There is evidence for a boundary but no need to change deployment, state ownership, or consistency. Do not edit files.

@@ -41,6 +41,8 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 **Decision:** Classify as **L2 — Boundary redesign**. Admit a narrow `PaymentGateway` boundary owned by the domain and one provider Adapter that owns SDK construction, request/response translation, timeouts, and provider-error classification. Do not wrap unused SDK methods.
 
+**Level-gate result:** Cross-module volatility and repeated propagation prove an independently changing boundary, so L1 is insufficient. No subsystem, state-ownership, deployment, or consistency migration is needed; absent L3-only proof therefore caps this decision at L2, not L1.
+
 **Why Adapter earns its cost:** It has a named external-volatility seam, multiple real consumers, a contract smaller and more stable than the SDK, explicit failure semantics, and measurable propagation reduction.
 
 **Incremental migration**

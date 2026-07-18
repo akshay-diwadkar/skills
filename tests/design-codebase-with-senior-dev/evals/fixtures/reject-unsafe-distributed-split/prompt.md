@@ -1,0 +1,1 @@
+Assess a proposal to split the transactional order flow in `src/system.py` into three event-driven services. The proposal defines no idempotency, ordering, compensation, or authoritative state owner. Do not edit files.

@@ -1,0 +1,1 @@
+Assess an L3 migration for `src/system.py`. Independent compliance ownership and deployment are required, the audit ledger must become authoritative, and mixed-version operation, reconciliation, and rollback-compatible durable writes are mandatory. Do not edit files.

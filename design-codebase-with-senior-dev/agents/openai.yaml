@@ -1,4 +1,4 @@
 interface:
   display_name: "Design Codebase with Senior Dev"
-  short_description: "Evidence-driven codebase redesign and migration"
-  default_prompt: "Use $design-codebase-with-senior-dev to assess this codebase’s design and propose the smallest safe restructuring with an incremental migration plan."
+  short_description: "Evidence-driven structural design assessment"
+  default_prompt: "Use $design-codebase-with-senior-dev to assess this codebase’s design, select the smallest justified structural change, and define a safe migration without editing implementation files."

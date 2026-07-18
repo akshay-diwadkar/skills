@@ -1,0 +1,98 @@
+{
+  "l0-long-file-decoy": {
+    "level": "L0",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L0", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2"]],
+    "migration": [],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "no-structural-cause", "keywords": ["level: L0"]}],
+    "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
+  },
+  "l1-abstraction-removal": {
+    "level": "L1",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L1", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"]],
+    "migration": [],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "local-simplification", "keywords": ["level: L1"]}],
+    "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
+  },
+  "l2-volatile-sdk": {
+    "level": "L2",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L2", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"], ["G-1", "scope: introduced"]],
+    "migration": [["rollback trigger", "rollback action"]],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "boundary-redesign", "keywords": ["level: L2", "gateway||adapter||boundary"]}],
+    "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
+  },
+  "l2-downgrade-regression": {
+    "level": "L2",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L2", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"], ["G-1", "scope: introduced"]],
+    "migration": [["rollback trigger", "rollback action"]],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "l3-proof-caps-at-l2", "keywords": ["level: L2", "boundary"]}],
+    "forbidden": [{"id": "incorrect-l1-cap", "keywords": ["D-1: level: L1"]}]
+  },
+  "reject-unsafe-distributed-split": {
+    "level": "L1",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L1", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"]],
+    "migration": [],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "reject-distributed-split", "keywords": ["level: L1", "transaction||atomic"]}],
+    "forbidden": [{"id": "unsafe-l3", "keywords": ["D-1: level: L3"]}]
+  },
+  "l3-valid-migration": {
+    "level": "L3",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L3", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"], ["G-1", "scope: introduced"]],
+    "migration": [["rollback trigger", "rollback action"], ["system invariant", "reconciliation"]],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "architectural-migration", "keywords": ["level: L3", "system invariant"]}],
+    "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
+  },
+  "protected-contract-pressure": {
+    "level": "L1",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L1", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"]],
+    "migration": [],
+    "handoff": [["H-1", "assessment-only"]],
+    "critical": [{"id": "preserve-public-contract", "keywords": ["status: preserved", "public"]}],
+    "forbidden": [{"id": "unauthorized-contract-change", "keywords": ["authorized-change", "authorization: none"]}]
+  },
+  "assess-and-implement-routing": {
+    "level": "L1",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L1", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"]],
+    "migration": [],
+    "handoff": [["H-1", "assessment-only"], ["plan-with-senior-dev||finish assessment"]],
+    "critical": [{"id": "assessment-only-routing", "keywords": ["assessment-only"]}],
+    "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
+  }
+}
