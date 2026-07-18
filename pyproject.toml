@@ -17,6 +17,6 @@ addopts = ["--import-mode=importlib"]
 testpaths = [
   "plan-with-senior-dev/scripts/tests",
   "create-diagram/test",
-  "codebase-issue-auditor/scripts",
+  "tests/codebase-issue-auditor",
   "github-issue-planner/scripts",
 ]

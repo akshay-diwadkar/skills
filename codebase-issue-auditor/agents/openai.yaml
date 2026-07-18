@@ -1,4 +1,4 @@
 interface:
   display_name: "Codebase Issue Auditor"
-  short_description: "Audit code and draft GitHub issues."
-  default_prompt: "Audit this codebase for evidence-backed issues and draft GitHub issues for approval."
+  short_description: "Run evidence-driven audits and draft issues."
+  default_prompt: "Use $codebase-issue-auditor to audit this repository and draft validated, evidence-backed issues for approval."

@@ -11,6 +11,11 @@
 !.github/
 !.github/**
 
+# Repository-level development tests (not distributed with skills)
+!tests/
+!tests/codebase-issue-auditor/
+!tests/codebase-issue-auditor/**
+
 # Tracked skill folders
 !create-diagram/
 !create-diagram/**

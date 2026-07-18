@@ -15,7 +15,12 @@ from pathlib import Path
 from unittest import mock
 
 
-SCRIPT_PATH = Path(__file__).with_name("publish_github_issues.py")
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[1]
+SCRIPT_PATH = REPO_ROOT / "codebase-issue-auditor" / "scripts" / "publish_github_issues.py"
+VALID_BUNDLE_PATH = DEV_DIR / "fixtures" / "valid_bundle.json"
+if str(SCRIPT_PATH.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("publish_github_issues", SCRIPT_PATH)
 assert SPEC is not None
 publisher = importlib.util.module_from_spec(SPEC)
@@ -82,6 +87,26 @@ class PublishGitHubIssuesTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("DRY RUN create: Fix missing auth check", output.getvalue())
             self.assertIn("repo: owner/repo", output.getvalue())
+            self.assertIn("body:", output.getvalue())
+            self.assertIn("## Acceptance criteria", output.getvalue())
+
+    def test_valid_bundle_dry_run_renders_structured_body(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), mock.patch.dict(os.environ, {}, clear=True):
+            code = publisher.main(
+                [
+                    "--input",
+                    str(VALID_BUNDLE_PATH),
+                    "--github-repo-url",
+                    "owner/repo",
+                ]
+            )
+
+        self.assertEqual(code, 0)
+        rendered = output.getvalue()
+        self.assertIn("DRY RUN create: Preserve an explicit zero retry count", rendered)
+        self.assertIn("## Verification", rendered)
+        self.assertIn("Candidate: `C-001`", rendered)
 
     def test_dry_run_requires_github_repo_url(self):
         with tempfile.TemporaryDirectory() as temp_dir:

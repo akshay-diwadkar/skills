@@ -15,8 +15,9 @@ from pathlib import Path
 from unittest import mock
 
 
-SCRIPT_PATH = Path(__file__).with_name("check_github_env.py")
-SKILL_PATH = Path(__file__).resolve().parents[1] / "SKILL.md"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = REPO_ROOT / "codebase-issue-auditor" / "scripts" / "check_github_env.py"
+SKILL_PATH = REPO_ROOT / "codebase-issue-auditor" / "SKILL.md"
 SPEC = importlib.util.spec_from_file_location("check_github_env", SCRIPT_PATH)
 assert SPEC is not None
 checker = importlib.util.module_from_spec(SPEC)
@@ -121,11 +122,10 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_document_gh_cli_configuration(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("This skill uses the GitHub CLI (`gh`) for authentication", docs)
-        self.assertIn("gh auth login", docs)
         self.assertIn("python scripts/check_github_env.py", docs)
-        self.assertIn("GITHUB_REPOSITORY", docs)
-        self.assertIn("is ignored", docs)
+        self.assertIn("python scripts/publish_github_issues.py", docs)
+        self.assertIn("--publish", docs)
+        self.assertIn("Never publish or close issues implicitly", docs)
 
 
 if __name__ == "__main__":

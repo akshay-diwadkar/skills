@@ -176,9 +176,9 @@ CI runs repository quality checks on Python 3.11:
 
 ```bash
 python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts create-diagram/test codebase-issue-auditor/scripts github-issue-planner/scripts .github/scripts
+ruff check plan-with-senior-dev/scripts create-diagram/scripts create-diagram/test codebase-issue-auditor/scripts tests/codebase-issue-auditor github-issue-planner/scripts .github/scripts
 mypy plan-with-senior-dev/scripts
-mypy codebase-issue-auditor/scripts
+mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
 mypy github-issue-planner/scripts
 mypy create-diagram/scripts create-diagram/test
 mypy .github/scripts

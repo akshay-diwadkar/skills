@@ -1,116 +1,71 @@
 # Audit Protocol
 
-Use this protocol to reduce missed findings. Keep the artifacts in working notes unless the user asks for a report.
+Use this protocol to build the audit bundle. The bundle is the audit's coverage proof; an issue list alone is not a complete audit.
 
-## Repo Frame
+## 1. Establish the frame
 
-Record the local frame before judging findings:
+Record:
 
-- repo purpose and primary user or operator workflow;
-- languages, runtimes, package managers, and lockfiles;
-- app frameworks, major libraries, and generated-code boundaries;
-- build, lint, type-check, test, coverage, and CI commands;
-- deployment, packaging, database, queue, cache, observability, and security surfaces;
-- domain docs, ADRs, issue conventions, and ownership guidance.
+- target path, audited commit, and dirty-worktree state;
+- requested categories, severity threshold, exclusions, time box, output mode, and limitations;
+- repository purpose, user/operator workflows, runtimes, package managers, and lockfiles;
+- repository and generated/vendor boundaries;
+- build, lint, type-check, test, coverage, and CI commands with observed results or a reason they were not run;
+- deployment, packaging, database, queue, cache, observability, secrets, and destructive-operation surfaces;
+- subsystems with stable IDs, paths, and risk levels.
 
-This frame is complete when later audit judgments can cite where each important subsystem, tool, and workflow lives.
+Inspect first. Ask the user only about intent that local evidence cannot resolve. A time box narrows inspection but never disappears: record uninspected surfaces as deferred limitations.
 
-## Ecosystem Inventory
+**Completion gate:** every required `audit_context` and `repository_inventory` field in `audit-bundle.md` is populated from evidence, including at least one subsystem and baseline-command record.
 
-Build an inventory from local evidence only:
+## 2. Build the risk map
 
-- manifests, lockfiles, version files, framework configs, build/test configs, CI files, Dockerfiles, deployment config, and runtime/tooling files;
-- versions and config choices that materially affect build, test, runtime, security, deploy, or developer workflow;
-- missing manifests or configs that are themselves relevant to risk.
+Create a risk surface for every externally reachable or high-impact behavior, including:
 
-Read `ecosystem-optimization.md` only after this inventory identifies a concrete local tool or framework candidate. External research supplements local evidence; it does not create a finding by itself.
+- routes, commands, jobs, hooks, schedulers, imports, exports, and deployment entry points;
+- authentication, authorization, secrets, mutations, migrations, billing, and destructive actions;
+- file/network boundaries, serialization, time zones, pagination, batching, caching, retries, and concurrency;
+- critical behavior claimed by tests and critical behavior with no visible tests;
+- high-churn, broadly imported, or weakly owned modules where changes have wide blast radius.
 
-## Risk Map
+Give each surface locations, categories, validation actions, and a final status. `accepted` links candidates, `rejected` links reject records, `clean` records the evidence that cleared it, and `deferred` records why it was not resolved.
 
-Map likely failure zones before deep inspection:
+**Completion gate:** every high or critical surface has a terminal status and no surface relies on an empty location or validation list.
 
-- externally reachable routes, commands, jobs, hooks, and scheduled work;
-- auth, authorization, secrets, data access, mutations, migrations, imports, exports, billing, and destructive operations;
-- concurrency, caching, retries, batching, pagination, time zones, serialization, and file/network boundaries;
-- tests that claim coverage of critical behavior, plus critical behavior with no visible tests;
-- code owners or module boundaries that make changes risky.
+## 3. Cover every subsystem/category pair
 
-The risk map is complete when every high-impact behavior has at least one source location, config file, test, or explicit "not found" note.
+Create one coverage record for every inventoried subsystem and selected category:
 
-## Coverage Matrix
+- `bug`: contracts, state transitions, edge/error paths, data integrity, and user-visible behavior;
+- `security`: auth/authz, injection, secrets, unsafe parsing, sensitive data, uploads, redirects, and dependency exposure;
+- `performance`: repeated I/O, query/render loops, network calls, scaling, caching, batching, startup, and build paths;
+- `test-gap`: critical paths, meaningful assertions, integrations, skipped/flaky tests, and CI execution;
+- `architecture`: boundaries, policy placement, dependency direction, hidden coupling, and broad-change leverage;
+- `maintainability`: duplication, dead code, fragile configuration, stale compatibility paths, and error ownership;
+- `developer-experience`: setup, scripts, local checks, CI feedback, diagnostics, and debugging friction.
 
-Audit through these passes. For each pass, record accepted candidates and rejects.
+Use `complete`, `not-applicable`, or `deferred`. Record inspected locations, methods/commands, candidate and reject links, and a conclusion. Never use `not-applicable` without a repository-specific reason.
 
-- `bug`: contracts, edge cases, error paths, data integrity, state transitions, null/empty handling, and user-visible behavior.
-- `security`: auth/authz, injection, secrets, dependency vulnerabilities, unsafe deserialization, sensitive data, redirects, uploads, and permission boundaries.
-- `performance`: repeated I/O, avoidable network calls, expensive render/query loops, algorithmic scaling, caching, batching, and startup/build hotspots.
-- `test-gap`: critical paths without tests, tests that miss meaningful assertions, unexercised integrations, skipped/flaky tests, and CI gaps.
-- `architecture`: unclear boundaries, hidden coupling, ownership ambiguity, misplaced policy, cross-layer dependencies, and changes requiring broad edits.
-- `maintainability`: duplication, dead code, fragile config, unclear error handling, stale docs, and unsupported compatibility paths.
-- `developer-experience`: slow or misleading scripts, incomplete setup docs, missing local checks, noisy CI, and hard-to-debug tool failures.
+After category coverage, run every applicable discovery pattern in `deep-analysis-patterns.md`. Deep findings must cross files or system boundaries; single-file findings remain valid standard candidates.
 
-A pass is complete when the main files and configs for that category have been inspected, relevant commands have been run when cheap and safe, and each plausible candidate has an evidence or reject entry.
+**Completion gate:** the coverage matrix contains every required subsystem/category pair exactly once, and every applicable deep pattern has an investigation result in candidate/reject evidence or a coverage conclusion.
 
-## Deep Analysis Pass
+## 4. Maintain candidate and reject ledgers
 
-Run after the standard coverage matrix passes are complete. Read `deep-analysis-patterns.md` and apply the patterns using the risk map, ecosystem inventory, and repo frame already built by this protocol.
+For each plausible root cause, record the full candidate contract from `audit-bundle.md`. Seek disconfirming evidence before deciding:
 
-These patterns target cross-cutting issues invisible in single-file review:
+- inspect guards, callers, tests, framework/runtime guarantees, reachability, and generated/vendor boundaries;
+- run a focused reproduction when safe and proportionate;
+- distinguish an observed failure from a reasoned failure path;
+- merge symptoms with the same root cause;
+- compare current code and open issue titles when issue metadata is available.
 
-- semantic contract drift: function contracts that changed while callers still assume the old behavior;
-- implicit ordering dependencies: initialization, middleware, migration, or event sequences that break silently on reorder;
-- error swallowing and silent degradation: catch blocks, fallbacks, and error boundaries that consume failures no caller or operator can detect;
-- stale cross-references and phantom dependencies: config, env vars, feature flags, routes, or CSS classes referenced on one side but missing on the other;
-- temporal coupling and race conditions: non-atomic read-modify-write, TOCTOU, missing awaits, shared mutable state without synchronization;
-- boundary and encoding mismatches: serialization asymmetry, charset assumptions, timezone inconsistencies, and numeric precision loss across system boundaries;
-- default value traps: fallbacks that silently override legitimate falsy or zero values;
-- observability gaps and misleading diagnostics: health checks, logs, metrics, and error messages that give false confidence;
-- build and dependency graph shadows: undeclared transitive dependencies, devDependencies in production paths, stale lockfiles, and circular imports;
-- incomplete lifecycle management: resources acquired but not released on error, cancellation, or unmount paths;
-- invariant violations at boundaries: type assertions, validation gaps, and schema drift that let invalid data cross module boundaries;
-- git-history signals: hotspot files with high churn and low coverage, patch stacking, stale TODOs, and ownership gaps.
+Rejected, deferred, and merged candidates require a reject record explaining the decision. Do not erase near-misses: they prove that a signal was investigated rather than missed.
 
-For each selected pattern, record candidates in the candidate ledger with the pattern name as metadata. Deep analysis candidates must cite evidence from at least two files or two distinct system boundaries. Record explicit reject entries for patterns investigated but found clean.
+**Completion gate:** every candidate has a terminal decision, every non-accepted candidate has a reject record, and every accepted candidate passes `audit-rubric.md`.
 
-The deep analysis pass is complete when every pattern relevant to the codebase has been investigated and each has either an accepted candidate or a reject reason.
+## 5. Reconcile the audit
 
-## Candidate Ledger
+Link exactly one issue draft to every accepted candidate, validate the bundle, and repair every validator error before review. Summarize accepted issues, rejected near-misses, deferred surfaces, failed or skipped baseline commands, and dirty-worktree limitations.
 
-Track every plausible finding until it is accepted or rejected:
-
-- working title;
-- category, severity, and confidence;
-- suspected root cause, not just symptom;
-- local evidence: file paths, command output, dependency metadata, test evidence, or reasoning chain;
-- external evidence when ecosystem optimization or security advisory claims are involved;
-- expected impact and affected workflow;
-- verification path for confirming the fix;
-- decision: accepted, merged into another candidate, deferred, or rejected.
-
-Do not draft directly from a first impression. Promote only candidates whose root cause and evidence survive the rubric.
-
-## Reject Ledger
-
-Record why plausible candidates were not drafted:
-
-- insufficient evidence;
-- duplicate symptom of another root cause;
-- severity below the default threshold;
-- medium or low confidence;
-- too broad to be independently fixable;
-- expected benefit unclear;
-- contradicted by source, tests, docs, or command output.
-
-The reject ledger prevents re-raising weak ideas as findings and gives the user useful audit context without turning speculation into issues.
-
-## Final Threshold
-
-Before drafting, reconcile the coverage matrix and ledgers:
-
-- every high-risk area has an accepted candidate or reject reason;
-- every accepted candidate maps to one root cause;
-- every accepted candidate passes the rubric's default publishing threshold;
-- ecosystem candidates have both local evidence and current primary-source evidence;
-- low-severity or medium-confidence candidates are held back unless the user asks for backlog material.
-
-The protocol is complete when the issue list is smaller than the candidate ledger, and every omission has a reason.
+**Completion gate:** `validate_audit_bundle.py` exits successfully, accepted candidates and issues are one-to-one, and every omitted area has an explicit clean, reject, defer, not-applicable, or scope-limitation record.

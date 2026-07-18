@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "codebase-issue-auditor/**"
+      - "tests/codebase-issue-auditor/**"
       - "create-diagram/**"
       - "design-codebase-with-senior-dev/**"
       - "github-issue-planner/**"
@@ -20,6 +21,7 @@ on:
     branches: [main]
     paths:
       - "codebase-issue-auditor/**"
+      - "tests/codebase-issue-auditor/**"
       - "create-diagram/**"
       - "design-codebase-with-senior-dev/**"
       - "github-issue-planner/**"
@@ -51,12 +53,13 @@ jobs:
           create-diagram/scripts
           create-diagram/test
           codebase-issue-auditor/scripts
+          tests/codebase-issue-auditor
           github-issue-planner/scripts
           .github/scripts
       - name: Type check plan-with-senior-dev
         run: mypy plan-with-senior-dev/scripts
       - name: Type check codebase-issue-auditor
-        run: mypy codebase-issue-auditor/scripts
+        run: mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
       - name: Type check github-issue-planner
         run: mypy github-issue-planner/scripts
       - name: Type check create-diagram

@@ -1,129 +1,56 @@
 ---
 name: codebase-issue-auditor
-description: Audit a repository for evidence-backed bugs, risks, test gaps, architectural friction, performance hotspots, maintainability issues, and developer-experience optimizations, then draft GitHub issues for approval. Use when the user asks Codex to inspect a codebase, identify problems or criticalities, prioritize optimization work, or raise GitHub issues from audit findings.
+description: Run a risk-weighted, evidence-driven repository audit and draft validated GitHub issues. Use when Codex must inspect a codebase for bugs, security or performance risks, test gaps, architectural or maintainability friction, developer-experience problems, or verify whether prior audit findings were resolved.
 ---
 
 # Codebase Issue Auditor
 
-Audit a local codebase and turn concrete findings into GitHub issue drafts. Optimize for missed-finding reduction: use systematic coverage before drafting, and publish only after the user approves the draft list.
+Audit broadly, promote strictly, and publish only with explicit approval. Default to every audit category and severity `medium+`; honor explicit time boxes and exclusions as reported limitations.
 
 ## Workflow
 
-1. **Grill the audit brief**
-   - Always interview the user before inspecting the repo or generating findings, even when the initial prompt already includes some scope.
-   - Ask a focused 5-7 question grill that captures: audit target path or current-directory confirmation; why the audit is being run now; desired finding categories; known risk areas, recent changes, suspected pain points, or areas to challenge; explicit exclusions; desired output mode; severity threshold and whether low-priority backlog items should be included.
-   - Desired finding categories are `bug`, `security`, `performance`, `test-gap`, `architecture`, `maintainability`, and `developer-experience`.
-   - Desired output modes are local draft list, GitHub issue drafts, publish-ready issues, or resolution follow-up after fixes.
-   - Complete this step only when you can restate the audit brief with target, priorities, exclusions, output mode, and threshold.
+1. **Frame from evidence**
+   - Inspect the target repository before asking questions. Read repository guidance, manifests, lockfiles, CI/test configuration, deployment surfaces, issue conventions, `git status`, and the audited commit.
+   - Resolve repository facts locally. Ask only when an undiscoverable product decision would materially change scope, priority, or publication.
+   - Read [references/audit-protocol.md](references/audit-protocol.md) and create a versioned audit bundle following [references/audit-bundle.md](references/audit-bundle.md). Keep working artifacts outside tracked source unless the user requests a saved report.
+   - Complete this phase only when the bundle records the target and commit, dirty-worktree state, scope and limitations, repository boundaries, generated/vendor exclusions, baseline commands, subsystems, and externally exposed or destructive workflows.
 
-2. **Frame the audit**
-   - Use the audit brief from step 1 to prioritize repo inspection and later coverage.
-   - Audit the current local working directory by default, or the local path the user explicitly provides.
-   - Inspect local repo guidance before judging the code: `git remote -v`, `AGENTS.md` or `CLAUDE.md`, `docs/agents/`, `CONTEXT.md`, ADRs, CI config, dependency manifests, test config, and existing issue-label guidance where available.
-   - Do not clone or inspect the GitHub issue destination as audit evidence. GitHub is only the publishing target.
-   - If repo issue-tracker conventions are missing and the user wants durable setup, use `setup-matt-pocock-skills` first.
-   - If `graphify-out/graph.json` exists, use `graphify` queries to orient around architecture and cross-module relationships. If not, use normal repo exploration unless the user asks for a graph.
-   - Complete this step only when you can state the repo purpose, primary runtime/tooling, test/CI shape, deploy or package surface if present, and issue-tracker conventions if present.
+2. **Map and inspect every risk surface**
+   - Inventory the whole repository, then inspect risk-weighted surfaces rather than mechanically reading generated, vendored, or irrelevant files.
+   - Run every applicable category pass and the cross-cutting patterns in [references/deep-analysis-patterns.md](references/deep-analysis-patterns.md). Use [references/ecosystem-optimization.md](references/ecosystem-optimization.md) only after local evidence identifies a concrete ecosystem candidate.
+   - Record accepted signals and near-misses while investigating; do not draft issues from first impressions.
+   - Complete this phase only when every subsystem/category pair has one coverage record and every risk surface is `accepted`, `clean`, `rejected`, or explicitly `deferred` with evidence, validation actions, and linked candidate/reject records where required.
 
-3. **Run the audit protocol**
-   - Read `references/audit-protocol.md` and follow it before drafting issues.
-   - Read `references/audit-rubric.md` before accepting or rejecting candidate findings.
-   - Build the protocol artifacts in working notes: ecosystem inventory, risk map, coverage matrix, candidate ledger, and reject ledger.
-   - Prioritize the user's stated categories and risk areas in the coverage matrix, while still recording reject reasons for other high-risk areas found during framing.
-   - Use adjacent skills only when they match a candidate type: `diagnose` for suspected failing behavior, `improve-codebase-architecture` for architectural friction, `to-issues` for converting an approved plan into vertical slices, and `triage` for applying the repo's issue-state vocabulary.
-   - If local ecosystem inventory reveals a concrete framework, package, runtime, build tool, test tool, deployment target, or CI/tooling setup that may be misused, read `references/ecosystem-optimization.md` before using web evidence for that candidate. Do not run ecosystem web research without local evidence first.
-   - After completing the standard coverage matrix passes, read `references/deep-analysis-patterns.md` and run the deep analysis pass. These patterns target cross-cutting issues invisible in single-file review, such as semantic contract drift, implicit ordering dependencies, silent error degradation, temporal coupling, boundary encoding mismatches, and git-history risk signals. Apply the cross-file evidence requirement and the deep analysis rubric section before promoting candidates.
-   - Complete this step only when every high-risk area in the coverage matrix has either an accepted candidate finding or a recorded reject reason, and every applicable deep analysis pattern has been investigated with results recorded in the candidate or reject ledger.
+3. **Disconfirm and promote candidates**
+   - Apply [references/audit-rubric.md](references/audit-rubric.md). Test alternative explanations, framework guarantees, reachability, generated/test-only boundaries, and duplicate-root-cause hypotheses.
+   - Keep broad discovery but strict promotion. Promote only high-confidence, independently fixable findings at or above the configured severity threshold. Keep everything else in the reject ledger.
+   - Complete this phase only when every candidate has a decision and every accepted candidate has a root cause, affected workflow and impact, concrete evidence chain, reproduction or justified non-reproduction, counter-evidence checked, verification path, and independently testable acceptance criteria.
 
-4. **Draft one issue per root cause**
-   - Draft only candidates that pass the default threshold in `references/audit-rubric.md`.
-   - Merge duplicate symptoms into a single root-cause issue.
-   - Prefer independently fixable issues over large area-based epics.
-   - Each draft must include the schema fields below. Put the verification path in the issue body, and report confidence in the review summary rather than adding new JSON fields.
-   - Complete this step only when every drafted issue can be pasted into GitHub with enough evidence for a maintainer to reproduce, verify, or confidently plan the fix.
-
-5. **Review before publishing**
-   - Present the draft issue list with severity, category, confidence, evidence summary, verification path, and any rejected near-misses worth knowing about.
+4. **Validate and review drafts**
+   - Link one structured issue draft to each accepted root cause. Validate the bundle before presenting it:
+     ```bash
+     python scripts/validate_audit_bundle.py audit-bundle.json
+     ```
+   - Present accepted issues with severity, category, confidence, evidence, verification, and relevant rejected near-misses. Report deferred surfaces and other coverage limitations even when no issues survive promotion.
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
-   - Do not publish until the user explicitly approves publication.
+   - Complete this phase only when the validator passes and every omission from the issue list is explained by a reject, deferment, or explicit scope limitation.
 
-6. **Publish with the bundled script**
-   - Save approved drafts as JSON using the schema below.
-   - Ask for the GitHub repository URL to publish issues to. Accept `https://github.com/owner/repo`, `git@github.com:owner/repo.git`, or `owner/repo`.
-   - Check gh cli authentication before publishing:
+5. **Publish approved issues**
+   - Require explicit publication approval and a GitHub destination. Check `gh` authentication, then dry-run the exact final bodies and labels:
      ```bash
-     python scripts/check_github_env.py
+     python scripts/check_github_env.py --github-repo-url owner/repo
+     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo
      ```
-   - Optionally validate the destination:
+   - Publish only after the dry run is reviewed:
      ```bash
-     python scripts/check_github_env.py --github-repo-url https://github.com/owner/repo
+     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo --publish
      ```
-   - Run a dry run first:
-     ```bash
-     python scripts/publish_github_issues.py --input issues.json --github-repo-url https://github.com/owner/repo
-     ```
-   - After approval, publish:
-     ```bash
-     python scripts/publish_github_issues.py --input issues.json --github-repo-url https://github.com/owner/repo --publish
-     ```
+   - Never publish or close issues implicitly. Exact-title duplicate protection remains enabled by default.
 
-7. **Resolution follow-up after fixes**
-   - Use this branch when rerun after implementation work.
-   - Compare current audit findings against open audit or GitHub issues supplied by the user, fetched through approved issue metadata, or referenced in the implementation plan.
-   - Re-run enough of `references/audit-protocol.md` to test the original root cause and its adjacent regression surface.
-   - Classify each relevant open issue as `resolved`, `still-open`, or `still-failing`.
-   - Mark an issue `resolved` only when source evidence, passing tests, command output, or a clean rerun shows the original finding no longer reproduces.
-   - Present resolved issue candidates with issue number or URL, original finding summary, current evidence, verification path, and residual risk.
-   - Do not close GitHub issues automatically. Ask for explicit user approval before closing any issue.
-   - If GitHub credentials or the repository URL are missing, produce the resolved/open/still-failing classification locally and stop before any external write.
+## Resolution Follow-up
 
-## Issue Draft Schema
+For a post-fix audit, reframe the current commit, retest each original root cause and adjacent regression surface, and classify it as `resolved`, `still-open`, or `still-failing`. Require current source or command evidence before calling it resolved. Validate and present the local classification before requesting approval for any external issue closure.
 
-The publisher accepts either a JSON array of issues or an object with an `issues` array.
+## Legacy Publishing
 
-```json
-[
-  {
-    "title": "Short actionable title",
-    "body": "GitHub Markdown issue body",
-    "labels": ["audit", "needs-triage"],
-    "severity": "high",
-    "category": "bug",
-    "evidence": ["src/example.ts:42 explains the failing path"],
-    "acceptance_criteria": ["Regression test covers the failing path"]
-  }
-]
-```
-
-Allowed categories: `bug`, `security`, `performance`, `test-gap`, `architecture`, `maintainability`, `developer-experience`.
-
-Allowed severities: `critical`, `high`, `medium`, `low`.
-
-## GitHub Configuration
-
-This skill uses the GitHub CLI (`gh`) for authentication. Ensure `gh` is installed and you are logged in:
-
-```bash
-gh auth login
-```
-
-You can optionally configure default labels and duplicate checking using a `.env` file or environment variables:
-
-```dotenv
-GITHUB_DEFAULT_LABELS=audit,needs-triage
-GITHUB_SKIP_DUPLICATES=true
-```
-
-Check configuration:
-
-```bash
-python scripts/check_github_env.py
-```
-
-When `--env` is provided, the checker and publisher use that file plus already-exported environment variables. Without `--env`, they read `.env` from the current working directory first, then from this skill folder if present. Environment variables already set in the shell take precedence. `GITHUB_REPOSITORY` is ignored by the normal publishing flow; use `--github-repo-url` instead.
-
-## Publishing Guardrails
-
-- Dry-run mode is the default and never calls the GitHub API.
-- `--publish` is required for network writes.
-- Duplicate protection is enabled by default and skips open issues with the same title.
+The publisher continues to accept the legacy issue array and `{ "issues": [...] }` object documented in [references/audit-bundle.md](references/audit-bundle.md). Prefer a validated audit bundle because legacy inputs cannot prove audit coverage.

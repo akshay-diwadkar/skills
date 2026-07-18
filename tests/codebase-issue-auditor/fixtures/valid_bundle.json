@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "audit_context": {
+    "target": "/fixture/repo",
+    "commit": "abc123",
+    "dirty_worktree": false,
+    "categories": ["bug"],
+    "severity_threshold": "medium",
+    "output_mode": "github-draft",
+    "scope_exclusions": [],
+    "limitations": []
+  },
+  "repository_inventory": {
+    "purpose": "Process jobs from an HTTP API.",
+    "runtimes": ["Python 3.11"],
+    "boundaries": ["app/", "tests/"],
+    "generated_or_vendor_paths": [],
+    "baseline_commands": [
+      {
+        "command": "python -m unittest",
+        "status": "passed",
+        "evidence": "12 tests passed"
+      }
+    ],
+    "subsystems": [
+      {
+        "id": "jobs",
+        "name": "Job processing",
+        "paths": ["app/jobs.py", "app/config.py"],
+        "risk_level": "high"
+      }
+    ],
+    "exposed_or_destructive_workflows": ["POST /jobs"]
+  },
+  "risk_surfaces": [
+    {
+      "id": "job-retries",
+      "title": "Caller-controlled retry count",
+      "risk_level": "high",
+      "categories": ["bug"],
+      "locations": ["app/jobs.py:18", "app/config.py:4"],
+      "validation_actions": ["Traced an explicit zero retry value through configuration fallback"],
+      "status": "accepted",
+      "candidate_ids": ["C-001"],
+      "reject_ids": [],
+      "conclusion": "An explicit zero is replaced by the default retry count."
+    }
+  ],
+  "coverage": [
+    {
+      "id": "jobs-bug",
+      "subsystem_id": "jobs",
+      "category": "bug",
+      "status": "complete",
+      "locations": ["app/jobs.py", "app/config.py", "tests/test_jobs.py"],
+      "methods": ["Traced input normalization and inspected edge-case tests"],
+      "candidate_ids": ["C-001"],
+      "reject_ids": [],
+      "conclusion": "One default-value defect was accepted."
+    }
+  ],
+  "deep_analysis": [
+    {
+      "pattern": "semantic-contract-drift",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "No shared contract with multiple implementations or changed callers exists in the fixture."
+    },
+    {
+      "pattern": "implicit-ordering-dependency",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture has no bootstrap, middleware, migration, or hook ordering surface."
+    },
+    {
+      "pattern": "silent-error-degradation",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture contains no catch, fallback, retry, or error-boundary path."
+    },
+    {
+      "pattern": "phantom-cross-reference",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "All configuration symbols in the fixture resolve to local definitions."
+    },
+    {
+      "pattern": "temporal-coupling-or-race",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "No concurrent entry point or shared mutable resource exists in the fixture."
+    },
+    {
+      "pattern": "boundary-or-encoding-mismatch",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture has no serialization, timezone, numeric, or encoding boundary."
+    },
+    {
+      "pattern": "default-value-trap",
+      "status": "complete",
+      "targets": ["app/jobs.py:18", "app/config.py:4"],
+      "methods": ["Traced explicit zero through the truthiness fallback"],
+      "candidate_ids": ["C-001"],
+      "reject_ids": [],
+      "conclusion": "The fallback replaces a legitimate zero value."
+    },
+    {
+      "pattern": "misleading-observability",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture defines no health check, metric, alert, or logging contract."
+    },
+    {
+      "pattern": "dependency-graph-shadow",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture uses no third-party runtime dependency."
+    },
+    {
+      "pattern": "incomplete-lifecycle",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture acquires no persistent connection, listener, timer, or stream."
+    },
+    {
+      "pattern": "boundary-invariant-violation",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The fixture has no assertion, schema, or generated-type boundary."
+    },
+    {
+      "pattern": "git-history-risk",
+      "status": "not-applicable",
+      "targets": [],
+      "methods": [],
+      "candidate_ids": [],
+      "reject_ids": [],
+      "conclusion": "The standalone fixture has no meaningful repository history."
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C-001",
+      "title": "Preserve an explicit zero retry count",
+      "summary": "The job runner replaces a caller's zero retry count with the configured default.",
+      "category": "bug",
+      "severity": "medium",
+      "confidence": "high",
+      "root_cause": "The runner uses truthiness instead of a null-only fallback for the retry count.",
+      "affected_workflow": "Submitting a job that must not be retried",
+      "impact": "Jobs explicitly configured for no retries run three additional attempts, delaying final failure and repeating side effects.",
+      "evidence": [
+        {
+          "kind": "source",
+          "location": "app/jobs.py:18",
+          "observation": "The expression retries or DEFAULT_RETRIES replaces zero."
+        },
+        {
+          "kind": "test",
+          "location": "tests/test_jobs.py:22",
+          "observation": "Existing tests cover positive retries but not zero."
+        }
+      ],
+      "reproduction": {
+        "status": "reasoned",
+        "details": "Calling run_job(retries=0) selects DEFAULT_RETRIES before dispatch.",
+        "justification": ""
+      },
+      "counter_evidence_checked": [
+        "Confirmed zero is allowed by the public request validator and has no later normalization."
+      ],
+      "verification": [
+        "Add a regression test asserting run_job(retries=0) performs one attempt only."
+      ],
+      "acceptance_criteria": [
+        "An explicit zero retry value is preserved.",
+        "The configured default still applies when retries is omitted."
+      ],
+      "independently_fixable": true,
+      "decision": "accepted",
+      "merged_into": ""
+    }
+  ],
+  "rejects": [],
+  "issues": [
+    {
+      "candidate_id": "C-001",
+      "title": "Preserve an explicit zero retry count",
+      "labels": ["audit", "bug"]
+    }
+  ]
+}

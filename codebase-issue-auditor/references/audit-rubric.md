@@ -1,110 +1,62 @@
 # Audit Rubric
 
-Use this rubric to decide which candidates from the audit protocol become GitHub issue drafts. The goal is useful, evidence-backed work, not a brainstorm.
+Use this file as the single source of truth for promoting candidates. Discovery patterns identify signals; this rubric decides whether they become issues.
 
-## Categories
+## Universal promotion gate
 
-- `bug`: implemented behavior is wrong, crashes, loses data, violates a documented contract, or has a credible failing path.
-- `security`: secrets exposure, auth/authz weakness, injection, unsafe deserialization, dependency vulnerability, or sensitive-data handling risk.
-- `performance`: avoidable slow path, excessive I/O, unnecessary network calls, algorithmic scaling issue, expensive render loop, or measurable bottleneck.
-- `test-gap`: important behavior lacks coverage, existing tests miss a high-risk path, or CI does not exercise a critical integration.
-- `architecture`: module boundaries, interfaces, ownership, or dependencies make change risky or obscure; prefer findings with concrete locality or leverage evidence.
-- `maintainability`: duplicated logic, fragile configuration, unclear ownership, dead code, or error handling that increases defect risk.
-- `developer-experience`: setup, scripts, docs, CI feedback, or local workflows make normal development slower or error-prone.
+Accept a candidate only when all conditions hold:
 
-## Evidence Gate
+- **Root cause:** identify the implementation, configuration, dependency, or workflow cause rather than a symptom.
+- **Affected workflow:** name the user, operator, maintainer, build, test, or runtime path harmed by the cause.
+- **Impact:** state the concrete incorrect outcome, exposure, cost, or change risk for that workflow.
+- **Evidence chain:** provide at least two concrete observations, including local source, config, test, command, or history evidence. External evidence cannot stand alone.
+- **Reproduction:** record a reproduced result, a complete reasoned failure path, or why direct reproduction is unsafe or inapplicable.
+- **Disconfirmation:** inspect credible alternative explanations, guards, reachability, framework guarantees, and intentional-design evidence.
+- **Verification:** give commands, tests, or manual checks that would prove the root cause is removed.
+- **Acceptance:** provide observable, independently testable closure criteria.
+- **Actionability:** keep one independently fixable root cause per candidate.
+- **Threshold:** require high confidence and severity at or above the configured threshold; default to `medium+`.
 
-Accept a candidate only when it has all of these:
-
-- root cause: the issue identifies the underlying implementation, configuration, dependency, or workflow cause rather than only a symptom;
-- local evidence: source locations, command output, dependency metadata, test evidence, documentation, or a clear reasoning chain from implementation to failure;
-- impact: the affected user, operator, maintainer, build, test, or runtime workflow is named;
-- verification path: a concrete way to know the fix worked, such as a regression test, command, manual reproduction, benchmark, config check, or clean rerun;
-- acceptance criteria: observable criteria a maintainer can use to close the issue.
-
-Reject candidates that require guessing about product intent, hidden production state, unavailable logs, or unobserved user behavior unless the local code creates a credible failure path.
-
-## Cross-Cutting & Deep Analysis Evidence
-
-Deep analysis findings from `deep-analysis-patterns.md` must meet the standard evidence gate above AND the additional requirements below.
-
-### Cross-file evidence requirement
-
-Every deep analysis finding must cite evidence from at least two files or two distinct system boundaries. Single-file issues are already covered by the standard coverage matrix passes. If the entire finding is contained in one file, it belongs in a standard category pass, not the deep analysis.
-
-### Minimum evidence bar by pattern
-
-- Semantic contract drift: show both the changed contract (source, type, or behavior) AND at least one mismatched call-site or test. A changed function without a broken caller is not a finding.
-- Implicit ordering dependencies: show two or more operations whose order matters AND the absence of an enforcement mechanism. Sequential code that happens to be ordered is not a finding.
-- Error swallowing: show the catch or fallback AND the code path where no caller, user, or operator can detect the failure. Intentional silent handling with a clear comment or design rationale is a reject.
-- Stale cross-references: show the reference on one side AND the missing definition or consumer on the other. Dead CSS in a component library is a reject.
-- Temporal coupling: show the shared mutable state AND the concurrent access path AND the absence of synchronization. Single-threaded code with no concurrent entry is not a race condition.
-- Boundary mismatches: show the encoding or format on the producing side AND the different assumption on the consuming side AND a concrete value that would be corrupted.
-- Default value traps: show the fallback mechanism AND a legitimate input value it would override AND the resulting incorrect behavior.
-- Observability gaps: show the diagnostic mechanism AND the gap between what it claims to verify and what it actually verifies.
-- Dependency graph shadows: show the import in production code AND the dependency's absence from or incorrect position in the manifest.
-- Incomplete lifecycle: show the resource acquisition AND a concrete code path where the release does not execute. Resources managed by framework lifecycle guarantees that apply here are a reject.
-- Invariant violations: show the boundary assertion or type AND the concrete mismatch with actual data crossing the boundary. Type assertions followed by immediate validation are a reject.
-- Git-history signals: show the historical signal AND a concrete current-state risk. High churn alone is not a finding; high churn plus low coverage plus active bugs IS a finding.
-
-### False-positive guardrails
-
-Reject deep analysis candidates when:
-
-- the pattern matches syntactically but the code has an explicit guard, comment, or design rationale that makes the pattern intentional;
-- the affected code path is dead, unreachable, or behind a feature flag that is permanently off;
-- a framework or runtime guarantee makes the theoretical issue impossible in practice (e.g., single-threaded event loop eliminates a race condition, GC eliminates a resource leak);
-- the evidence comes from test-only code, generated code, or vendored third-party code;
-- the finding duplicates a candidate already raised by a standard coverage pass.
-
-## Ecosystem Optimization Evidence
-
-Ecosystem optimization findings are valid only when local framework, package, runtime, or tool usage leaves a documented capability unused or misconfigured.
-
-Use ecosystem evidence for:
-
-- `performance`: missed caching, compilation, runtime, rendering, bundling, query, or deployment capabilities that create avoidable work.
-- `security`: vulnerable versions, missing hardening flags, unsafe defaults, or unconfigured security features documented by the vendor or project.
-- `developer-experience`: package manager, test runner, build cache, CI, or local workflow features that would make normal development materially faster or clearer.
-- `maintainability`: outdated configuration shape, deprecated APIs, duplicated tool responsibilities, or unsupported migration path with concrete local impact.
-- `architecture`: framework or platform capabilities that would simplify boundaries, routing, data loading, module ownership, or deployment topology without inventing an unrelated abstraction.
-
-Each ecosystem optimization finding needs local evidence, current primary-source web evidence, and a concrete expected benefit. Do not draft broad modernization epics or "upgrade because newer exists" issues.
-
-## Severity
-
-- `critical`: likely data loss, security exposure, production outage, broken release path, or a defect that blocks most users.
-- `high`: credible user-visible bug, significant security/performance risk, or a change blocker for important work.
-- `medium`: concrete correctness, coverage, maintainability, or workflow issue that should be scheduled.
-- `low`: useful cleanup or optimization with limited risk. Do not publish by default unless the user asks for low-priority backlog items.
+Reject guesses about hidden production state, unobserved user behavior, or product intent unless local code provides a complete credible failure path.
 
 ## Confidence
 
-- High confidence requires direct code evidence, reproducible command output, authoritative dependency metadata, test evidence, or a clear path from implementation to failure.
-- For ecosystem optimization findings, high confidence also requires current primary-source evidence such as official docs, release notes, migration guides, security advisories, package registry metadata, or vendor performance guidance.
-- Medium confidence means the signal is credible but needs one more confirmation step. Keep it in the draft review only if useful context is worth showing; do not publish by default.
-- Low confidence is speculation. Do not draft it as an issue.
+- `high`: direct code/config evidence plus reproduction, test/command evidence, authoritative metadata, or a complete reasoned path that survives disconfirmation.
+- `medium`: credible signal with one material confirmation missing. Preserve it as a near-miss; do not draft by default.
+- `low`: speculation or pattern matching without a concrete failure path. Reject it.
 
-## Default Publishing Threshold
+Ecosystem candidates also require current primary-source documentation, release notes, registry metadata, or an advisory that applies to the locally observed version/configuration.
 
-Draft and publish only findings that are:
+## Severity
 
-- severity `medium`, `high`, or `critical`;
-- high confidence;
-- independently fixable;
-- rooted in one cause rather than a broad area;
-- supported by evidence that can be pasted into the issue;
-- paired with a verification path and acceptance criteria.
+- `critical`: likely data loss, security exposure, production outage, broken release path, or a defect blocking most users.
+- `high`: credible user-visible failure, significant security/performance risk, or blocker for important work.
+- `medium`: concrete correctness, coverage, maintainability, architecture, or workflow issue that should be scheduled.
+- `low`: limited-risk cleanup or optimization; exclude by default.
 
-## Issue Body Checklist
+## Category assignment
 
-Each issue body should include:
+Choose the category that best represents impact, not the discovery technique:
 
-- problem summary;
-- why it matters and who or what workflow is affected;
-- root cause;
-- evidence with file paths, command output, dependency metadata, docs, or reasoning;
-- expected outcome;
-- verification path;
-- acceptance criteria;
-- notes about likely affected area, without over-prescribing an implementation.
+- `bug`: wrong behavior, crash, data loss, or violated contract;
+- `security`: auth/authz, injection, secrets, unsafe parsing, vulnerable dependency, or sensitive-data risk;
+- `performance`: measurable or structurally unavoidable excess work or scaling risk;
+- `test-gap`: important behavior or integration lacks meaningful automated coverage;
+- `architecture`: boundaries or dependencies create concrete broad-change or ownership risk;
+- `maintainability`: duplication, dead code, fragile configuration, or unclear error/compatibility ownership increases defect risk;
+- `developer-experience`: setup, scripts, CI feedback, or diagnostics make normal development error-prone or materially slower.
+
+## Cross-cutting and ecosystem findings
+
+For a deep-analysis candidate, require evidence from at least two files or distinct system boundaries. The second location must participate in the failure chain, not merely mention the same symbol.
+
+For an ecosystem candidate, require all of:
+
+- local evidence of the exact version, configuration, or usage;
+- current primary-source evidence for the claimed capability, default, advisory, or migration;
+- a concrete expected benefit and verification path;
+- an independently actionable change, not “upgrade because newer exists.”
+
+## False-positive rejects
+
+Reject when an explicit guard or documented rationale makes the behavior intentional, the path is unreachable, a framework guarantee prevents the failure, evidence exists only in generated/vendor/test-only code without production impact, or the signal duplicates another root cause.

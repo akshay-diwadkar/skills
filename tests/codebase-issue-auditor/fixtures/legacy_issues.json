@@ -1,0 +1,11 @@
+[
+  {
+    "title": "Preserve an explicit zero retry count",
+    "body": "The runner replaces zero with its default.",
+    "labels": ["audit", "bug"],
+    "severity": "medium",
+    "category": "bug",
+    "evidence": ["app/jobs.py:18 uses a truthiness fallback"],
+    "acceptance_criteria": ["Zero is preserved"]
+  }
+]

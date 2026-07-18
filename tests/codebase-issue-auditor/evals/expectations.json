@@ -1,0 +1,20 @@
+{
+  "python-service": {
+    "expected_findings": [
+      {"id": "zero-retry-default", "keywords": ["zero", "retr"]},
+      {"id": "delete-without-authorization", "keywords": ["delet", "authoriz"]}
+    ],
+    "forbidden_findings": [
+      {"id": "managed-file-leak", "keywords": ["load_text", "leak"]}
+    ]
+  },
+  "typescript-service": {
+    "expected_findings": [
+      {"id": "zero-page-size-default", "keywords": ["zero", "page"]},
+      {"id": "unawaited-save", "keywords": ["save", "await"]}
+    ],
+    "forbidden_findings": [
+      {"id": "subscription-leak", "keywords": ["subscription", "leak"]}
+    ]
+  }
+}
