@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optimize Codebase with Senior Dev"
+  short_description: "Evidence-driven codebase optimization"
+  default_prompt: "Use $optimize-codebase-with-senior-dev to plan safe, evidence-backed optimizations across runtime, build, DX, dependencies, and maintainability."

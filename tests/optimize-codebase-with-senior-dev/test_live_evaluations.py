@@ -2,6 +2,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -99,11 +100,11 @@ def test_run_case_scores_output_and_writes_artifacts(tmp_path: Path) -> None:
 
 
 def test_summary_requires_median_ninety_minimum_eighty_and_no_hard_failures() -> None:
-    passing = [
+    passing: list[dict[str, Any]] = [
         {"model_label": "weak", "score": score, "hard_failures": []}
         for score in (80, 90, 100)
     ]
-    failing = [
+    failing: list[dict[str, Any]] = [
         {"model_label": "weak", "score": 100, "hard_failures": []},
         {"model_label": "weak", "score": 79, "hard_failures": []},
         {"model_label": "weak", "score": 100, "hard_failures": ["fixture:mutated"]},
