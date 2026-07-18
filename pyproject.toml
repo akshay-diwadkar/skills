@@ -10,6 +10,7 @@ no_implicit_optional = true
 exclude = [
   "tests/plan-with-senior-dev/fixtures/",
   "tests/plan-with-senior-dev/evals/fixtures/",
+  "tests/implement-with-senior-dev/evals/fixtures/",
   "tests/design-codebase-with-senior-dev/evals/fixtures/",
   "tests/optimize-codebase-with-senior-dev/evals/fixtures/",
 ]

@@ -43,7 +43,7 @@ EXPECTED_RUNTIME_FILE_COUNTS = {
     "create-diagram": 11,
     "design-codebase-with-senior-dev": 8,
     "github-issue-planner": 8,
-    "implement-with-senior-dev": 5,
+    "implement-with-senior-dev": 9,
     "optimize-codebase-with-senior-dev": 11,
     "plan-with-senior-dev": 15,
 }

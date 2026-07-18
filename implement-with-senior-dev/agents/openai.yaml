@@ -1,4 +1,4 @@
 interface:
   display_name: "Implement with Senior Dev"
-  short_description: "High-quality plan-bound implementation with dependency-ordered editing, pattern matching, layered verification, and structured reporting"
-  default_prompt: "Use $implement-with-senior-dev when you have an approved, specific implementation plan and need Codex to parse plan IDs (SC/CH/T), build a dependency graph, match local code patterns, apply changes in dependency order, implement specified tests, run layered verification, audit the result against the plan's traceability matrix, and produce a structured implementation report — all without expanding scope."
+  short_description: "Checker-validated plan implementation with safe recovery, exact traceability, and weaker-model evaluations"
+  default_prompt: "Use $implement-with-senior-dev for an approved implementation plan. Normalize plan-contract v2 metadata or apply the strict legacy adapter, scaffold an ignored implementation-run bundle, preserve user changes, apply planned work in dependency order, admit only recorded deterministic mechanical propagation, run layered verification, reconcile the actual diff, pass the implementation checker, and report exact results without unsafe rollback or invented scope."

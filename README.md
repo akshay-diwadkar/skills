@@ -122,7 +122,7 @@ Plan code changes, refactors, bug fixes, migrations, public contracts, and risky
 
 #### `implement-with-senior-dev`
 
-Safely implement an approved, specific code-change plan as a minimal patch. Use when the user provides or points to an approved plan and wants Codex to implement it without scope expansion, preserve existing patterns, run focused verification, and report exactly what changed.
+Safely implement an approved plan through a versioned run bundle, v2/legacy plan normalization, non-destructive recovery, deterministic mechanical propagation, layered verification, and a checker-reconciled report. The skill includes provider-neutral evaluations that score actual diffs and executed checks.
 
 ### Visualization
 
@@ -176,16 +176,42 @@ CI runs repository quality checks on Python 3.11:
 
 ```bash
 python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts optimize-codebase-with-senior-dev/scripts tests .github/scripts
+ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts implement-with-senior-dev/scripts optimize-codebase-with-senior-dev/scripts tests .github/scripts
 mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
 mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
 mypy design-codebase-with-senior-dev/scripts tests/design-codebase-with-senior-dev
 mypy optimize-codebase-with-senior-dev/scripts tests/optimize-codebase-with-senior-dev
 mypy github-issue-planner/scripts tests/github-issue-planner
 mypy create-diagram/scripts tests/create-diagram
+mypy implement-with-senior-dev/scripts tests/implement-with-senior-dev
 mypy .github/scripts tests/repository
 python -m pytest -q
 ```
+
+`implement-with-senior-dev` uses an executable run contract. Store the plan snapshot and bundle in a Git-ignored scratch path or an OS temporary directory:
+
+```bash
+python implement-with-senior-dev/scripts/scaffold_implementation.py \
+  --repo-root /path/to/repo \
+  --plan /ignored/run/plan.md \
+  --output /ignored/run/implementation.json
+python implement-with-senior-dev/scripts/check_implementation.py \
+  --repo-root /path/to/repo \
+  --plan /ignored/run/plan.md \
+  /ignored/run/implementation.json
+```
+
+Its provider-neutral live adapter reads one JSON request from stdin with `repo_root`, `skill_path`, `plan_path`, and `run_bundle_path`. It may mutate only the disposable repository copy and returns JSON containing `implementation_report_markdown`:
+
+```bash
+python tests/implement-with-senior-dev/run_live_evaluations.py \
+  --adapter-command python path/to/adapter.py \
+  --model-label weaker-model \
+  --runs 3 \
+  --output-dir .scratch/implement-with-senior-dev-evals
+```
+
+The runner checks actual diffs, preserved dirty sentinels, authoritative verification commands, the implementation bundle, and report truthfulness. Passing requires no hard failures, a median score of at least 90, and every run at least 80. Without a configured adapter and completed run, weaker-model reliability remains unverified.
 
 `design-codebase-with-senior-dev` also has an opt-in provider-neutral live evaluation runner. The adapter command reads one JSON request from stdin and writes one JSON response containing `assessment_markdown` to stdout. Model credentials and provider SDKs stay in the adapter, outside this repository.
 

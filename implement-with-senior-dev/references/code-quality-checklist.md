@@ -47,7 +47,7 @@
 - [ ] Function/method signatures match the plan exactly: name, parameter order, types, defaults, return type
 - [ ] New parameters have default values when the plan specifies them (to avoid breaking existing callers)
 - [ ] Serialization format matches the plan: JSON keys, field names, wire types, enums
-- [ ] Every caller listed in the plan's propagation map has been updated
+- [ ] Every caller named by a v2 `CH-n`, trace row, or accepted mechanical-propagation record has been updated
 - [ ] No signature changes beyond what the plan specifies
 - [ ] Public API surface (exports, visibility modifiers) matches the plan
 - [ ] Deprecation markers are added where the plan specifies them
@@ -83,13 +83,15 @@
 
 ## 7. Scope Discipline
 
-- [ ] Every changed line traces to a specific `CH-n` in the plan
-- [ ] No files are modified that aren't named in the plan (except test files for `T-n` items)
+- [ ] Every changed line traces to a `CH-n` as planned work or passes the canonical Mechanical Propagation Gate
+- [ ] Every unplanned file is recorded as `mechanical-propagation` with policy flags, evidence, and verification
 - [ ] No new dependencies (packages, modules, imports from new files) unless the plan specifies them
-- [ ] Generated artifacts (lockfiles, migrations, snapshots) are updated only when the plan requires it or the build cannot succeed without it
+- [ ] Generated artifacts are plan-named or deterministic, bounded mechanical output with no unexplained dependency/version churn
 - [ ] No formatting-only changes mixed with logic changes in the same commit
 - [ ] No TODO/FIXME comments added unless the plan explicitly includes them
 - [ ] No dead code introduced (unused imports, unreachable branches, commented-out blocks)
+- [ ] Initial unrelated dirty paths retain their recorded hashes
+- [ ] No automatic whole-file, worktree, commit, or branch restoration was used
 
 ---
 
@@ -97,11 +99,13 @@
 
 - [ ] Every `CH-n` in the plan has a corresponding implementation
 - [ ] Every `T-n` in the plan has a corresponding test
-- [ ] Every propagation entry marked `update required: yes` has been addressed
+- [ ] Every caller, fixture, config, schema, generated surface, and documentation impact named by the plan has been addressed
 - [ ] Every constraint (`C-n`) marked `at-risk` has been verified against the implementation
 - [ ] Every risk (`R-n`) with `P0` or `P1` severity has its mitigation implemented
 - [ ] All plan-specified validation logic (input checks, boundary conditions) is present
 - [ ] No partial implementations — each `CH-n` is fully done or fully deferred with justification
+- [ ] The implementation bundle accounts for every `CH-n`, `T-n`, changed path, command, deviation, and residual risk
+- [ ] `check_implementation.py` passes before status is reported as `complete`
 
 ---
 
@@ -115,5 +119,5 @@
 | Added parameter without default | §4 Interface Fidelity |
 | Test asserts `toBeTruthy()` instead of exact value | §5 Test Quality |
 | Renamed a variable "while I was in there" | §6 Invariant, §7 Scope |
-| Edited a file not in the plan | §7 Scope |
+| Edited an unplanned file without passing the Mechanical Propagation Gate | §7 Scope |
 | Skipped a `CH-n` without justification | §8 Completeness |
