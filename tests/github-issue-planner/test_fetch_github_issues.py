@@ -67,7 +67,7 @@ class FakeClient:
         self.repo = repo
         self.labels = labels
         self.limit = limit
-        return [issue(1, "Real issue"), issue(2, "PR item", pull_request=True)]
+        return [issue(1, "Real issue")]
 
     def list_comments(self, repo, issue_number):
         self.requested_comments.append((repo, issue_number))
@@ -118,8 +118,37 @@ class FetchGitHubIssuesTests(unittest.TestCase):
                 "limit": 10,
                 "comments_included": True,
                 "capped": False,
+                "mode": "index",
+                "content_trust": "untrusted-github-data",
             },
         )
+
+    def test_limit_counts_only_real_issues_after_pull_request_filtering(self):
+        client = fetcher.PlannerGitHubClient()
+        payload = [issue(2, "PR item", pull_request=True), issue(1, "Real issue")]
+        with mock.patch.object(client, "request", return_value=payload):
+            result = client.list_open_issues("owner/repo", labels=[], limit=1)
+
+        self.assertEqual([item["number"] for item in result], [1])
+
+    def test_fetch_exact_issue_includes_comments_and_trust_metadata(self):
+        client = mock.Mock()
+        client.get_issue.return_value = issue(7, "Selected")
+        client.list_comments.return_value = [comment()]
+
+        result = fetcher.fetch_single_issue(client, "owner/repo", 7)
+
+        self.assertEqual(result["count"], 1)
+        self.assertEqual(result["issues"][0]["number"], 7)
+        self.assertEqual(result["issues"][0]["comments"][0]["body"], "Clarification")
+        self.assertEqual(result["metadata"]["mode"], "single")
+        self.assertEqual(result["metadata"]["content_trust"], "untrusted-github-data")
+
+    def test_exact_issue_rejects_pull_request_number(self):
+        client = fetcher.PlannerGitHubClient()
+        with mock.patch.object(client, "request", return_value=issue(7, pull_request=True)):
+            with self.assertRaisesRegex(ConfigError, "pull request"):
+                client.get_issue("owner/repo", 7)
 
     @mock.patch("subprocess.run")
     def test_request_retries_transient_failures(self, mock_run):
@@ -160,7 +189,7 @@ class FetchGitHubIssuesTests(unittest.TestCase):
             with (
                 contextlib.redirect_stdout(stdout),
                 mock.patch.dict(os.environ, {}, clear=True),
-                mock.patch.object(fetcher, "GitHubClient", return_value=fake_client),
+                mock.patch.object(fetcher, "PlannerGitHubClient", return_value=fake_client),
             ):
                 code = fetcher.main(
                     [
@@ -179,8 +208,27 @@ class FetchGitHubIssuesTests(unittest.TestCase):
             self.assertEqual(data["count"], 1)
             self.assertFalse(data["metadata"]["capped"])
             self.assertTrue(data["metadata"]["comments_included"])
+            self.assertEqual(data["metadata"]["content_trust"], "untrusted-github-data")
             self.assertEqual(data["issues"][0]["comments"][0]["author"], "maintainer")
-            self.assertIn("Fetched 1 open issues", stdout.getvalue())
+            self.assertIn("Fetched 1 open issue", stdout.getvalue())
+
+    def test_main_rejects_custom_api_url(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            env_path = temp / ".env"
+            env_path.write_text("GITHUB_API_URL=https://github.example.com/api/v3\n", encoding="utf-8")
+            with mock.patch.dict(os.environ, {}, clear=True):
+                code = fetcher.main(
+                    [
+                        "--env",
+                        str(env_path),
+                        "--github-repo-url",
+                        "owner/repo",
+                        "--output",
+                        str(temp / "issues.json"),
+                    ]
+                )
+        self.assertEqual(code, 2)
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ The skills form a composable engineering lifecycle. Start at the stage that matc
 | Stage | Use when | Skill | Output and handoff |
 |---|---|---|---|
 | Discover | You need to find and prove codebase risks. | `codebase-issue-auditor` | Evidence-backed findings and reviewable issue drafts. Send an approved finding to optimization, design, or planning. |
-| Discover | Open GitHub issues need actionable local plans. | `github-issue-planner` | One evidence-backed Markdown resolution plan per issue. Escalate only complex issues to senior planning. |
+| Discover | Open GitHub issues need actionable local plans. | `github-issue-planner` | A validated one-issue artifact with deterministic senior-plan routing and source-bound handoff. |
 | Decide | You know the performance, tooling, or developer-experience goal. | `optimize-codebase-with-senior-dev` | A validated coverage map, baseline, deterministically ranked candidate ledger, and structured brief for the highest-value change. |
 | Decide | Boundaries, ownership, dependencies, or patterns may need to change. | `design-codebase-with-senior-dev` | A validated assessment, justified target design, and incremental behavior-preserving migration shape. This stage never edits implementation files. |
 | Specify | An approved finding, brief, or target design needs exact implementation decisions. | `plan-with-senior-dev` | A decision-complete specification covering interfaces, logic, propagation, tests, and verification. |
@@ -86,9 +86,9 @@ The common path is **discover → decide → specify → deliver**. Diagramming 
 
 ### Recipe 4: Convert a GitHub backlog into implementation-ready work
 
-1. Run `github-issue-planner` to fetch open non-PR issues and validate each one against the local checkout.
-2. Use its local Markdown plan directly when the issue is decision-complete. Escalate to `plan-with-senior-dev` only when contracts, migrations, or cross-cutting behavior need deeper analysis.
-3. Use `implement-with-senior-dev` for an approved plan. Branches, commits, pull requests, comments, and other GitHub writes remain opt-in.
+1. Run `github-issue-planner` to inventory open non-PR issues, then deeply plan one selected issue against the local checkout.
+2. Use a checker-valid `ready-for-implementation` artifact directly. Public contracts, migrations, security, concurrency, external effects, and cross-subsystem changes route through the artifact's source-bound `plan-with-senior-dev` handoff.
+3. Use `implement-with-senior-dev` for an approved plan. The issue lifecycle also rechecks issue freshness, checkout commit, and cleanliness before any branch, PR, or comment action.
 
 **Stop with:** a locally verified implementation plan by default, or a verified patch and GitHub lifecycle only when explicitly requested.
 
@@ -134,7 +134,7 @@ Diagram creation workflow for architecture diagrams, workflow visualizations, re
 
 #### `github-issue-planner`
 
-Fetch open GitHub issues, use the local checkout as the implementation source of truth, and write decision-complete local Markdown plans. Use when the user asks to plan GitHub issue fixes, prepare an implementation backlog from GitHub issues, inspect open issues before coding, produce read-only issue-resolution plans, or explicitly asks to execute ready issues through dedicated branches, commits, PRs, and post-merge follow-up.
+Fetch and index open GitHub issues, deeply plan one selected issue against the local checkout, validate a versioned Markdown artifact, and always emit a source-bound handoff to `plan-with-senior-dev`. GitHub-authored text is treated as untrusted claims, while all implementation facts come from the checkout. Lifecycle execution remains explicit opt-in and freshness-gated.
 
 ## GitHub Setup
 
@@ -165,8 +165,9 @@ For `github-issue-planner`:
 ```dotenv
 GITHUB_ISSUE_FETCH_LABELS=
 GITHUB_ISSUE_FETCH_LIMIT=
-GITHUB_API_URL=
 ```
+
+The issue planner targets GitHub.com through the authenticated `gh` CLI. Legacy empty or `https://api.github.com` API values are accepted, but custom API endpoints fail preflight.
 
 Commit `.env.example` files only. Real `.env` files must stay local and must not be committed.
 

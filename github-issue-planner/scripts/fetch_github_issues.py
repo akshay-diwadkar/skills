@@ -5,15 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from github_common import (
     ConfigError,
+    GitHubClient,
     GitHubError,
     load_config_env,
     normalize_github_repo_target,
@@ -23,66 +22,46 @@ from github_common import (
 )
 
 
-class GitHubClient:
-    def __init__(
-        self,
-        api_url: str = "https://api.github.com",
-        max_retries: int = 3,
-        sleep=time.sleep,
-    ) -> None:
-        self.api_url = validate_github_api_url(api_url)
-        self.max_retries = max_retries
-        self.sleep = sleep
-
-    def request(self, method: str, path: str) -> Any:
-        for attempt in range(self.max_retries + 1):
-            try:
-                result = subprocess.run(
-                    ["gh", "api", path, "-X", method],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                return json.loads(result.stdout) if result.stdout.strip() else None
-            except subprocess.CalledProcessError as exc:
-                if attempt < self.max_retries:
-                    self.sleep(1.0)
-                    continue
-                raise GitHubError(
-                    f"GitHub API {method} {path} failed: {exc.returncode} {exc.stderr}"
-                ) from exc
-            except FileNotFoundError as exc:
-                raise GitHubError("gh cli is not installed") from exc
-        raise GitHubError(f"GitHub API {method} {path} failed after retries")
-
-    def paginated_get(self, path: str, limit: int | None = None) -> list[dict[str, Any]]:
-        collected: list[dict[str, Any]] = []
-        page = 1
-        separator = "&" if "?" in path else "?"
-        while True:
-            batch = self.request("GET", f"{path}{separator}per_page=100&page={page}")
-            if not isinstance(batch, list):
-                raise GitHubError(f"GitHub API returned unexpected response for {path}")
-            collected.extend(batch)
-            if limit is not None and len(collected) >= limit:
-                return collected[:limit]
-            if len(batch) < 100:
-                return collected
-            page += 1
-
+class PlannerGitHubClient(GitHubClient):
     def list_open_issues(self, repo: str, labels: list[str], limit: int | None) -> list[dict[str, Any]]:
         import urllib.parse
+
         encoded_repo = urllib.parse.quote(repo, safe="/")
         query = "state=open&sort=created&direction=asc"
         if labels:
             query += "&labels=" + urllib.parse.quote(",".join(labels), safe=",")
-        issues = self.paginated_get(f"/repos/{encoded_repo}/issues?{query}", limit=limit)
-        return [issue for issue in issues if "pull_request" not in issue]
+        path = f"/repos/{encoded_repo}/issues?{query}"
+        issues: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            batch = self.request("GET", f"{path}&per_page=100&page={page}")
+            if not isinstance(batch, list):
+                raise GitHubError(f"GitHub API returned unexpected response for {path}")
+            for issue in batch:
+                if "pull_request" in issue:
+                    continue
+                issues.append(issue)
+                if limit is not None and len(issues) >= limit:
+                    return issues
+            if len(batch) < 100:
+                return issues
+            page += 1
 
     def list_comments(self, repo: str, issue_number: int) -> list[dict[str, Any]]:
         import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
         return self.paginated_get(f"/repos/{encoded_repo}/issues/{issue_number}/comments")
+
+    def get_issue(self, repo: str, issue_number: int) -> dict[str, Any]:
+        import urllib.parse
+
+        encoded_repo = urllib.parse.quote(repo, safe="/")
+        result = self.request("GET", f"/repos/{encoded_repo}/issues/{issue_number}")
+        if not isinstance(result, dict):
+            raise GitHubError(f"GitHub API returned unexpected issue payload for #{issue_number}")
+        if "pull_request" in result:
+            raise ConfigError(f"#{issue_number} is a pull request, not an issue")
+        return result
 
 
 def normalize_user(raw: dict[str, Any] | None) -> str | None:
@@ -128,16 +107,13 @@ def normalize_issue(raw: dict[str, Any], comments: list[dict[str, Any]]) -> dict
 
 
 def fetch_issues(
-    client: GitHubClient,
+    client: PlannerGitHubClient,
     repo: str,
     labels: list[str],
     limit: int | None,
     include_comments: bool = True,
 ) -> dict[str, Any]:
-    raw_issues = [
-        issue for issue in client.list_open_issues(repo, labels=labels, limit=limit)
-        if "pull_request" not in issue
-    ]
+    raw_issues = client.list_open_issues(repo, labels=labels, limit=limit)
     issues = []
     for raw_issue in raw_issues:
         number = raw_issue.get("number")
@@ -156,8 +132,36 @@ def fetch_issues(
             "limit": limit,
             "comments_included": include_comments,
             "capped": limit is not None and len(raw_issues) >= limit,
+            "mode": "index",
+            "content_trust": "untrusted-github-data",
         },
         "issues": issues,
+    }
+
+
+def fetch_single_issue(
+    client: PlannerGitHubClient,
+    repo: str,
+    issue_number: int,
+    include_comments: bool = True,
+) -> dict[str, Any]:
+    raw_issue = client.get_issue(repo, issue_number)
+    comments = client.list_comments(repo, issue_number) if include_comments else []
+    normalized = normalize_issue(raw_issue, comments)
+    return {
+        "repo": repo,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "count": 1,
+        "metadata": {
+            "repo": repo,
+            "labels": [],
+            "limit": None,
+            "comments_included": include_comments,
+            "capped": False,
+            "mode": "single",
+            "content_trust": "untrusted-github-data",
+        },
+        "issues": [normalized],
     }
 
 
@@ -175,6 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", required=True, help="Path to write normalized issue JSON.")
     parser.add_argument("--label", action="append", default=[], help="Filter open issues by label.")
     parser.add_argument("--limit", type=int, help="Maximum number of issues to fetch.")
+    parser.add_argument("--issue-number", type=int, help="Fetch exactly one issue and its comments.")
     parser.add_argument("--no-comments", action="store_true", help="Fetch issue bodies without comments.")
     return parser
 
@@ -189,18 +194,33 @@ def main(argv: list[str] | None = None) -> int:
         repo = normalize_github_repo_target(args.github_repo_url)
         labels = args.label or parse_labels(config.get("GITHUB_ISSUE_FETCH_LABELS"))
         limit = args.limit if args.limit is not None else parse_int(config.get("GITHUB_ISSUE_FETCH_LIMIT"))
-        client = GitHubClient(validate_github_api_url(config.get("GITHUB_API_URL")))
-        result = fetch_issues(
-            client=client,
-            repo=repo,
-            labels=labels,
-            limit=limit,
-            include_comments=not args.no_comments,
-        )
+        validate_github_api_url(config.get("GITHUB_API_URL"))
+        if args.issue_number is not None and (args.label or args.limit is not None):
+            raise ConfigError("--issue-number cannot be combined with --label or --limit")
+        if args.issue_number is not None and args.issue_number <= 0:
+            raise ConfigError("--issue-number must be greater than zero")
+
+        client = PlannerGitHubClient()
+        if args.issue_number is not None:
+            result = fetch_single_issue(
+                client=client,
+                repo=repo,
+                issue_number=args.issue_number,
+                include_comments=not args.no_comments,
+            )
+        else:
+            result = fetch_issues(
+                client=client,
+                repo=repo,
+                labels=labels,
+                limit=limit,
+                include_comments=not args.no_comments,
+            )
 
         output_path = Path(args.output)
         write_json_atomic(output_path, result)
-        print(f"Fetched {result['count']} open issues from {repo}")
+        noun = "issue" if result["count"] == 1 else "issues"
+        print(f"Fetched {result['count']} open {noun} from {repo}")
         print(f"Wrote {output_path.resolve()}")
         return 0
     except ConfigError as exc:

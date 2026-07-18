@@ -1,0 +1,1 @@
+Use $github-issue-planner to plan issue #12, which requests a new required field in a shared persisted event. Ground the change locally, classify routing, validate the issue artifact, and provide the senior handoff without implementing.

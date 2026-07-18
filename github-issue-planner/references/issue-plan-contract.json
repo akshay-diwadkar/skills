@@ -1,0 +1,84 @@
+{
+  "contract_version": 1,
+  "marker": "<!-- github-issue-plan-contract: 1 -->",
+  "statuses": [
+    "ready-for-implementation",
+    "ready-for-senior-plan",
+    "needs-info",
+    "blocked",
+    "close-candidate"
+  ],
+  "task_types": [
+    "feature",
+    "bug-fix",
+    "refactor",
+    "public-contract",
+    "security",
+    "concurrency",
+    "external-integration"
+  ],
+  "senior_tiers": ["tiny", "standard", "high-risk"],
+  "required_sections": [
+    "Outcome and Scope",
+    "Issue Claims (Untrusted)",
+    "Local Evidence Ledger",
+    "Decisions and Implementation",
+    "Interfaces, Edge Cases, and Compatibility",
+    "Verification",
+    "Risks, Assumptions, and Open Questions",
+    "Senior Handoff"
+  ],
+  "required_metadata": [
+    "source.repo",
+    "source.issue_number",
+    "source.issue_url",
+    "source.issue_updated_at",
+    "source.fetched_at",
+    "checkout.root",
+    "checkout.remote_repo",
+    "checkout.commit",
+    "checkout.dirty",
+    "status",
+    "routing.senior_required",
+    "routing.task_types",
+    "routing.tier",
+    "routing.reasons",
+    "open_decisions",
+    "questions",
+    "blockers",
+    "close_evidence"
+  ],
+  "record_formats": {
+    "SC": "- SC-n: observable outcome",
+    "F": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
+    "D": "- D-n: selected: approach | because: local evidence | rejected: alternative and drawback",
+    "CH": "- CH-n: `path` | anchor: `symbol` | status: existing|new | change: exact behavior",
+    "C": "- C-n: constraint | status: preserved|modified|at-risk",
+    "T": "- T-n: given: exact input/state | expect: exact output/error/side effect | command: `exact command`"
+  },
+  "status_requirements": {
+    "ready-for-implementation": {
+      "records": ["SC", "F", "D", "CH", "C", "T"],
+      "senior_required": false,
+      "open_decisions_empty": true
+    },
+    "ready-for-senior-plan": {
+      "records": ["SC", "F", "C"],
+      "senior_required": true,
+      "routing_required": true
+    },
+    "needs-info": {
+      "records": ["SC", "F", "C"],
+      "questions_required": true
+    },
+    "blocked": {
+      "records": ["F"],
+      "blockers_required": true
+    },
+    "close-candidate": {
+      "records": ["F", "T"],
+      "close_evidence_required": true
+    }
+  },
+  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"]
+}

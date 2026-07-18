@@ -4,16 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
-import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
 from github_common import (
     ConfigError,
+    GitHubClient,
     GitHubError,
     load_config_env,
     normalize_github_repo_target,
@@ -24,58 +22,7 @@ from github_common import (
 MARKER_TEMPLATE = "github-issue-planner:issue={issue_number}:pr={pr_number}"
 
 
-class GitHubClient:
-    def __init__(
-        self,
-        api_url: str = "https://api.github.com",
-        max_retries: int = 3,
-        sleep=time.sleep,
-    ) -> None:
-        self.api_url = validate_github_api_url(api_url)
-        self.max_retries = max_retries
-        self.sleep = sleep
-
-    def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-        for attempt in range(self.max_retries + 1):
-            try:
-                cmd = ["gh", "api", path, "-X", method]
-                input_payload = None
-                if payload is not None:
-                    cmd.extend(["--input", "-"])
-                    input_payload = json.dumps(payload)
-
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    input=input_payload,
-                )
-                return json.loads(result.stdout) if result.stdout.strip() else None
-            except subprocess.CalledProcessError as exc:
-                if attempt < self.max_retries:
-                    self.sleep(1.0)
-                    continue
-                raise GitHubError(
-                    f"GitHub API {method} {path} failed: {exc.returncode} {exc.stderr}"
-                ) from exc
-            except FileNotFoundError as exc:
-                raise GitHubError("gh cli is not installed") from exc
-        raise GitHubError(f"GitHub API {method} {path} failed after retries")
-
-    def paginated_get(self, path: str) -> list[dict[str, Any]]:
-        collected: list[dict[str, Any]] = []
-        page = 1
-        separator = "&" if "?" in path else "?"
-        while True:
-            batch = self.request("GET", f"{path}{separator}per_page=100&page={page}")
-            if not isinstance(batch, list):
-                raise GitHubError(f"GitHub API returned unexpected response for {path}")
-            collected.extend(batch)
-            if len(batch) < 100:
-                return collected
-            page += 1
-
+class FollowupGitHubClient(GitHubClient):
     def get_pull_request(self, repo: str, pr_number: int) -> dict[str, Any]:
         import urllib.parse
         encoded_repo = urllib.parse.quote(repo, safe="/")
@@ -181,7 +128,7 @@ def already_commented(comments: list[dict[str, Any]], issue_number: int, pr_numb
 
 
 def run_followup(
-    client: GitHubClient,
+    client: FollowupGitHubClient,
     repo: str,
     issue_number: int,
     pr_number: int,
@@ -228,11 +175,11 @@ def main(argv: list[str] | None = None) -> int:
         config, _ = load_config_env(args.env)
         
         repo = normalize_github_repo_target(args.github_repo_url)
-        api_url = validate_github_api_url(config.get("GITHUB_API_URL"))
+        validate_github_api_url(config.get("GITHUB_API_URL"))
         summary_path = Path(args.verification_summary_file)
         verification_summary = summary_path.read_text(encoding="utf-8")
 
-        client = GitHubClient(api_url)
+        client = FollowupGitHubClient()
         print(
             run_followup(
                 client=client,

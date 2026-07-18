@@ -132,16 +132,23 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_preserve_opt_in_execution_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("GitHub is read-only by default", docs)
+        self.assertIn("Planning is GitHub-read-only", docs)
         self.assertIn("opt-in only", docs)
-        self.assertIn("Use this workflow only when explicitly requested", docs)
-        self.assertIn("every `ready-to-plan` issue from the latest report", docs)
-        self.assertIn("one issue per branch and PR", docs)
-        self.assertIn("mark that issue blocked and continue", docs)
+        self.assertIn("after explicit user authorization", docs)
+        self.assertIn("one issue per branch", docs)
+        self.assertIn("Never batch issues into one branch or PR", docs)
         self.assertIn("Refs #<number>", docs)
-        self.assertIn("not `Fixes #<number>`", docs)
+        self.assertIn("never an auto-close keyword", docs)
         self.assertIn("$skillDir\\scripts\\post_merge_issue_followup.py", docs)
-        self.assertIn("Do not close the issue", docs)
+        self.assertIn("never closes or labels", docs)
+
+    def test_skill_docs_require_validated_single_issue_handoff(self):
+        docs = SKILL_PATH.read_text(encoding="utf-8")
+        self.assertIn("plan one issue per pass", docs.lower())
+        self.assertIn("Issue Claims (Untrusted)", docs)
+        self.assertIn("ready-for-senior-plan", docs)
+        self.assertIn("$plan-with-senior-dev", docs)
+        self.assertIn("check_issue_plan.py", docs)
 
 
 if __name__ == "__main__":

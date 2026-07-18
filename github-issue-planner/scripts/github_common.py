@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
+import subprocess
+import time
 import urllib.parse
 from pathlib import Path
+from typing import Any, Callable
 
 
 OWNER_REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$")
@@ -19,6 +23,70 @@ class ConfigError(Exception):
 
 class GitHubError(Exception):
     """Raised for GitHub API failures."""
+
+
+class GitHubClient:
+    """Small shared wrapper around authenticated `gh api` requests."""
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.max_retries = max_retries
+        self.sleep = sleep
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> Any:
+        for attempt in range(self.max_retries + 1):
+            try:
+                cmd = ["gh", "api", path, "-X", method]
+                input_payload = None
+                if payload is not None:
+                    cmd.extend(["--input", "-"])
+                    input_payload = json.dumps(payload)
+
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    input=input_payload,
+                )
+                if not result.stdout.strip():
+                    return None
+                try:
+                    return json.loads(result.stdout)
+                except json.JSONDecodeError as exc:
+                    raise GitHubError(f"GitHub API returned invalid JSON for {method} {path}") from exc
+            except subprocess.CalledProcessError as exc:
+                if attempt < self.max_retries:
+                    self.sleep(1.0)
+                    continue
+                stderr = (exc.stderr or "").strip()
+                raise GitHubError(
+                    f"GitHub API {method} {path} failed: {exc.returncode} {stderr}"
+                ) from exc
+            except FileNotFoundError as exc:
+                raise GitHubError("gh cli is not installed") from exc
+        raise GitHubError(f"GitHub API {method} {path} failed after retries")
+
+    def paginated_get(self, path: str) -> list[dict[str, Any]]:
+        collected: list[dict[str, Any]] = []
+        page = 1
+        separator = "&" if "?" in path else "?"
+        while True:
+            batch = self.request("GET", f"{path}{separator}per_page=100&page={page}")
+            if not isinstance(batch, list):
+                raise GitHubError(f"GitHub API returned unexpected response for {path}")
+            collected.extend(batch)
+            if len(batch) < 100:
+                return collected
+            page += 1
 
 
 def load_env_file(path: Path, target: dict[str, str]) -> None:
@@ -98,13 +166,14 @@ def parse_int(value: str | None, default: int | None = None) -> int | None:
 
 
 def validate_github_api_url(value: str | None, default: str = "https://api.github.com") -> str:
-    raw = (value or default).strip()
-    parsed = urllib.parse.urlparse(raw)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise ConfigError("GITHUB_API_URL must be an HTTP(S) URL with a hostname")
-    if parsed.username or parsed.password:
-        raise ConfigError("GITHUB_API_URL must not include credentials")
-    return raw.rstrip("/")
+    """Accept the legacy GitHub.com default and reject unsupported custom hosts."""
+
+    raw = (value or "").strip().rstrip("/")
+    if not raw or raw == default:
+        return default
+    raise ConfigError(
+        "custom GITHUB_API_URL values are unsupported; this skill targets GitHub.com via gh cli"
+    )
 
 
 def parse_labels(value: str | None) -> list[str]:

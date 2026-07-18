@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Issue Planner"
-  short_description: "Fetch GitHub issues, plan fixes, and optionally run ready issues through dedicated PR follow-up."
-  default_prompt: "Fetch open GitHub issues for this repo and plan how to resolve them using the local codebase. Keep planning read-only unless I explicitly ask for execution across ready issues."
+  short_description: "Validate one issue plan and senior handoff"
+  default_prompt: "Use $github-issue-planner to inventory this repository's open issues, deeply plan one issue against the local checkout, validate the artifact, and keep GitHub read-only unless I explicitly request execution."
