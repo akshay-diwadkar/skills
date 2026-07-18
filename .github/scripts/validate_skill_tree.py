@@ -44,7 +44,7 @@ EXPECTED_RUNTIME_FILE_COUNTS = {
     "design-codebase-with-senior-dev": 8,
     "github-issue-planner": 11,
     "implement-with-senior-dev": 9,
-    "optimize-codebase-with-senior-dev": 11,
+    "optimize-codebase-with-senior-dev": 12,
     "plan-with-senior-dev": 15,
 }
 
