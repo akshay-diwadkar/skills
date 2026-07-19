@@ -1,6 +1,6 @@
 ---
 name: optimize-codebase-with-senior-dev
-description: Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use for a known bottleneck or optimization goal, an approved audit finding, or an explicit repository-wide optimization sweep that requires reconciling the requested target and metric with repository evidence. Produces a confirmed brief, validated coverage map, baseline, deterministic candidate decision, and decision-complete plan before any implementation.
+description: Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. Also runs repository-wide optimization sweeps when asked. Use for performance, build, CI, dependency, or developer-experience targets; for finding unknown problems, use codebase-issue-auditor.
 ---
 
 # Optimize Codebase With Senior Dev

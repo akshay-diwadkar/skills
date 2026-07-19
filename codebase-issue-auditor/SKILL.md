@@ -1,6 +1,6 @@
 ---
 name: codebase-issue-auditor
-description: Run a risk-weighted, evidence-driven repository audit and draft validated GitHub issues. Use when Codex must inspect a codebase for bugs, security or performance risks, test gaps, architectural or maintainability friction, developer-experience problems, reconcile audit intent with discovered repository boundaries, or verify whether prior audit findings were resolved.
+description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
 ---
 
 # Codebase Issue Auditor

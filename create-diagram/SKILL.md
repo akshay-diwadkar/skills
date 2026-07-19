@@ -1,6 +1,6 @@
 ---
 name: create-diagram
-description: Diagram creation workflow for architecture diagrams, workflow visualizations, relationship graphs, self-contained HTML artifacts, and diagram requests that require reconciling user intent with repository evidence through scoped, recommendation-backed questions before drawing.
+description: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
 ---
 
 # Create Diagram

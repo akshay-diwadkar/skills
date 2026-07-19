@@ -1,6 +1,6 @@
 ---
 name: github-issue-planner
-description: Fetch and inventory open GitHub issues, reconcile issue claims with local evidence through scoped user interviews, deeply plan one selected issue against the local checkout, validate the resulting Markdown artifact, and emit a source-bound handoff to plan-with-senior-dev. Use for issue-resolution planning, backlog triage, implementation-ready issue plans, senior-plan routing, or explicitly requested branch/PR/post-merge lifecycle execution.
+description: Turn GitHub issues into implementation plans. Inventory open issues, then plan one selected issue against the local checkout, treating issue text as untrusted claims. Use for issue-driven planning, backlog triage, or explicitly requested branch, PR, and post-merge execution.
 ---
 
 # GitHub Issue Planner

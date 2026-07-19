@@ -1,6 +1,6 @@
 ---
 name: plan-with-senior-dev
-description: Produce repo-grounded, decision-complete implementation plans for features, bug fixes, refactors, migrations, public contracts, security, concurrency, and external integrations. Use when Codex must compare a request with the real change boundary, grill the user on plan-changing gaps with evidence-backed options and recommendations, confirm shared understanding, specify exact behavior and propagation, and provide assertion-level verification that a literal implementer can follow without inventing behavior.
+description: Turn a requested change — feature, bug fix, refactor, migration, public contract, or risky integration — into a decision-complete implementation plan that another engineer can execute without inventing behavior. Use when the user asks to plan, spec, or think through a code change before writing it. Planning-only; produces no code.
 ---
 
 # Plan With Senior Dev

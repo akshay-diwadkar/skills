@@ -1,6 +1,6 @@
 # Skills
 
-Agent skills for AI coding assistants. This repository tracks reusable skills for diagramming, planning, auditing, codebase design, implementation, optimization, and GitHub issue planning.
+Agent skills for AI coding assistants — one skill per stage of the engineering lifecycle: audit, issue planning, optimization, design, specification, implementation, and diagramming.
 
 
 ## Install
@@ -40,57 +40,57 @@ ln -s "$PWD/optimize-codebase-with-senior-dev" ~/.agents/skills/
 
 ## Workflow
 
-The skills form a composable engineering lifecycle. Start at the stage that matches your current problem, follow only the handoffs you need, and stop when you have the required artifact or verified change.
+Seven skills, one lifecycle: find what's wrong, decide what to do about it, specify the change exactly, then make it. Start at the stage that matches your problem and follow only the handoffs you need.
 
 ### Capability map
 
-| Stage | Use when | Skill | Output and handoff |
+| Stage | You have | Skill | You get |
 |---|---|---|---|
-| Discover | You need to find and prove codebase risks. | `codebase-issue-auditor` | Evidence-backed findings and reviewable issue drafts. Send an approved finding to optimization, design, or planning. |
-| Discover | Open GitHub issues need actionable local plans. | `github-issue-planner` | A validated one-issue artifact with deterministic senior-plan routing and source-bound handoff. |
-| Decide | You know the performance, tooling, or developer-experience goal. | `optimize-codebase-with-senior-dev` | A validated coverage map, baseline, deterministically ranked candidate ledger, and structured brief for the highest-value change. |
-| Decide | Boundaries, ownership, dependencies, or patterns may need to change. | `design-codebase-with-senior-dev` | A validated assessment, justified target design, and incremental behavior-preserving migration shape. This stage never edits implementation files. |
-| Specify | An approved finding, brief, or target design needs exact implementation decisions. | `plan-with-senior-dev` | A decision-complete specification covering interfaces, logic, propagation, tests, and verification. |
-| Communicate | Reviewers need a shared view of the current system, proposed design, or workflow. | `create-diagram` | A validated, self-contained HTML diagram for review or documentation. Use it before or after a design decision. |
-| Deliver | A specific plan is approved and implementation is explicitly requested. | `implement-with-senior-dev` | A minimal, pattern-preserving patch with focused verification and an exact implementation report. |
+| Discover | A repo you don't trust yet | `codebase-issue-auditor` | Evidence-backed findings; GitHub issue drafts on approval |
+| Discover | Open GitHub issues | `github-issue-planner` | One issue planned against your checkout |
+| Decide | A slow or clunky workflow | `optimize-codebase-with-senior-dev` | A baseline, ranked options, and a brief for the best one |
+| Decide | A design that feels wrong | `design-codebase-with-senior-dev` | A verdict on whether restructuring is worth it, plus the smallest safe migration |
+| Specify | A change you can describe | `plan-with-senior-dev` | A decision-complete spec: interfaces, logic, tests, rollback |
+| Communicate | A system nobody can picture | `create-diagram` | A self-contained HTML diagram grounded in the repo |
+| Deliver | An approved plan | `implement-with-senior-dev` | The smallest satisfying patch, verified and reported |
 
-The common path is **discover → decide → specify → deliver**. Diagramming can support any review point, and a targeted re-audit can verify residual risk after delivery. Neither step is mandatory.
+The common path is **discover → decide → specify → deliver**. Diagramming supports any review point, and a targeted re-audit after delivery checks residual risk. Neither is mandatory.
 
 ### Recipe 1: Turn unknown risks into verified fixes
 
-1. Run `codebase-issue-auditor` to build a coverage matrix and promote only reproducible findings.
-2. Route an approved finding to `optimize-codebase-with-senior-dev` for capability or efficiency work, or to `design-codebase-with-senior-dev` for structural pressure.
-3. Use `plan-with-senior-dev` to turn the chosen brief or target design into an executable specification.
-4. Use `implement-with-senior-dev` to apply the smallest compliant patch and run focused verification.
-5. Optionally re-run `codebase-issue-auditor` against the changed area to check for residual risks.
+1. Run `codebase-issue-auditor` and promote only reproducible findings.
+2. Route an approved finding to `optimize-codebase-with-senior-dev` for efficiency work, or to `design-codebase-with-senior-dev` for structural pressure.
+3. Use `plan-with-senior-dev` to turn the chosen brief or design into an executable spec.
+4. Use `implement-with-senior-dev` to apply the patch and verify it.
+5. Optionally re-audit the changed area for residual risk.
 
-**Stop with:** a verified patch plus an evidence-backed view of any remaining risk.
+**Stop with:** a verified patch and an honest view of what's still risky.
 
-### Recipe 2: Optimize a known bottleneck or developer workflow
+### Recipe 2: Optimize a known bottleneck or workflow
 
-1. Start with `optimize-codebase-with-senior-dev` to establish a baseline, research only evidence-linked capabilities available in the stack, and classify candidates through deterministic promotion gates.
-2. If the best candidate changes architecture, use `design-codebase-with-senior-dev` to approve the smallest safe structural change. Otherwise, continue directly.
-3. Hand the optimization brief or approved design to `plan-with-senior-dev`, then execute it with `implement-with-senior-dev`.
-4. Compare the verified result with the original baseline. Stop if the success metric is met; return to the candidate ledger if it is not.
+1. Start with `optimize-codebase-with-senior-dev`: baseline the workflow, research what the stack already gives you, rank the candidates.
+2. If the winner requires restructuring, approve the design with `design-codebase-with-senior-dev` first. Otherwise skip ahead.
+3. Hand the brief or approved design to `plan-with-senior-dev`, then execute with `implement-with-senior-dev`.
+4. Compare the result with the baseline. Met the metric? Stop. Missed it? Back to the candidate list.
 
-**Stop with:** a measured improvement, not merely a plausible optimization.
+**Stop with:** a measured improvement, not a plausible one.
 
 ### Recipe 3: Redesign a critical subsystem safely
 
-1. Use `design-codebase-with-senior-dev` to reconstruct the current design, test whether structural change is justified, and define reversible migration slices. The skill remains assessment-only.
-2. Use `create-diagram` when reviewers need a shared current-state or target-state model before approving the design.
-3. Convert the approved design into exact contracts, migration logic, rollback, and tests with `plan-with-senior-dev`.
-4. Apply the slices with `implement-with-senior-dev`; optionally diagram the delivered design or run a targeted audit afterward.
+1. Use `design-codebase-with-senior-dev` to reconstruct the current design, test whether change is justified, and define reversible migration slices. It never edits code.
+2. Use `create-diagram` when reviewers need a shared picture of current or target state before approving.
+3. Turn the approved design into contracts, migration logic, rollback, and tests with `plan-with-senior-dev`.
+4. Apply the slices with `implement-with-senior-dev`. Diagram the result or re-audit afterward if useful.
 
-**Stop with:** preserved behavior, an explicit migration record, and reviewable architecture documentation when needed.
+**Stop with:** preserved behavior and a migration record you can review.
 
 ### Recipe 4: Convert a GitHub backlog into implementation-ready work
 
-1. Run `github-issue-planner` to inventory open non-PR issues, then deeply plan one selected issue against the local checkout.
-2. Use a checker-valid `ready-for-implementation` artifact directly. Public contracts, migrations, security, concurrency, external effects, and cross-subsystem changes route through the artifact's source-bound `plan-with-senior-dev` handoff.
-3. Use `implement-with-senior-dev` for an approved plan. The issue lifecycle also rechecks issue freshness, checkout commit, and cleanliness before any branch, PR, or comment action.
+1. Run `github-issue-planner` to inventory open issues and plan one against your checkout.
+2. Simple issues yield a ready-to-implement plan directly. Anything touching public contracts, migrations, security, concurrency, or multiple subsystems routes into `plan-with-senior-dev`.
+3. Execute an approved plan with `implement-with-senior-dev`. Branch, PR, and post-merge steps stay opt-in.
 
-**Stop with:** a locally verified implementation plan by default, or a verified patch and GitHub lifecycle only when explicitly requested.
+**Stop with:** a local plan by default — a verified patch and GitHub lifecycle only when you ask.
 
 ## Skill Catalog
 
@@ -100,41 +100,41 @@ Skills are grouped by engineering workflow role.
 
 #### `codebase-issue-auditor`
 
-Audit a repository for evidence-backed bugs, risks, test gaps, architectural friction, performance hotspots, maintainability issues, and developer-experience optimizations, then draft GitHub issues for approval. Use when the user asks Codex to inspect a codebase, identify problems or criticalities, prioritize optimization work, or raise GitHub issues from audit findings.
+Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
 
 #### `optimize-codebase-with-senior-dev`
 
-Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. The skill produces a validated targeted trace or sweep coverage map, establishes workflow evidence before researching official version-matched capabilities, classifies candidates with deterministic promotion gates, and generates decision-complete plans or structured briefs for `plan-with-senior-dev`.
+Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. Also runs repository-wide optimization sweeps when asked. Use for performance, build, CI, dependency, or developer-experience targets; for finding unknown problems, use codebase-issue-auditor.
 
 ### Architecture & Design
 
 #### `design-codebase-with-senior-dev`
 
-Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill never edits implementation files; approved designs move to planning and then implementation.
+Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. Use for boundary, dependency-direction, or state-ownership redesign, design-pattern evaluation or removal, and subsystem restructuring. Assessment-only — produces no code; route approved designs to plan-with-senior-dev.
 
 ### Planning & Specification
 
 #### `plan-with-senior-dev`
 
-Plan code changes, refactors, bug fixes, migrations, public contracts, and risky integrations as repo-evidenced, decision-complete implementation specifications. Use when Codex must challenge assumptions, discover the real change boundary, compare repo-compatible approaches, specify exact interfaces and logic, trace success criteria through tests, or produce a one-shot plan that another engineer can implement without inventing behavior.
+Turn a requested change — feature, bug fix, refactor, migration, public contract, or risky integration — into a decision-complete implementation plan that another engineer can execute without inventing behavior. Use when the user asks to plan, spec, or think through a code change before writing it. Planning-only; produces no code.
 
 ### Implementation
 
 #### `implement-with-senior-dev`
 
-Safely implement an approved plan through a versioned run bundle, v2/legacy plan normalization, non-destructive recovery, deterministic mechanical propagation, layered verification, and a checker-reconciled report. The skill includes provider-neutral evaluations that score actual diffs and executed checks.
+Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
 
 ### Visualization
 
 #### `create-diagram`
 
-Diagram creation workflow for architecture diagrams, workflow visualizations, relationship graphs, self-contained HTML artifacts, and diagram requests that need clarifying questions before drawing.
+Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
 
 ### Workflow Integration
 
 #### `github-issue-planner`
 
-Fetch and index open GitHub issues, deeply plan one selected issue against the local checkout, validate a versioned Markdown artifact, and always emit a source-bound handoff to `plan-with-senior-dev`. GitHub-authored text is treated as untrusted claims, while all implementation facts come from the checkout. Lifecycle execution remains explicit opt-in and freshness-gated.
+Turn GitHub issues into implementation plans. Inventory open issues, then plan one selected issue against the local checkout, treating issue text as untrusted claims. Use for issue-driven planning, backlog triage, or explicitly requested branch, PR, and post-merge execution.
 
 ## GitHub Setup
 

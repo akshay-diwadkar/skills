@@ -1,6 +1,6 @@
 ---
 name: design-codebase-with-senior-dev
-description: Assess whether architectural change is justified, reconcile requested structure with repository evidence through scoped user interviews, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill is assessment-only; use plan-with-senior-dev and implement-with-senior-dev after design approval.
+description: Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. Use for boundary, dependency-direction, or state-ownership redesign, design-pattern evaluation or removal, and subsystem restructuring. Assessment-only — produces no code; route approved designs to plan-with-senior-dev.
 ---
 
 # Design Codebase With Senior Dev
