@@ -15,6 +15,28 @@ For a bug, prove the symptom and follow evidence-backed “why” links until th
 
 Stop when current behavior, root cause where relevant, boundary, callers, invariants, side effects, gaps, and contradictions are known. Convert only useful observations into canonical `F-n` records.
 
+## Request-to-evidence reconciliation
+
+After grounding, compare the framed request with the evidence. Maintain a temporary ledger with one row per possible gap:
+
+`request statement | repository evidence | gap and planning consequence | options | recommendation and reason | status`
+
+Record conflicts, missing requirements, scope mismatches, hidden constraints, undefined success or failure behavior, and acceptance gaps. Mark a gap `blocking` only when its resolution could change the outcome, scope, user-visible behavior, shared interface, risk, rollout, or acceptance criteria. Resolve repository facts through further exploration and decide low-impact reversible details from precedent; do not ask the user about either.
+
+For each blocking gap:
+
+1. Group at most three closely related gaps in one round.
+2. State the relevant request language and cite the grounded `F-n` evidence that exposed the gap.
+3. Explain the concrete decision or plan surface affected.
+4. Offer two to four mutually exclusive options when the answer space can be bounded. Identify one as recommended and justify it from repository precedent, constraints, compatibility, and the smallest correct change.
+5. Ask a scoped free-text question only when honest alternatives cannot be enumerated.
+6. Record the answer, update the request baseline, and re-explore whenever the answer changes the change boundary or invalidates evidence.
+7. Repeat until every ledger row is resolved or reclassified as non-blocking. Do not impose a lifetime question limit.
+
+Then present an alignment recap containing the resolved goal, measurable success criteria, audience, in-scope and out-of-scope behavior, invariants, user-visible behavior, public/shared contracts, constraints, and key decisions. Require explicit confirmation. Treat corrections as new input: update the baseline, re-run reconciliation, and seek confirmation again. Confirmation establishes shared planning intent, not authorization to implement.
+
+After confirmation, translate resolved gaps into the existing `SC-n`, `D-n`, and `C-n` records and discard the temporary ledger. Do not add gap-ledger records or headings to the final plan contract.
+
 ## Interface changes
 
 For a public/shared function, API, command, type, event, or schema:

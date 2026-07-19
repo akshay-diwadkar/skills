@@ -1,4 +1,4 @@
 interface:
   display_name: "Plan with Senior Dev"
-  short_description: "Grounded v2 implementation specifications"
-  default_prompt: "Use $plan-with-senior-dev to produce a grounded v2 plan with verified facts, resolved decisions, exact changes, traceability, tests, and repaired risks."
+  short_description: "Grounded plans with confirmed alignment"
+  default_prompt: "Use $plan-with-senior-dev to reconcile my request with repository evidence, grill me on gaps with recommended options, confirm shared understanding, and produce a decision-complete implementation plan."

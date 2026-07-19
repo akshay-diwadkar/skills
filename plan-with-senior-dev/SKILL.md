@@ -1,6 +1,6 @@
 ---
 name: plan-with-senior-dev
-description: Produce repo-grounded, decision-complete implementation plans for features, bug fixes, refactors, migrations, public contracts, security, concurrency, and external integrations. Use when Codex must inspect the real change boundary, resolve product and interface decisions, specify exact behavior and propagation, and provide assertion-level verification that a literal implementer can follow without inventing behavior.
+description: Produce repo-grounded, decision-complete implementation plans for features, bug fixes, refactors, migrations, public contracts, security, concurrency, and external integrations. Use when Codex must compare a request with the real change boundary, grill the user on plan-changing gaps with evidence-backed options and recommendations, confirm shared understanding, specify exact behavior and propagation, and provide assertion-level verification that a literal implementer can follow without inventing behavior.
 ---
 
 # Plan With Senior Dev
@@ -11,6 +11,7 @@ Produce an executable specification, not a plausible outline. Remain planning-on
 
 - Ground every current-state claim in an `F-n` record whose citation, line, and anchor exist.
 - Resolve every material product, public-interface, migration, security, and failure-behavior decision before finalizing.
+- Reconcile every plan-changing gap between the request and repository evidence, then obtain explicit confirmation of the resolved intent before finalizing.
 - Prefer the smallest solution supported by local precedent and constraints.
 - Preserve existing parameter, return, wire, error, and side-effect contracts unless an `SC-n` explicitly requires changing them; never widen an interface merely to simplify a local fix.
 - Name exact files, symbols, interfaces, branches, errors, side effects, callers, and tests.
@@ -18,7 +19,7 @@ Produce an executable specification, not a plausible outline. Remain planning-on
 - Record attacks as repaired, dismissed with evidence, or not applicable. Never manufacture findings.
 - Run the checker and repair the plan until it passes; a pass is necessary, not sufficient.
 
-Never guess a repo fact, leave a decision to implementation, ask for a discoverable fact, or end by asking permission to proceed.
+Never guess a repo fact, leave a decision to implementation, ask for a discoverable fact, or end by asking permission to proceed. Alignment confirmation confirms the planning specification; it is not permission to implement.
 
 ## Start
 
@@ -49,13 +50,23 @@ Follow [cognitive-protocols.md](references/cognitive-protocols.md):
 
 Stop only when current behavior, root cause where relevant, change boundary, callers, invariants, side effects, test gaps, and contradictions are grounded.
 
-## Checkpoint 3: Decide
+## Checkpoint 3: Align
+
+Use the request-to-evidence reconciliation procedure in [cognitive-protocols.md](references/cognitive-protocols.md). Compare the framed request with grounded facts and maintain a temporary gap ledger. A gap is blocking when resolving it could change the outcome, scope, user-visible behavior, shared interface, risk, rollout, or acceptance criteria. Do not interrupt for low-impact reversible details or facts further exploration can discover.
+
+Grill the user on every blocking gap, asking at most three related questions per round. Each question must be scoped to the conflicting or missing intent, cite the relevant request statement and repository evidence, explain the planning consequence, and present two to four mutually exclusive options when feasible. Mark the recommended option and explain why it best fits repository precedent and constraints. Use a scoped free-text question only when the answer space cannot be bounded honestly.
+
+Incorporate each answer into the request baseline and ledger. Re-explore any changed boundary, identify newly exposed gaps, and repeat without a lifetime question limit. When no blocking gap remains, recap the resolved goal, success criteria, audience, in-scope and out-of-scope behavior, invariants, public/shared contracts, constraints, and key decisions. Require explicit user confirmation. If the user corrects the recap, update the baseline and restart alignment; do not draft or finalize the plan until the recap is confirmed.
+
+Fold confirmed outcomes into `SC-n`, `D-n`, and `C-n` records. Keep the gap ledger as working state; do not add it to the final plan.
+
+## Checkpoint 4: Decide
 
 Compare the smallest correct approach with the nearest valid alternative. Record `D-n` with the selected approach, cited reason, and specific rejected drawback.
 
-Ask the user only when two valid choices remain, the choice changes user-visible or shared behavior, and repository evidence does not distinguish them. Ask at most three blocking decisions per round; repeat after incorporating answers until no blocking decision remains. Do not impose a lifetime question limit.
+If implementation comparison exposes another plan-changing request gap, return to Checkpoint 3. Otherwise resolve internal implementation choices from evidence and record them without asking the user.
 
-## Checkpoint 4: Specify
+## Checkpoint 5: Specify
 
 For every change, write a canonical `CH-n` record naming its path, anchor, `existing` or `new` status, exact logic, branches, errors, ordering, and side effects. Show complete before/after shapes for changed public/shared interfaces. Classify each material constraint as `C-n: preserved`, `modified`, or `at-risk`.
 
@@ -63,13 +74,13 @@ Before accepting a signature or schema change, point to the exact success criter
 
 Order changes by dependency: contracts/data → core logic → orchestration/callers → tests/fixtures → docs/release operations.
 
-## Checkpoint 5: Trace and Verify
+## Checkpoint 6: Trace and Verify
 
 Map every `SC-n` and `C-n` to `CH-n` and `T-n`. Every `T-n` must specify exact setup/input, exact output/error/side effect, and an exact command with expected result. Account for every existing changed symbol’s callers, re-exports, fixtures, config/schema, generated surfaces, and documentation.
 
 For High-Risk work, specify mixed-version behavior, rollout order, observability, stop conditions, and durable rollback across code, data, queues, caches, and irreversible effects.
 
-## Checkpoint 6: Attack, Repair, Validate
+## Checkpoint 7: Attack, Repair, Validate
 
 Read [adversarial-verification.md](references/adversarial-verification.md). Run the contract-required attack records (`A1`–`A6`) and repair every material finding in its owning `CH-n`/`T-n`; do not merely list risk.
 
