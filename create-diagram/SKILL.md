@@ -1,6 +1,6 @@
 ---
 name: create-diagram
-description: Diagram creation workflow for architecture diagrams, workflow visualizations, relationship graphs, self-contained HTML artifacts, and diagram requests that need clarifying questions before drawing.
+description: Diagram creation workflow for architecture diagrams, workflow visualizations, relationship graphs, self-contained HTML artifacts, and diagram requests that require reconciling user intent with repository evidence through scoped, recommendation-backed questions before drawing.
 ---
 
 # Create Diagram
@@ -15,14 +15,16 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
 
 2. **Question**
    - Read [question-framework.md](references/question-framework.md).
-   - Ask one question at a time, and ask only questions that cannot be answered from repo inspection or prior user context.
-   - Do not move to planning until purpose, audience, output location, entities, relationships, omissions, evidence policy, and verification path are known.
+   - Maintain a temporary request-to-evidence gap ledger and ask only questions that cannot be answered from repo inspection or prior user context.
+   - Ask up to three related blocking questions per round. Cite the request and repository evidence, explain why the answer changes the diagram, present two to four options when feasible, and recommend one with trade-offs.
+   - Incorporate answers, re-explore changed boundaries, and repeat. Do not move to planning until purpose, audience, output location, entities, relationships, omissions, evidence policy, and verification path are known and the resolved model is explicitly confirmed.
 
 3. **Plan**
    - Read [html-output-guide.md](references/html-output-guide.md) for node type taxonomy, edge types, metadata schema, and builder payload shape.
    - Ask the user where to create the HTML diagram before proposing the final plan.
    - Accept either a full `.html` path or a directory. If the user gives a directory, generate a descriptive kebab-case filename from the diagram title.
    - If the resolved target file already exists, ask before overwriting it. If the target directory does not exist, ask before creating it.
+   - Treat model alignment, directory creation, and overwrite confirmation as separate permissions; none authorizes building the diagram.
    - Emit exactly one `<proposed_plan>` before any file creation. The plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps.
    - State in the plan that implementation happens only after the user requests execution in a non-Plan turn when the surrounding collaboration mode is Plan Mode.
 
@@ -52,7 +54,7 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
 
 ## Rules
 
-- Ask one question at a time. Each question must include why it matters, your recommendation, and trade-offs.
+- Ask at most three closely related questions per round. Each must include the request/evidence gap, why it matters, two to four options when feasible, your recommendation, and trade-offs.
 - Do not write, create, overwrite, save, or verify diagram files while the surrounding collaboration mode is Plan Mode. In Plan Mode, stop after emitting the `<proposed_plan>`.
 - Challenge fuzzy terms: "system", "agent", "pipeline", "orchestrator", "service" - make them precise.
 - Use concrete scenarios to test the model, especially failure paths and handoffs.

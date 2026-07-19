@@ -63,6 +63,20 @@ For every plannable issue:
 
 If any required point is missing, use `needs-info` or `blocked`; do not invent behavior.
 
+## Request-to-checkout reconciliation
+
+After grounding the selected issue, maintain a temporary ledger:
+
+`request or issue statement | checkout evidence | planning consequence | options | recommendation and reason | answer | status`
+
+Record conflicts, missing product intent, scope mismatches, hidden contracts, and undefined outcome, acceptance, compatibility, or routing behavior. A gap is blocking when its answer could change the issue's outcome, scope, protected behavior, public/shared contract, acceptance criteria, risk, or readiness. Resolve checkout facts locally and decide low-impact reversible implementation details from precedent; do not ask the user about either.
+
+For each blocking product gap, ask up to three related questions per round. Cite the request or untrusted issue claim and the relevant `F-n` evidence, explain the affected artifact or status decision, offer two to four mutually exclusive options when feasible, and mark the recommended option with a reason based on repository precedent, compatibility, and the smallest correct change. Re-inspect whenever an answer changes the boundary and repeat until no blocking product gap remains.
+
+When answers materially change outcome, scope, acceptance, or readiness, recap the resolved brief and require explicit confirmation. Alignment confirmation does not authorize a branch, commit, PR, comment, label, or closure. Fold confirmed answers into existing `SC-n`, `D-n`, `C-n`, `open_decisions`, and `questions` fields, then discard the ledger.
+
+If a product gap remains unanswered, use `needs-info` and preserve exact questions. A `ready-for-senior-plan` artifact may retain technical decisions for the senior planner, but it must not use that route to hide unresolved issue-level product intent.
+
 ## Senior Handoff
 
 Every artifact retains the scaffolded handoff. When invoking `$plan-with-senior-dev`:

@@ -1,6 +1,6 @@
 ---
 name: github-issue-planner
-description: Fetch and inventory open GitHub issues, deeply plan one selected issue against the local checkout, validate the resulting Markdown artifact, and emit a source-bound handoff to plan-with-senior-dev. Use for issue-resolution planning, backlog triage, implementation-ready issue plans, senior-plan routing, or explicitly requested branch/PR/post-merge lifecycle execution.
+description: Fetch and inventory open GitHub issues, reconcile issue claims with local evidence through scoped user interviews, deeply plan one selected issue against the local checkout, validate the resulting Markdown artifact, and emit a source-bound handoff to plan-with-senior-dev. Use for issue-resolution planning, backlog triage, implementation-ready issue plans, senior-plan routing, or explicitly requested branch/PR/post-merge lifecycle execution.
 ---
 
 # GitHub Issue Planner
@@ -45,7 +45,13 @@ Branch, commit, PR, and post-merge comment actions are opt-in only. Run them onl
    - Keep reporter claims in `Issue Claims (Untrusted)`. Record only checkout-grounded observations as `F-n` facts.
    - Inspect the requested path from caller to dependency, side effect, result, tests, and adjacent analogue. Search every changed symbol's callers, fixtures, config/schema, generated surfaces, and docs.
 
-5. **Classify and route**
+5. **Reconcile issue intent with checkout evidence**
+   - Follow the reconciliation procedure in [references/planning-rubric.md](references/planning-rubric.md). Compare untrusted issue claims and the user's request with grounded checkout facts using a temporary gap ledger.
+   - Grill the user on every product-intent gap that could change outcome, scope, acceptance, protected behavior, compatibility, or routing. Ask up to three related questions per round with evidence, consequence, two to four options when feasible, and a repository-grounded recommendation.
+   - Incorporate answers, re-inspect changed boundaries, and repeat. When answers materially change outcome, scope, acceptance, or readiness, recap the resolved issue brief and require confirmation. This does not authorize execution or GitHub writes.
+   - If a product gap remains unanswered, produce a validator-passing `needs-info` artifact with exact questions. Technical implementation decisions intentionally delegated to senior planning may remain in a `ready-for-senior-plan` handoff only after issue-level intent is resolved.
+
+6. **Classify and route**
    - Use only these statuses:
      - `ready-for-implementation`: low-risk, decision-complete, checker-valid, and no material open decision.
      - `ready-for-senior-plan`: evidence-complete handoff that requires deeper planning.
@@ -55,7 +61,7 @@ Branch, commit, PR, and post-merge comment actions are opt-in only. Run them onl
    - Set `ready-for-senior-plan` when any shared/public contract, persisted-data migration, auth/security behavior, concurrency/order/idempotency behavior, external or irreversible effect, or cross-subsystem change is involved. The user may request senior planning for any other issue.
    - Every artifact must retain its `Senior Handoff` section. Invoke `$plan-with-senior-dev` with that artifact when routing is required or requested; its v2 plan must carry the source SHA-256, checkout commit, and issue-update markers emitted by the scaffold.
 
-6. **Validate and report**
+7. **Validate and report**
    - Run the checker and repair the artifact until it passes:
      ```powershell
      python "$skillDir\scripts\check_issue_plan.py" <run-dir>\issue-<number>.md --repo-root <checkout> --issue-json <run-dir>\issue-<number>.json

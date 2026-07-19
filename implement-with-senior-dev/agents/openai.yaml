@@ -1,4 +1,4 @@
 interface:
   display_name: "Implement with Senior Dev"
-  short_description: "Checker-validated plan implementation with safe recovery, exact traceability, and weaker-model evaluations"
-  default_prompt: "Use $implement-with-senior-dev for an approved implementation plan. Normalize plan-contract v2 metadata or apply the strict legacy adapter, scaffold an ignored implementation-run bundle, preserve user changes, apply planned work in dependency order, admit only recorded deterministic mechanical propagation, run layered verification, reconcile the actual diff, pass the implementation checker, and report exact results without unsafe rollback or invented scope."
+  short_description: "Approved-plan execution with safe recovery"
+  default_prompt: "Use $implement-with-senior-dev to execute an approved plan without inventing scope, preserve user work, fail closed on semantic gaps, verify the patch, and report exact results."

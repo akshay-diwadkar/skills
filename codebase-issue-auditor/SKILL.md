@@ -1,6 +1,6 @@
 ---
 name: codebase-issue-auditor
-description: Run a risk-weighted, evidence-driven repository audit and draft validated GitHub issues. Use when Codex must inspect a codebase for bugs, security or performance risks, test gaps, architectural or maintainability friction, developer-experience problems, or verify whether prior audit findings were resolved.
+description: Run a risk-weighted, evidence-driven repository audit and draft validated GitHub issues. Use when Codex must inspect a codebase for bugs, security or performance risks, test gaps, architectural or maintainability friction, developer-experience problems, reconcile audit intent with discovered repository boundaries, or verify whether prior audit findings were resolved.
 ---
 
 # Codebase Issue Auditor
@@ -15,18 +15,24 @@ Audit broadly, promote strictly, and publish only with explicit approval. Defaul
    - Read [references/audit-protocol.md](references/audit-protocol.md) and create a versioned audit bundle following [references/audit-bundle.md](references/audit-bundle.md). Keep working artifacts outside tracked source unless the user requests a saved report.
    - Complete this phase only when the bundle records the target and commit, dirty-worktree state, scope and limitations, repository boundaries, generated/vendor exclusions, baseline commands, subsystems, and externally exposed or destructive workflows.
 
-2. **Map and inspect every risk surface**
+2. **Reconcile request and evidence**
+   - Compare the requested audit with the grounded repository boundary using the reconciliation procedure in [references/audit-protocol.md](references/audit-protocol.md). Keep the gap ledger as temporary working state, not as a new bundle record.
+   - Grill the user only on plan-changing gaps affecting categories, severity, priority, exclusions, output, limitations, or publication intent. Ask up to three related questions per round, cite the request and repository evidence, explain the consequence, offer two to four options when feasible, and recommend one with a repository-grounded reason.
+   - Incorporate answers and re-inspect changed boundaries until no blocking gap remains. If reconciliation materially changes the audit frame, recap the resolved frame and require explicit confirmation. This confirmation does not approve publication.
+   - If a blocking gap remains unanswered, pause with the exact unresolved gap; do not present a completed audit or publish issues.
+
+3. **Map and inspect every risk surface**
    - Inventory the whole repository, then inspect risk-weighted surfaces rather than mechanically reading generated, vendored, or irrelevant files.
    - Run every applicable category pass and the cross-cutting patterns in [references/deep-analysis-patterns.md](references/deep-analysis-patterns.md). Use [references/ecosystem-optimization.md](references/ecosystem-optimization.md) only after local evidence identifies a concrete ecosystem candidate.
    - Record accepted signals and near-misses while investigating; do not draft issues from first impressions.
    - Complete this phase only when every subsystem/category pair has one coverage record and every risk surface is `accepted`, `clean`, `rejected`, or explicitly `deferred` with evidence, validation actions, and linked candidate/reject records where required.
 
-3. **Disconfirm and promote candidates**
+4. **Disconfirm and promote candidates**
    - Apply [references/audit-rubric.md](references/audit-rubric.md). Test alternative explanations, framework guarantees, reachability, generated/test-only boundaries, and duplicate-root-cause hypotheses.
    - Keep broad discovery but strict promotion. Promote only high-confidence, independently fixable findings at or above the configured severity threshold. Keep everything else in the reject ledger.
    - Complete this phase only when every candidate has a decision and every accepted candidate has a root cause, affected workflow and impact, concrete evidence chain, reproduction or justified non-reproduction, counter-evidence checked, verification path, and independently testable acceptance criteria.
 
-4. **Validate and review drafts**
+5. **Validate and review drafts**
    - Link one structured issue draft to each accepted root cause. Validate the bundle before presenting it:
      ```bash
      python scripts/validate_audit_bundle.py audit-bundle.json
@@ -35,7 +41,7 @@ Audit broadly, promote strictly, and publish only with explicit approval. Defaul
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
    - Complete this phase only when the validator passes and every omission from the issue list is explained by a reject, deferment, or explicit scope limitation.
 
-5. **Publish approved issues**
+6. **Publish approved issues**
    - Require explicit publication approval and a GitHub destination. Check `gh` authentication, then dry-run the exact final bodies and labels:
      ```bash
      python scripts/check_github_env.py --github-repo-url owner/repo

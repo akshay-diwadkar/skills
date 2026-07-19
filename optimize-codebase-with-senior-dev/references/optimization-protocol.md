@@ -33,6 +33,20 @@ The matrix proves breadth; the wave limit protects depth. Never substitute a sam
 
 Reject cold-versus-warm comparisons, single noisy runs, tiny fixtures used for production claims, unrelated microbenchmarks, percentage-only claims, or CI speed obtained by moving or hiding failures.
 
+## Request-to-Baseline Alignment
+
+After tracing and baselining, maintain a temporary ledger:
+
+`request statement | repository or baseline evidence | optimization consequence | options | recommendation and reason | answer | status`
+
+Record mismatched bottlenecks, proxy metrics, missing success thresholds, scope conflicts, hidden protected behavior, incompatible constraints, uncertain risk tolerance, and unclear candidate acceptance or stage authorization. A gap is blocking when its answer could change the target workflow, metric, scope, protected behavior, compatibility, constraints, risk, candidate eligibility, verification, rollback, or authorization. Discover repository facts locally and decide low-impact reversible details from precedent.
+
+Ask up to three related blocking questions per round. Cite the request and relevant `F-n` or `B-n` evidence, explain the affected optimization decision, offer two to four mutually exclusive options when feasible, and mark the recommended option with a reason grounded in comparable measurement, behavior preservation, repository support, reversibility, and the smallest independently measurable mechanism.
+
+Record answers and re-run affected traces or baselines whenever the boundary or workload changes. Repeat until no blocking gap remains. Then recap the target workflow, measurable success, scope, protected behavior, constraints, exclusions, risk tolerance, baseline limitations, and plan/implementation authorization and require explicit confirmation. Corrections restart the loop; missing confirmation blocks a final approved report or implementation.
+
+Translate confirmed outcomes into existing brief, baseline, protected-behavior, candidate, verification, and authorization fields and discard the ledger. Alignment confirmation does not authorize implementation; implementation still requires the existing explicit execution gate.
+
 ## Candidate Construction
 
 Each `C-n` owns one independently measurable mechanism. Compare configuration, supported native capability, duplicate-code removal, focused local code, boundary optimization, justified dependency addition, and justified upgrade only when each is plausible.

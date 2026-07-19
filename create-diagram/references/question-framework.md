@@ -1,6 +1,6 @@
 # Create Diagram Question Framework
 
-Use this framework to reach shared understanding before planning a diagram. Ask one question at a time and wait for the user's answer. In Plan Mode, this framework ends with a `<proposed_plan>`, not a written HTML file.
+Use this framework to reach shared understanding before planning a diagram. Ask up to three closely related blocking questions per round and wait for the user's answers. In Plan Mode, this framework ends with a `<proposed_plan>`, not a written HTML file.
 
 ## Phase 1: Grounding Exploration
 
@@ -12,6 +12,14 @@ When files or a repo are available, inspect before asking:
 - Existing diagrams or screenshots.
 
 Summarize discovered facts briefly before asking the first question. Separate facts from inferences.
+
+Maintain a temporary ledger throughout exploration and questioning:
+
+`request statement | repository evidence | diagram consequence | options | recommendation and reason | answer | status`
+
+Record conflicts, missing intent, scope mismatches, misleading requested abstractions, hidden boundaries, undefined fidelity, uncertain evidence policy, and missing acceptance or verification details. A gap is blocking when its answer could change the diagram's purpose, audience, decision, scope, entities, relationships, fidelity, omissions, evidence, output, or verification. Discover repository facts locally and choose low-impact reversible presentation details from the documented defaults.
+
+For blocking gaps, group at most three closely related questions. State the request and discovered evidence, explain the diagram consequence, offer two to four mutually exclusive options when feasible, and identify the recommendation with repository- and audience-grounded trade-offs. Use scoped free text only when choices cannot be bounded honestly. Record answers, re-explore changed boundaries, and repeat without a lifetime question limit.
 
 ## Phase 2: Intent
 
@@ -102,8 +110,13 @@ Before emitting the `<proposed_plan>`, confirm:
 - [ ] Every relationship has a verb label, evidence, and a confidence level (`observed`, `inferred`, or `stated`).
 - [ ] Metadata has `entities`, `relationships`, `assumptions`, `omissions`, `openQuestions`, and `agentInstructions`.
 - [ ] Generated HTML will be built with `/path/to/create-diagram/scripts/build_diagram.py` and validated with `/path/to/create-diagram/scripts/validate_diagram.py`.
+- [ ] The resolved model has been recapped and explicitly confirmed by the user.
+
+Recap the purpose, audience, decision, fidelity, scope, exclusions, entities, relationships, failure paths, evidence policy, output location, assumptions, and verification path. Require explicit confirmation even if exploration found no mismatch. Corrections update the ledger and restart the relevant exploration; missing confirmation pauses without a proposed plan. Discard the ledger after confirmation and fold its outcomes into the existing plan and diagram metadata fields.
 
 The proposed plan must include title, purpose, audience, fidelity, output location, entities, relationship types, clusters, assumptions, omissions, evidence policy, generated filename behavior, and verification steps. It must also state that implementation happens only after the user requests execution outside Plan Mode.
+
+Shared-model confirmation, permission to create a missing directory, permission to overwrite a file, plan acceptance, and execution authorization are separate gates. None implies another.
 
 ## Phase 6: Build Gate
 

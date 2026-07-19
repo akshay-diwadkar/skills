@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Diagram"
-  short_description: "Interrogate systems before diagramming them"
-  default_prompt: "Use $create-diagram to deeply understand this system before creating an HTML diagram."
+  short_description: "Confirmed diagrams grounded in system evidence"
+  default_prompt: "Use $create-diagram to reconcile my intended diagram with system evidence, close model gaps with recommended options, confirm shared understanding, and plan a self-contained HTML diagram."

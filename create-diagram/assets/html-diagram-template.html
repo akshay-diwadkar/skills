@@ -73,7 +73,7 @@ const DIAGRAM_DATA = {
     { id: "user", label: "User", type: "actor", description: "Person requesting a diagram for a codebase concept" },
     { id: "agent", label: "Diagram Agent", type: "actor", description: "AI agent executing the create-diagram workflow" },
     { id: "explore", label: "Explore", type: "process", description: "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions" },
-    { id: "q-framework", label: "Question Framework", type: "document", description: "Reference doc for asking one question at a time about purpose, audience, format, entities" },
+    { id: "q-framework", label: "Question Framework", type: "document", description: "Reference doc for asking up to three related gap-closing questions about purpose, audience, format, entities" },
     { id: "question", label: "Question", type: "process", description: "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear" },
     { id: "output-guide", label: "HTML Guide", type: "document", description: "Reference doc for payload shape, fidelity defaults, and output path conventions" },
     { id: "plan", label: "Plan", type: "process", description: "Propose title, purpose, audience, fidelity, entities, relationships, and evidence policy" },
@@ -108,7 +108,7 @@ const DIAGRAM_DATA = {
     {
       id: "explore-question",
       title: "Explore and ask clarifying questions",
-      description: "Agent inspects the repo and follows the Question Framework to ask one question at a time until purpose, audience, layout, and entities are settled.",
+      description: "Agent inspects the repo and follows the Question Framework to ask up to three related evidence-backed questions until purpose, audience, layout, and entities are settled.",
       nodeIds: ["agent", "explore", "q-framework", "question"]
     },
     {
@@ -2112,7 +2112,7 @@ init();
     { "id": "user", "name": "User", "type": "actor", "description": "Person requesting a diagram for a codebase concept", "evidence": "SKILL.md:8" },
     { "id": "agent", "name": "Diagram Agent", "type": "actor", "description": "AI agent executing the create-diagram workflow", "evidence": "SKILL.md:6-8" },
     { "id": "explore", "name": "Explore", "type": "process", "description": "Inspect repo: entrypoints, docs, tests, routes, patterns before asking questions", "evidence": "SKILL.md:44" },
-    { "id": "q-framework", "name": "Question Framework", "type": "document", "description": "Reference doc for asking one question at a time about purpose, audience, format, entities", "evidence": "reference/question-framework.md" },
+    { "id": "q-framework", "name": "Question Framework", "type": "document", "description": "Reference doc for asking up to three related gap-closing questions about purpose, audience, format, entities", "evidence": "reference/question-framework.md" },
     { "id": "question", "name": "Question", "type": "process", "description": "Ask clarifying questions one at a time until purpose, audience, fidelity, and entities are clear", "evidence": "SKILL.md:62" },
     { "id": "output-guide", "name": "HTML Guide", "type": "document", "description": "Reference doc for payload shape, fidelity defaults, and output path conventions", "evidence": "assets/html-diagram-template.html" },
     { "id": "plan", "name": "Plan", "type": "process", "description": "Propose title, purpose, audience, fidelity, entities, relationships, and evidence policy", "evidence": "SKILL.md:94" },

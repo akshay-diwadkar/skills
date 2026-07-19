@@ -4,6 +4,7 @@ Use this reference to judge whether structural change is warranted and whether a
 
 ## Contents
 
+0. Request-to-evidence alignment
 1. Analysis dimensions
 2. Design principles
 3. Simplicity controls
@@ -12,6 +13,20 @@ Use this reference to judge whether structural change is warranted and whether a
 6. Pattern-removal signals
 7. Language-aware idioms
 8. Runtime and distributed-system hazards
+
+## 0. Request-to-Evidence Alignment
+
+After grounding the current design, maintain a temporary ledger:
+
+`request statement | repository evidence | design consequence | options | recommendation and reason | answer | status`
+
+Record requested patterns or boundaries unsupported by current pressure, missing intent, scope mismatches, hidden protected contracts, ambiguous ownership, undefined failure semantics, migration constraints, and acceptance gaps. A gap is blocking when its answer could change the observable goal, scope, protected contract status, ownership, failure behavior, migration, risk, success measure, or admissible L0-L3 level. Discover repository facts locally and decide low-impact reversible details from precedent.
+
+Ask up to three related blocking questions per round. State the request and cited `F-n` evidence, explain the affected design decision, offer two to four mutually exclusive options when feasible, and identify the recommended option based on the admission rules, lower-level sufficiency, repository idioms, contract preservation, and reversibility. Use scoped free text only when the choices cannot be bounded honestly.
+
+Record answers, re-ground changed boundaries, and repeat until every gap is resolved or non-blocking. Then recap the goal, audience, scope, exclusions, ranked pressures, protected contracts, ownership, failure semantics, migration constraints, and success measures. Require explicit confirmation even if exploration found no mismatch. Corrections restart the loop; missing confirmation blocks classification and assessment approval.
+
+Translate confirmed outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger. Alignment confirmation establishes the assessment brief and never authorizes implementation.
 
 ## 1. Analysis Dimensions
 

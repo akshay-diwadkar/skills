@@ -1,6 +1,6 @@
 ---
 name: design-codebase-with-senior-dev
-description: Assess whether architectural change is justified, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill is assessment-only; use plan-with-senior-dev and implement-with-senior-dev after design approval.
+description: Assess whether architectural change is justified, reconcile requested structure with repository evidence through scoped user interviews, select the smallest evidence-backed codebase design, and define an incremental behavior-preserving migration. Use for boundary, dependency-direction, state-ownership, or subsystem redesign; design-pattern evaluation or removal; and safe structural restructuring. This skill is assessment-only; use plan-with-senior-dev and implement-with-senior-dev after design approval.
 ---
 
 # Design Codebase With Senior Dev
@@ -16,6 +16,7 @@ This skill is **assessment-only**. Inspect and run non-mutating checks, but neve
 3. Preserve public APIs, schemas, events, files, CLIs, persistence, errors, side effects, user workflows, and operational promises unless explicit authorization names the permitted change.
 4. Prefer L0 over L1, L1 over L2, and L2 over L3 whenever the lower level satisfies the evidenced constraints.
 5. A fashionable pattern name, long file, large class, duplicate branch, disliked abstraction, or clean diagram is never sufficient evidence.
+6. Reconcile the requested design with grounded pressures and protected contracts, then obtain explicit confirmation of the resolved design brief before classification or approval.
 
 ## Evidence Records
 
@@ -51,7 +52,7 @@ Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption
 
 ## Workflow
 
-Complete Gates 1-6 in order. If later evidence changes the level, regenerate the scaffold for the new level and re-run every applicable gate.
+Complete Gates 1-7 in order. If later evidence changes the level, regenerate the scaffold for the new level and re-run every applicable gate.
 
 ### Gate 1: Frame and Protect
 
@@ -72,7 +73,17 @@ Complete Gates 1-6 in order. If later evidence changes the level, regenerate the
 
 **Completion gate:** current behavior, ownership, dependencies, state, failures, contracts, and at least one end-to-end flow are grounded in existing repository evidence.
 
-### Gate 3: Rank Pressures and Classify L0-L3
+### Gate 3: Align Request and Current Design
+
+- Follow the request-to-evidence alignment protocol in `references/design-decision-rubric.md`. Maintain a temporary gap ledger; do not add it to the assessment contract.
+- Grill the user on every gap that could change the goal, scope, protected contracts, ownership, failure semantics, migration constraints, success measures, or admissible design level. Ask up to three related questions per round with cited request/evidence, consequence, two to four options when feasible, and a repository-grounded recommendation.
+- Incorporate answers and re-ground changed boundaries until no blocking gap remains. Then recap the resolved goal, audience, scope, exclusions, pressures, protected contracts, ownership, failure semantics, constraints, and success measures and require explicit confirmation, even when no mismatch was found.
+- If the recap is corrected, restart alignment. If confirmation is unavailable, pause without approving or finalizing an assessment. Alignment confirmation does not authorize implementation.
+- Fold confirmed outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger.
+
+**Completion gate:** no blocking gap remains and the resolved design brief is explicitly confirmed.
+
+### Gate 4: Rank Pressures and Classify L0-L3
 
 Separate symptoms from structural causes and rank each accepted cause as `P-n` by correctness risk, frequency, blast radius, and cost of leaving it unchanged.
 
@@ -92,7 +103,7 @@ Record exactly one canonical `D-n` classification citing both `F-n` and `P-n`.
 
 **Completion gate:** the selected level satisfies its gate, every lower level has a concrete insufficiency argument when applicable, and no stronger level is admitted speculatively.
 
-### Gate 4: Compare, Admit, and Attack
+### Gate 5: Compare, Admit, and Attack
 
 - For L0, compare the current design with direct targeted relief using at least two `O-n` records.
 - For L1-L3, compare at least three serious options: keep/current with relief, the minimum sufficient design, and one credible stronger or differently shaped design.
@@ -103,7 +114,7 @@ Record exactly one canonical `D-n` classification citing both `F-n` and `P-n`.
 
 **Completion gate:** required alternatives exist, the selected option survives adversarial review, every applicable `G-n` is scoped and evidenced, and rejected options have revisit triggers.
 
-### Gate 5: Define the Level-Specific Assessment
+### Gate 6: Define the Level-Specific Assessment
 
 Use the generated scaffold and complete only the sections required by the selected level:
 
@@ -118,7 +129,7 @@ Do not write file/symbol-level implementation instructions. The assessment owns 
 
 **Completion gate:** every contract field is concrete, the assessment contains no scaffold placeholders, and the target design assigns responsibility, ownership, dependencies, failures, proof, and rollback at the depth required by its level.
 
-### Gate 6: Validate and Handoff
+### Gate 7: Validate and Handoff
 
 - Run `check_assessment.py` and repair every diagnostic.
 - Re-read citations, protected-contract statuses, classification, lower-level rejection evidence, pattern gates, migration proof, rollback, and residual risks after the last repair.

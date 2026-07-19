@@ -1,6 +1,6 @@
 ---
 name: optimize-codebase-with-senior-dev
-description: Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use for a known bottleneck or optimization goal, an approved audit finding, or an explicit repository-wide optimization sweep. Produces a validated coverage map, baseline, deterministic candidate decision, and decision-complete plan before any implementation.
+description: Plan and, when explicitly requested, implement safe, evidence-backed codebase optimizations for runtime, frontend, backend, database, build, tests, CI/CD, dependencies, tooling, maintainability, architecture, and developer experience. Use for a known bottleneck or optimization goal, an approved audit finding, or an explicit repository-wide optimization sweep that requires reconciling the requested target and metric with repository evidence. Produces a confirmed brief, validated coverage map, baseline, deterministic candidate decision, and decision-complete plan before any implementation.
 ---
 
 # Optimize Codebase With Senior Dev
@@ -17,6 +17,7 @@ Planning is mandatory. Implementation remains available only after the planning 
 4. Never rank candidates with ordinal arithmetic. Apply the deterministic promotion gates in `references/optimization-rubric.md`.
 5. Sweep breadth is coverage-accounted and depth-bounded. Deferred work is visible and resumable.
 6. Never implement from an unvalidated report or execute more than one candidate at a time.
+7. Reconcile the requested workflow and success metric with tracing and baseline evidence, then obtain explicit confirmation before researching or selecting candidates.
 
 ## Canonical Records
 
@@ -46,9 +47,9 @@ Planning is mandatory. Implementation remains available only after the planning 
    python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
    ```
 
-## Seven Gates
+## Eight Gates
 
-Complete Gates 1-7 in order. If later evidence changes scope, stage, or the selected candidate, regenerate the scaffold and re-run every affected gate.
+Complete Gates 1-8 in order. If later evidence changes scope, stage, or the selected candidate, regenerate the scaffold and re-run every affected gate.
 
 ### Gate 1: Frame and Protect
 
@@ -82,7 +83,17 @@ For sweep scope:
 
 **Completion gate:** every candidate surface has a `B-n` that measures the named workflow, supplies bounded static evidence, or records an actionable blocker.
 
-### Gate 4: Research the Evidence-Selected Components
+### Gate 4: Align Request and Baseline Evidence
+
+- Follow the request-to-baseline alignment protocol in `references/optimization-protocol.md`. Maintain a temporary gap ledger outside the optimization artifact.
+- Grill the user on every gap that could change the target workflow, success metric, scope, protected behavior, constraints, exclusions, risk tolerance, compatibility, candidate acceptance, or stage authorization. Ask up to three related questions per round with request/evidence, consequence, two to four options when feasible, and an evidence-backed recommendation.
+- Incorporate answers and re-run affected tracing or baselines until no blocking gap remains. Then recap the target, measurable success, scope, protected behavior, constraints, exclusions, risk tolerance, baseline limitations, and stage authorization and require explicit confirmation even when no mismatch was found.
+- Corrections restart alignment. Missing confirmation pauses the skill without a final approved report or implementation. Alignment confirmation does not authorize implementation or external effects.
+- Fold confirmed outcomes into existing brief, baseline, protected-behavior, candidate, and authorization fields and discard the ledger.
+
+**Completion gate:** no blocking gap remains and the resolved optimization brief is explicitly confirmed.
+
+### Gate 5: Research the Evidence-Selected Components
 
 - Build the relevant component/version/usage inventory only for components connected to a `B-n`.
 - Confirm resolved version, configuration, execution mode, deployment target, direct/transitive ownership, and actual use.
@@ -92,7 +103,7 @@ For sweep scope:
 
 **Completion gate:** each ecosystem claim has local usage evidence, a version-matched URL, compatibility analysis, and a direct link to a baseline; local-code candidates carry an explicit not-applicable `R-n`.
 
-### Gate 5: Compare and Classify
+### Gate 6: Compare and Classify
 
 - Generate at least two credible candidates when alternatives exist, including the smallest direct or configuration option.
 - Record impact, confidence, effort, risk, verification strength, blast radius, reversibility, independence, operational cost, expected benefit, verification, and rollback.
@@ -102,7 +113,7 @@ For sweep scope:
 
 **Completion gate:** every candidate has one deterministic band, all gate answers are evidenced, the selected option beats serious alternatives under the user's constraints, and ordering follows the rubric's tie-breaks.
 
-### Gate 6: Plan, Then Optionally Implement
+### Gate 7: Plan, Then Optionally Implement
 
 For plan stage, produce dependency-ordered changes with exact file areas, behavior guardrails, compatibility, tests, acceptance criteria, rollback, residual risk, and one `H-n`. Strategic Wins should hand off to `plan-with-senior-dev` when further implementation-level specification is needed.
 
@@ -117,7 +128,7 @@ For implementation stage:
 
 **Completion gate:** plan stage is decision-complete without edits, or implementation stage contains one authorized candidate with an attributable patch, comparable evidence, and rollback status.
 
-### Gate 7: Validate and Handoff
+### Gate 8: Validate and Handoff
 
 - Run `check_optimization.py` and repair every diagnostic.
 - Re-read citations, coverage, baselines, research/version claims, candidate gates, verification, rollback, authorization, deferrals, and residual risks after the last repair.

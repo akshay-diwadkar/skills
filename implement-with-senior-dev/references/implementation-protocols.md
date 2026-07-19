@@ -17,6 +17,8 @@ This is the canonical decision procedure for an implementation run. `implementat
 
 The parser's diagnostics are blocking. Do not repair or reinterpret an approved plan during implementation.
 
+Repository contradictions and semantic gaps are also blocking. Record the affected plan records, plan expectation, repository evidence, and consequence, then route the gap to `plan-with-senior-dev`. Do not present behavior options or conduct an intent-revision interview from the implementation skill. Only ask for execution-state authorization explicitly recognized by this protocol, such as incorporating an already dirty target; such authorization never changes planned behavior.
+
 ## 2. Run Bundle and Workspace Baseline
 
 1. Resolve storage:
@@ -60,6 +62,8 @@ When all answers are yes:
 - Report it as a plan gap, not as planned scope.
 
 Stop instead when the edit changes product behavior, unspecified expected assertions, dependencies, public contracts, persistence, external effects, authorization, generated dependency resolution, or requires choosing among alternatives.
+
+For these semantic stops, preserve the evidence and hand off to `plan-with-senior-dev`; do not resolve alternatives through implementation questioning.
 
 Generated artifacts may be updated only when named by the plan or produced deterministically by a plan-specified command with an understood and bounded diff. Unexpected generated output is blocking.
 

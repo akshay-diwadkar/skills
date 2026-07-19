@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Issue Planner"
-  short_description: "Validate one issue plan and senior handoff"
-  default_prompt: "Use $github-issue-planner to inventory this repository's open issues, deeply plan one issue against the local checkout, validate the artifact, and keep GitHub read-only unless I explicitly request execution."
+  short_description: "Issue plans aligned with checkout evidence"
+  default_prompt: "Use $github-issue-planner to reconcile one issue with checkout evidence, close product-intent gaps with recommended options, validate its plan, and keep GitHub read-only unless I explicitly request execution."

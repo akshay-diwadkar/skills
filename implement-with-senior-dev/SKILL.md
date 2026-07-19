@@ -1,6 +1,6 @@
 ---
 name: implement-with-senior-dev
-description: Safely implement an approved, specific code-change plan through a versioned run bundle, plan-to-diff traceability, non-destructive recovery, layered verification, and a checker-validated report. Use when the user wants a minimal implementation of an approved plan without scope invention or loss of existing work.
+description: Safely implement an approved, specific code-change plan through a versioned run bundle, plan-to-diff traceability, non-destructive recovery, layered verification, and a checker-validated report. Use when the user wants a minimal implementation of an approved plan without scope invention or loss of existing work; semantic plan gaps must be routed back to planning rather than resolved through an implementation interview.
 ---
 
 # Implement With Senior Dev
@@ -21,6 +21,7 @@ Read these files completely before editing:
 - Identify and snapshot the exact approved plan before editing.
 - Prefer `plan-contract: 2` metadata and anchor-based records. Use the strict legacy adapter only when no version marker exists.
 - Refuse a plan when the parser reports ambiguity or a material repository contradiction.
+- Never use an implementation interview to reinterpret, repair, or extend approved product intent. Record semantic gaps and route them to `plan-with-senior-dev`; ask only for execution-state authorization already permitted by this contract.
 - Create an implementation-run bundle in confirmed ignored storage or an OS temporary directory.
 - Preserve unrelated dirty paths byte-for-byte. Never edit a dirty target without explicit user authorization.
 - Recheck a target against the last recorded snapshot before every edit; stop on concurrent changes.
@@ -41,6 +42,8 @@ Save conversational plans verbatim to the run directory. Parse the plan with `im
 - Legacy Tiny plans: require concrete Outcome/Goal, Scope, Change/Implementation, and Verification/Test sections, plus a target path and command.
 
 Stop with field-specific diagnostics when parsing fails. Do not reinterpret the plan.
+
+If inspection exposes a semantic contradiction or a choice affecting product behavior, failure semantics, contracts, persistence, dependencies, migration, or external effects, stop and hand the evidence back to `plan-with-senior-dev`. Dirty-target incorporation and explicitly scoped unsafe/external-operation authorization remain execution questions; their answers do not revise the plan.
 
 ### 2. Scaffold and Inspect
 
@@ -119,5 +122,6 @@ Never claim weaker-model reliability unless the provider-neutral live evaluation
 ## Handoffs
 
 - Use `plan-with-senior-dev` when the approved input cannot pass strict intake.
+- Use `plan-with-senior-dev` when repository evidence exposes a semantic plan gap; do not grill the user to repair approved intent inside implementation.
 - Use `codebase-issue-auditor` to discover unknown risks instead of implementing a known change.
 - Use `optimize-codebase-with-senior-dev` when selecting or measuring an optimization rather than applying an approved implementation plan.

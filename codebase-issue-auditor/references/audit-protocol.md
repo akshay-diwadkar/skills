@@ -18,7 +18,23 @@ Inspect first. Ask the user only about intent that local evidence cannot resolve
 
 **Completion gate:** every required `audit_context` and `repository_inventory` field in `audit-bundle.md` is populated from evidence, including at least one subsystem and baseline-command record.
 
-## 2. Build the risk map
+## 2. Reconcile the audit request with evidence
+
+After establishing the frame, maintain a temporary ledger with one row per possible gap:
+
+`request statement | repository evidence | audit consequence | options | recommendation and reason | answer | status`
+
+Record conflicts, missing intent, scope mismatches, hidden repository boundaries, and undefined category, severity, priority, exclusion, output, limitation, or publication preferences. A gap is blocking only when resolving it could materially change audit coverage, promotion priority, reported limitations, output, or publication intent. Resolve repository facts by inspecting further and use declared defaults for low-impact reversible details; do not ask the user about either.
+
+For blocking gaps, ask up to three closely related questions per round. State the request and grounded evidence, explain the affected audit decision, offer two to four mutually exclusive options when feasible, and identify the recommended option with a reason based on risk, repository conventions, coverage integrity, and the smallest safe assumption. Use scoped free text only when the answer space cannot be bounded honestly.
+
+Record answers and re-inspect any changed boundary. Repeat until all gaps are resolved or reclassified as non-blocking. When answers materially change the audit frame, recap the target, categories, severity threshold, priorities, exclusions, limitations, output, and publication intent and require explicit confirmation. Alignment confirmation is not publication approval. If a blocking gap remains unanswered, pause and report it rather than presenting the audit as complete.
+
+Fold confirmed outcomes into existing audit context, inventory, coverage, and limitation fields, then discard the ledger. Do not add gap records to the audit bundle.
+
+**Completion gate:** no blocking request-to-evidence gap remains, and any materially changed audit frame is explicitly confirmed.
+
+## 3. Build the risk map
 
 Create a risk surface for every externally reachable or high-impact behavior, including:
 
@@ -32,7 +48,7 @@ Give each surface locations, categories, validation actions, and a final status.
 
 **Completion gate:** every high or critical surface has a terminal status and no surface relies on an empty location or validation list.
 
-## 3. Cover every subsystem/category pair
+## 4. Cover every subsystem/category pair
 
 Create one coverage record for every inventoried subsystem and selected category:
 
@@ -50,7 +66,7 @@ After category coverage, run every applicable discovery pattern in `deep-analysi
 
 **Completion gate:** the coverage matrix contains every required subsystem/category pair exactly once, and every applicable deep pattern has an investigation result in candidate/reject evidence or a coverage conclusion.
 
-## 4. Maintain candidate and reject ledgers
+## 5. Maintain candidate and reject ledgers
 
 For each plausible root cause, record the full candidate contract from `audit-bundle.md`. Seek disconfirming evidence before deciding:
 
@@ -64,7 +80,7 @@ Rejected, deferred, and merged candidates require a reject record explaining the
 
 **Completion gate:** every candidate has a terminal decision, every non-accepted candidate has a reject record, and every accepted candidate passes `audit-rubric.md`.
 
-## 5. Reconcile the audit
+## 6. Reconcile the audit
 
 Link exactly one issue draft to every accepted candidate, validate the bundle, and repair every validator error before review. Summarize accepted issues, rejected near-misses, deferred surfaces, failed or skipped baseline commands, and dirty-worktree limitations.
 
