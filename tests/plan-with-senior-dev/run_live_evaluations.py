@@ -100,18 +100,21 @@ def summarize(results: list[dict[str, Any]], model_labels: list[str]) -> tuple[b
         scores = [float(item["score"]) for item in model_results]
         hard_failures = sorted({failure for item in model_results for failure in item["hard_failures"]})
         blueprint_scores = [float(item["dimension_scores"]["blueprint"]) for item in model_results]
+        median_score = statistics.median(scores)
+        minimum_score = min(scores)
+        minimum_blueprint_score = min(blueprint_scores)
         summary = {
-            "median_score": statistics.median(scores),
-            "minimum_score": min(scores),
-            "minimum_blueprint_score": min(blueprint_scores),
+            "median_score": median_score,
+            "minimum_score": minimum_score,
+            "minimum_blueprint_score": minimum_blueprint_score,
             "hard_failures": hard_failures,
             "runs": len(model_results),
         }
         summary["passed"] = (
             not hard_failures
-            and summary["median_score"] >= 90
-            and summary["minimum_score"] >= 80
-            and summary["minimum_blueprint_score"] == 100
+            and median_score >= 90
+            and minimum_score >= 80
+            and minimum_blueprint_score == 100
         )
         summaries[model_label] = summary
         passed = passed and bool(summary["passed"])

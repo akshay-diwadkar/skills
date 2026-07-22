@@ -3,6 +3,8 @@ import json
 import sys
 from pathlib import Path
 
+from typing import Any
+
 import pytest
 
 
@@ -48,7 +50,7 @@ def test_tree_hash_detects_fixture_mutation(tmp_path: Path) -> None:
 
 
 def test_summary_requires_receipt_clean_scores_and_full_blueprints() -> None:
-    passing = [
+    passing: list[dict[str, Any]] = [
         {"model_label": "weak", "score": score, "hard_failures": [], "dimension_scores": {"blueprint": 100}}
         for score in (80, 90, 100)
     ]

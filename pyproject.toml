@@ -16,7 +16,7 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["playwright.*"]
+module = ["playwright.*", "yaml", "yaml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
