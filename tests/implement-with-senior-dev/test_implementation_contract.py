@@ -67,7 +67,7 @@ def test_contract_declares_safety_and_bundle_fields() -> None:
     assert "final_workspace" in contract["required_bundle_fields"]
 
 
-def test_current_planner_tiers_are_classified_from_metadata() -> None:
+def test_v3_planner_scaffolds_are_rejected_until_implementer_is_upgraded() -> None:
     for tier in ("tiny", "standard", "high-risk"):
         result = subprocess.run(
             [sys.executable, str(PLAN_SCRIPTS / "scaffold_plan.py"), "--tier", tier, "--task-type", "bug-fix"],
@@ -77,19 +77,19 @@ def test_current_planner_tiers_are_classified_from_metadata() -> None:
         )
         plan, diagnostics = parse_plan(result.stdout.replace("Replace", "Specify").replace("existing_anchor", "anchor"))
 
-        assert plan.tier == tier
-        assert plan.contract_version == 2
-        assert not [item for item in diagnostics if item.code in {"plan.tier.marker", "plan.version.marker"}]
+        assert plan.contract_version == 3
+        assert {item.code for item in diagnostics} == {"plan.version.unsupported"}
 
 
-def test_current_checker_valid_worked_examples_parse_without_drift() -> None:
+def test_v3_worked_examples_are_rejected_until_implementer_is_upgraded() -> None:
     worked_examples = (REPO_ROOT / "plan-with-senior-dev" / "references" / "worked-examples.md").read_text(encoding="utf-8")
     blocks = re.findall(r"```plan\n(.*?)```", worked_examples, re.DOTALL)
 
     parsed = [parse_plan(block) for block in blocks]
 
-    assert [plan.tier for plan, _ in parsed] == ["tiny", "standard", "high-risk"]
-    assert all(diagnostics == [] for _, diagnostics in parsed)
+    assert len(parsed) == 3
+    assert all(plan.contract_version == 3 for plan, _ in parsed)
+    assert all({item.code for item in diagnostics} == {"plan.version.unsupported"} for _, diagnostics in parsed)
 
 
 def test_v2_tiny_with_ids_remains_tiny() -> None:

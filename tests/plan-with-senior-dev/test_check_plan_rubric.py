@@ -22,7 +22,7 @@ def codes(text: str, tier: str) -> set[str]:
     return {item.code for item in validate(text, tier)}
 
 
-def test_examples_satisfy_v2_rubric() -> None:
+def test_examples_satisfy_v3_rubric() -> None:
     for tier in TIERS:
         assert validate(plan(tier), tier) == []
 

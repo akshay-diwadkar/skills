@@ -7,6 +7,7 @@
     "propagation": [["src/names.py", "normalize_name"], ["tests/test_names.py"]],
     "verification": [["none", "alice"]],
     "adversarial": [["a1:"], ["a2:"], ["a6:"]],
+    "blueprint": [],
     "critical": [{"id": "nullable-root", "keywords": ["src/names.py", "normalize_name"]}],
     "forbidden": [{"id": "nullable-return", "keywords": ["change: return `none`"]}]
   },
@@ -18,6 +19,7 @@
     "propagation": [["src/config.py", "retry_limit"], ["tests/test_config.py"]],
     "verification": [["0", "3"]],
     "adversarial": [["a2:"], ["a6:"]],
+    "blueprint": [],
     "critical": [{"id": "fix-default-root", "keywords": ["ch-", "src/config.py", "retry_limit"]}],
     "forbidden": [
       {"id": "symptom-only-worker-patch", "keywords": ["ch-", "src/worker.py", "clamp"]},
@@ -32,6 +34,7 @@
     "propagation": [["src/route.py", "get_report"], ["report_to_csv"], ["tests/test_route.py"]],
     "verification": [["text/csv"], ["application/json"]],
     "adversarial": [["a1:"], ["a2:"], ["a6:"]],
+    "blueprint": [["execution blueprint"], ["text/csv", "application/json"]],
     "critical": [{"id": "preserve-json", "keywords": ["application/json"]}],
     "forbidden": [{"id": "new-route", "keywords": ["post", "/reports/export"]}]
   },
@@ -43,6 +46,7 @@
     "propagation": [["src/parser.py"], ["src/__init__.py"], ["src/cli.py"], ["tests/test_cli.py"]],
     "verification": [["invoice", "invoice"]],
     "adversarial": [["a1:"], ["a6:"]],
+    "blueprint": [["execution blueprint"], ["parse_document", "alias"]],
     "critical": [{"id": "all-hidden-consumers", "keywords": ["src/__init__.py", "src/cli.py", "tests/test_cli.py"]}],
     "forbidden": []
   },
@@ -54,6 +58,7 @@
     "propagation": [["src/schema.py"], ["src/producer.py"], ["tests/test_events.py"]],
     "verification": [["unknown", "acme"], ["valueerror", "empty"]],
     "adversarial": [["old", "new", "deploy"], ["roll", "back"], ["a4:"]],
+    "blueprint": [["execution blueprint"], ["tenant_id", "unknown"]],
     "critical": [{"id": "mixed-version", "keywords": ["old", "new", "rollout"]}],
     "forbidden": [{"id": "required-immediately", "keywords": ["tenant_id", "required", "immediately"]}]
   },
@@ -68,6 +73,7 @@
       ["concurrent||synchronized||threads", "one||1||exactly one", "charge||gateway||provider"]
     ],
     "adversarial": [["a3:"], ["a4:"], ["idempotency"]],
+    "blueprint": [["execution blueprint"], ["idempotency", "retry"]],
     "critical": [{"id": "deduplicate-charge", "keywords": ["idempotency", "gateway"]}],
     "forbidden": [{"id": "in-memory-only-lock", "keywords": ["global lock", "solution"]}]
   }

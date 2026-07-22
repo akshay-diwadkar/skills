@@ -1,97 +1,88 @@
 ---
 name: plan-with-senior-dev
-description: Turn a requested change — feature, bug fix, refactor, migration, public contract, or risky integration — into a decision-complete implementation plan that another engineer can execute without inventing behavior. Use when the user asks to plan, spec, or think through a code change before writing it. Planning-only; produces no code.
+description: Turn a feature, bug fix, refactor, migration, public contract, or risky integration into a repository-grounded, decision-complete implementation blueprint. Use when the user wants to plan or spec a code change before implementation. Planning-only; every submitted plan is contract-v3 validated and receipt-stamped.
+metadata:
+  plan-contract: "3"
+  finalizer: "scripts/finalize_plan.py"
+  validation-required: "true"
 ---
 
 # Plan With Senior Dev
 
-Produce an executable specification, not a plausible outline. Remain planning-only: inspect files and run non-mutating checks, but do not edit implementation files. If implementation is later requested, use `implement-with-senior-dev`.
+Produce an executable blueprint: a literal implementer should be able to follow its records and visual aids without inventing behavior. Remain planning-only. Inspect files and run non-mutating checks, but do not edit implementation files.
 
-## Non-Negotiables
+## 1. Frame
 
-- Ground every current-state claim in an `F-n` record whose citation, line, and anchor exist.
-- Resolve every material product, public-interface, migration, security, and failure-behavior decision before finalizing.
-- Reconcile every plan-changing gap between the request and repository evidence, then obtain explicit confirmation of the resolved intent before finalizing.
-- Prefer the smallest solution supported by local precedent and constraints.
-- Preserve existing parameter, return, wire, error, and side-effect contracts unless an `SC-n` explicitly requires changing them; never widen an interface merely to simplify a local fix.
-- Name exact files, symbols, interfaces, branches, errors, side effects, callers, and tests.
-- Map every `SC-n` and `C-n` to implementing `CH-n` and verifying `T-n` records.
-- Record attacks as repaired, dismissed with evidence, or not applicable. Never manufacture findings.
-- Run the checker and repair the plan until it passes; a pass is necessary, not sufficient.
+Classify the applicable task types (`feature`, `bug-fix`, `refactor`, `public-contract`, `security`, `concurrency`, `external-integration`) and choose the smallest valid tier:
 
-Never guess a repo fact, leave a decision to implementation, ask for a discoverable fact, or end by asking permission to proceed. Alignment confirmation confirms the planning specification; it is not permission to implement.
+- `tiny`: one local reversible behavior; no shared contract, durable state, security, concurrency, or external effect.
+- `standard`: multi-file or multi-layer work, an internal interface, an unclear-cause bug, or meaningful propagation.
+- `high-risk`: public contracts, persisted data, migrations, authorization, concurrency, payments, or irreversible/external effects.
 
-## Start
+Read only the matching sections of [task-playbooks.md](references/task-playbooks.md). Define the observable outcome, audience, measurable success criteria, in-scope surfaces, and invariants before selecting an implementation.
 
-1. Inspect repository guidance, status, manifests, tests, configuration, and the request’s likely entry point.
-2. Classify one or more task types: `feature`, `bug-fix`, `refactor`, `public-contract`, `security`, `concurrency`, or `external-integration`.
-3. Choose the smallest valid tier:
-   - `tiny`: one local reversible behavior; no shared contract, durable state, security, concurrency, or external effect.
-   - `standard`: multi-file/layer work, internal interfaces, unclear-cause bugs, or meaningful propagation.
-   - `high-risk`: public contracts, persisted data, migrations, auth/security, concurrency, payments, or irreversible/external effects.
-4. Read only the matching section(s) of [task-playbooks.md](references/task-playbooks.md) and the matching tier section of [worked-examples.md](references/worked-examples.md).
-5. Generate the working skeleton:
-   `python scripts/scaffold_plan.py --tier <tier> --task-type <type>`.
-   The generated headings and field grammar are authoritative; replace every placeholder.
+Complete this step only when success and scope have one material interpretation.
 
-## Checkpoint 1: Frame
+## 2. Ground
 
-Define the observable outcome, audience, measurable `SC-n` records, in-scope surfaces, and explicit invariants. State what must not change. Do not choose an implementation before success and scope are stable.
+Follow the evidence procedure in [cognitive-protocols.md](references/cognitive-protocols.md):
 
-## Checkpoint 2: Ground
+1. Read the entry point and trace one real caller → entry → dependency → side effect → observable result.
+2. Search every changed-symbol reference, re-export, fixture/mock, config/schema, generated surface, documentation contract, and nearest analogue.
+3. For bugs, follow evidence-backed causes to the deepest supported root cause.
+4. Record only plan-relevant facts as `F-n: path:line | anchor | observation`.
 
-Follow [cognitive-protocols.md](references/cognitive-protocols.md):
+Complete this step only when current behavior, change boundary, callers, invariants, failure paths, side effects, test gaps, and contradictions are grounded. Never ask the user for a discoverable fact.
 
-1. Locate and read the entry point.
-2. Trace one real caller → entry → dependency → side effect → output path.
-3. Search analogues, every changed-symbol reference, tests/fixtures, config/schema, generated artifacts, and docs.
-4. Record each usable fact as:
-   `F-n: path:line | anchor | observation`.
+## 3. Reconcile
 
-Stop only when current behavior, root cause where relevant, change boundary, callers, invariants, side effects, test gaps, and contradictions are grounded.
+Compare the request with repository evidence. Resolve low-impact implementation choices from precedent. Ask the user only when an unresolved choice changes user-visible behavior, a public/shared contract, durable state, security, rollout, or failure semantics and repository evidence cannot decide it.
 
-## Checkpoint 3: Align
+When asking, state the evidence, planning consequence, mutually exclusive options, and recommendation. Confirmation is required only for such material ambiguity; do not add a blanket recap gate.
 
-Use the request-to-evidence reconciliation procedure in [cognitive-protocols.md](references/cognitive-protocols.md). Compare the framed request with grounded facts and maintain a temporary gap ledger. A gap is blocking when resolving it could change the outcome, scope, user-visible behavior, shared interface, risk, rollout, or acceptance criteria. Do not interrupt for low-impact reversible details or facts further exploration can discover.
+Select the smallest correct approach and record the nearest rejected alternative with its specific drawback. Preserve existing parameters, returns, wire shapes, errors, and side effects unless a success criterion requires change.
 
-Grill the user on every blocking gap, asking at most three related questions per round. Each question must be scoped to the conflicting or missing intent, cite the relevant request statement and repository evidence, explain the planning consequence, and present two to four mutually exclusive options when feasible. Mark the recommended option and explain why it best fits repository precedent and constraints. Use a scoped free-text question only when the answer space cannot be bounded honestly.
+Complete this step only when no material product or contract decision remains deferred.
 
-Incorporate each answer into the request baseline and ledger. Re-explore any changed boundary, identify newly exposed gaps, and repeat without a lifetime question limit. When no blocking gap remains, recap the resolved goal, success criteria, audience, in-scope and out-of-scope behavior, invariants, public/shared contracts, constraints, and key decisions. Require explicit user confirmation. If the user corrects the recap, update the baseline and restart alignment; do not draft or finalize the plan until the recap is confirmed.
+## 4. Blueprint
 
-Fold confirmed outcomes into `SC-n`, `D-n`, and `C-n` records. Keep the gap ledger as working state; do not add it to the final plan.
-
-## Checkpoint 4: Decide
-
-Compare the smallest correct approach with the nearest valid alternative. Record `D-n` with the selected approach, cited reason, and specific rejected drawback.
-
-If implementation comparison exposes another plan-changing request gap, return to Checkpoint 3. Otherwise resolve internal implementation choices from evidence and record them without asking the user.
-
-## Checkpoint 5: Specify
-
-For every change, write a canonical `CH-n` record naming its path, anchor, `existing` or `new` status, exact logic, branches, errors, ordering, and side effects. Show complete before/after shapes for changed public/shared interfaces. Classify each material constraint as `C-n: preserved`, `modified`, or `at-risk`.
-
-Before accepting a signature or schema change, point to the exact success criterion that requires it. If none does, preserve the existing contract and solve inside it.
-
-Order changes by dependency: contracts/data → core logic → orchestration/callers → tests/fixtures → docs/release operations.
-
-## Checkpoint 6: Trace and Verify
-
-Map every `SC-n` and `C-n` to `CH-n` and `T-n`. Every `T-n` must specify exact setup/input, exact output/error/side effect, and an exact command with expected result. Account for every existing changed symbol’s callers, re-exports, fixtures, config/schema, generated surfaces, and documentation.
-
-For High-Risk work, specify mixed-version behavior, rollout order, observability, stop conditions, and durable rollback across code, data, queues, caches, and irreversible effects.
-
-## Checkpoint 7: Attack, Repair, Validate
-
-Read [adversarial-verification.md](references/adversarial-verification.md). Run the contract-required attack records (`A1`–`A6`) and repair every material finding in its owning `CH-n`/`T-n`; do not merely list risk.
-
-Validate from the repository root:
+Read the matching tier example in [worked-examples.md](references/worked-examples.md), then generate the working scaffold:
 
 ```bash
-python scripts/check_plan.py --tier <tier> --repo-root <repo> -
+python scripts/scaffold_plan.py --tier <tier> --task-type <type>
 ```
 
-Re-read every citation, signature, unchanged claim, trace row, and expected result after the final repair. Finalize only when the checker passes, no unresolved P0/P1 remains, and two literal implementers would make the same material decisions.
+Fill the v3 ledger in dependency order: contracts/data → core logic → orchestration/callers → tests/fixtures → generated/docs/operations. Every `CH-n` names its exact path, anchor, behavior, branches, errors, ordering, and side effects. Every `T-n` names exact setup/input, observable expectation, and command. Map every `SC-n` and `C-n` through `CH-n` to `T-n`.
 
-## Contract Source
+Standard and High-Risk plans require at least one execution blueprint:
 
-`references/plan-contract.json` is the executable source of truth. Read [plan-contract.md](references/plan-contract.md) only when authoring or debugging the plan format. Do not reproduce its rules elsewhere.
+`### Execution Blueprint: CH-1, CH-2 — concise purpose`
+
+Choose the smallest aid that makes the hardest part literal:
+
+- typed pseudocode for branching, validation, errors, or ordering;
+- Mermaid for cross-component flow, retries, concurrency, or lifecycle;
+- complete before/after shapes and compatibility tables for contracts or schemas;
+- a dependency or state table when code-shaped pseudocode would obscure the relationship.
+
+Add more than one aid only when each resolves a distinct ambiguity. Keep canonical records outside fenced blocks. Use complete interface shapes rather than prose deltas.
+
+Complete this step only when every success criterion, material constraint, changed surface, failure branch, and verification case is owned, and two literal implementers would make the same material decisions.
+
+## 5. Finalize
+
+Read [adversarial-verification.md](references/adversarial-verification.md). Attack and repair the draft, then pass it through the finalizer from the repository root:
+
+```bash
+python scripts/finalize_plan.py --tier <tier> --repo-root <repo> <draft>
+```
+
+The finalizer is the only submission path. If it emits any diagnostic, repair the draft and rerun it. If it cannot run, report the validation block instead of presenting a plan. There is no manual or warning-only fallback.
+
+Submit only the exact successful stdout, including its `plan-validation: 3` receipt. When the host requires `<proposed_plan>` tags, wrap the finalized bytes without changing the plan inside them. Never hand-edit finalized output or end by asking permission to proceed.
+
+Complete this step only when `check_plan.py --require-finalized` accepts the exact submitted plan.
+
+## Contract
+
+`references/plan-contract.json` is authoritative. Read [plan-contract.md](references/plan-contract.md) only when debugging format or receipt behavior. Contract v1/v2 plans are invalid; do not adapt or migrate them in this skill.

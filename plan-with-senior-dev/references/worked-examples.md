@@ -6,8 +6,9 @@ Read only the matching tier. Each fenced plan validates against the correspondin
 
 ```plan
 # Handle Missing Names Without Changing Valid Normalization
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: 3933df7dc8bcd875b979062331d7323a3fe9bd41b092fb490d637c4810158d50 -->
 
 ## Outcome and Scope
 - SC-1: `normalize_name(None)` returns `""`; non-null strings retain strip-and-lower behavior.
@@ -44,8 +45,9 @@ Read only the matching tier. Each fenced plan validates against the correspondin
 
 ```plan
 # Isolate Cached Feature Flags by Tenant and User
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: standard; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: 3ee1a884be29e3a532a96b5825fc9dda8058536d5ebe4753228b6e2b9864defa -->
 
 ## Outcome and Scope
 - SC-1: Two tenants using the same user ID receive only their own tenant-scoped flags.
@@ -63,6 +65,17 @@ Read only the matching tier. Each fenced plan validates against the correspondin
 ## Implementation Specification
 - CH-1: `src/flags.py` | anchor: `_cache` | status: existing | change: type the cache as `dict[tuple[str, str], list[str]]`; construct `key = (tenant_id, user_id)` and use it for lookup, assignment, and return.
 - CH-2: `tests/test_flags.py` | anchor: `test_isolates_same_user_id_across_tenants` | status: new | change: call the function for two tenants sharing one user ID and assert distinct exact lists.
+
+### Execution Blueprint: CH-1 — Tenant-scoped cache flow
+~~~pseudocode
+flags_for(tenant_id: str, user_id: str) -> list[str]:
+    key = (tenant_id, user_id)
+    if key exists in _cache:
+        return _cache[key]
+    flags = load_flags(tenant_id, user_id)
+    _cache[key] = flags
+    return flags
+~~~
 
 ## Traceability
 - C-1: Tenant identity participates in every cache read and write | status: modified
@@ -88,8 +101,9 @@ Read only the matching tier. Each fenced plan validates against the correspondin
 
 ```plan
 # Add Tenant Identity to User Events Compatibly
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: high-risk; task-type: public-contract -->
+<!-- plan-validation: 3; sha256: 42b9a8812c21b8cf2e0799542dde5dbe82ba4d3d730b8e4c52ff8c67d4877a09 -->
 
 ## Outcome and Scope
 - SC-1: New events carry a non-empty tenant ID while old events remain readable as tenant `unknown`.
@@ -110,6 +124,27 @@ Read only the matching tier. Each fenced plan validates against the correspondin
 - CH-1: `src/schema.py` | anchor: `UserEvent` | status: existing | change: import `NotRequired`, then add `tenant_id: NotRequired[str]` while preserving required `user_id`.
 - CH-2: `src/producer.py` | anchor: `build_event` | status: existing | change: add `tenant_id: str | None = None`; omit the key for `None`, raise `ValueError("tenant_id must not be empty")` for `""`, and include the key otherwise.
 - CH-3: `tests/test_events.py` | anchor: `test_old_and_new_event_versions_are_compatible` | status: new | change: cover old producer calls, new tenant events, empty tenant rejection, and consumer reads of old/new shapes.
+
+### Execution Blueprint: CH-1, CH-2 — Complete event shapes and compatibility
+~~~python
+# Before
+class UserEvent(TypedDict):
+    user_id: str
+
+def build_event(user_id: str) -> UserEvent: ...
+
+# After
+class UserEvent(TypedDict):
+    user_id: str
+    tenant_id: NotRequired[str]
+
+def build_event(user_id: str, tenant_id: str | None = None) -> UserEvent: ...
+~~~
+
+| Writer / reader | Old reader | New reader |
+|---|---|---|
+| Old writer: `{user_id}` | Reads `user_id` | Reads tenant as `unknown` |
+| New writer: `{user_id, tenant_id}` | Ignores additive key | Reads exact tenant |
 
 ## Traceability
 - C-1: Old event readers and writers remain compatible during mixed-version rollout | status: at-risk

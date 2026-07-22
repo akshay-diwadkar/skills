@@ -23,9 +23,9 @@ def codes(text: str, tier: str = "tiny") -> set[str]:
     return {item.code for item in validate(text, tier)}
 
 
-def test_contract_declares_exact_v2_sections_for_each_tier() -> None:
+def test_contract_declares_exact_v3_sections_for_each_tier() -> None:
     contract = load_contract()
-    assert contract["contract_version"] == 2
+    assert contract["contract_version"] == 3
     assert section_names("tiny") == contract["base_sections"]
     assert section_names("high-risk")[-2:] == ["Compatibility and Rollout", "Durable Rollback"]
 
@@ -35,8 +35,9 @@ def test_published_examples_have_valid_shape() -> None:
         assert not [item for item in validate(plan(tier), tier) if not item.is_warning]
 
 
-def test_missing_contract_marker_has_specific_v1_diagnostic() -> None:
-    assert "contract.version.legacy" in codes(plan("tiny").replace("<!-- plan-contract: 2 -->", ""))
+def test_missing_or_old_contract_marker_is_rejected() -> None:
+    assert "contract.version.unsupported" in codes(plan("tiny").replace("<!-- plan-contract: 3 -->", ""))
+    assert "contract.version.unsupported" in codes(plan("tiny").replace("plan-contract: 3", "plan-contract: 2"))
 
 
 def test_legacy_heading_is_not_accepted_as_alias() -> None:
@@ -65,3 +66,12 @@ def test_excessive_length_is_advisory_not_hard_failure() -> None:
 
 def test_unclosed_fence_is_reported() -> None:
     assert "markdown.fence.unclosed" in codes(plan("tiny") + "\n```python\nvalue = 1")
+
+
+def test_blueprint_body_does_not_inflate_prose_line_limit() -> None:
+    body = "\n".join(f"step_{index}" for index in range(200))
+    text = plan("standard").replace(
+        "flags_for(tenant_id: str, user_id: str) -> list[str]:\n    key = (tenant_id, user_id)\n    if key exists in _cache:\n        return _cache[key]\n    flags = load_flags(tenant_id, user_id)\n    _cache[key] = flags\n    return flags",
+        body,
+    )
+    assert "shape.line_count.repetition_risk" not in codes(text, "standard")

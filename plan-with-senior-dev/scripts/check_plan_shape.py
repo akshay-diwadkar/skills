@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a plan draft for the canonical v2 shape."""
+"""Check a plan draft for the canonical v3 shape."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ DEFERRED_PATTERNS = (
 )
 PERMISSION_PATTERNS = (r"\bshall I proceed\b", r"\bwant me to start\b", r"\blet me know if\b")
 GENERIC_TITLES = {"plan", "implementation plan", "change plan", "technical plan"}
+CONTRACT_MARKER_RE = re.compile(r"<!--\s*plan-contract:\s*(?P<version>\d+)\s*-->")
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,10 +53,12 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
             first[0],
         ))
 
-    if contract["marker"] not in text:
+    markers = list(CONTRACT_MARKER_RE.finditer(text))
+    if len(markers) != 1 or markers[0].group("version") != str(contract["contract_version"]):
+        found = ", ".join(match.group("version") for match in markers) or "none"
         diagnostics.append(Diagnostic(
-            "contract.version.legacy",
-            "Missing v2 contract marker. Regenerate with scripts/scaffold_plan.py --tier <tier> --task-type <type>.",
+            "contract.version.unsupported",
+            f"Plan must declare exactly one v3 contract marker; found {found}. Regenerate with scripts/scaffold_plan.py.",
         ))
 
     document = parse_markdown(text)
@@ -64,7 +67,7 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
     expected = section_names(tier)
     for name in expected:
         if name not in h2_names:
-            diagnostics.append(Diagnostic("shape.section.missing", f"Missing required v2 section: {name}"))
+            diagnostics.append(Diagnostic("shape.section.missing", f"Missing required v3 section: {name}"))
     for name, count in Counter(h2_names).items():
         if count > 1:
             diagnostics.append(Diagnostic("shape.section.duplicate", f"Section {name!r} appears {count} times"))
@@ -72,7 +75,7 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
         if section.level == 2 and not section.has_content:
             diagnostics.append(Diagnostic("shape.section.empty", f"Section {section.name!r} is empty", section.line))
 
-    count = line_count(text)
+    count = line_count(strip_fenced_code_blocks(text))
     if count < tier_contract["minimum_non_empty_lines"]:
         diagnostics.append(Diagnostic("shape.line_count.under", f"{tier} plan has {count} non-empty lines; expected at least {tier_contract['minimum_non_empty_lines']}"))
     if count > tier_contract["advisory_max_non_empty_lines"]:

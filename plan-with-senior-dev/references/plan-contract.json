@@ -1,6 +1,7 @@
 {
-  "contract_version": 2,
-  "marker": "<!-- plan-contract: 2 -->",
+  "contract_version": 3,
+  "marker": "<!-- plan-contract: 3 -->",
+  "validation_receipt": "<!-- plan-validation: 3; sha256: <64 lowercase hex characters> -->",
   "task_types": [
     "feature",
     "bug-fix",
@@ -25,21 +26,24 @@
       "required_attacks": ["A1", "A2", "A6"],
       "minimum_non_empty_lines": 16,
       "advisory_max_non_empty_lines": 90,
-      "extra_sections": []
+      "extra_sections": [],
+      "blueprint_required": false
     },
     "standard": {
       "required_ids": ["SC", "F", "D", "CH", "T", "C"],
       "required_attacks": ["A1", "A2", "A3", "A4", "A5", "A6"],
       "minimum_non_empty_lines": 28,
       "advisory_max_non_empty_lines": 200,
-      "extra_sections": []
+      "extra_sections": [],
+      "blueprint_required": true
     },
     "high-risk": {
       "required_ids": ["SC", "F", "D", "CH", "T", "C", "R"],
       "required_attacks": ["A1", "A2", "A3", "A4", "A5", "A6"],
       "minimum_non_empty_lines": 40,
       "advisory_max_non_empty_lines": 300,
-      "extra_sections": ["Compatibility and Rollout", "Durable Rollback"]
+      "extra_sections": ["Compatibility and Rollout", "Durable Rollback"],
+      "blueprint_required": true
     }
   },
   "formats": {
@@ -49,6 +53,7 @@
     "test": "- T-n: given: exact input and state | expect: exact output, error, or side effect | command: `exact command`",
     "constraint": "- C-n: constraint text | status: preserved|modified|at-risk",
     "risk": "- R-n P0|P1|P2: scenario and consequence | Resolution: CH-n/T-n or accepted P2 rationale",
-    "attack": "- A1..A6: repaired|dismissed|not-applicable | evidence: concrete plan change or cited reason"
+    "attack": "- A1..A6: repaired|dismissed|not-applicable | evidence: concrete plan change or cited reason",
+    "blueprint_heading": "### Execution Blueprint: CH-n[, CH-n...] — concise purpose"
   }
 }

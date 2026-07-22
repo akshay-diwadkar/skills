@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print a v2 plan scaffold for a tier and task type."""
+"""Print a v3 plan scaffold for a tier and task type."""
 
 from __future__ import annotations
 

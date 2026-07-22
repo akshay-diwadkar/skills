@@ -17,7 +17,7 @@ def test_evaluation_catalog_has_six_blind_cases() -> None:
         fixture = DEV_DIR / "evals" / "fixtures" / name
         assert (fixture / "prompt.md").is_file()
         assert list(fixture.rglob("*.py")), name
-        assert set(case) >= {"tier", "grounding", "decisions", "propagation", "verification", "adversarial", "critical", "forbidden"}
+        assert set(case) >= {"tier", "grounding", "decisions", "propagation", "verification", "adversarial", "blueprint", "critical", "forbidden"}
 
 
 def test_scorer_hard_fails_invalid_or_forbidden_plan() -> None:
@@ -69,26 +69,14 @@ def test_root_cause_case_rejects_unrequested_interface_widening() -> None:
     assert "forbidden:unrequested-input-widening" in result["hard_failures"]
 
 
-def test_v1_baseline_uses_legacy_sections_without_applying_v2_shape() -> None:
+def test_unfinalized_plan_is_a_hard_failure() -> None:
     expectations = json.loads(score_plan_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
-    legacy = """# Handle missing names
-## Outcome
-Return an empty string for None.
-## Evidence
-- Fact: `src/names.py:1` normalize_name accepts nullable input.
-- Fact: `src/names.py:2` strip dereferences it.
-## Change
-Update src/names.py normalize_name and tests/test_names.py; return empty string for None.
-## Verification
-Check None returns empty and Alice becomes alice.
-## Assumptions
-Low-impact: None.
-"""
+    examples = REPO_ROOT / "plan-with-senior-dev" / "references" / "worked-examples.md"
+    plan = re.findall(r"```plan\n(.*?)\n```", examples.read_text(encoding="utf-8"), re.DOTALL)[0]
+    plan = re.sub(r"^<!-- plan-validation:.*\n", "", plan, flags=re.MULTILINE)
     result = score_plan_evaluation.score(
-        legacy,
+        plan,
         expectations["tiny-boundary-bug"],
         DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug",
-        contract_version=1,
     )
-    assert result["contract_version"] == 1
-    assert not any(item.startswith("validator:shape.") for item in result["hard_failures"])
+    assert "validator:finalization.receipt.missing" in result["hard_failures"]

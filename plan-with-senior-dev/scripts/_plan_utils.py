@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 from dataclasses import dataclass
@@ -52,3 +53,64 @@ def strip_fenced_code_blocks(text: str) -> str:
             continue
         output.append("" if fence_character is not None else line)
     return "\n".join(output)
+
+
+VALIDATION_PREFIX_RE = re.compile(r"^\s*<!--\s*plan-validation\s*:", re.IGNORECASE)
+VALIDATION_RECEIPT_RE = re.compile(
+    r"^<!-- plan-validation: 3; sha256: (?P<digest>[0-9a-f]{64}) -->$"
+)
+
+
+def _normalized_lines(text: str) -> list[str]:
+    return text.replace("\r\n", "\n").replace("\r", "\n").splitlines()
+
+
+def receipt_lines(text: str) -> list[tuple[int, str]]:
+    return [
+        (line_number, line.strip())
+        for line_number, line in enumerate(_normalized_lines(text), start=1)
+        if VALIDATION_PREFIX_RE.match(line)
+    ]
+
+
+def canonical_plan_body(text: str) -> str:
+    """Return LF-normalized plan content with every validation receipt removed."""
+    lines = [line for line in _normalized_lines(text) if not VALIDATION_PREFIX_RE.match(line)]
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def plan_digest(text: str) -> str:
+    return hashlib.sha256(canonical_plan_body(text).encode("utf-8")).hexdigest()
+
+
+def validate_receipt(text: str, *, required: bool) -> list[Diagnostic]:
+    found = receipt_lines(text)
+    if not found:
+        return [Diagnostic("finalization.receipt.missing", "Finalized plan requires one validation receipt")] if required else []
+    if len(found) > 1:
+        return [Diagnostic("finalization.receipt.duplicate", "Plan contains multiple validation receipts", found[1][0])]
+    line_number, line = found[0]
+    match = VALIDATION_RECEIPT_RE.fullmatch(line)
+    if match is None:
+        return [Diagnostic("finalization.receipt.malformed", "Validation receipt must use the v3 SHA-256 format", line_number)]
+    expected = plan_digest(text)
+    if match.group("digest") != expected:
+        return [Diagnostic("finalization.receipt.stale", "Validation receipt does not match the canonical plan body", line_number)]
+    return []
+
+
+def finalize_plan_text(text: str) -> str:
+    body = canonical_plan_body(text)
+    lines = body.rstrip("\n").splitlines()
+    receipt = f"<!-- plan-validation: 3; sha256: {plan_digest(body)} -->"
+    insertion = next(
+        (index + 1 for index, line in enumerate(lines) if re.fullmatch(r"<!-- tier: .+ -->", line.strip())),
+        None,
+    )
+    if insertion is None:
+        insertion = next(
+            (index + 1 for index, line in enumerate(lines) if line.strip() == "<!-- plan-contract: 3 -->"),
+            1,
+        )
+    lines.insert(insertion, receipt)
+    return "\n".join(lines).rstrip("\n") + "\n"
