@@ -6,7 +6,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "plan-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-from plan_model import CITATION_RE, coverage_summary, parse_markdown, validate_semantics  # noqa: E402
+from plan_model import CITATION_RE, coverage_summary, execution_blueprints, parse_markdown, validate_semantics  # noqa: E402
 
 
 EXAMPLES = REPO_ROOT / "plan-with-senior-dev" / "references" / "worked-examples.md"
@@ -82,3 +82,54 @@ def test_grounded_fact_coverage_is_not_reduced_by_unrelated_bad_citation() -> No
     coverage = coverage_summary(text, REPO_ROOT / "tests/plan-with-senior-dev/fixtures/tiny")
     assert coverage["grounded_facts"] == coverage["facts"]
     assert coverage["grounded_citations"] < coverage["citations"]
+
+
+def test_standard_requires_nonempty_blueprint_linked_to_defined_change() -> None:
+    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    fixture = REPO_ROOT / "tests/plan-with-senior-dev/fixtures/standard"
+    missing = re.sub(r"\n### Execution Blueprint:.*?~~~\n", "\n", standard, flags=re.DOTALL)
+    assert "semantic.blueprint.missing" in semantic_codes(missing, fixture, "standard")
+    orphan = standard.replace("Execution Blueprint: CH-1", "Execution Blueprint: CH-99")
+    assert "semantic.blueprint.orphan_change" in semantic_codes(orphan, fixture, "standard")
+
+
+def test_tiny_blueprint_is_optional_and_supported_when_present() -> None:
+    assert "semantic.blueprint.missing" not in semantic_codes(tiny_plan(), REPO_ROOT / "tests/plan-with-senior-dev/fixtures/tiny")
+    enriched = tiny_plan().replace(
+        "\n## Traceability",
+        "\n### Execution Blueprint: CH-1 — Null branch\n~~~pseudocode\nif name is None: return empty\n~~~\n\n## Traceability",
+    )
+    assert execution_blueprints(parse_markdown(enriched))[0].kinds == ("pseudocode",)
+
+
+def test_record_shaped_content_inside_blueprint_does_not_define_ids_or_citations() -> None:
+    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    enriched = standard.replace(
+        "flags_for(tenant_id: str, user_id: str) -> list[str]:",
+        "F-99: `missing.py:1` | anchor: `missing` | observation: example only\nCH-99: example only\nflags_for(tenant_id: str, user_id: str) -> list[str]:",
+    )
+    found = semantic_codes(enriched, REPO_ROOT / "tests/plan-with-senior-dev/fixtures/standard", "standard")
+    assert "semantic.ids.orphan_reference" not in found
+    assert "semantic.evidence.missing_file" not in found
+
+
+def test_blueprints_accept_mermaid_code_and_table_artifacts() -> None:
+    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    variants = {
+        "mermaid": "~~~mermaid\nflowchart LR\n  A --> B\n~~~",
+        "code": "~~~typescript\ntype CacheKey = [string, string]\n~~~",
+        "table": "| Input | Result |\n|---|---|\n| cache hit | return cached flags |",
+    }
+    for expected_kind, artifact in variants.items():
+        replaced = re.sub(r"~~~pseudocode\n.*?\n~~~", artifact, standard, count=1, flags=re.DOTALL)
+        blueprint = execution_blueprints(parse_markdown(replaced))[0]
+        assert blueprint.kinds == (expected_kind,)
+
+
+def test_empty_or_unclosed_blueprint_does_not_satisfy_requirement() -> None:
+    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    fixture = REPO_ROOT / "tests/plan-with-senior-dev/fixtures/standard"
+    empty = re.sub(r"~~~pseudocode\n.*?\n~~~", "~~~pseudocode\n~~~", standard, count=1, flags=re.DOTALL)
+    unclosed = re.sub(r"~~~pseudocode\n.*?\n~~~", "~~~pseudocode\nbranch", standard, count=1, flags=re.DOTALL)
+    assert "semantic.blueprint.empty" in semantic_codes(empty, fixture, "standard")
+    assert "markdown.fence.unclosed" in semantic_codes(unclosed, fixture, "standard")

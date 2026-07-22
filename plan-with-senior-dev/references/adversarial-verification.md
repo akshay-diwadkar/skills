@@ -1,39 +1,24 @@
 # Adversarial Verification
 
-Attack instructions, not intentions. Record each required attack as `repaired`, `dismissed`, or `not-applicable` with concrete evidence. Never create findings to satisfy a count.
+Attack the completed draft, repair findings in their owning changes/tests, and record each required attack as repaired, dismissed, or not applicable with evidence. Never invent findings to satisfy a count.
 
-## Reality check
+## Attacks
 
-Re-open every citation, existing `CH-n` anchor, signature, interface shape, and unchanged claim. Confirm every `T-n` has exact given and expected fields and every Traceability row points to defined IDs.
+- **A1 Forgotten caller:** search direct and transitive consumers, re-exports, fixtures, configuration, generated clients, deployment surfaces, and docs.
+- **A2 Boundary input:** exercise applicable null, empty, zero, negative, maximum, invalid-type, unmatched, and default cases.
+- **A3 Concurrent request:** test simultaneous state changes, retry after timeout, duplicate delivery, cancellation, and the worst material interleaving.
+- **A4 Rollback:** assume new code processed real durable or external work before rollback; verify old readers/writers, queued work, caches, and irreversible effects.
+- **A5 Scale surprise:** test 10× and 100× plausible volume for N+1 I/O, unbounded memory, pagination, transaction length, and contention.
+- **A6 Literal implementation:** read each change and blueprint as a literal implementer; verify types, branches, errors, ordering, side effects, and caller ownership are sufficient.
 
-## A1 — Forgotten caller
+## Blueprint Fidelity
 
-For every changed symbol, search direct callers/imports, re-exports, fixtures/mocks, config/schema, generated clients, and docs. Repair missing propagation ownership.
+Compare every pseudocode branch, Mermaid edge/state, interface shape, and table row with its owning `CH-n`, constraints, risks, and `T-n` expectations. Repair contradictions in both representations; do not accept “the prose is authoritative” as a dismissal.
 
-## A2 — Boundary input
-
-Exercise every new or changed input with applicable null, empty, zero, negative, maximum, invalid type, and unmatched/default cases. Specify exact behavior and tests.
-
-## A3 — Concurrent request
-
-When shared state exists, simulate simultaneous read/modify/write, timeout followed by retry, duplicate delivery, and cancellation. Specify locking, transaction, compare-and-set, or idempotency behavior when needed.
-
-## A4 — Rollback
-
-When durable or external effects exist, assume new code processed real work and is then rolled back. Verify old readers, writers, queued work, cache, and irreversible effects remain safe or have explicit recovery.
-
-## A5 — Scale surprise
-
-When loops, queries, collections, or batches change, test 10× and 100× plausible volume for N+1 I/O, unbounded memory, missing pagination, long transactions, or lock contention.
-
-## A6 — Literal implementation
-
-Read each `CH-n` as a literal implementer. Check that path, symbol, type, branches, errors, ordering, side effects, and caller changes are sufficient to write one materially equivalent implementation. Repair every ambiguity.
-
-## Severity and repair
+## Severity and Completion
 
 - P0: data loss, security breach, silent corruption, or unrecoverable state. Finalization is blocked.
-- P1: incorrect behavior, broken caller, missing failure handling, or unsafe rollback. Modify the owning `CH-n` and `T-n`.
-- P2: non-blocking concern. Keep only with explicit acceptance evidence.
+- P1: incorrect behavior, broken consumer, missing failure handling, or unsafe rollback. Repair the owning change and test.
+- P2: non-blocking concern. Retain only with explicit acceptance evidence.
 
-After repairs, compare success criteria with invariants, pseudocode/interface shapes with test expectations, propagation with implementation ownership, and risks with actual mitigations. Finalize only with no unresolved P0/P1.
+Re-open every citation, existing anchor, signature, unchanged claim, trace row, and expected result after repairs. Complete the attack only when no P0/P1 remains and the finalizer accepts the exact draft.

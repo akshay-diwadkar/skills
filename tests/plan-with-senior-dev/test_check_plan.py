@@ -17,8 +17,10 @@ def example_plan(tier: str) -> str:
     return blocks[TIERS.index(tier)]
 
 
-def run_checker(text: str, tier: str, repo_root: Path | None = None, cwd: Path = REPO_ROOT) -> tuple[int, dict]:
+def run_checker(text: str, tier: str, repo_root: Path | None = None, cwd: Path = REPO_ROOT, *, finalized: bool = False) -> tuple[int, dict]:
     command = [sys.executable, str(CHECKER), "--tier", tier, "-", "--format", "json"]
+    if finalized:
+        command.append("--require-finalized")
     if repo_root is not None:
         command.extend(["--repo-root", str(repo_root)])
     result = subprocess.run(command, input=text, text=True, capture_output=True, cwd=cwd, check=False)
@@ -27,10 +29,11 @@ def run_checker(text: str, tier: str, repo_root: Path | None = None, cwd: Path =
 
 def test_every_published_example_passes_repository_aware_validation() -> None:
     for tier in TIERS:
-        code, output = run_checker(example_plan(tier), tier, FIXTURES / tier)
+        code, output = run_checker(example_plan(tier), tier, FIXTURES / tier, finalized=True)
         assert code == 0, output
         assert output["passed"] is True
-        assert output["contract_version"] == 2
+        assert output["contract_version"] == 3
+        assert output["coverage"]["receipt_valid"] is True
         assert output["coverage"]["grounded_facts"] == output["coverage"]["facts"]
         assert output["coverage"]["grounded_citations"] == output["coverage"]["citations"]
 
@@ -65,12 +68,19 @@ def test_existing_change_anchor_requires_matching_grounded_fact() -> None:
     assert any(item["code"] == "semantic.change.ungrounded_anchor" for item in output["errors"])
 
 
-def test_keyword_shaped_legacy_plan_is_rejected_with_migration_command() -> None:
+def test_keyword_shaped_legacy_plan_is_rejected_without_compatibility_adapter() -> None:
     legacy = "# Fix imaginary production outage now\n## Goal\nReturns green\n## Current State\nfile.py:1\n## Change\nFix it\n"
     code, output = run_checker(legacy, "standard", FIXTURES / "standard")
     assert code == 1
-    version = next(item for item in output["errors"] if item["code"] == "contract.version.legacy")
-    assert "scaffold_plan.py" in version["message"]
+    version = next(item for item in output["errors"] if item["code"] == "contract.version.unsupported")
+    assert "v3" in version["message"]
+
+
+def test_v2_plan_is_hard_rejected() -> None:
+    old = example_plan("tiny").replace("plan-contract: 3", "plan-contract: 2")
+    code, output = run_checker(old, "tiny", FIXTURES / "tiny")
+    assert code == 1
+    assert any(item["code"] == "contract.version.unsupported" for item in output["errors"])
 
 
 def test_high_risk_coverage_counts_severity_qualified_risk_ids() -> None:

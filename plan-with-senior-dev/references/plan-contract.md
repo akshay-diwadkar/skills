@@ -1,44 +1,35 @@
-# Plan Contract v2
+# Plan Contract v3
 
-The executable source of truth is `plan-contract.json`. Generate a plan with `scripts/scaffold_plan.py`; do not recreate headings or field formats from memory.
+The executable source of truth is `plan-contract.json`. Generate drafts with `scripts/scaffold_plan.py`; submit plans only through `scripts/finalize_plan.py`.
 
-## Common skeleton
+## Document Shape
 
-Every plan starts with an action-oriented H1 followed by `<!-- plan-contract: 2 -->` and the generated tier/task marker. Every tier uses these exact H2 headings in order:
+Every plan starts with an action-oriented H1, `<!-- plan-contract: 3 -->`, and an explicit tier/task marker. It then uses the generated H2 headings in order. High-Risk plans additionally require Compatibility and Rollout plus Durable Rollback.
 
-1. Outcome and Scope
-2. Evidence Ledger
-3. Decisions
-4. Implementation Specification
-5. Traceability
-6. Verification
-7. Risks, Assumptions, and Attack
+Canonical `SC/F/D/CH/T/C/R/A` records remain outside fenced blocks. Define each ID once. Every success criterion and constraint maps to defined changes and tests; every change and test appears in Traceability.
 
-High-Risk plans additionally include `Compatibility and Rollout` and `Durable Rollback`.
+## Execution Blueprints
 
-## Records
+Standard and High-Risk plans require at least one H3 inside Implementation Specification:
 
-- `SC-n`: one measurable observable success condition.
-- `F-n`: one grounded fact using a backticked `path:line`, an anchor present on that exact line, and a precise observation.
-- `D-n`: selected approach, cited reason, and nearest rejected alternative with a concrete drawback.
-- `CH-n`: backticked path, backticked anchor, `existing` or `new` status, and exact change behavior.
-- `T-n`: exact given state/input, exact expected output/error/side effect, and exact command.
-- `C-n`: material constraint classified as `preserved`, `modified`, or `at-risk`.
-- `R-n P0/P1/P2`: concrete scenario and consequence plus a `Resolution` owned by `CH-n` and `T-n` for every P0/P1.
-- `A1`–`A6`: attack result classified as `repaired`, `dismissed`, or `not-applicable`, always with evidence.
+`### Execution Blueprint: CH-1, CH-2 — purpose`
 
-Define each ID once. References may repeat. Every `SC-n` and `C-n` needs a Traceability row with `CH-n` and `T-n`; every `CH-n` and `T-n` must appear in Traceability.
+Every referenced change must exist. The H3 body must contain a non-empty fenced block or Markdown table. Fenced content is explanatory and cannot define ledger IDs or citations.
 
-## Grounding rules
+Use pseudocode for control flow, Mermaid for relationships or lifecycle, full typed shapes for interfaces, and tables for compatibility or state behavior. The aid must agree with its `CH-n`, constraints, risks, and test expectations.
 
-The checker resolves paths against `--repo-root`, or the current directory when the flag is omitted. Existing `CH-n` anchors must exist somewhere in the target file. New anchors must use `status: new`. A citation whose path, line, or anchor is wrong fails validation.
+## Grounding and Risk
 
-The checker cannot prove arbitrary natural-language observations. The author must re-read every cited line and ensure the observation follows from the source and surrounding call path.
+Every `F-n` cites an existing repository-relative `path:line` and an anchor present on that line. Every existing `CH-n` anchor has a matching grounded fact. New anchors use `status: new`.
 
-## Tier requirements
+P0/P1 risks require owning `CH-n` and `T-n` records. High-Risk plans specify mixed-version behavior, rollout order, observability, stop conditions, and durable recovery across every applicable state surface.
 
-- Tiny requires `SC`, `F`, `D`, `CH`, and `T`, plus attacks A1, A2, and A6.
-- Standard additionally requires `C` and all A1–A6 records.
-- High-Risk additionally requires `R`, Compatibility and Rollout, and Durable Rollback.
+## Finalization Receipt
 
-The line maximum is advisory only. Completeness outranks brevity, but remove duplication that does not strengthen evidence, decisions, or verification.
+The finalizer canonicalizes line endings to LF, removes an existing single receipt, validates the complete draft, hashes the UTF-8 body without a receipt, and inserts:
+
+`<!-- plan-validation: 3; sha256: <64 lowercase hexadecimal characters> -->`
+
+The receipt appears immediately after the tier/task marker. `check_plan.py --require-finalized` rejects missing, malformed, duplicated, or stale receipts. A receipt is an integrity signal against accidental validation omission, not a security boundary against a malicious local actor.
+
+Contract v1 and v2 are unsupported and must fail rather than enter a compatibility adapter.

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Check v2 plan fields for decision-complete content."""
+"""Check v3 plan fields for decision-complete content."""
 
 from __future__ import annotations
 
 import argparse
 import re
 
-from _plan_utils import Diagnostic, read_plan
+from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 from plan_contract import load_contract
 from plan_model import CHANGE_RE, FACT_RE, definitions, parse_markdown
 
@@ -51,11 +51,11 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
     contract = load_contract()
     diagnostics: list[Diagnostic] = []
     outcome = _section_body(text, "Outcome and Scope")
-    evidence = _section_body(text, "Evidence Ledger")
-    decisions = _section_body(text, "Decisions")
-    implementation = _section_body(text, "Implementation Specification")
-    verification = _section_body(text, "Verification")
-    risks = _section_body(text, "Risks, Assumptions, and Attack")
+    evidence = strip_fenced_code_blocks(_section_body(text, "Evidence Ledger"))
+    decisions = strip_fenced_code_blocks(_section_body(text, "Decisions"))
+    implementation = strip_fenced_code_blocks(_section_body(text, "Implementation Specification"))
+    verification = strip_fenced_code_blocks(_section_body(text, "Verification"))
+    risks = strip_fenced_code_blocks(_section_body(text, "Risks, Assumptions, and Attack"))
 
     if not re.search(r"\bIn scope:\s+\S", outcome, re.IGNORECASE) or not re.search(r"\bUnchanged:\s+\S", outcome, re.IGNORECASE):
         diagnostics.append(Diagnostic("rubric.scope.boundaries", "Outcome and Scope must define In scope and Unchanged boundaries"))
@@ -68,7 +68,8 @@ def validate(text: str, tier: str) -> list[Diagnostic]:
     if len(TEST_RE.findall(verification)) != len(definitions(verification, "T")):
         diagnostics.append(Diagnostic("rubric.test.format", "Every T-n must state exact given, expect, and command fields"))
 
-    if tier in {"standard", "high-risk"} and len(CONSTRAINT_RE.findall(text)) != len(definitions(text, "C")):
+    prose = strip_fenced_code_blocks(text)
+    if tier in {"standard", "high-risk"} and len(CONSTRAINT_RE.findall(prose)) != len(definitions(prose, "C")):
         diagnostics.append(Diagnostic("rubric.constraint.format", "Every C-n must classify its status"))
     if tier == "high-risk" and len(RISK_RE.findall(risks)) != len(definitions(risks, "R")):
         diagnostics.append(Diagnostic("rubric.risk.format", "Every R-n must state severity, scenario, consequence, and Resolution"))

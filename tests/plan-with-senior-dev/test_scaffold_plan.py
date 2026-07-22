@@ -45,3 +45,9 @@ def test_scaffold_contains_every_required_record_and_attack_placeholder() -> Non
         assert re.search(rf"\b{kind}-1\b", result.stdout)
     for attack in contract["tiers"]["high-risk"]["required_attacks"]:
         assert f"- {attack}:" in result.stdout
+
+
+def test_scaffold_requires_blueprints_only_for_non_tiny_tiers() -> None:
+    assert "### Execution Blueprint:" not in render_scaffold("tiny", "bug-fix")
+    assert "### Execution Blueprint: CH-1" in render_scaffold("standard", "feature")
+    assert "```pseudocode" in render_scaffold("high-risk", "concurrency")

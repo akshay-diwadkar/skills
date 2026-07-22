@@ -1,4 +1,4 @@
-"""Structured Markdown model and repository-grounded checks for v2 plans."""
+"""Structured Markdown model and repository-grounded checks for v3 plans."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from _plan_utils import Diagnostic
+from _plan_utils import Diagnostic, strip_fenced_code_blocks, validate_receipt
 from plan_contract import load_contract
 
 
@@ -26,6 +26,10 @@ CHANGE_RE = re.compile(
     r"\s+\|\s+status:\s+(?P<status>existing|new)\s+\|\s+change:\s+(?P<change>.+)$",
     re.MULTILINE | re.IGNORECASE,
 )
+BLUEPRINT_HEADING_RE = re.compile(
+    r"^Execution Blueprint:\s+(?P<ids>CH-[1-9]\d*(?:\s*,\s*CH-[1-9]\d*)*)\s+[—-]\s+(?P<purpose>\S.+)$"
+)
+TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,22 @@ class Section:
     def has_content(self) -> bool:
         return bool(self.body.strip())
 
+    @property
+    def end_line(self) -> int:
+        return self.line + len(self.body.splitlines())
+
+
+@dataclass(frozen=True)
+class ExecutionBlueprint:
+    change_ids: tuple[str, ...]
+    purpose: str
+    line: int
+    kinds: tuple[str, ...]
+
+    @property
+    def has_artifact(self) -> bool:
+        return bool(self.kinds)
+
 
 @dataclass(frozen=True)
 class MarkdownDocument:
@@ -57,6 +77,10 @@ class MarkdownDocument:
 
     def find_section(self, name: str) -> Section | None:
         return next((item for item in self.sections if item.name == name), None)
+
+    @property
+    def prose_text(self) -> str:
+        return strip_fenced_code_blocks(self.text)
 
 
 def parse_markdown(text: str) -> MarkdownDocument:
@@ -109,7 +133,7 @@ def parse_markdown(text: str) -> MarkdownDocument:
 
 
 def definitions(text: str, kind: str | None = None) -> set[str]:
-    values = {match.group("id") for match in ID_DEF_RE.finditer(text)}
+    values = {match.group("id") for match in ID_DEF_RE.finditer(strip_fenced_code_blocks(text))}
     if kind is None:
         return values
     return {value for value in values if value.startswith(f"{kind}-")}
@@ -117,6 +141,48 @@ def definitions(text: str, kind: str | None = None) -> set[str]:
 
 def _line_for(text: str, needle: str) -> int | None:
     return next((index for index, line in enumerate(text.splitlines(), start=1) if needle in line), None)
+
+
+def _has_markdown_table(body: str) -> bool:
+    lines = body.splitlines()
+    return any(
+        "|" in lines[index] and TABLE_SEPARATOR_RE.match(lines[index + 1])
+        for index in range(len(lines) - 1)
+    )
+
+
+def execution_blueprints(document: MarkdownDocument) -> tuple[ExecutionBlueprint, ...]:
+    implementation = document.find_section("Implementation Specification")
+    if implementation is None:
+        return ()
+    blueprints: list[ExecutionBlueprint] = []
+    for section in document.sections:
+        if section.level != 3 or not (implementation.line < section.line <= implementation.end_line):
+            continue
+        match = BLUEPRINT_HEADING_RE.fullmatch(section.name)
+        if match is None:
+            continue
+        kinds: list[str] = []
+        for block in document.code_blocks:
+            if block.end_line is None or not (section.line < block.start_line <= section.end_line):
+                continue
+            if not block.body.strip():
+                continue
+            if block.language == "pseudocode":
+                kinds.append("pseudocode")
+            elif block.language == "mermaid":
+                kinds.append("mermaid")
+            else:
+                kinds.append("code")
+        if _has_markdown_table(section.body):
+            kinds.append("table")
+        blueprints.append(ExecutionBlueprint(
+            tuple(item.strip() for item in match.group("ids").split(",")),
+            match.group("purpose"),
+            section.line,
+            tuple(dict.fromkeys(kinds)),
+        ))
+    return tuple(blueprints)
 
 
 def _resolve_path(root: Path, raw_path: str) -> tuple[Path | None, str | None]:
@@ -151,7 +217,7 @@ def _fact_is_grounded(fact: re.Match[str], repo_root: Path) -> bool:
 def _validate_citations(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     root = repo_root.resolve()
-    for match in CITATION_RE.finditer(document.text):
+    for match in CITATION_RE.finditer(document.prose_text):
         raw_path = match.group("path")
         line_number = int(match.group("line"))
         resolved, error = _resolve_path(root, raw_path)
@@ -176,7 +242,7 @@ def _validate_citations(document: MarkdownDocument, repo_root: Path) -> list[Dia
 def _validate_facts(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     root = repo_root.resolve()
-    for fact in FACT_RE.finditer(document.text):
+    for fact in FACT_RE.finditer(document.prose_text):
         raw_path = fact.group("path")
         line_number = int(fact.group("line"))
         anchor = fact.group("anchor")
@@ -197,8 +263,8 @@ def _validate_facts(document: MarkdownDocument, repo_root: Path) -> list[Diagnos
 def _validate_changes(document: MarkdownDocument, repo_root: Path) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     root = repo_root.resolve()
-    grounded_facts = [fact for fact in FACT_RE.finditer(document.text) if _fact_is_grounded(fact, root)]
-    for change in CHANGE_RE.finditer(document.text):
+    grounded_facts = [fact for fact in FACT_RE.finditer(document.prose_text) if _fact_is_grounded(fact, root)]
+    for change in CHANGE_RE.finditer(document.prose_text):
         if change.group("status").casefold() == "new":
             continue
         raw_path = change.group("path")
@@ -241,13 +307,14 @@ def _validate_changes(document: MarkdownDocument, repo_root: Path) -> list[Diagn
 
 def _validate_ids_and_traceability(document: MarkdownDocument, tier: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
-    defined_matches = [match.group("id") for match in ID_DEF_RE.finditer(document.text)]
+    prose = document.prose_text
+    defined_matches = [match.group("id") for match in ID_DEF_RE.finditer(prose)]
     for item_id, count in Counter(defined_matches).items():
         if count > 1:
             diagnostics.append(Diagnostic("semantic.ids.duplicate", f"{item_id} is defined {count} times", _line_for(document.text, item_id)))
 
     defined = set(defined_matches)
-    for reference in {match.group("id") for match in ID_RE.finditer(document.text)} - defined:
+    for reference in {match.group("id") for match in ID_RE.finditer(prose)} - defined:
         diagnostics.append(Diagnostic("semantic.ids.orphan_reference", f"{reference} is referenced but not defined", _line_for(document.text, reference)))
 
     contract = load_contract()
@@ -275,6 +342,49 @@ def _validate_ids_and_traceability(document: MarkdownDocument, tier: str) -> lis
     return diagnostics
 
 
+def _validate_blueprints(document: MarkdownDocument, tier: str) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    implementation = document.find_section("Implementation Specification")
+    malformed = [
+        section
+        for section in document.sections
+        if section.level == 3
+        and section.name.startswith("Execution Blueprint")
+        and (implementation is None or implementation.line < section.line <= implementation.end_line)
+        and BLUEPRINT_HEADING_RE.fullmatch(section.name) is None
+    ]
+    diagnostics.extend(
+        Diagnostic(
+            "semantic.blueprint.heading",
+            "Execution blueprint heading must be 'Execution Blueprint: CH-n[, CH-n...] — purpose'",
+            section.line,
+        )
+        for section in malformed
+    )
+    blueprints = execution_blueprints(document)
+    if load_contract()["tiers"][tier]["blueprint_required"] and not blueprints:
+        diagnostics.append(Diagnostic(
+            "semantic.blueprint.missing",
+            f"{tier} plans require at least one execution blueprint",
+        ))
+    defined_changes = definitions(document.text, "CH")
+    for blueprint in blueprints:
+        if not blueprint.has_artifact:
+            diagnostics.append(Diagnostic(
+                "semantic.blueprint.empty",
+                "Execution blueprint requires a non-empty fenced block or Markdown table",
+                blueprint.line,
+            ))
+        for change_id in blueprint.change_ids:
+            if change_id not in defined_changes:
+                diagnostics.append(Diagnostic(
+                    "semantic.blueprint.orphan_change",
+                    f"Execution blueprint references undefined {change_id}",
+                    blueprint.line,
+                ))
+    return diagnostics
+
+
 def _validate_risks(document: MarkdownDocument) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     for line_number, line in enumerate(document.text.splitlines(), start=1):
@@ -293,6 +403,7 @@ def validate_semantics(text: str, tier: str, repo_root: Path | None = None) -> l
     document = parse_markdown(text)
     diagnostics = list(document.diagnostics)
     diagnostics.extend(_validate_ids_and_traceability(document, tier))
+    diagnostics.extend(_validate_blueprints(document, tier))
     diagnostics.extend(_validate_risks(document))
     root = (repo_root or Path.cwd()).resolve()
     diagnostics.extend(_validate_citations(document, root))
@@ -304,8 +415,9 @@ def validate_semantics(text: str, tier: str, repo_root: Path | None = None) -> l
 def coverage_summary(text: str, repo_root: Path | None = None) -> dict[str, int | bool]:
     document = parse_markdown(text)
     root = (repo_root or Path.cwd()).resolve()
-    facts = list(FACT_RE.finditer(text))
-    citations = list(CITATION_RE.finditer(text))
+    prose = document.prose_text
+    facts = list(FACT_RE.finditer(prose))
+    citations = list(CITATION_RE.finditer(prose))
     grounded_citations = 0
     for citation in citations:
         resolved, error = _resolve_path(root, citation.group("path"))
@@ -314,6 +426,9 @@ def coverage_summary(text: str, repo_root: Path | None = None) -> dict[str, int 
         line_count = len(resolved.read_text(encoding="utf-8", errors="replace").splitlines())
         grounded_citations += 1 <= int(citation.group("line")) <= line_count
     values = {kind: len(definitions(text, kind)) for kind in ("SC", "F", "D", "CH", "T", "C", "R")}
+    blueprints = execution_blueprints(document)
+    blueprint_kinds = [kind for blueprint in blueprints for kind in blueprint.kinds]
+    receipt_diagnostics = validate_receipt(text, required=True)
     return {
         "citations": len(citations),
         "grounded_citations": grounded_citations,
@@ -326,6 +441,17 @@ def coverage_summary(text: str, repo_root: Path | None = None) -> dict[str, int 
         "constraints": values["C"],
         "risks": values["R"],
         "code_blocks": len(document.code_blocks),
+        "blueprints": len(blueprints),
+        "pseudocode_blueprints": blueprint_kinds.count("pseudocode"),
+        "mermaid_blueprints": blueprint_kinds.count("mermaid"),
+        "code_blueprints": blueprint_kinds.count("code"),
+        "table_blueprints": blueprint_kinds.count("table"),
+        "blueprint_links_valid": not any(
+            item.code == "semantic.blueprint.orphan_change"
+            for item in _validate_blueprints(document, "tiny")
+        ),
+        "finalized": not any(item.code == "finalization.receipt.missing" for item in receipt_diagnostics),
+        "receipt_valid": not receipt_diagnostics,
         "traceability_complete": not any(
             item.code.startswith("semantic.traceability")
             for item in _validate_ids_and_traceability(document, "standard")

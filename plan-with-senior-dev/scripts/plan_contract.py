@@ -1,4 +1,4 @@
-"""Load and render the canonical v2 plan contract."""
+"""Load and render the canonical v3 plan contract."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "plan-contr
 
 def load_contract() -> dict[str, Any]:
     data = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
-    if data.get("contract_version") != 2:
-        raise ValueError("plan contract must have contract_version 2")
+    if data.get("contract_version") != 3:
+        raise ValueError("plan contract must have contract_version 3")
     return data
 
 
@@ -30,8 +30,9 @@ def render_scaffold(tier: str, task_type: str) -> str:
     if task_type not in contract["task_types"]:
         raise ValueError(f"unsupported task type: {task_type}")
 
+    tier_contract = contract["tiers"][tier]
     required_attacks = contract["tiers"][tier]["required_attacks"]
-    lines = [
+    lines: list[str] = [
         "# Replace With an Action-Oriented Outcome",
         contract["marker"],
         f"<!-- tier: {tier}; task-type: {task_type} -->",
@@ -49,6 +50,16 @@ def render_scaffold(tier: str, task_type: str) -> str:
         "",
         "## Implementation Specification",
         "- CH-1: `path` | anchor: `existing_symbol` | status: existing | change: Replace with exact behavior, branches, errors, and side effects.",
+    ]
+    if tier_contract["blueprint_required"]:
+        lines.extend([
+            "",
+            "### Execution Blueprint: CH-1 — Replace with the hardest implementation flow",
+            "```pseudocode",
+            "Replace with exact branches, errors, ordering, and side effects.",
+            "```",
+        ])
+    lines.extend([
         "",
         "## Traceability",
         "| Criterion / constraint | Changes | Tests | Status / rollback |",
@@ -60,7 +71,7 @@ def render_scaffold(tier: str, task_type: str) -> str:
         "",
         "## Risks, Assumptions, and Attack",
         "- Assumptions: None, or list only low-impact reversible assumptions.",
-    ]
+    ])
     lines.extend(
         f"- {attack}: not-applicable | evidence: Replace with concrete cited reason."
         for attack in required_attacks
