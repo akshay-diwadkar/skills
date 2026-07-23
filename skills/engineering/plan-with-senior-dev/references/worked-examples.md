@@ -1,6 +1,6 @@
 # Worked Examples
 
-Read only the matching tier. Each fenced plan validates against the corresponding repository under `tests/plan-with-senior-dev/fixtures/`.
+Read only the matching tier. Each fenced plan validates against the corresponding repository under `tests/skills/plan-with-senior-dev/fixtures/`.
 
 ## Tiny
 

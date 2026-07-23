@@ -1,6 +1,6 @@
 # Worked Optimization Examples
 
-Read only the example matching the current branch. Each fenced report validates against the same-named fixture under `tests/optimize-codebase-with-senior-dev/evals/fixtures/`.
+Read only the example matching the current branch. Each fenced report validates against the same-named fixture under `tests/skills/optimize-codebase-with-senior-dev/evals/fixtures/`.
 
 ## Measured Targeted Runtime Optimization
 

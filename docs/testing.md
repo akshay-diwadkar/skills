@@ -21,7 +21,7 @@ This monorepo employs a multi-layered testing strategy to guarantee repository i
 │                        Optional Local Verification                      │
 ├──────────────────────────────────────┬──────────────────────────────────┤
 │ Browser Smoke Tests (Playwright)     │ Live Model Evaluations           │
-│ (tests/create-diagram/browser_smoke) │ (tests/*/run_live_evaluations)   │
+│ (tests/skills/create-diagram/browser_smoke) │ (tests/skills/*/run_live_evaluations) │
 └──────────────────────────────────────┴──────────────────────────────────┘
 ```
 
@@ -87,7 +87,7 @@ python -m pip install playwright
 python -m playwright install chromium
 
 # Run browser smoke test
-python tests/create-diagram/browser_smoke.py
+python tests/skills/create-diagram/browser_smoke.py
 ```
 
 ### Live Model Evaluations

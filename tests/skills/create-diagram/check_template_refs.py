@@ -204,7 +204,7 @@ def main():
         for issue in issues:
             print(issue)
         print("\nAdd the function definition or add the name to EXTERNAL_ALLOWLIST")
-        print("in tests/create-diagram/check_template_refs.py if it's a valid external reference.")
+        print("in tests/skills/create-diagram/check_template_refs.py if it's a valid external reference.")
         sys.exit(1)
     else:
         print("OK - all function references resolve to definitions.")

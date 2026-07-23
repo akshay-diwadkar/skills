@@ -22,7 +22,7 @@ Model credentials and SDK dependencies remain inside the adapter, keeping the mo
 Evaluates plan execution, diff correctness, dirty worktree preservation, and verification compliance:
 
 ```bash
-python tests/implement-with-senior-dev/run_live_evaluations.py \
+python tests/skills/implement-with-senior-dev/run_live_evaluations.py \
   --adapter-command "python /path/to/adapter.py" \
   --model-label "claude-3-5-sonnet" \
   --runs 3 \
@@ -34,7 +34,7 @@ python tests/implement-with-senior-dev/run_live_evaluations.py \
 Evaluates architectural assessment quality, migration safety, and read-only preservation:
 
 ```bash
-python tests/design-codebase-with-senior-dev/run_live_evaluations.py \
+python tests/skills/design-codebase-with-senior-dev/run_live_evaluations.py \
   --adapter-command "python /path/to/adapter.py" \
   --model-label "gpt-4o" \
   --runs 3 \
@@ -46,7 +46,7 @@ python tests/design-codebase-with-senior-dev/run_live_evaluations.py \
 Evaluates bottleneck diagnosis, optimization plan contracts, and behavior-preserving constraints:
 
 ```bash
-python tests/optimize-codebase-with-senior-dev/run_live_evaluations.py \
+python tests/skills/optimize-codebase-with-senior-dev/run_live_evaluations.py \
   --adapter-command "python /path/to/adapter.py" \
   --model-label "claude-3-5-sonnet" \
   --runs 3 \
