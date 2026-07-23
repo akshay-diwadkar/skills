@@ -358,7 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", required=True, help="Local checkout used for planning.")
     parser.add_argument("--issue-json", required=True, help="Fresh normalized selected-issue JSON.")
     parser.add_argument("--execution-ready", action="store_true", help="Apply freshness and execution gates.")
-    parser.add_argument("--senior-plan", help="Source-bound plan-contract v2 plan for a routed issue.")
+    parser.add_argument("--senior-plan", help="Source-bound plan-contract v3 plan for a routed issue.")
     parser.add_argument("--senior-skill-dir", help="Installed plan-with-senior-dev skill directory.")
     return parser
 

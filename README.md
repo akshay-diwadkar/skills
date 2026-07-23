@@ -196,7 +196,7 @@ python implement-with-senior-dev/scripts/scaffold_implementation.py \
   --repo-root /path/to/repo \
   --plan /ignored/run/plan.md \
   --output /ignored/run/implementation.json
-python implement-with-senior-dev/scripts/check_implementation.py \
+python implement-with-senior-dev/scripts/finalize_implementation.py \
   --repo-root /path/to/repo \
   --plan /ignored/run/plan.md \
   /ignored/run/implementation.json

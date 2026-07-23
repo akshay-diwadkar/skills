@@ -94,5 +94,5 @@ Generated artifacts may be updated only when named by the plan or produced deter
 3. Compare current status with the initial status. Every new path must be declared; protected dirty paths must retain their hashes.
 4. Verify constraints, P0/P1 mitigations, error/default paths, unused symbols, generated artifacts, and mechanical-propagation records.
 5. Fill final status, changed paths, deviations, risks, and report summary.
-6. Run `check_implementation.py` and repair bundle or implementation omissions until it passes.
+6. Run `finalize_implementation.py` and repair bundle or implementation omissions until it passes and stamps a validation receipt.
 7. Report `complete` only after checker success. A blocked or partial run must leave exact unresolved records and a safe, accurately described workspace.

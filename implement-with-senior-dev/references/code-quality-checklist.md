@@ -105,7 +105,7 @@
 - [ ] All plan-specified validation logic (input checks, boundary conditions) is present
 - [ ] No partial implementations — each `CH-n` is fully done or fully deferred with justification
 - [ ] The implementation bundle accounts for every `CH-n`, `T-n`, changed path, command, deviation, and residual risk
-- [ ] `check_implementation.py` passes before status is reported as `complete`
+- [ ] `finalize_implementation.py` passes and stamps a validation receipt before status is reported as `complete`
 
 ---
 
