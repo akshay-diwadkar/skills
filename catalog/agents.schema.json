@@ -18,6 +18,7 @@
           "summary",
           "source",
           "access",
+          "capabilities",
           "skills",
           "platforms",
           "documentation"
@@ -37,6 +38,14 @@
               "repository_write": { "type": "boolean" },
               "artifact_write": { "type": "boolean" },
               "external_write": { "type": "boolean" }
+            }
+          },
+          "capabilities": {
+            "type": "object",
+            "required": ["web_research"],
+            "additionalProperties": false,
+            "properties": {
+              "web_research": { "type": "boolean" }
             }
           },
           "skills": {

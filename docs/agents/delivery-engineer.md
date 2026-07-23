@@ -22,6 +22,18 @@ Turn concrete engineering requests into validated implementation plans and execu
 - **Repository Write**: `true` (write-capable during implementation phase)
 - **Artifact Write**: `true` (plan and change report artifacts)
 - **External Write**: `false` (commits, branches, and PRs require explicit user opt-in)
+- **Web Research**: `true` (external documentation & platform verification)
+
+## External Research & Platform Support
+
+- **When Used**: External research is conducted when conclusions depend on current APIs, framework/dependency behavior, release notes, advisories, upstream issues, or platform capabilities.
+- **Evidence Boundary**: Local repository evidence is primary for what the current code does; external sources verify what dependencies, frameworks, or APIs support. External documentation cannot override observed local behavior.
+- **Primary Sources**: Official, primary, and version-matched documentation is preferred.
+- **Unavailable Research**: When web access is unavailable, the agent reports this limitation and does not present unverified memory claims as factual.
+- **Platform Implementations**:
+  - **Claude**: Receives explicit built-in `WebSearch` and `WebFetch` tools.
+  - **Cursor**: Leverages Cursor's native Web capability and runtime mode.
+  - **Codex**: Uses available runtime web tools according to environment policy.
 
 ## Expected Output
 

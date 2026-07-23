@@ -144,16 +144,45 @@ def validate_skill_discovery(catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_agent_discovery(catalog: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-    if not AGENTS_CATALOG_PATH.is_file():
-        return ["Missing catalog/agents.yaml"]
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore
 
-    with AGENTS_CATALOG_PATH.open("r", encoding="utf-8") as f:
-        agents_catalog = yaml.safe_load(f)
+
+def parse_yaml_frontmatter(text: str) -> dict[str, Any]:
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ValueError("missing opening frontmatter marker")
+    fm_lines = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        fm_lines.append(line)
+    else:
+        raise ValueError("missing closing frontmatter marker")
+    return yaml.safe_load("\n".join(fm_lines)) or {}
+
+
+def validate_agent_discovery(agents_catalog: dict[str, Any] | None = None) -> list[str]:
+    errors: list[str] = []
+    if agents_catalog is None:
+        if not AGENTS_CATALOG_PATH.is_file():
+            return ["Missing catalog/agents.yaml"]
+        with AGENTS_CATALOG_PATH.open("r", encoding="utf-8") as f:
+            agents_catalog = yaml.safe_load(f)
 
     for agent in agents_catalog.get("agents", []):
         name = agent["name"]
+
+        # Capabilities validation
+        capabilities = agent.get("capabilities")
+        if not isinstance(capabilities, dict) or "web_research" not in capabilities or not isinstance(capabilities.get("web_research"), bool):
+            errors.append(f"Agent '{name}' in catalog/agents.yaml must define boolean 'capabilities.web_research'")
+            continue
+
+        web_research = capabilities["web_research"]
+
         source_path = ROOT / agent["source"]
         if not source_path.is_file():
             errors.append(f"Agent '{name}' source prompt missing: {agent['source']}")
@@ -168,10 +197,55 @@ def validate_agent_discovery(catalog: dict[str, Any]) -> list[str]:
 
         if not claude_adapter.is_file():
             errors.append(f"Missing Claude adapter for '{name}'")
+        else:
+            claude_text = claude_adapter.read_text(encoding="utf-8")
+            if "## External Research Policy" not in claude_text:
+                errors.append(f"Claude adapter for '{name}' missing External Research Policy")
+            try:
+                fm = parse_yaml_frontmatter(claude_text)
+                tools = fm.get("tools", [])
+                if web_research:
+                    if tools.count("WebSearch") != 1:
+                        errors.append(f"Claude adapter for '{name}' must contain 'WebSearch' tool exactly once")
+                    if tools.count("WebFetch") != 1:
+                        errors.append(f"Claude adapter for '{name}' must contain 'WebFetch' tool exactly once")
+                    if "WebSearch" in tools and "WebFetch" in tools:
+                        if tools.index("WebSearch") > tools.index("WebFetch"):
+                            errors.append(f"Claude adapter for '{name}' must list 'WebSearch' before 'WebFetch'")
+                else:
+                    if "WebSearch" in tools:
+                        errors.append(f"Claude adapter for '{name}' must omit 'WebSearch' when web_research is false")
+                    if "WebFetch" in tools:
+                        errors.append(f"Claude adapter for '{name}' must omit 'WebFetch' when web_research is false")
+            except Exception as exc:
+                errors.append(f"Claude adapter for '{name}' invalid YAML frontmatter: {exc}")
+
         if not cursor_adapter.is_file():
             errors.append(f"Missing Cursor adapter for '{name}'")
+        else:
+            cursor_text = cursor_adapter.read_text(encoding="utf-8")
+            if "## External Research Policy" not in cursor_text:
+                errors.append(f"Cursor adapter for '{name}' missing External Research Policy")
+            try:
+                fm = parse_yaml_frontmatter(cursor_text)
+                if "tools" in fm:
+                    errors.append(f"Cursor adapter for '{name}' contains unsupported 'tools' frontmatter key")
+            except Exception as exc:
+                errors.append(f"Cursor adapter for '{name}' invalid YAML frontmatter: {exc}")
+
         if not codex_adapter.is_file():
             errors.append(f"Missing Codex adapter for '{name}'")
+        else:
+            codex_text = codex_adapter.read_text(encoding="utf-8")
+            if "## External Research Policy" not in codex_text:
+                errors.append(f"Codex adapter for '{name}' missing External Research Policy")
+            try:
+                data = tomllib.loads(codex_text)
+                for invalid_key in ("tools", "web_search", "network_access"):
+                    if invalid_key in data:
+                        errors.append(f"Codex adapter for '{name}' contains unsupported TOML key '{invalid_key}'")
+            except Exception as exc:
+                errors.append(f"Codex adapter for '{name}' invalid TOML: {exc}")
 
     return errors
 

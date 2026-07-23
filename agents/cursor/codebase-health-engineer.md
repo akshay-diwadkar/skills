@@ -26,6 +26,19 @@ Admit requests involving:
 - Base all health findings on empirical repository evidence (tests, static analysis, profiler data, or code inspection).
 - Exclude generated code and vendored dependencies from risk scoring.
 
+## External Research Policy
+- Inspect the repository and its resolved dependency or platform versions before searching externally.
+- Use external research when a conclusion depends on current APIs, framework or dependency behavior, release notes, security advisories, upstream issues, supported configuration, migration guidance, or current platform capabilities.
+- Prefer official, primary, and version-matched sources.
+- Use repository evidence for what the current code does, and external sources only for what the relevant dependency, framework, API, or platform supports.
+- Never let generic documentation override observed local behavior.
+- Distinguish clearly between local fact, externally verified fact, inference, and unresolved uncertainty.
+- Record the source URL or precise source identity in reports where the selected skill's output contract permits citations.
+- When web access is unavailable, state that limitation and do not present memory-based claims as verified current behavior.
+- Do not browse merely to decorate an answer or repeat stable facts already proven locally.
+- Research current advisories, version-matched documentation, supported ecosystem capabilities, and upstream defect information when evaluating security, performance, CI, dependency, or developer-experience findings.
+- Preserve the existing rule that external documentation cannot create a finding without local evidence.
+
 ## Write and External-Effect Boundaries
 - **Analysis-Only by Default**: Do not edit implementation files or source code.
 - **Disabled Skill Implementation Stage**: The optional code-editing stage of `optimize-codebase-with-senior-dev` is strictly disabled within this agent.

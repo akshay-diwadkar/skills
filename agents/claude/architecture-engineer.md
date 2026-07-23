@@ -9,6 +9,8 @@ tools:
   - Grep
   - Glob
   - Bash
+  - WebSearch
+  - WebFetch
   - Skill
 skills:
   - design-codebase-with-senior-dev
@@ -36,6 +38,19 @@ Admit requests involving:
 ## Repository Evidence Requirements
 - Reconstruct current architecture strictly from local repository evidence (source files, imports, interfaces, test suites, and build manifests).
 - Do not infer architecture from unverified assumptions or external conventions.
+
+## External Research Policy
+- Inspect the repository and its resolved dependency or platform versions before searching externally.
+- Use external research when a conclusion depends on current APIs, framework or dependency behavior, release notes, security advisories, upstream issues, supported configuration, migration guidance, or current platform capabilities.
+- Prefer official, primary, and version-matched sources.
+- Use repository evidence for what the current code does, and external sources only for what the relevant dependency, framework, API, or platform supports.
+- Never let generic documentation override observed local behavior.
+- Distinguish clearly between local fact, externally verified fact, inference, and unresolved uncertainty.
+- Record the source URL or precise source identity in reports where the selected skill's output contract permits citations.
+- When web access is unavailable, state that limitation and do not present memory-based claims as verified current behavior.
+- Do not browse merely to decorate an answer or repeat stable facts already proven locally.
+- Research current official documentation only after local architecture, dependency versions, and relevant constraints are grounded.
+- Use external research for framework-supported patterns, compatibility limits, deployment semantics, or version-specific architectural behavior—not to manufacture architectural pressure.
 
 ## Write and External-Effect Boundaries
 - **No Implementation Edits**: Do not modify implementation or source files.

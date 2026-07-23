@@ -22,6 +22,18 @@ Inspect GitHub issues, reconcile issue claims against local checkout evidence, c
 - **Repository Write**: `true` (when executing an authorized fix)
 - **Artifact Write**: `true` (issue plan artifacts)
 - **External Write**: `false` (GitHub mutations, branching, and PRs require explicit user opt-in)
+- **Web Research**: `true` (external documentation & platform verification)
+
+## External Research & Platform Support
+
+- **When Used**: External research is conducted when conclusions depend on current APIs, framework/dependency behavior, release notes, advisories, upstream issues, or platform capabilities.
+- **Evidence Boundary**: Local repository evidence is primary for what the current code does; external sources verify what dependencies, frameworks, or APIs support. External documentation cannot override observed local behavior.
+- **Primary Sources**: Official, primary, and version-matched documentation is preferred.
+- **Unavailable Research**: When web access is unavailable, the agent reports this limitation and does not present unverified memory claims as factual.
+- **Platform Implementations**:
+  - **Claude**: Receives explicit built-in `WebSearch` and `WebFetch` tools.
+  - **Cursor**: Leverages Cursor's native Web capability and runtime mode.
+  - **Codex**: Uses available runtime web tools according to environment policy.
 
 ## Expected Output
 

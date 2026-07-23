@@ -134,18 +134,19 @@ def render_docs_agents_markdown(agents_catalog: dict[str, Any]) -> str:
         "",
         "## Available Agents",
         "",
-        "| Agent | Status | Repo Write | Skills Included | Summary |",
-        "| --- | --- | --- | --- | --- |",
+        "| Agent | Status | Repo Write | Web Research | Skills Included | Summary |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
 
     for agent in agents_catalog.get("agents", []):
         name = agent["name"]
         status = agent["status"]
         repo_write = agent.get("access", {}).get("repository_write", False)
+        web_res = agent.get("capabilities", {}).get("web_research", False)
         skills_str = ", ".join(f"`{s}`" for s in agent.get("skills", []))
         summary = agent["summary"]
         doc_link = f"./agents/{name}.md"
-        lines.append(f"| [{name}]({doc_link}) | `{status}` | `{repo_write}` | {skills_str} | {summary} |")
+        lines.append(f"| [{name}]({doc_link}) | `{status}` | `{repo_write}` | `{web_res}` | {skills_str} | {summary} |")
 
     lines.append("")
     return "\n".join(lines)
@@ -157,7 +158,16 @@ def generate_claude_adapter(agent: dict[str, Any]) -> str:
     skills = agent.get("skills", [])
     repo_write = agent.get("access", {}).get("repository_write", False)
 
-    tools = ["Read", "Grep", "Glob", "Bash", "Skill"]
+    capabilities = agent.get("capabilities")
+    if capabilities is None or not isinstance(capabilities, dict) or "web_research" not in capabilities or not isinstance(capabilities.get("web_research"), bool):
+        raise ValueError(f"Agent '{name}' requires a valid boolean 'capabilities.web_research' field")
+
+    web_research = capabilities["web_research"]
+
+    tools = ["Read", "Grep", "Glob", "Bash"]
+    if web_research:
+        tools.extend(["WebSearch", "WebFetch"])
+    tools.append("Skill")
     if repo_write:
         tools.extend(["Edit", "Write"])
 
