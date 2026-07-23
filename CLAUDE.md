@@ -12,7 +12,7 @@ Companion maintenance rules for Claude Code and subagents.
 - **Verify Distribution**: `python tools/packaging/verify_distribution.py`
 - **Run Tests**: `python -m pytest -q`
 - **Run Linter**: `ruff check .`
-- **Run Type Checker**: `mypy .`
+- **Run Type Checker**: `python tools/validation/run_mypy.py`
 
 ## Key Boundaries
 

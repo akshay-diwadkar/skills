@@ -178,16 +178,11 @@ CI runs repository quality checks on Python 3.11:
 ```bash
 python .github/scripts/validate_skill_tree.py
 ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts implement-with-senior-dev/scripts optimize-codebase-with-senior-dev/scripts tests .github/scripts
-mypy plan-with-senior-dev/scripts tests/plan-with-senior-dev
-mypy codebase-issue-auditor/scripts tests/codebase-issue-auditor
-mypy design-codebase-with-senior-dev/scripts tests/design-codebase-with-senior-dev
-mypy optimize-codebase-with-senior-dev/scripts tests/optimize-codebase-with-senior-dev
-mypy github-issue-planner/scripts tests/github-issue-planner
-mypy create-diagram/scripts tests/create-diagram
-mypy implement-with-senior-dev/scripts tests/implement-with-senior-dev
-mypy .github/scripts tests/repository
+python tools/validation/run_mypy.py
 python -m pytest -q
 ```
+
+Note: Mypy is intentionally run per skill via `tools/validation/run_mypy.py` because each skill is an independent distributable package that may contain scripts with identical filenames (such as `check_github_env.py`). Checking the entire monorepo as a single Python module graph causes false duplicate-module collisions.
 
 `implement-with-senior-dev` uses an executable run contract. Store the plan snapshot and bundle in a Git-ignored scratch path or an OS temporary directory:
 

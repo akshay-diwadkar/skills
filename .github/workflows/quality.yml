@@ -19,6 +19,6 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Type check
-        run: mypy .
+        run: python tools/validation/run_mypy.py
       - name: Test
         run: python -m pytest -q

@@ -22,15 +22,38 @@ def load_catalog() -> dict[str, Any]:
     if not CATALOG_PATH.is_file():
         raise FileNotFoundError(f"Catalog file not found at {CATALOG_PATH}")
     with CATALOG_PATH.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError("Catalog file must contain a top-level mapping/dictionary")
+    return data
+
+
+def has_python_files(p: Path) -> bool:
+    if not p.exists():
+        return False
+    if p.is_file():
+        return p.suffix in (".py", ".pyi")
+    if p.is_dir():
+        return any(p.rglob("*.py")) or any(p.rglob("*.pyi"))
+    return False
 
 
 def run_mypy_group(label: str, targets: list[str]) -> bool:
-    valid_targets = [t for t in targets if (ROOT / t).exists()]
+    valid_targets: list[str] = []
+    for t in targets:
+        p = ROOT / t
+        if not p.exists():
+            print(f"Skipping non-existent target path for {label}: {t}")
+        elif not has_python_files(p):
+            print(f"Skipping target path with no Python files for {label}: {t}")
+        else:
+            valid_targets.append(t)
+
     if not valid_targets:
+        print(f"No existing target paths with Python files to check for group: {label}")
         return True
 
-    cmd = [sys.executable, "-m", "mypy"] + valid_targets
+    cmd = [sys.executable, "-m", "mypy", "--no-incremental"] + valid_targets
     result = subprocess.run(cmd, cwd=ROOT)
     if result.returncode != 0:
         print(f"Mypy check failed for group: {label}", file=sys.stderr)
@@ -45,25 +68,42 @@ def main() -> int:
         print(f"Failed to load catalog: {exc}", file=sys.stderr)
         return 1
 
-    skills = catalog.get("skills", [])
-    all_passed = True
+    if not isinstance(catalog, dict):
+        print("Error: Catalog file must contain a top-level mapping/dictionary.", file=sys.stderr)
+        return 1
+
+    skills = catalog.get("skills")
+    if skills is None or not isinstance(skills, list):
+        print("Error: Catalog does not contain a valid 'skills' list.", file=sys.stderr)
+        return 1
+
+    failed_scopes: list[str] = []
 
     for skill in skills:
-        name = skill.get("name")
-        if not name:
-            raise ValueError("Every catalog skill requires a non-empty name")
+        if not isinstance(skill, dict):
+            print("Error: Malformed catalog skill entry (not a dictionary).", file=sys.stderr)
+            failed_scopes.append("malformed-catalog-entry")
+            continue
 
+        name = skill.get("name")
         skill_path = skill.get("path")
         test_path = skill.get("tests")
 
-        targets = []
-        if skill_path:
-            targets.append(skill_path)
-        if test_path:
-            targets.append(test_path)
+        if not name or not isinstance(name, str):
+            print("Error: Catalog skill entry missing or invalid 'name'.", file=sys.stderr)
+            failed_scopes.append("malformed-skill-name")
+            continue
 
-        if not run_mypy_group(f"skill: {name}", targets):
-            all_passed = False
+        if not skill_path or not test_path:
+            print(f"Error: Skill '{name}' missing 'path' or 'tests'.", file=sys.stderr)
+            failed_scopes.append(f"skill: {name}")
+            continue
+
+        label = f"skill: {name}"
+        targets = [str(skill_path), str(test_path)]
+
+        if not run_mypy_group(label, targets):
+            failed_scopes.append(label)
 
     tooling_targets = [
         "tools",
@@ -72,10 +112,14 @@ def main() -> int:
         ".github/scripts",
     ]
 
-    if not run_mypy_group("repository tooling", tooling_targets):
-        all_passed = False
+    tooling_label = "repository tooling"
+    if not run_mypy_group(tooling_label, tooling_targets):
+        failed_scopes.append(tooling_label)
 
-    if not all_passed:
+    if failed_scopes:
+        print("\nMypy check summary: Failed scopes:", file=sys.stderr)
+        for scope in failed_scopes:
+            print(f"  - {scope}", file=sys.stderr)
         return 1
 
     print("All mypy checks passed cleanly across isolated skill and tooling scopes.")

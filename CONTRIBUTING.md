@@ -16,6 +16,6 @@ python tools/catalog/sync_catalog.py --check
 python tools/validation/validate_repository.py
 python tools/packaging/verify_distribution.py
 ruff check .
-mypy .
+python tools/validation/run_mypy.py
 python -m pytest -q
 ```
