@@ -36,6 +36,19 @@ def check_versions() -> list[str]:
         if plugins and plugins[0].get("version") != version:
             errors.append(f".claude-plugin/marketplace.json version '{plugins[0].get('version')}' != VERSION '{version}'")
 
+    cursor_plugin = ROOT / ".cursor-plugin" / "plugin.json"
+    if cursor_plugin.is_file():
+        data = json.loads(cursor_plugin.read_text(encoding="utf-8"))
+        if data.get("version") != version:
+            errors.append(f".cursor-plugin/plugin.json version '{data.get('version')}' != VERSION '{version}'")
+
+    cursor_market = ROOT / ".cursor-plugin" / "marketplace.json"
+    if cursor_market.is_file():
+        data = json.loads(cursor_market.read_text(encoding="utf-8"))
+        plugins = data.get("plugins", [])
+        if plugins and plugins[0].get("version") != version:
+            errors.append(f".cursor-plugin/marketplace.json version '{plugins[0].get('version')}' != VERSION '{version}'")
+
     return errors
 
 

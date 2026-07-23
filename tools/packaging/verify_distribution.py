@@ -17,10 +17,18 @@ from build_distribution import build_distribution  # noqa: E402
 def verify_distribution_tree(dist_path: Path) -> list[str]:
     errors = []
 
-    # Ensure plugin manifest exists
-    plugin_json = dist_path / ".claude-plugin" / "plugin.json"
-    if not plugin_json.is_file():
+    # Ensure plugin manifests exist
+    claude_json = dist_path / ".claude-plugin" / "plugin.json"
+    if not claude_json.is_file():
         errors.append("Distribution missing .claude-plugin/plugin.json")
+
+    cursor_json = dist_path / ".cursor-plugin" / "plugin.json"
+    if not cursor_json.is_file():
+        errors.append("Distribution missing .cursor-plugin/plugin.json")
+
+    agents_dir = dist_path / "agents"
+    if not agents_dir.is_dir():
+        errors.append("Distribution missing agents directory")
 
     # Check for forbidden development files
     forbidden_names = {"browser_smoke.py", "conftest.py", "debug_hash.py", "test_*.py"}

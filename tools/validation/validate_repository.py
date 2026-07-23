@@ -16,8 +16,13 @@ except ImportError:
     sys.exit(1)
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+SKILLS_CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+AGENTS_CATALOG_PATH = ROOT / "catalog" / "agents.yaml"
 LOCK_PATH = ROOT / "skills-lock.json"
+VERSION_PATH = ROOT / "VERSION"
+
+sys.path.insert(0, str(ROOT / "tools" / "catalog"))
+import sync_catalog  # noqa: E402
 
 FORBIDDEN_DIR_NAMES = {
     "__pycache__",
@@ -84,7 +89,6 @@ def git_tracked_files() -> list[str]:
         )
         return [line for line in result.stdout.splitlines() if line and (ROOT / line).is_file()]
     except Exception:
-        # Fallback to filesystem walk if git fails
         files = []
         for p in ROOT.rglob("*"):
             if p.is_file() and ".git" not in p.parts:
@@ -117,7 +121,6 @@ def validate_skill_discovery(catalog: dict[str, Any]) -> list[str]:
             else:
                 discovered_skills[name] = skill_dir
 
-            # Validate frontmatter
             try:
                 fm = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
                 if fm.get("name") != name:
@@ -129,7 +132,6 @@ def validate_skill_discovery(catalog: dict[str, Any]) -> list[str]:
 
     catalog_skills = {s["name"]: s for s in catalog.get("skills", [])}
 
-    # Compare discovered vs catalog
     for name, skill_path in discovered_skills.items():
         if name not in catalog_skills:
             errors.append(f"Discovered skill '{name}' at {skill_path.relative_to(ROOT)} is missing from catalog/skills.yaml")
@@ -138,6 +140,38 @@ def validate_skill_discovery(catalog: dict[str, Any]) -> list[str]:
         cat_path = ROOT / cat_entry["path"]
         if not cat_path.is_dir():
             errors.append(f"Catalog skill '{name}' path '{cat_entry['path']}' does not exist on disk")
+
+    return errors
+
+
+def validate_agent_discovery(catalog: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not AGENTS_CATALOG_PATH.is_file():
+        return ["Missing catalog/agents.yaml"]
+
+    with AGENTS_CATALOG_PATH.open("r", encoding="utf-8") as f:
+        agents_catalog = yaml.safe_load(f)
+
+    for agent in agents_catalog.get("agents", []):
+        name = agent["name"]
+        source_path = ROOT / agent["source"]
+        if not source_path.is_file():
+            errors.append(f"Agent '{name}' source prompt missing: {agent['source']}")
+        doc_path = ROOT / agent["documentation"]
+        if not doc_path.is_file():
+            errors.append(f"Agent '{name}' documentation missing: {agent['documentation']}")
+
+        # Validate adapter permissions and frontmatter
+        claude_adapter = ROOT / "agents" / "claude" / f"{name}.md"
+        cursor_adapter = ROOT / "agents" / "cursor" / f"{name}.md"
+        codex_adapter = ROOT / ".codex" / "agents" / f"{name}.toml"
+
+        if not claude_adapter.is_file():
+            errors.append(f"Missing Claude adapter for '{name}'")
+        if not cursor_adapter.is_file():
+            errors.append(f"Missing Cursor adapter for '{name}'")
+        if not codex_adapter.is_file():
+            errors.append(f"Missing Codex adapter for '{name}'")
 
     return errors
 
@@ -151,7 +185,6 @@ def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any
         if any(part in FORBIDDEN_DIR_NAMES for part in parts) or path.endswith(".env"):
             errors.append(f"Forbidden tracked file: {path}")
 
-        # Check if inside a skill directory
         if len(parts) >= 3 and parts[0] == "skills":
             skill_name = parts[2]
             filename = parts[-1].lower()
@@ -160,7 +193,6 @@ def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any
             if dirs & FORBIDDEN_SKILL_DIR_NAMES or filename in FORBIDDEN_SKILL_FILE_NAMES:
                 errors.append(f"Development artifact inside distributable skill: {path}")
 
-    # Check runtime file counts
     for skill_name, expected in EXPECTED_RUNTIME_FILE_COUNTS.items():
         if skill_name in catalog_skills:
             rel_prefix = catalog_skills[skill_name]
@@ -191,20 +223,27 @@ def validate_skills_lock() -> list[str]:
     return errors
 
 
+def validate_sync_state() -> list[str]:
+    diffs = sync_catalog.sync_all(write=False)
+    return [f"Generated surface out of sync: {d}" for d in diffs]
+
+
 def main() -> int:
-    if not CATALOG_PATH.is_file():
+    if not SKILLS_CATALOG_PATH.is_file():
         print("Missing catalog/skills.yaml", file=sys.stderr)
         return 1
 
-    with CATALOG_PATH.open("r", encoding="utf-8") as f:
+    with SKILLS_CATALOG_PATH.open("r", encoding="utf-8") as f:
         catalog = yaml.safe_load(f)
 
     tracked_files = git_tracked_files()
 
     errors = []
     errors.extend(validate_skill_discovery(catalog))
+    errors.extend(validate_agent_discovery(catalog))
     errors.extend(validate_package_boundaries(tracked_files, catalog))
     errors.extend(validate_skills_lock())
+    errors.extend(validate_sync_state())
 
     if errors:
         print("Repository validation failed:", file=sys.stderr)

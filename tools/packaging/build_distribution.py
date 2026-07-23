@@ -44,10 +44,18 @@ def build_distribution(output_dir: Path) -> Path:
             elif p.is_file():
                 shutil.copy2(p, dest)
 
-    # Copy distribution manifests
-    plugin_src = ROOT / ".claude-plugin"
-    if plugin_src.is_dir():
-        shutil.copytree(plugin_src, output_dir / ".claude-plugin")
+    # Copy distribution manifests & adapters
+    claude_src = ROOT / ".claude-plugin"
+    if claude_src.is_dir():
+        shutil.copytree(claude_src, output_dir / ".claude-plugin")
+
+    cursor_src = ROOT / ".cursor-plugin"
+    if cursor_src.is_dir():
+        shutil.copytree(cursor_src, output_dir / ".cursor-plugin")
+
+    agents_src = ROOT / "agents"
+    if agents_src.is_dir():
+        shutil.copytree(agents_src, output_dir / "agents")
 
     shutil.copy2(ROOT / "README.md", output_dir / "README.md")
     shutil.copy2(ROOT / "VERSION", output_dir / "VERSION")

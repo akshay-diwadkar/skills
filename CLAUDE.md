@@ -6,6 +6,7 @@ Companion maintenance rules for Claude Code and subagents.
 
 - **Validate Catalog**: `python tools/catalog/validate_catalog.py`
 - **Sync Catalog**: `python tools/catalog/sync_catalog.py --write` (or `--check`)
+- **Install Codex Agents**: `python tools/agents/install_codex_agents.py --target /path/to/project --write`
 - **Validate Repository**: `python tools/validation/validate_repository.py`
 - **Build Distribution**: `python tools/packaging/build_distribution.py`
 - **Verify Distribution**: `python tools/packaging/verify_distribution.py`
@@ -16,5 +17,7 @@ Companion maintenance rules for Claude Code and subagents.
 ## Key Boundaries
 
 - Distributable skills: `skills/engineering/<skill-name>/`
-- Test suites: `tests/skills/<skill-name>/`
-- Authoritative metadata: `catalog/skills.yaml`
+- Agent source prompts: `agents/source/`
+- Generated adapters: `agents/claude/`, `agents/cursor/`, `.codex/agents/`
+- Test suites: `tests/skills/<skill-name>/` and `tests/repository/`
+- Authoritative metadata: `catalog/skills.yaml` and `catalog/agents.yaml`

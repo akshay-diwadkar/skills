@@ -1,0 +1,8 @@
+{
+  "name": "engineering-skills",
+  "displayName": "Engineering Skills",
+  "version": "1.0.0",
+  "description": "Production engineering skills and focused engineering agents.",
+  "skills": "./skills/",
+  "agents": "./agents/cursor/"
+}

@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -15,15 +16,22 @@ except ImportError:
     sys.exit(1)
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+SKILLS_CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+AGENTS_CATALOG_PATH = ROOT / "catalog" / "agents.yaml"
 VERSION_PATH = ROOT / "VERSION"
 README_PATH = ROOT / "README.md"
 ENG_README_PATH = ROOT / "skills" / "engineering" / "README.md"
-PLUGIN_JSON_PATH = ROOT / ".claude-plugin" / "plugin.json"
-MARKETPLACE_JSON_PATH = ROOT / ".claude-plugin" / "marketplace.json"
+DOCS_AGENTS_PATH = ROOT / "docs" / "agents.md"
+CLAUDE_PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
+CLAUDE_MARKETPLACE_JSON = ROOT / ".claude-plugin" / "marketplace.json"
+CURSOR_PLUGIN_JSON = ROOT / ".cursor-plugin" / "plugin.json"
+CURSOR_MARKETPLACE_JSON = ROOT / ".cursor-plugin" / "marketplace.json"
+CODEX_CONFIG_TOML = ROOT / ".codex" / "config.toml"
 
-BEGIN_MARKER = "<!-- BEGIN GENERATED SKILL CATALOG -->"
-END_MARKER = "<!-- END GENERATED SKILL CATALOG -->"
+BEGIN_SKILL_MARKER = "<!-- BEGIN GENERATED SKILL CATALOG -->"
+END_SKILL_MARKER = "<!-- END GENERATED SKILL CATALOG -->"
+BEGIN_AGENT_MARKER = "<!-- BEGIN GENERATED AGENT CATALOG -->"
+END_AGENT_MARKER = "<!-- END GENERATED AGENT CATALOG -->"
 
 
 def get_version() -> str:
@@ -32,12 +40,19 @@ def get_version() -> str:
     return VERSION_PATH.read_text(encoding="utf-8").strip()
 
 
-def load_catalog() -> dict:
-    with CATALOG_PATH.open("r", encoding="utf-8") as f:
+def load_skills_catalog() -> dict[str, Any]:
+    with SKILLS_CATALOG_PATH.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def render_root_catalog_markdown(catalog: dict) -> str:
+def load_agents_catalog() -> dict[str, Any]:
+    if not AGENTS_CATALOG_PATH.is_file():
+        return {"schema_version": 1, "agents": []}
+    with AGENTS_CATALOG_PATH.open("r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def render_root_skills_catalog_markdown(catalog: dict[str, Any]) -> str:
     lines = [
         "| Skill | Domain | Kind | Status | Invocation | Summary |",
         "| --- | --- | --- | --- | --- | --- |",
@@ -54,7 +69,24 @@ def render_root_catalog_markdown(catalog: dict) -> str:
     return "\n".join(lines)
 
 
-def render_engineering_readme(catalog: dict) -> str:
+def render_root_agents_catalog_markdown(agents_catalog: dict[str, Any]) -> str:
+    lines = [
+        "| Agent | Status | Access (Repo/Art/Ext) | Skills | Summary |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for agent in agents_catalog.get("agents", []):
+        name = agent["name"]
+        status = agent["status"]
+        acc = agent.get("access", {})
+        access_str = f"Repo:{acc.get('repository_write', False)} / Art:{acc.get('artifact_write', False)} / Ext:{acc.get('external_write', False)}"
+        skills_str = ", ".join(f"`{s}`" for s in agent.get("skills", []))
+        summary = agent["summary"]
+        doc = agent.get("documentation", f"docs/agents/{name}.md")
+        lines.append(f"| [{name}]({doc}) | `{status}` | `{access_str}` | {skills_str} | {summary} |")
+    return "\n".join(lines)
+
+
+def render_engineering_readme(catalog: dict[str, Any]) -> str:
     lines = [
         "# Engineering Skills Domain",
         "",
@@ -84,10 +116,135 @@ def render_engineering_readme(catalog: dict) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def generate_plugin_json(catalog: dict, version: str) -> str:
+def render_docs_agents_markdown(agents_catalog: dict[str, Any]) -> str:
+    lines = [
+        "# Engineering Agents Overview",
+        "",
+        "Agents are focused, role-based orchestration layers built on top of canonical engineering skills.",
+        "",
+        "## Platform Support & Distribution Matrix",
+        "",
+        "| Platform | Skills Distributed | Agents Distributed | Scope |",
+        "| --- | ---: | ---: | --- |",
+        "| Claude Code plugin | Yes | Yes | Installed plugin |",
+        "| Cursor plugin | Yes | Yes | Installed plugin |",
+        "| Codex skill installation | Yes | No automatic custom-agent installation | Installed skills |",
+        "| Codex repository clone | Yes | Yes | Current project |",
+        "| Codex explicit installer | Existing installed skills | Yes | Selected target project |",
+        "",
+        "## Available Agents",
+        "",
+        "| Agent | Status | Repo Write | Skills Included | Summary |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+
+    for agent in agents_catalog.get("agents", []):
+        name = agent["name"]
+        status = agent["status"]
+        repo_write = agent.get("access", {}).get("repository_write", False)
+        skills_str = ", ".join(f"`{s}`" for s in agent.get("skills", []))
+        summary = agent["summary"]
+        doc_link = f"./agents/{name}.md"
+        lines.append(f"| [{name}]({doc_link}) | `{status}` | `{repo_write}` | {skills_str} | {summary} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def generate_claude_adapter(agent: dict[str, Any]) -> str:
+    name = agent["name"]
+    summary = agent["summary"]
+    skills = agent.get("skills", [])
+    repo_write = agent.get("access", {}).get("repository_write", False)
+
+    tools = ["Read", "Grep", "Glob", "Bash", "Skill"]
+    if repo_write:
+        tools.extend(["Edit", "Write"])
+
+    source_path = ROOT / agent["source"]
+    source_body = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
+
+    fm = [
+        "---",
+        f"name: {name}",
+        f"description: {summary}",
+        "model: inherit",
+        "effort: high",
+        "maxTurns: 40",
+        "tools:",
+    ]
+    for t in tools:
+        fm.append(f"  - {t}")
+    fm.append("skills:")
+    for s in skills:
+        fm.append(f"  - {s}")
+    fm.append("---")
+    fm.append(f"<!-- Generated from catalog/agents.yaml and {agent['source']}. Do not edit directly. -->")
+    fm.append("")
+    fm.append(source_body.strip())
+    fm.append("")
+
+    return "\n".join(fm)
+
+
+def generate_cursor_adapter(agent: dict[str, Any]) -> str:
+    name = agent["name"]
+    summary = agent["summary"]
+    repo_write = agent.get("access", {}).get("repository_write", False)
+
+    source_path = ROOT / agent["source"]
+    source_body = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
+
+    fm = [
+        "---",
+        f"name: {name}",
+        f"description: {summary}",
+        "model: inherit",
+        f"readonly: {str(not repo_write).lower()}",
+        "---",
+        f"<!-- Generated from catalog/agents.yaml and {agent['source']}. Do not edit directly. -->",
+        "",
+        source_body.strip(),
+        "",
+    ]
+    return "\n".join(fm)
+
+
+def generate_codex_adapter(agent: dict[str, Any]) -> str:
+    name = agent["name"]
+    summary = agent["summary"]
+    repo_write = agent.get("access", {}).get("repository_write", False)
+    sandbox_mode = "workspace-write" if repo_write else "read-only"
+
+    source_path = ROOT / agent["source"]
+    source_body = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
+
+    # Triple quote escaping for TOML
+    escaped_summary = summary.replace('"""', '\\"\\"\\"')
+    escaped_body = source_body.strip().replace('"""', '\\"\\"\\"')
+
+    toml_lines = [
+        f'# Generated from catalog/agents.yaml and {agent["source"]}. Do not edit directly.',
+        f'name = "{name}"',
+        'description = """',
+        escaped_summary,
+        '"""',
+        "",
+        'model_reasoning_effort = "high"',
+        f'sandbox_mode = "{sandbox_mode}"',
+        "",
+        'developer_instructions = """',
+        escaped_body,
+        '"""',
+        "",
+    ]
+    return "\n".join(toml_lines)
+
+
+def generate_claude_plugin_json(skills_catalog: dict[str, Any], version: str) -> str:
     promoted_skills = [
         s["path"]
-        for s in catalog.get("skills", [])
+        for s in skills_catalog.get("skills", [])
         if s.get("status") in ("stable", "beta") and s.get("platforms", {}).get("claude_plugin", True)
     ]
     data = {
@@ -95,6 +252,19 @@ def generate_plugin_json(catalog: dict, version: str) -> str:
         "version": version,
         "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
         "skills": promoted_skills,
+        "agents": "./agents/claude/"
+    }
+    return json.dumps(data, indent=2) + "\n"
+
+
+def generate_cursor_plugin_json(version: str) -> str:
+    data = {
+        "name": "engineering-skills",
+        "displayName": "Engineering Skills",
+        "version": version,
+        "description": "Production engineering skills and focused engineering agents.",
+        "skills": "./skills/",
+        "agents": "./agents/cursor/"
     }
     return json.dumps(data, indent=2) + "\n"
 
@@ -113,56 +283,130 @@ def generate_marketplace_json(version: str) -> str:
     return json.dumps(data, indent=2) + "\n"
 
 
-def update_markdown_section(content: str, generated: str) -> str:
-    if BEGIN_MARKER not in content or END_MARKER not in content:
-        # Append section if not present
-        return content.rstrip() + f"\n\n{BEGIN_MARKER}\n{generated}\n{END_MARKER}\n"
-    before = content.split(BEGIN_MARKER)[0]
-    after = content.split(END_MARKER)[1]
-    return f"{before}{BEGIN_MARKER}\n{generated}\n{END_MARKER}{after}"
+def generate_codex_config_toml() -> str:
+    return '[agents]\nmax_concurrent_threads_per_session = 4\n'
+
+
+def update_markdown_section(content: str, begin_marker: str, end_marker: str, generated: str) -> str:
+    if begin_marker not in content or end_marker not in content:
+        return content.rstrip() + f"\n\n{begin_marker}\n{generated}\n{end_marker}\n"
+    before = content.split(begin_marker)[0]
+    after = content.split(end_marker)[1]
+    return f"{before}{begin_marker}\n{generated}\n{end_marker}{after}"
 
 
 def sync_all(write: bool = False) -> list[str]:
     diffs = []
-    catalog = load_catalog()
+    skills_catalog = load_skills_catalog()
+    agents_catalog = load_agents_catalog()
     version = get_version()
 
-    # 1. Root README.md
+    # 1. Root README.md (Skills & Agents sections)
     if README_PATH.is_file():
         readme_content = README_PATH.read_text(encoding="utf-8")
-        catalog_md = render_root_catalog_markdown(catalog)
-        new_readme = update_markdown_section(readme_content, catalog_md)
+        skills_md = render_root_skills_catalog_markdown(skills_catalog)
+        agents_md = render_root_agents_catalog_markdown(agents_catalog)
+
+        new_readme = update_markdown_section(readme_content, BEGIN_SKILL_MARKER, END_SKILL_MARKER, skills_md)
+        new_readme = update_markdown_section(new_readme, BEGIN_AGENT_MARKER, END_AGENT_MARKER, agents_md)
+
         if new_readme != readme_content:
-            diffs.append("README.md catalog section is out of sync")
+            diffs.append("README.md catalog sections out of sync")
             if write:
                 README_PATH.write_text(new_readme, encoding="utf-8")
 
     # 2. Engineering README.md
-    eng_readme_content = render_engineering_readme(catalog)
+    eng_readme_content = render_engineering_readme(skills_catalog)
     current_eng = ENG_README_PATH.read_text(encoding="utf-8") if ENG_README_PATH.is_file() else ""
     if current_eng != eng_readme_content:
-        diffs.append("skills/engineering/README.md is out of sync")
+        diffs.append("skills/engineering/README.md out of sync")
         if write:
             ENG_README_PATH.parent.mkdir(parents=True, exist_ok=True)
             ENG_README_PATH.write_text(eng_readme_content, encoding="utf-8")
 
-    # 3. .claude-plugin/plugin.json
-    plugin_content = generate_plugin_json(catalog, version)
-    current_plugin = PLUGIN_JSON_PATH.read_text(encoding="utf-8") if PLUGIN_JSON_PATH.is_file() else ""
-    if current_plugin != plugin_content:
-        diffs.append(".claude-plugin/plugin.json is out of sync")
+    # 3. docs/agents.md
+    docs_agents_content = render_docs_agents_markdown(agents_catalog)
+    current_docs_agents = DOCS_AGENTS_PATH.read_text(encoding="utf-8") if DOCS_AGENTS_PATH.is_file() else ""
+    if current_docs_agents != docs_agents_content:
+        diffs.append("docs/agents.md out of sync")
         if write:
-            PLUGIN_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-            PLUGIN_JSON_PATH.write_text(plugin_content, encoding="utf-8")
+            DOCS_AGENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            DOCS_AGENTS_PATH.write_text(docs_agents_content, encoding="utf-8")
 
-    # 4. .claude-plugin/marketplace.json
-    marketplace_content = generate_marketplace_json(version)
-    current_marketplace = MARKETPLACE_JSON_PATH.read_text(encoding="utf-8") if MARKETPLACE_JSON_PATH.is_file() else ""
-    if current_marketplace != marketplace_content:
-        diffs.append(".claude-plugin/marketplace.json is out of sync")
+    # 4. Agent Adapters (Claude, Cursor, Codex)
+    for agent in agents_catalog.get("agents", []):
+        name = agent["name"]
+
+        # Claude adapter
+        claude_content = generate_claude_adapter(agent)
+        claude_path = ROOT / "agents" / "claude" / f"{name}.md"
+        current_claude = claude_path.read_text(encoding="utf-8") if claude_path.is_file() else ""
+        if current_claude != claude_content:
+            diffs.append(f"agents/claude/{name}.md out of sync")
+            if write:
+                claude_path.parent.mkdir(parents=True, exist_ok=True)
+                claude_path.write_text(claude_content, encoding="utf-8")
+
+        # Cursor adapter
+        cursor_content = generate_cursor_adapter(agent)
+        cursor_path = ROOT / "agents" / "cursor" / f"{name}.md"
+        current_cursor = cursor_path.read_text(encoding="utf-8") if cursor_path.is_file() else ""
+        if current_cursor != cursor_content:
+            diffs.append(f"agents/cursor/{name}.md out of sync")
+            if write:
+                cursor_path.parent.mkdir(parents=True, exist_ok=True)
+                cursor_path.write_text(cursor_content, encoding="utf-8")
+
+        # Codex adapter
+        codex_content = generate_codex_adapter(agent)
+        codex_path = ROOT / ".codex" / "agents" / f"{name}.toml"
+        current_codex = codex_path.read_text(encoding="utf-8") if codex_path.is_file() else ""
+        if current_codex != codex_content:
+            diffs.append(f".codex/agents/{name}.toml out of sync")
+            if write:
+                codex_path.parent.mkdir(parents=True, exist_ok=True)
+                codex_path.write_text(codex_content, encoding="utf-8")
+
+    # 5. Manifests
+    claude_plugin = generate_claude_plugin_json(skills_catalog, version)
+    current_claude_plugin = CLAUDE_PLUGIN_JSON.read_text(encoding="utf-8") if CLAUDE_PLUGIN_JSON.is_file() else ""
+    if current_claude_plugin != claude_plugin:
+        diffs.append(".claude-plugin/plugin.json out of sync")
         if write:
-            MARKETPLACE_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-            MARKETPLACE_JSON_PATH.write_text(marketplace_content, encoding="utf-8")
+            CLAUDE_PLUGIN_JSON.parent.mkdir(parents=True, exist_ok=True)
+            CLAUDE_PLUGIN_JSON.write_text(claude_plugin, encoding="utf-8")
+
+    claude_market = generate_marketplace_json(version)
+    current_claude_market = CLAUDE_MARKETPLACE_JSON.read_text(encoding="utf-8") if CLAUDE_MARKETPLACE_JSON.is_file() else ""
+    if current_claude_market != claude_market:
+        diffs.append(".claude-plugin/marketplace.json out of sync")
+        if write:
+            CLAUDE_MARKETPLACE_JSON.parent.mkdir(parents=True, exist_ok=True)
+            CLAUDE_MARKETPLACE_JSON.write_text(claude_market, encoding="utf-8")
+
+    cursor_plugin = generate_cursor_plugin_json(version)
+    current_cursor_plugin = CURSOR_PLUGIN_JSON.read_text(encoding="utf-8") if CURSOR_PLUGIN_JSON.is_file() else ""
+    if current_cursor_plugin != cursor_plugin:
+        diffs.append(".cursor-plugin/plugin.json out of sync")
+        if write:
+            CURSOR_PLUGIN_JSON.parent.mkdir(parents=True, exist_ok=True)
+            CURSOR_PLUGIN_JSON.write_text(cursor_plugin, encoding="utf-8")
+
+    cursor_market = generate_marketplace_json(version)
+    current_cursor_market = CURSOR_MARKETPLACE_JSON.read_text(encoding="utf-8") if CURSOR_MARKETPLACE_JSON.is_file() else ""
+    if current_cursor_market != cursor_market:
+        diffs.append(".cursor-plugin/marketplace.json out of sync")
+        if write:
+            CURSOR_MARKETPLACE_JSON.parent.mkdir(parents=True, exist_ok=True)
+            CURSOR_MARKETPLACE_JSON.write_text(cursor_market, encoding="utf-8")
+
+    codex_config = generate_codex_config_toml()
+    current_codex_config = CODEX_CONFIG_TOML.read_text(encoding="utf-8") if CODEX_CONFIG_TOML.is_file() else ""
+    if current_codex_config != codex_config:
+        diffs.append(".codex/config.toml out of sync")
+        if write:
+            CODEX_CONFIG_TOML.parent.mkdir(parents=True, exist_ok=True)
+            CODEX_CONFIG_TOML.write_text(codex_config, encoding="utf-8")
 
     return diffs
 

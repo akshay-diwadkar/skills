@@ -10,5 +10,6 @@
     "skills/engineering/create-diagram",
     "skills/engineering/design-codebase-with-senior-dev",
     "skills/engineering/optimize-codebase-with-senior-dev"
-  ]
+  ],
+  "agents": "./agents/claude/"
 }

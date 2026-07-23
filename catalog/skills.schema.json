@@ -58,6 +58,7 @@
             "properties": {
               "skills_sh": { "type": "boolean" },
               "claude_plugin": { "type": "boolean" },
+              "cursor_plugin": { "type": "boolean" },
               "codex": { "type": "boolean" }
             }
           },

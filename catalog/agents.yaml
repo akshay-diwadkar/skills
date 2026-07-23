@@ -1,0 +1,102 @@
+schema_version: 1
+
+agents:
+  - name: architecture-engineer
+    status: stable
+    summary: Analyze and redesign codebase architecture without implementing changes.
+    source: agents/source/architecture-engineer.md
+    access:
+      repository_write: false
+      artifact_write: true
+      external_write: false
+    skills:
+      - design-codebase-with-senior-dev
+      - create-diagram
+      - plan-with-senior-dev
+    platforms:
+      claude:
+        enabled: true
+        plugin_bundled: true
+      cursor:
+        enabled: true
+        plugin_bundled: true
+      codex:
+        enabled: true
+        plugin_bundled: false
+        project_scoped: true
+    documentation: docs/agents/architecture-engineer.md
+
+  - name: delivery-engineer
+    status: stable
+    summary: Turn a concrete engineering request into a validated plan and execute an authorized implementation plan.
+    source: agents/source/delivery-engineer.md
+    access:
+      repository_write: true
+      artifact_write: true
+      external_write: false
+    skills:
+      - plan-with-senior-dev
+      - implement-with-senior-dev
+    platforms:
+      claude:
+        enabled: true
+        plugin_bundled: true
+      cursor:
+        enabled: true
+        plugin_bundled: true
+      codex:
+        enabled: true
+        plugin_bundled: false
+        project_scoped: true
+    documentation: docs/agents/delivery-engineer.md
+
+  - name: issue-resolution-engineer
+    status: stable
+    summary: Inspect GitHub issues, reconcile issue claims with local checkout, and plan or implement authorized fixes.
+    source: agents/source/issue-resolution-engineer.md
+    access:
+      repository_write: true
+      artifact_write: true
+      external_write: false
+    skills:
+      - github-issue-planner
+      - plan-with-senior-dev
+      - implement-with-senior-dev
+    platforms:
+      claude:
+        enabled: true
+        plugin_bundled: true
+      cursor:
+        enabled: true
+        plugin_bundled: true
+      codex:
+        enabled: true
+        plugin_bundled: false
+        project_scoped: true
+    documentation: docs/agents/issue-resolution-engineer.md
+
+  - name: codebase-health-engineer
+    status: stable
+    summary: Audit codebase health, discover risks and test gaps, assess structural pressure, and target measurable optimizations.
+    source: agents/source/codebase-health-engineer.md
+    access:
+      repository_write: false
+      artifact_write: true
+      external_write: false
+    skills:
+      - codebase-issue-auditor
+      - design-codebase-with-senior-dev
+      - optimize-codebase-with-senior-dev
+      - create-diagram
+    platforms:
+      claude:
+        enabled: true
+        plugin_bundled: true
+      cursor:
+        enabled: true
+        plugin_bundled: true
+      codex:
+        enabled: true
+        plugin_bundled: false
+        project_scoped: true
+    documentation: docs/agents/codebase-health-engineer.md

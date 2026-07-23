@@ -273,3 +273,12 @@ python tests/create-diagram/browser_smoke.py
 | [design-codebase-with-senior-dev](docs/skills/design-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. |
 | [optimize-codebase-with-senior-dev](docs/skills/optimize-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
 <!-- END GENERATED SKILL CATALOG -->
+
+<!-- BEGIN GENERATED AGENT CATALOG -->
+| Agent | Status | Access (Repo/Art/Ext) | Skills | Summary |
+| --- | --- | --- | --- | --- |
+| [architecture-engineer](docs/agents/architecture-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `design-codebase-with-senior-dev`, `create-diagram`, `plan-with-senior-dev` | Analyze and redesign codebase architecture without implementing changes. |
+| [delivery-engineer](docs/agents/delivery-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `plan-with-senior-dev`, `implement-with-senior-dev` | Turn a concrete engineering request into a validated plan and execute an authorized implementation plan. |
+| [issue-resolution-engineer](docs/agents/issue-resolution-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `github-issue-planner`, `plan-with-senior-dev`, `implement-with-senior-dev` | Inspect GitHub issues, reconcile issue claims with local checkout, and plan or implement authorized fixes. |
+| [codebase-health-engineer](docs/agents/codebase-health-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `codebase-issue-auditor`, `design-codebase-with-senior-dev`, `optimize-codebase-with-senior-dev`, `create-diagram` | Audit codebase health, discover risks and test gaps, assess structural pressure, and target measurable optimizations. |
+<!-- END GENERATED AGENT CATALOG -->

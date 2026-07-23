@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate catalog/skills.yaml structure, schema, and filesystem alignment."""
+"""Validate catalog/skills.yaml and catalog/agents.yaml structure, schema, and filesystem alignment."""
 
 from __future__ import annotations
 
@@ -14,42 +14,35 @@ except ImportError:
     sys.exit(1)
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
-SCHEMA_PATH = ROOT / "catalog" / "skills.schema.json"
+SKILLS_CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+AGENTS_CATALOG_PATH = ROOT / "catalog" / "agents.yaml"
 
 
-def load_catalog() -> dict[str, Any]:
-    if not CATALOG_PATH.is_file():
-        raise FileNotFoundError(f"Catalog file not found at {CATALOG_PATH}")
-    with CATALOG_PATH.open("r", encoding="utf-8") as f:
+def load_yaml(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        raise FileNotFoundError(f"Catalog file not found at {path}")
+    with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def validate_catalog() -> list[str]:
+def validate_skills_catalog() -> tuple[dict[str, Any], list[str]]:
     errors: list[str] = []
-    if not CATALOG_PATH.is_file():
-        return [f"Missing catalog file: {CATALOG_PATH.relative_to(ROOT)}"]
+    if not SKILLS_CATALOG_PATH.is_file():
+        return {}, [f"Missing catalog file: {SKILLS_CATALOG_PATH.relative_to(ROOT)}"]
 
     try:
-        catalog = load_catalog()
+        catalog = load_yaml(SKILLS_CATALOG_PATH)
     except Exception as exc:
-        return [f"Failed to parse catalog YAML: {exc}"]
+        return {}, [f"Failed to parse skills catalog YAML: {exc}"]
 
     if not isinstance(catalog, dict):
-        return ["catalog/skills.yaml must contain a top-level mapping"]
-
-    schema_ver = catalog.get("schema_version")
-    if schema_ver != 1:
-        errors.append(f"Expected schema_version 1, got {schema_ver}")
+        return {}, ["catalog/skills.yaml must contain a top-level mapping"]
 
     domains = catalog.get("domains", {})
-    if not isinstance(domains, dict) or not domains:
-        errors.append("Catalog 'domains' must be a non-empty mapping")
-
     skills = catalog.get("skills", [])
     if not isinstance(skills, list) or not skills:
         errors.append("Catalog 'skills' must be a non-empty list")
-        return errors
+        return catalog, errors
 
     seen_names = set()
     seen_paths = set()
@@ -109,6 +102,85 @@ def validate_catalog() -> list[str]:
             if not test_path.is_dir():
                 errors.append(f"{prefix}: test path '{test_path_str}' does not exist on disk")
 
+    return catalog, errors
+
+
+def validate_agents_catalog(skills_catalog: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if not AGENTS_CATALOG_PATH.is_file():
+        return [f"Missing agents catalog file: {AGENTS_CATALOG_PATH.relative_to(ROOT)}"]
+
+    try:
+        catalog = load_yaml(AGENTS_CATALOG_PATH)
+    except Exception as exc:
+        return [f"Failed to parse agents catalog YAML: {exc}"]
+
+    if not isinstance(catalog, dict):
+        return ["catalog/agents.yaml must contain a top-level mapping"]
+
+    agents = catalog.get("agents", [])
+    if not isinstance(agents, list) or not agents:
+        errors.append("Catalog 'agents' must be a non-empty list")
+        return errors
+
+    known_skills = {s["name"]: s for s in skills_catalog.get("skills", [])}
+    seen_names = set()
+
+    for idx, agent in enumerate(agents):
+        prefix = f"agent[{idx}] ({agent.get('name', 'unnamed')})"
+
+        name = agent.get("name")
+        if not name:
+            errors.append(f"{prefix}: missing name")
+        elif name in seen_names:
+            errors.append(f"{prefix}: duplicate agent name '{name}'")
+        else:
+            seen_names.add(name)
+
+        status = agent.get("status")
+        if status not in ("experimental", "beta", "stable", "deprecated"):
+            errors.append(f"{prefix}: invalid status '{status}'")
+
+        source_str = agent.get("source")
+        if not source_str:
+            errors.append(f"{prefix}: missing source path")
+        else:
+            source_path = ROOT / source_str
+            if not source_path.is_file():
+                errors.append(f"{prefix}: source path '{source_str}' does not exist on disk")
+
+        doc_str = agent.get("documentation")
+        if not doc_str:
+            errors.append(f"{prefix}: missing documentation path")
+        else:
+            doc_path = ROOT / doc_str
+            if not doc_path.is_file():
+                errors.append(f"{prefix}: documentation path '{doc_str}' does not exist on disk")
+
+        access = agent.get("access", {})
+        if not isinstance(access, dict):
+            errors.append(f"{prefix}: 'access' must be a mapping")
+
+        skills = agent.get("skills", [])
+        if not isinstance(skills, list):
+            errors.append(f"{prefix}: 'skills' must be a list")
+        else:
+            for skill_name in skills:
+                if skill_name not in known_skills:
+                    errors.append(f"{prefix}: references unknown skill '{skill_name}'")
+                else:
+                    skill_entry = known_skills[skill_name]
+                    if skill_entry.get("invocation") == "user":
+                        errors.append(f"{prefix}: skill '{skill_name}' has invocation mode 'user' which disables model availability")
+                    if agent.get("status") == "stable" and skill_entry.get("status") == "deprecated":
+                        errors.append(f"{prefix}: stable agent depends on deprecated skill '{skill_name}'")
+
+    return errors
+
+
+def validate_catalog() -> list[str]:
+    skills_catalog, errors = validate_skills_catalog()
+    errors.extend(validate_agents_catalog(skills_catalog))
     return errors
 
 

@@ -16,6 +16,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -36,6 +37,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -55,6 +57,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -75,6 +78,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -94,6 +98,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -114,6 +119,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []
@@ -133,6 +139,7 @@ skills:
     platforms:
       skills_sh: true
       claude_plugin: true
+      cursor_plugin: true
       codex: true
     relationships:
       invokes: []

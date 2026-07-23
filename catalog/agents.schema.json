@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentsCatalog",
+  "type": "object",
+  "required": ["schema_version", "agents"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "summary",
+          "source",
+          "access",
+          "skills",
+          "platforms",
+          "documentation"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["experimental", "beta", "stable", "deprecated"]
+          },
+          "summary": { "type": "string" },
+          "source": { "type": "string" },
+          "access": {
+            "type": "object",
+            "required": ["repository_write", "artifact_write", "external_write"],
+            "properties": {
+              "repository_write": { "type": "boolean" },
+              "artifact_write": { "type": "boolean" },
+              "external_write": { "type": "boolean" }
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "platforms": {
+            "type": "object",
+            "required": ["claude", "cursor", "codex"],
+            "properties": {
+              "claude": {
+                "type": "object",
+                "required": ["enabled", "plugin_bundled"],
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "plugin_bundled": { "type": "boolean" }
+                }
+              },
+              "cursor": {
+                "type": "object",
+                "required": ["enabled", "plugin_bundled"],
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "plugin_bundled": { "type": "boolean" }
+                }
+              },
+              "codex": {
+                "type": "object",
+                "required": ["enabled", "plugin_bundled", "project_scoped"],
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "plugin_bundled": { "type": "boolean" },
+                  "project_scoped": { "type": "boolean" }
+                }
+              }
+            }
+          },
+          "documentation": { "type": "string" }
+        }
+      }
+    }
+  }
+}
