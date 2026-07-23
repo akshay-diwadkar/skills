@@ -1,276 +1,176 @@
-# Skills
+# Engineering Skills
 
-Agent skills for AI coding assistants — one skill per stage of the engineering lifecycle: audit, issue planning, optimization, design, specification, implementation, and diagramming.
+[![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg)](https://github.com/akshay-diwadkar/skills/actions)
+[![Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills)](https://github.com/akshay-diwadkar/skills/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
+[![Claude Code Compatible](https://img.shields.io/badge/Claude%20Code-Supported-7c3aed.svg)](docs/compatibility.md)
+[![Cursor Compatible](https://img.shields.io/badge/Cursor-Supported-0066ff.svg)](docs/compatibility.md)
+[![Codex Compatible](https://img.shields.io/badge/Codex%2FOpenAI-Supported-00a67e.svg)](docs/compatibility.md)
+[![skills.sh Compatible](https://img.shields.io/badge/skills.sh-Supported-black.svg)](docs/compatibility.md)
 
+A production engineering plugin for AI coding agents. It combines focused engineering agents with validated skills for auditing, architecture, planning, implementation, optimization, issue resolution, and system diagramming.
 
-## Install
+Workflows are repository-grounded, safety-conscious, and backed by automated validators across multiple agent platforms.
 
-Install individual skills with the `npx skills` CLI:
+---
 
-```bash
-# Interactive menu — select the skills you want
-npx skills add akshay-diwadkar/skills
+## Why Use It
 
-# Or install individual skills by name
-npx skills add akshay-diwadkar/skills --skill create-diagram
-npx skills add akshay-diwadkar/skills --skill design-codebase-with-senior-dev
-npx skills add akshay-diwadkar/skills --skill plan-with-senior-dev
-npx skills add akshay-diwadkar/skills --skill codebase-issue-auditor
-npx skills add akshay-diwadkar/skills --skill github-issue-planner
-npx skills add akshay-diwadkar/skills --skill implement-with-senior-dev
-npx skills add akshay-diwadkar/skills --skill optimize-codebase-with-senior-dev
+Unlike generic system prompts or simple snippet collections, this plugin provides structured, contract-backed engineering workflows:
+
+- **Agent Orchestration**: Role-based agents select and coordinate the right engineering skills based on your intent.
+- **Repository-Grounded Analysis**: Skills inspect your actual source code, test suites, and git state rather than offering unverified advice.
+- **Strict Execution Contracts**: Planning, architecture, optimization, and implementation workflows enforce explicit contracts and output verification.
+- **Explicit Authorization**: Destructive operations, repository modifications, and external actions require explicit confirmation.
+- **Validator-Backed Claims**: Completion claims require passing automated verification checks and gathering empirical proof.
+- **Generated Adapters**: Platform-specific agent adapters are compiled directly from canonical source definitions.
+
+---
+
+## Recommended Usage: Agents First
+
+The primary way to use this plugin is through its **role-based engineering agents**. Rather than invoking individual skills manually, you interact with an agent persona that manages the appropriate engineering lifecycle.
+
+<!-- BEGIN GENERATED AGENT CATALOG -->
+| Agent | Status | Access (Repo/Art/Ext) | Skills | Summary |
+| --- | --- | --- | --- | --- |
+| [architecture-engineer](docs/agents/architecture-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `design-codebase-with-senior-dev`, `create-diagram`, `plan-with-senior-dev` | Analyze and redesign codebase architecture without implementing changes. |
+| [delivery-engineer](docs/agents/delivery-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `plan-with-senior-dev`, `implement-with-senior-dev` | Turn a concrete engineering request into a validated plan and execute an authorized implementation plan. |
+| [issue-resolution-engineer](docs/agents/issue-resolution-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `github-issue-planner`, `plan-with-senior-dev`, `implement-with-senior-dev` | Inspect GitHub issues, reconcile issue claims with local checkout, and plan or implement authorized fixes. |
+| [codebase-health-engineer](docs/agents/codebase-health-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `codebase-issue-auditor`, `design-codebase-with-senior-dev`, `optimize-codebase-with-senior-dev`, `create-diagram` | Audit codebase health, discover risks and test gaps, assess structural pressure, and target measurable optimizations. |
+<!-- END GENERATED AGENT CATALOG -->
+
+### Example Agent Requests
+
+- **Architecture Engineer**:
+  > "Review this repository and tell me which architectural changes are actually justified."
+- **Delivery Engineer**:
+  > "Turn this approved plan into a verified implementation."
+- **Issue Resolution Engineer**:
+  > "Review the open GitHub issues and prepare the highest-priority one for implementation."
+- **Codebase Health Engineer**:
+  > "Audit this codebase for meaningful defects and engineering risks."
+
+---
+
+## Workflow Overview
+
+Workflows follow a 4-stage engineering lifecycle: **Discover → Decide → Specify → Deliver**.
+
+```mermaid
+flowchart LR
+    A[Audit or Issue Intake] --> B[Architecture or Optimization]
+    B --> C[Decision-complete Plan]
+    C --> D[Verified Implementation]
+    A -.-> E[Diagram]
+    B -.-> E
+    C -.-> E
 ```
 
-Restart your agent after installing new skills.
+You can enter the workflow at any stage depending on your objective. See [Workflow Lifecycle](docs/workflow.md) for full details.
 
-Manual clone and symlink installation also works:
+---
+
+## Platform Installation
+
+Choose the installation route for your AI coding environment.
+
+### 1. Claude Code (Plugin / Marketplace)
+
+Install the plugin from the marketplace:
+
+```bash
+/plugin marketplace add akshay-diwadkar/skills
+/plugin install engineering-skills
+```
+
+For local development, load the repository directory:
+
+```bash
+/plugin load /path/to/cloned/skills
+```
+
+### 2. Cursor (Plugin Manifest)
+
+Cursor detects the plugin via `.cursor-plugin/plugin.json`.
+
+Place or symlink this repository into your user plugins folder (`~/.cursor/plugins/engineering-skills`) or workspace root. Bundled agents (`agents/cursor/`) and skills (`skills/engineering/`) will be loaded automatically.
+
+### 3. Codex / OpenAI
+
+Skills are discovered from `skills/engineering/`. To install role agents into a specific project, run the installer tool:
+
+```bash
+python tools/agents/install_codex_agents.py --target /path/to/your/project --write
+```
+
+This creates project-scoped `.codex/agents/*.toml` agent definitions.
+
+### 4. skills.sh (Portable Skill CLI)
+
+To install individual skills using the portable CLI:
+
+```bash
+# Interactive skill selection
+npx skills add akshay-diwadkar/skills
+
+# Install a specific skill
+npx skills add akshay-diwadkar/skills --skill plan-with-senior-dev
+```
+
+### 5. Manual Clone & Symlinks
+
+For unsupported hosts or development environments:
 
 ```bash
 # Linux / macOS
 git clone https://github.com/akshay-diwadkar/skills.git
-cd skills
 mkdir -p ~/.agents/skills
-ln -s "$PWD/skills/engineering/create-diagram" ~/.agents/skills/
-ln -s "$PWD/skills/engineering/design-codebase-with-senior-dev" ~/.agents/skills/
 ln -s "$PWD/skills/engineering/plan-with-senior-dev" ~/.agents/skills/
-ln -s "$PWD/skills/engineering/codebase-issue-auditor" ~/.agents/skills/
-ln -s "$PWD/skills/engineering/github-issue-planner" ~/.agents/skills/
-ln -s "$PWD/skills/engineering/implement-with-senior-dev" ~/.agents/skills/
-ln -s "$PWD/skills/engineering/optimize-codebase-with-senior-dev" ~/.agents/skills/
 ```
 
 ```powershell
-# Windows PowerShell (Administrator or Developer Mode)
+# Windows PowerShell
 git clone https://github.com/akshay-diwadkar/skills.git
-cd skills
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\create-diagram" -Target "$PWD\skills\engineering\create-diagram"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\design-codebase-with-senior-dev" -Target "$PWD\skills\engineering\design-codebase-with-senior-dev"
 New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\plan-with-senior-dev" -Target "$PWD\skills\engineering\plan-with-senior-dev"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\codebase-issue-auditor" -Target "$PWD\skills\engineering\codebase-issue-auditor"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\github-issue-planner" -Target "$PWD\skills\engineering\github-issue-planner"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\implement-with-senior-dev" -Target "$PWD\skills\engineering\implement-with-senior-dev"
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\optimize-codebase-with-senior-dev" -Target "$PWD\skills\engineering\optimize-codebase-with-senior-dev"
 ```
 
-## Workflow
+For detailed platform options, see [Platform Installation Guide](docs/installation.md).
 
-Seven skills, one lifecycle: find what's wrong, decide what to do about it, specify the change exactly, then make it. Start at the stage that matches your problem and follow only the handoffs you need.
+---
 
-### Capability map
+## Quick Start Scenarios
 
-| Stage | You have | Skill | You get |
-|---|---|---|---|
-| Discover | A repo you don't trust yet | `codebase-issue-auditor` | Evidence-backed findings; GitHub issue drafts on approval |
-| Discover | Open GitHub issues | `github-issue-planner` | One issue planned against your checkout |
-| Decide | A slow or clunky workflow | `optimize-codebase-with-senior-dev` | A baseline, ranked options, and a brief for the best one |
-| Decide | A design that feels wrong | `design-codebase-with-senior-dev` | A verdict on whether restructuring is worth it, plus the smallest safe migration |
-| Specify | A change you can describe | `plan-with-senior-dev` | A decision-complete spec: interfaces, logic, tests, rollback |
-| Communicate | A system nobody can picture | `create-diagram` | A self-contained HTML diagram grounded in the repo |
-| Deliver | An approved plan | `implement-with-senior-dev` | The smallest satisfying patch, verified and reported |
+### Scenario A: Audit an Unfamiliar Repository
+Ask your agent:
+> "Run codebase-health-engineer to inspect this codebase for bugs, test gaps, and security risks."
+*Result*: An evidence-backed findings audit. Findings can optionally be drafted as GitHub issues upon approval.
 
-The common path is **discover → decide → specify → deliver**. Diagramming supports any review point, and a targeted re-audit after delivery checks residual risk. Neither is mandatory.
+### Scenario B: Plan and Implement a Feature
+1. Ask `delivery-engineer` to draft a spec:
+   > "Plan the addition of a Redis caching layer for user session tokens."
+2. Review and approve the decision-complete specification blueprint.
+3. Instruct `delivery-engineer` to execute:
+   > "Implement the approved plan."
+*Result*: A verified code patch with an exact change report.
 
-### Recipe 1: Turn unknown risks into verified fixes
+### Scenario C: Resolve a GitHub Issue
+Ask `issue-resolution-engineer`:
+> "Inventory open GitHub issues, select issue #42, reconcile its claims against the local checkout, and create an implementation plan."
+*Result*: An issue-reconciled implementation plan ready for authorized execution.
 
-1. Run `codebase-issue-auditor` and promote only reproducible findings.
-2. Route an approved finding to `optimize-codebase-with-senior-dev` for efficiency work, or to `design-codebase-with-senior-dev` for structural pressure.
-3. Use `plan-with-senior-dev` to turn the chosen brief or design into an executable spec.
-4. Use `implement-with-senior-dev` to apply the patch and verify it.
-5. Optionally re-audit the changed area for residual risk.
+### Scenario D: Evaluate an Architectural Concern
+Ask `architecture-engineer`:
+> "Assess whether converting our monolithic state store to decentralized services is justified."
+*Result*: An architectural assessment detailing whether restructuring is justified, plus the smallest safe migration path.
 
-**Stop with:** a verified patch and an honest view of what's still risky.
+---
 
-### Recipe 2: Optimize a known bottleneck or workflow
+## Included Skills
 
-1. Start with `optimize-codebase-with-senior-dev`: baseline the workflow, research what the stack already gives you, rank the candidates.
-2. If the winner requires restructuring, approve the design with `design-codebase-with-senior-dev` first. Otherwise skip ahead.
-3. Hand the brief or approved design to `plan-with-senior-dev`, then execute with `implement-with-senior-dev`.
-4. Compare the result with the baseline. Met the metric? Stop. Missed it? Back to the candidate list.
-
-**Stop with:** a measured improvement, not a plausible one.
-
-### Recipe 3: Redesign a critical subsystem safely
-
-1. Use `design-codebase-with-senior-dev` to reconstruct the current design, test whether change is justified, and define reversible migration slices. It never edits code.
-2. Use `create-diagram` when reviewers need a shared picture of current or target state before approving.
-3. Turn the approved design into contracts, migration logic, rollback, and tests with `plan-with-senior-dev`.
-4. Apply the slices with `implement-with-senior-dev`. Diagram the result or re-audit afterward if useful.
-
-**Stop with:** preserved behavior and a migration record you can review.
-
-### Recipe 4: Convert a GitHub backlog into implementation-ready work
-
-1. Run `github-issue-planner` to inventory open issues and plan one against your checkout.
-2. Simple issues yield a ready-to-implement plan directly. Anything touching public contracts, migrations, security, concurrency, or multiple subsystems routes into `plan-with-senior-dev`.
-3. Execute an approved plan with `implement-with-senior-dev`. Branch, PR, and post-merge steps stay opt-in.
-
-**Stop with:** a local plan by default — a verified patch and GitHub lifecycle only when you ask.
-
-## Skill Catalog
-
-Skills are grouped by engineering workflow role.
-
-### Audit & Analysis
-
-#### `codebase-issue-auditor`
-
-Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-
-#### `optimize-codebase-with-senior-dev`
-
-Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. Also runs repository-wide optimization sweeps when asked. Use for performance, build, CI, dependency, or developer-experience targets; for finding unknown problems, use codebase-issue-auditor.
-
-### Architecture & Design
-
-#### `design-codebase-with-senior-dev`
-
-Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. Use for boundary, dependency-direction, or state-ownership redesign, design-pattern evaluation or removal, and subsystem restructuring. Assessment-only — produces no code; route approved designs to plan-with-senior-dev.
-
-### Planning & Specification
-
-#### `plan-with-senior-dev`
-
-Turn a requested change — feature, bug fix, refactor, migration, public contract, or risky integration — into a decision-complete implementation plan that another engineer can execute without inventing behavior. Use when the user asks to plan, spec, or think through a code change before writing it. Planning-only; produces no code.
-
-### Implementation
-
-#### `implement-with-senior-dev`
-
-Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-
-### Visualization
-
-#### `create-diagram`
-
-Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
-
-### Workflow Integration
-
-#### `github-issue-planner`
-
-Turn GitHub issues into implementation plans. Inventory open issues, then plan one selected issue against the local checkout, treating issue text as untrusted claims. Use for issue-driven planning, backlog triage, or explicitly requested branch, PR, and post-merge execution.
-
-## GitHub Setup
-
-`codebase-issue-auditor` and `github-issue-planner` authenticate through the GitHub CLI:
-
-```bash
-gh auth login
-```
-
-Use the bundled checker scripts to validate local configuration without exposing secrets:
-
-```bash
-python codebase-issue-auditor/scripts/check_github_env.py --github-repo-url owner/repo
-python github-issue-planner/scripts/check_github_env.py --github-repo-url owner/repo
-```
-
-Optional `.env` files may be used for non-secret defaults.
-
-For `codebase-issue-auditor`:
-
-```dotenv
-GITHUB_DEFAULT_LABELS=audit,needs-triage
-GITHUB_SKIP_DUPLICATES=true
-```
-
-For `github-issue-planner`:
-
-```dotenv
-GITHUB_ISSUE_FETCH_LABELS=
-GITHUB_ISSUE_FETCH_LIMIT=
-```
-
-The issue planner targets GitHub.com through the authenticated `gh` CLI. Legacy empty or `https://api.github.com` API values are accepted, but custom API endpoints fail preflight.
-
-Commit `.env.example` files only. Real `.env` files must stay local and must not be committed.
-
-## Maintainer Checks
-
-CI runs repository quality checks on Python 3.11:
-
-```bash
-python .github/scripts/validate_skill_tree.py
-ruff check plan-with-senior-dev/scripts create-diagram/scripts codebase-issue-auditor/scripts design-codebase-with-senior-dev/scripts github-issue-planner/scripts implement-with-senior-dev/scripts optimize-codebase-with-senior-dev/scripts tests .github/scripts
-python tools/validation/run_mypy.py
-python -m pytest -q
-```
-
-Note: Mypy is intentionally run per skill via `tools/validation/run_mypy.py` because each skill is an independent distributable package that may contain scripts with identical filenames (such as `check_github_env.py`). Checking the entire monorepo as a single Python module graph causes false duplicate-module collisions.
-
-`implement-with-senior-dev` uses an executable run contract. Store the plan snapshot and bundle in a Git-ignored scratch path or an OS temporary directory:
-
-```bash
-python implement-with-senior-dev/scripts/scaffold_implementation.py \
-  --repo-root /path/to/repo \
-  --plan /ignored/run/plan.md \
-  --output /ignored/run/implementation.json
-python implement-with-senior-dev/scripts/finalize_implementation.py \
-  --repo-root /path/to/repo \
-  --plan /ignored/run/plan.md \
-  /ignored/run/implementation.json
-```
-
-Its provider-neutral live adapter reads one JSON request from stdin with `repo_root`, `skill_path`, `plan_path`, and `run_bundle_path`. It may mutate only the disposable repository copy and returns JSON containing `implementation_report_markdown`:
-
-```bash
-python tests/implement-with-senior-dev/run_live_evaluations.py \
-  --adapter-command python path/to/adapter.py \
-  --model-label weaker-model \
-  --runs 3 \
-  --output-dir .scratch/implement-with-senior-dev-evals
-```
-
-The runner checks actual diffs, preserved dirty sentinels, authoritative verification commands, the implementation bundle, and report truthfulness. Passing requires no hard failures, a median score of at least 90, and every run at least 80. Without a configured adapter and completed run, weaker-model reliability remains unverified.
-
-`design-codebase-with-senior-dev` also has an opt-in provider-neutral live evaluation runner. The adapter command reads one JSON request from stdin and writes one JSON response containing `assessment_markdown` to stdout. Model credentials and provider SDKs stay in the adapter, outside this repository.
-
-```bash
-python tests/design-codebase-with-senior-dev/run_live_evaluations.py \
-  --adapter-command python path/to/adapter.py \
-  --model-label weaker-model \
-  --runs 3 \
-  --output-dir .scratch/design-codebase-evals
-```
-
-The runner copies and hashes each fixture, treats mutations and adapter failures as hard failures, and requires a median score of 90 with no individual score below 80.
-
-`optimize-codebase-with-senior-dev` uses an executable report contract. Generate and validate reports from the skill directory:
-
-```bash
-python scripts/scaffold_optimization.py --scope targeted --stage plan > optimization.md
-python scripts/check_optimization.py --scope targeted --stage plan --repo-root /path/to/repo optimization.md
-```
-
-Its provider-neutral live evaluation adapter reads one JSON request from stdin and writes one JSON response containing `optimization_markdown` to stdout:
-
-```bash
-python tests/optimize-codebase-with-senior-dev/run_live_evaluations.py \
-  --adapter-command python path/to/adapter.py \
-  --model-label weaker-model \
-  --runs 3 \
-  --output-dir .scratch/optimize-codebase-evals
-```
-
-The runner hashes copied fixtures, treats mutation and adapter failures as hard failures, and requires a median score of 90 with every run at least 80. Without a configured adapter, weaker-model reliability remains unverified.
-
-CI also runs `create-diagram` checks across Windows, macOS, and Linux on Python 3.9 through 3.12:
-
-```bash
-python -m unittest discover -s tests/create-diagram -v
-python tests/create-diagram/check_template_refs.py
-python create-diagram/scripts/build_diagram.py --data tests/create-diagram/fixtures/complex.json --output create-diagram-smoke.html --overwrite
-python create-diagram/scripts/validate_diagram.py create-diagram-smoke.html
-```
-
-The optional browser smoke check requires Playwright:
-
-```bash
-python -m pip install playwright
-python -m playwright install chromium
-python tests/create-diagram/browser_smoke.py
-```
+The plugin's role agents are powered by canonical engineering skills:
 
 <!-- BEGIN GENERATED SKILL CATALOG -->
 | Skill | Domain | Kind | Status | Invocation | Summary |
@@ -284,11 +184,77 @@ python tests/create-diagram/browser_smoke.py
 | [optimize-codebase-with-senior-dev](docs/skills/optimize-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
 <!-- END GENERATED SKILL CATALOG -->
 
-<!-- BEGIN GENERATED AGENT CATALOG -->
-| Agent | Status | Access (Repo/Art/Ext) | Skills | Summary |
+### Skill Lifecycle Roles
+
+- **Discover**: `codebase-issue-auditor`, `github-issue-planner`
+- **Decide**: `design-codebase-with-senior-dev`, `optimize-codebase-with-senior-dev`
+- **Specify**: `plan-with-senior-dev`
+- **Deliver**: `implement-with-senior-dev`
+- **Communicate**: `create-diagram`
+
+---
+
+## Safety Model & Controls
+
+All workflows enforce explicit safety boundaries:
+
+- **Repository Evidence**: Analysis must be grounded in actual codebase inspection.
+- **Read-Only Gating**: Planning, design, and audit skills never edit project source code.
+- **Explicit Write Authorization**: Source code mutations and remote writes require explicit user confirmation.
+- **Dirty Worktree Protection**: Uncommitted local user changes are protected and preserved during execution.
+- **Executable Verification**: Implementation completion requires passing verification commands and gathering empirical proof.
+
+For details, see [Safety & Controls](docs/safety.md).
+
+---
+
+## Platform Support Matrix
+
+| Platform | Skills | Role Agents | Plugin Manifest / Config | Status |
 | --- | --- | --- | --- | --- |
-| [architecture-engineer](docs/agents/architecture-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `design-codebase-with-senior-dev`, `create-diagram`, `plan-with-senior-dev` | Analyze and redesign codebase architecture without implementing changes. |
-| [delivery-engineer](docs/agents/delivery-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `plan-with-senior-dev`, `implement-with-senior-dev` | Turn a concrete engineering request into a validated plan and execute an authorized implementation plan. |
-| [issue-resolution-engineer](docs/agents/issue-resolution-engineer.md) | `stable` | `Repo:True / Art:True / Ext:False` | `github-issue-planner`, `plan-with-senior-dev`, `implement-with-senior-dev` | Inspect GitHub issues, reconcile issue claims with local checkout, and plan or implement authorized fixes. |
-| [codebase-health-engineer](docs/agents/codebase-health-engineer.md) | `stable` | `Repo:False / Art:True / Ext:False` | `codebase-issue-auditor`, `design-codebase-with-senior-dev`, `optimize-codebase-with-senior-dev`, `create-diagram` | Audit codebase health, discover risks and test gaps, assess structural pressure, and target measurable optimizations. |
-<!-- END GENERATED AGENT CATALOG -->
+| **Claude Code** | Yes | Yes (`agents/claude/*.md`) | `.claude-plugin/plugin.json` | **Supported** (Plugin) |
+| **Cursor** | Yes | Yes (`agents/cursor/*.md`) | `.cursor-plugin/plugin.json` | **Supported** (Plugin) |
+| **Codex / OpenAI** | Yes | Yes (`.codex/agents/*.toml`) | `.codex/config.toml`<br>`tools/agents/install_codex_agents.py` | **Supported** (Project / Installer) |
+| **skills.sh** | Yes | No (Skills only) | Canonical `skills/*/*/SKILL.md` | **Supported** (Skills CLI) |
+
+---
+
+## Documentation Index
+
+Explore detailed documentation under `docs/`:
+
+- [Getting Started](docs/getting-started.md) — Core concepts, agent vs. skill selection, first steps.
+- [Platform Installation](docs/installation.md) — Complete setup guides for Claude Code, Cursor, Codex, skills.sh, and manual symlinks.
+- [Engineering Agents](docs/agents.md) — Comprehensive guide to role agents and prompt generation.
+- [Workflow Lifecycle](docs/workflow.md) — Lifecycle stages, handoffs, and operational recipes.
+- [Platform Compatibility](docs/compatibility.md) — Discovery mechanisms, adapter targets, and support claims.
+- [Repository Architecture](docs/architecture.md) — Monorepo design, catalog ownership, and directory structure.
+- [Safety & Controls](docs/safety.md) — Access permissions, execution gates, and policy rules.
+- [Testing & Verification](docs/testing.md) — Multi-layer test strategy, contract validation, and browser smoke checks.
+- [Live Model Evaluations](docs/evaluations.md) — Provider-neutral eval runners, fixtures, and failure rules.
+- [Authoring Skills](docs/authoring-skills.md) — Step-by-step guide to authoring skills and agents.
+- [Release Process](docs/release-process.md) — Maintainer pre-release protocol and packaging verification.
+- [Contributing Guide](docs/contributing.md) — Development guidelines and pull request standards.
+
+---
+
+## Maintainer Verification
+
+Maintainers run the following validation sweep before submitting PRs or tagging releases:
+
+```bash
+python tools/validation/validate_repository.py
+python tools/packaging/verify_distribution.py
+python -m pytest -q
+```
+
+See [Testing Strategy](docs/testing.md) and [Release Process](docs/release-process.md) for complete maintainer details.
+
+---
+
+## Contributing, Security & License
+
+- [Contributing Guide](CONTRIBUTING.md) / [Deep Guide](docs/contributing.md)
+- [Security Policy](SECURITY.md)
+- [License (MIT)](LICENSE)
+- [Changelog](CHANGELOG.md)
