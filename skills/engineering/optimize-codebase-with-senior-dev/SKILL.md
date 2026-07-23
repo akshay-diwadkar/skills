@@ -140,7 +140,7 @@ For implementation stage:
 ## Handoff Boundaries
 
 - Use `codebase-issue-auditor` when bugs, risks, or architectural problems have not yet been proved.
-- Use `diagnose` first for a concrete regression that must be reproduced and minimized.
+- Use `codebase-issue-auditor` for a concrete defect or regression that must be reproduced, audited, and isolated.
 - Use `plan-with-senior-dev` for a Strategic Win requiring exact implementation contracts and propagation.
 - Use `implement-with-senior-dev` for an approved decision-complete plan, or retain this skill's implementation stage when the user explicitly requests the measured candidate directly.
-- Use `improve-codebase-architecture` when the primary objective is structural redesign rather than measurable optimization.
+- Use `design-codebase-with-senior-dev` when the primary objective is structural redesign rather than measurable optimization.

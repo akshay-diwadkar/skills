@@ -261,6 +261,8 @@ def generate_claude_plugin_json(skills_catalog: dict[str, Any], version: str) ->
         "name": "engineering-skills",
         "version": version,
         "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
+        "publisher": "akshay-diwadkar",
+        "license": "MIT",
         "skills": promoted_skills,
         "agents": "./agents/claude/"
     }
@@ -273,6 +275,8 @@ def generate_cursor_plugin_json(version: str) -> str:
         "displayName": "Engineering Skills",
         "version": version,
         "description": "Production engineering skills and focused engineering agents.",
+        "publisher": "akshay-diwadkar",
+        "license": "MIT",
         "skills": "./skills/",
         "agents": "./agents/cursor/"
     }
@@ -286,6 +290,7 @@ def generate_marketplace_json(version: str) -> str:
             {
                 "name": "engineering-skills",
                 "version": version,
+                "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
                 "source": "./"
             }
         ]

@@ -4,6 +4,7 @@
     {
       "name": "engineering-skills",
       "version": "1.0.0",
+      "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
       "source": "./"
     }
   ]

@@ -4,7 +4,8 @@
 
 - **skills.sh**: Discovered automatically from canonical `skills/*/*/SKILL.md` paths.
 - **Claude Plugin**: Registered via `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
-- **Codex / OpenAI**: Discovered via canonical skill paths and optional `agents/openai.yaml`.
+- **Cursor Plugin**: Registered via `.cursor-plugin/plugin.json` and `.cursor-plugin/marketplace.json`.
+- **Codex / OpenAI**: Configured via `.codex/config.toml`, `.codex/agents/*.toml`, canonical skill paths, and optional `agents/openai.yaml`.
 
 ## Breaking Changes Policy
 

@@ -53,12 +53,22 @@ def build_distribution(output_dir: Path) -> Path:
     if cursor_src.is_dir():
         shutil.copytree(cursor_src, output_dir / ".cursor-plugin")
 
+    codex_src = ROOT / ".codex"
+    if codex_src.is_dir():
+        shutil.copytree(codex_src, output_dir / ".codex")
+
+    catalog_src = ROOT / "catalog"
+    if catalog_src.is_dir():
+        shutil.copytree(catalog_src, output_dir / "catalog")
+
     agents_src = ROOT / "agents"
     if agents_src.is_dir():
         shutil.copytree(agents_src, output_dir / "agents")
 
     shutil.copy2(ROOT / "README.md", output_dir / "README.md")
     shutil.copy2(ROOT / "VERSION", output_dir / "VERSION")
+    if (ROOT / "LICENSE").is_file():
+        shutil.copy2(ROOT / "LICENSE", output_dir / "LICENSE")
 
     return output_dir
 

@@ -59,7 +59,7 @@ Branch, commit, PR, and post-merge comment actions are opt-in only. Run them onl
      - `blocked`: required local/external evidence is unavailable; list exact unblock conditions.
      - `close-candidate`: local evidence indicates no code change is needed; never close automatically.
    - Set `ready-for-senior-plan` when any shared/public contract, persisted-data migration, auth/security behavior, concurrency/order/idempotency behavior, external or irreversible effect, or cross-subsystem change is involved. The user may request senior planning for any other issue.
-   - Every artifact must retain its `Senior Handoff` section. Invoke `$plan-with-senior-dev` with that artifact when routing is required or requested; its v2 plan must carry the source SHA-256, checkout commit, and issue-update markers emitted by the scaffold.
+    - Every artifact must retain its `Senior Handoff` section. Invoke `$plan-with-senior-dev` with that artifact when routing is required or requested; its v3 plan must carry the source SHA-256, checkout commit, and issue-update markers emitted by the scaffold.
 
 7. **Validate and report**
    - Run the checker and repair the artifact until it passes:
@@ -79,7 +79,7 @@ Execute one issue per branch only after explicit user authorization.
    ```powershell
    python "$skillDir\scripts\check_issue_plan.py" <issue-plan.md> --repo-root <checkout> --issue-json <fresh-issue.json> --execution-ready
    ```
-   For `ready-for-senior-plan`, also pass `--senior-plan <validated-v2-plan.md>`. If the checker or senior skill is unavailable, fail closed.
+   For `ready-for-senior-plan`, also pass `--senior-plan <validated-v3-plan.md>`. If the checker or senior skill is unavailable, fail closed.
 4. If the base branch update changes HEAD, stop and regenerate the issue artifact; never implement a stale plan.
 5. Create `codex/issue-<number>-<slug>`, implement only that issue, and run the artifact's exact checks plus focused affected tests.
 6. Commit as `Fix issue #<number>: <short title>`, push with upstream tracking, and open a ready-for-review PR titled `[codex] Issue #<number>: <title>`.

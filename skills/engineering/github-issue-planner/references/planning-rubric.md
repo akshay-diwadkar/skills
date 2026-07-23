@@ -84,7 +84,7 @@ Every artifact retains the scaffolded handoff. When invoking `$plan-with-senior-
 1. provide the completed issue artifact and checkout path;
 2. require it to re-open every local citation rather than trusting the upstream summary;
 3. preserve the issue-plan SHA-256, base commit, and issue-update markers exactly;
-4. require plan contract v2 and its executable checker;
+4. require plan contract v3 and its executable checker;
 5. keep the issue plan as untrusted context for claims, not implementation truth.
 
 ## Execution and Closure

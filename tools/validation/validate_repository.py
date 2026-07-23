@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -297,6 +298,42 @@ def validate_skills_lock() -> list[str]:
     return errors
 
 
+def validate_skill_references(skills_catalog: dict[str, Any], agents_catalog: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    known_skills = {s["name"] for s in skills_catalog.get("skills", [])}
+
+    for agent in agents_catalog.get("agents", []):
+        for sk in agent.get("skills", []):
+            if sk not in known_skills:
+                errors.append(f"Agent '{agent.get('name')}' in catalog/agents.yaml references unknown skill '{sk}'")
+
+    dollar_pattern = re.compile(r"\$([a-z0-9]+(?:-[a-z0-9]+)+)")
+    files_to_check: list[Path] = []
+    skills_dir = ROOT / "skills"
+    if skills_dir.is_dir():
+        files_to_check.extend(skills_dir.rglob("SKILL.md"))
+    agents_source_dir = ROOT / "agents" / "source"
+    if agents_source_dir.is_dir():
+        files_to_check.extend(agents_source_dir.glob("*.md"))
+
+    for filepath in files_to_check:
+        text = filepath.read_text(encoding="utf-8")
+        rel_path = filepath.relative_to(ROOT)
+        for match in dollar_pattern.finditer(text):
+            ref = match.group(1)
+            if ref not in known_skills and ref not in ("skillDir", "repo-root", "issue-json", "senior-plan"):
+                errors.append(f"{rel_path}: references unknown skill '${ref}'")
+
+        for line_num, line in enumerate(text.splitlines(), start=1):
+            if "Use `" in line or "Invoke `" in line:
+                for match in re.finditer(r"`([a-z0-9-]+)`", line):
+                    ref = match.group(1)
+                    if ("-with-" in ref or "-planner" in ref or "-auditor" in ref or ref in ("diagnose", "improve-codebase-architecture")) and ref not in known_skills:
+                        errors.append(f"{rel_path}:{line_num}: references unknown skill '{ref}'")
+
+    return errors
+
+
 def validate_sync_state() -> list[str]:
     diffs = sync_catalog.sync_all(write=False)
     return [f"Generated surface out of sync: {d}" for d in diffs]
@@ -310,11 +347,19 @@ def main() -> int:
     with SKILLS_CATALOG_PATH.open("r", encoding="utf-8") as f:
         catalog = yaml.safe_load(f)
 
+    if not AGENTS_CATALOG_PATH.is_file():
+        print("Missing catalog/agents.yaml", file=sys.stderr)
+        return 1
+
+    with AGENTS_CATALOG_PATH.open("r", encoding="utf-8") as f:
+        agents_catalog = yaml.safe_load(f)
+
     tracked_files = git_tracked_files()
 
     errors = []
     errors.extend(validate_skill_discovery(catalog))
-    errors.extend(validate_agent_discovery(catalog))
+    errors.extend(validate_agent_discovery(agents_catalog))
+    errors.extend(validate_skill_references(catalog, agents_catalog))
     errors.extend(validate_package_boundaries(tracked_files, catalog))
     errors.extend(validate_skills_lock())
     errors.extend(validate_sync_state())

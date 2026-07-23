@@ -3,6 +3,8 @@
   "displayName": "Engineering Skills",
   "version": "1.0.0",
   "description": "Production engineering skills and focused engineering agents.",
+  "publisher": "akshay-diwadkar",
+  "license": "MIT",
   "skills": "./skills/",
   "agents": "./agents/cursor/"
 }
