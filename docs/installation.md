@@ -152,3 +152,18 @@ New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.agents\skills\create-di
 ```
 
 Restart your coding agent or IDE after installing or updating skills.
+
+---
+
+## 6. Installed-Runtime Script Resolution
+
+Skills invoke bundled scripts (such as scaffolders, finalizers, and validators) during execution. When a skill is installed into a user's environment:
+
+- **Host-Native Variables**: Platforms that support skill-directory environment variables set `${CLAUDE_SKILL_DIR}` (Claude Code) or `${CURSOR_SKILL_DIR}` / `${SKILL_DIR}` (Cursor / portable hosts) pointing to the installed skill's directory path.
+- **Portable Resolution Syntax**: In `SKILL.md` instructions, script execution commands use:
+  ```bash
+  python "<skill-dir>/scripts/finalize_plan.py" --tier <tier> --repo-root <repo> <draft>
+  ```
+  where `<skill-dir>` resolves to the absolute path of the skill's installation directory (or `${CLAUDE_SKILL_DIR:-${CURSOR_SKILL_DIR:-${SKILL_DIR}}}`).
+- **Internal Asset Resolution**: Bundled Python scripts locate internal contracts, assets, and templates relative to `Path(__file__).resolve().parent`. Commands execute cleanly regardless of whether the target repository has a `scripts/` directory, whether the CWD is the user's project, or whether installation paths contain spaces.
+

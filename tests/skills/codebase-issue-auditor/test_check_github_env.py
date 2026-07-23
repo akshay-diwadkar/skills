@@ -122,8 +122,8 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_document_gh_cli_configuration(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("python scripts/check_github_env.py", docs)
-        self.assertIn("python scripts/publish_github_issues.py", docs)
+        self.assertIn("scripts/check_github_env.py", docs)
+        self.assertIn("scripts/publish_github_issues.py", docs)
         self.assertIn("--publish", docs)
         self.assertIn("Never publish or close issues implicitly", docs)
 

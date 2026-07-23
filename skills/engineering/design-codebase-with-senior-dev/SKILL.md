@@ -43,11 +43,11 @@ Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption
 3. `references/assessment-contract.json` is the executable source of truth for output sections and hard gates. Do not recreate its headings or field grammar from memory.
 4. After the provisional level is grounded, generate the matching scaffold:
    ```bash
-   python scripts/scaffold_assessment.py --level L0|L1|L2|L3
+   python "<skill-dir>/scripts/scaffold_assessment.py" --level L0|L1|L2|L3
    ```
 5. Before finalizing, validate from the repository root:
    ```bash
-   python scripts/check_assessment.py --level <L0|L1|L2|L3> --repo-root <repo> <assessment>
+   python "<skill-dir>/scripts/check_assessment.py" --level <L0|L1|L2|L3> --repo-root <repo> <assessment>
    ```
 
 ## Workflow

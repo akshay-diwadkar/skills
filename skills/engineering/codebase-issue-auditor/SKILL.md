@@ -35,7 +35,7 @@ Audit broadly, promote strictly, and publish only with explicit approval. Defaul
 5. **Validate and review drafts**
    - Link one structured issue draft to each accepted root cause. Validate the bundle before presenting it:
      ```bash
-     python scripts/validate_audit_bundle.py audit-bundle.json
+     python "<skill-dir>/scripts/validate_audit_bundle.py" audit-bundle.json
      ```
    - Present accepted issues with severity, category, confidence, evidence, verification, and relevant rejected near-misses. Report deferred surfaces and other coverage limitations even when no issues survive promotion.
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
@@ -44,12 +44,12 @@ Audit broadly, promote strictly, and publish only with explicit approval. Defaul
 6. **Publish approved issues**
    - Require explicit publication approval and a GitHub destination. Check `gh` authentication, then dry-run the exact final bodies and labels:
      ```bash
-     python scripts/check_github_env.py --github-repo-url owner/repo
-     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo
+     python "<skill-dir>/scripts/check_github_env.py" --github-repo-url owner/repo
+     python "<skill-dir>/scripts/publish_github_issues.py" --input audit-bundle.json --github-repo-url owner/repo
      ```
    - Publish only after the dry run is reviewed:
      ```bash
-     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo --publish
+     python "<skill-dir>/scripts/publish_github_issues.py" --input audit-bundle.json --github-repo-url owner/repo --publish
      ```
    - Never publish or close issues implicitly. Exact-title duplicate protection remains enabled by default.
 

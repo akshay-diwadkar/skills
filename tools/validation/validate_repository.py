@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import jsonschema
+
 try:
     import yaml
 except ImportError:
@@ -334,6 +336,65 @@ def validate_skill_references(skills_catalog: dict[str, Any], agents_catalog: di
     return errors
 
 
+SCHEMAS_DIR = ROOT / "tools" / "validation" / "schemas"
+
+
+def validate_platform_manifest_schemas(catalog: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+
+    targets = [
+        (ROOT / ".claude-plugin" / "plugin.json", SCHEMAS_DIR / "claude_plugin_schema.json", "Claude plugin"),
+        (ROOT / ".claude-plugin" / "marketplace.json", SCHEMAS_DIR / "claude_marketplace_schema.json", "Claude marketplace"),
+        (ROOT / ".cursor-plugin" / "plugin.json", SCHEMAS_DIR / "cursor_plugin_schema.json", "Cursor plugin"),
+        (ROOT / ".cursor-plugin" / "marketplace.json", SCHEMAS_DIR / "cursor_marketplace_schema.json", "Cursor marketplace"),
+    ]
+
+    for manifest_path, schema_path, name in targets:
+        if not manifest_path.is_file():
+            errors.append(f"Missing manifest: {manifest_path.relative_to(ROOT)}")
+            continue
+        if not schema_path.is_file():
+            errors.append(f"Missing schema: {schema_path.relative_to(ROOT)}")
+            continue
+
+        try:
+            manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            schema_data = json.loads(schema_path.read_text(encoding="utf-8"))
+            jsonschema.validate(instance=manifest_data, schema=schema_data)
+        except Exception as exc:
+            errors.append(f"{name} manifest failed JSON schema validation: {exc}")
+
+    # Discovery & component path validation
+    expected_claude_skills = {
+        f"./{s['path']}"
+        for s in catalog.get("skills", [])
+        if s.get("status") in ("stable", "beta") and s.get("platforms", {}).get("claude_plugin", True)
+    }
+    expected_cursor_skills = {
+        f"./{s['path']}"
+        for s in catalog.get("skills", [])
+        if s.get("status") in ("stable", "beta") and s.get("platforms", {}).get("cursor_plugin", True)
+    }
+
+    claude_json = ROOT / ".claude-plugin" / "plugin.json"
+    if claude_json.is_file():
+        c_data = json.loads(claude_json.read_text(encoding="utf-8"))
+        actual_claude = set(c_data.get("skills", []))
+        missing = expected_claude_skills - actual_claude
+        if missing:
+            errors.append(f"Claude plugin manifest missing skills: {sorted(missing)}")
+
+    cursor_json = ROOT / ".cursor-plugin" / "plugin.json"
+    if cursor_json.is_file():
+        cur_data = json.loads(cursor_json.read_text(encoding="utf-8"))
+        actual_cursor = set(cur_data.get("skills", []))
+        missing = expected_cursor_skills - actual_cursor
+        if missing:
+            errors.append(f"Cursor plugin manifest missing skills: {sorted(missing)}")
+
+    return errors
+
+
 def validate_sync_state() -> list[str]:
     diffs = sync_catalog.sync_all(write=False)
     return [f"Generated surface out of sync: {d}" for d in diffs]
@@ -362,6 +423,7 @@ def main() -> int:
     errors.extend(validate_skill_references(catalog, agents_catalog))
     errors.extend(validate_package_boundaries(tracked_files, catalog))
     errors.extend(validate_skills_lock())
+    errors.extend(validate_platform_manifest_schemas(catalog))
     errors.extend(validate_sync_state())
 
     if errors:

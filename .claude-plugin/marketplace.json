@@ -1,5 +1,8 @@
 {
   "name": "engineering-skills-marketplace",
+  "owner": {
+    "name": "akshay-diwadkar"
+  },
   "plugins": [
     {
       "name": "engineering-skills",

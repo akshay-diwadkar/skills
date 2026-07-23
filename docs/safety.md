@@ -17,7 +17,7 @@ This repository enforces strict safety standards across all engineering agents a
 
 ---
 
-## 2. Access Control Model
+## 2. Access Control & Safety Enforcement Model
 
 Agents declare fine-grained access requirements in `catalog/agents.yaml`:
 
@@ -25,13 +25,25 @@ Agents declare fine-grained access requirements in `catalog/agents.yaml`:
 - **Artifact Write (`artifact_write`)**: Allows writing Markdown plans, evaluation logs, or HTML diagrams to designated artifact outputs.
 - **External Write (`external_write`)**: Allows creating or updating remote resources (e.g. GitHub issues). Default is `false` across all agents; explicit user confirmation is required before submitting external writes.
 
+### Host-Enforced vs. Tool-Scoped & Prompt-Enforced Controls
+
+Safety enforcement varies by host platform capabilities:
+
+1. **Host-Enforced Restrictions (Cursor & Codex)**:
+   - **Cursor**: Enforces read-only behavior at the host level when `readonly: true` is set in agent frontmatter (`agents/cursor/*.md`).
+   - **Codex / OpenAI**: Enforces read-only behavior at the OS/container sandbox level when `sandbox_mode = "read-only"` is set in agent definitions (`.codex/agents/*.toml`).
+
+2. **Tool-Scoped & Prompt-Enforced Restrictions (Claude Code)**:
+   - **Claude Code**: Read-only agents omit `Edit` and `Write` tools from their manifest tool declarations (`agents/claude/*.md`).
+   - Note: Read-only Claude agents retain `Bash` to run non-mutating inspection commands (such as `pytest`, `git status`, or linter runs). Because `Bash` allows shell commands, read-only guarantees on Claude Code are tool-scoped and prompt-enforced rather than an absolute host sandbox.
+
 ---
 
 ## 3. Policy Promises vs. Mechanically Enforced Checks
 
 ### Mechanically Enforced Checks
 1. **Catalog & Manifest Sync**: `sync_catalog.py --check` ensures generated platform adapters match catalog access policies.
-2. **Package Isolation**: `validate_repository.py` ensures distributable skill packages contain zero test fixtures, dev scripts, or cache directories.
+2. **Schema & Packaging Integrity**: `validate_repository.py` verifies pinned JSON schemas for Claude and Cursor manifests, exact skill discovery, and ensures distributable packages contain zero test fixtures or dev scripts.
 3. **Link Integrity**: `validate_links.py` verifies all relative documentation links.
 4. **Execution Contracts**: `scaffold_implementation.py` and `finalize_implementation.py` enforce snapshot hashing and plan contract compliance.
 

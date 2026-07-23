@@ -253,7 +253,7 @@ def generate_codex_adapter(agent: dict[str, Any]) -> str:
 
 def generate_claude_plugin_json(skills_catalog: dict[str, Any], version: str) -> str:
     promoted_skills = [
-        s["path"]
+        f"./{s['path']}"
         for s in skills_catalog.get("skills", [])
         if s.get("status") in ("stable", "beta") and s.get("platforms", {}).get("claude_plugin", True)
     ]
@@ -261,7 +261,9 @@ def generate_claude_plugin_json(skills_catalog: dict[str, Any], version: str) ->
         "name": "engineering-skills",
         "version": version,
         "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
-        "publisher": "akshay-diwadkar",
+        "author": {
+            "name": "akshay-diwadkar"
+        },
         "license": "MIT",
         "skills": promoted_skills,
         "agents": "./agents/claude/"
@@ -269,7 +271,30 @@ def generate_claude_plugin_json(skills_catalog: dict[str, Any], version: str) ->
     return json.dumps(data, indent=2) + "\n"
 
 
-def generate_cursor_plugin_json(version: str) -> str:
+def generate_claude_marketplace_json(version: str) -> str:
+    data = {
+        "name": "engineering-skills-marketplace",
+        "owner": {
+            "name": "akshay-diwadkar"
+        },
+        "plugins": [
+            {
+                "name": "engineering-skills",
+                "version": version,
+                "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
+                "source": "./"
+            }
+        ]
+    }
+    return json.dumps(data, indent=2) + "\n"
+
+
+def generate_cursor_plugin_json(skills_catalog: dict[str, Any], version: str) -> str:
+    promoted_skills = [
+        f"./{s['path']}"
+        for s in skills_catalog.get("skills", [])
+        if s.get("status") in ("stable", "beta") and s.get("platforms", {}).get("cursor_plugin", True)
+    ]
     data = {
         "name": "engineering-skills",
         "displayName": "Engineering Skills",
@@ -277,19 +302,21 @@ def generate_cursor_plugin_json(version: str) -> str:
         "description": "Production engineering skills and focused engineering agents.",
         "publisher": "akshay-diwadkar",
         "license": "MIT",
-        "skills": "./skills/",
+        "skills": promoted_skills,
         "agents": "./agents/cursor/"
     }
     return json.dumps(data, indent=2) + "\n"
 
 
-def generate_marketplace_json(version: str) -> str:
+def generate_cursor_marketplace_json() -> str:
     data = {
         "name": "engineering-skills-marketplace",
+        "owner": {
+            "name": "akshay-diwadkar"
+        },
         "plugins": [
             {
                 "name": "engineering-skills",
-                "version": version,
                 "description": "Production engineering skills monorepo for software architecture, planning, implementation, auditing, and optimization.",
                 "source": "./"
             }
@@ -391,7 +418,7 @@ def sync_all(write: bool = False) -> list[str]:
             CLAUDE_PLUGIN_JSON.parent.mkdir(parents=True, exist_ok=True)
             CLAUDE_PLUGIN_JSON.write_text(claude_plugin, encoding="utf-8")
 
-    claude_market = generate_marketplace_json(version)
+    claude_market = generate_claude_marketplace_json(version)
     current_claude_market = CLAUDE_MARKETPLACE_JSON.read_text(encoding="utf-8") if CLAUDE_MARKETPLACE_JSON.is_file() else ""
     if current_claude_market != claude_market:
         diffs.append(".claude-plugin/marketplace.json out of sync")
@@ -399,7 +426,7 @@ def sync_all(write: bool = False) -> list[str]:
             CLAUDE_MARKETPLACE_JSON.parent.mkdir(parents=True, exist_ok=True)
             CLAUDE_MARKETPLACE_JSON.write_text(claude_market, encoding="utf-8")
 
-    cursor_plugin = generate_cursor_plugin_json(version)
+    cursor_plugin = generate_cursor_plugin_json(skills_catalog, version)
     current_cursor_plugin = CURSOR_PLUGIN_JSON.read_text(encoding="utf-8") if CURSOR_PLUGIN_JSON.is_file() else ""
     if current_cursor_plugin != cursor_plugin:
         diffs.append(".cursor-plugin/plugin.json out of sync")
@@ -407,7 +434,7 @@ def sync_all(write: bool = False) -> list[str]:
             CURSOR_PLUGIN_JSON.parent.mkdir(parents=True, exist_ok=True)
             CURSOR_PLUGIN_JSON.write_text(cursor_plugin, encoding="utf-8")
 
-    cursor_market = generate_marketplace_json(version)
+    cursor_market = generate_cursor_marketplace_json()
     current_cursor_market = CURSOR_MARKETPLACE_JSON.read_text(encoding="utf-8") if CURSOR_MARKETPLACE_JSON.is_file() else ""
     if current_cursor_market != cursor_market:
         diffs.append(".cursor-plugin/marketplace.json out of sync")

@@ -51,7 +51,7 @@ If inspection exposes a semantic contradiction or a choice affecting product beh
 Create the run bundle:
 
 ```bash
-python scripts/scaffold_implementation.py \
+python "<skill-dir>/scripts/scaffold_implementation.py" \
   --repo-root <repo> \
   --plan <run-dir>/plan.md \
   --output <run-dir>/implementation.json
@@ -100,7 +100,7 @@ Reconcile actual workspace status against the initial bundle. Every new changed 
 Finalize `status`, unresolved `CH/T` records, final changed paths, deviations, residual risks, and report summary. Then run:
 
 ```bash
-python scripts/finalize_implementation.py \
+python "<skill-dir>/scripts/finalize_implementation.py" \
   --repo-root <repo> \
   --plan <run-dir>/plan.md \
   <run-dir>/implementation.json

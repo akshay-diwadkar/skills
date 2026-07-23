@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: python -m pip install pyyaml
+        run: python -m pip install pyyaml jsonschema
       - name: Validate catalog
         run: python tools/catalog/validate_catalog.py
       - name: Check catalog sync

@@ -34,17 +34,17 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
    - Prefer auto-layout by omitting node `x`/`y`; if manual positions are used, every node must include both `x` and `y`.
    - Run the bundled builder with anchored paths:
      ```bash
-     python /path/to/create-diagram/scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
+     python "<skill-dir>/scripts/build_diagram.py" --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
      ```
-     PowerShell example: `python C:\path\to\create-diagram\scripts\build_diagram.py --data payload.json --output diagram.html`
-     Bash example: `python /path/to/create-diagram/scripts/build_diagram.py --data payload.json --output diagram.html`
+     PowerShell example: `python "<skill-dir>\scripts\build_diagram.py" --data payload.json --output diagram.html`
+     Bash example: `python "<skill-dir>/scripts/build_diagram.py" --data payload.json --output diagram.html`
    - The generated HTML is self-contained: the builder embeds the local stylesheet and RoughJS runtime, so the output can be opened or served from any directory without copying sibling assets.
    - Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement.
 
 5. **Validate**
    - Validate HTML before opening it:
      ```bash
-     python /path/to/create-diagram/scripts/validate_diagram.py <path-to-output.html>
+     python "<skill-dir>/scripts/validate_diagram.py" <path-to-output.html>
      ```
    - Fix all reported errors (exit code 1) before proceeding. Warnings should be reviewed but do not block verification.
 

@@ -37,14 +37,14 @@ Planning is mandatory. Implementation remains available only after the planning 
 2. `references/optimization-contract.json` is the executable source of truth for output sections, records, bands, and sweep limits. Do not recreate its grammar from memory.
 3. Generate the artifact before filling it:
    ```bash
-   python scripts/scaffold_optimization.py --scope targeted|sweep --stage plan|implementation
+   python "<skill-dir>/scripts/scaffold_optimization.py" --scope targeted|sweep --stage plan|implementation
    ```
 4. Read `references/optimization-rubric.md` before classifying candidates.
 5. Read `references/ecosystem-leverage.md` and `references/docs-research-protocol.md` only after a `B-n` or evidenced static leverage point names a relevant component.
 6. Read only the applicable pass in `references/optimization-patterns.md`. Read only the matching example in `references/worked-examples.md`.
 7. Validate before finalizing:
    ```bash
-   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
+   python "<skill-dir>/scripts/check_optimization.py" --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
    ```
 
 ## Eight Gates

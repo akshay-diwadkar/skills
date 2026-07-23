@@ -49,7 +49,7 @@ Complete this step only when no material product or contract decision remains de
 Read the matching tier example in [worked-examples.md](references/worked-examples.md), then generate the working scaffold:
 
 ```bash
-python scripts/scaffold_plan.py --tier <tier> --task-type <type>
+python "<skill-dir>/scripts/scaffold_plan.py" --tier <tier> --task-type <type>
 ```
 
 Fill the v3 ledger in dependency order: contracts/data → core logic → orchestration/callers → tests/fixtures → generated/docs/operations. Every `CH-n` names its exact path, anchor, behavior, branches, errors, ordering, and side effects. Every `T-n` names exact setup/input, observable expectation, and command. Map every `SC-n` and `C-n` through `CH-n` to `T-n`.
@@ -74,7 +74,7 @@ Complete this step only when every success criterion, material constraint, chang
 Read [adversarial-verification.md](references/adversarial-verification.md). Attack and repair the draft, then pass it through the finalizer from the repository root:
 
 ```bash
-python scripts/finalize_plan.py --tier <tier> --repo-root <repo> <draft>
+python "<skill-dir>/scripts/finalize_plan.py" --tier <tier> --repo-root <repo> <draft>
 ```
 
 The finalizer is the only submission path. If it emits any diagnostic, repair the draft and rerun it. If it cannot run, report the validation block instead of presenting a plan. There is no manual or warning-only fallback.

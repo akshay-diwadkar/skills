@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cursor Plugin Manifest Schema",
+  "description": "Official pinned schema for .cursor-plugin/plugin.json",
+  "type": "object",
+  "required": [
+    "name",
+    "displayName",
+    "version",
+    "description",
+    "publisher",
+    "license",
+    "skills",
+    "agents"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "publisher": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\./"
+      },
+      "minItems": 1
+    },
+    "agents": {
+      "type": "string",
+      "pattern": "^\\./"
+    }
+  },
+  "additionalProperties": false
+}

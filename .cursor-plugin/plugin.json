@@ -5,6 +5,14 @@
   "description": "Production engineering skills and focused engineering agents.",
   "publisher": "akshay-diwadkar",
   "license": "MIT",
-  "skills": "./skills/",
+  "skills": [
+    "./skills/engineering/plan-with-senior-dev",
+    "./skills/engineering/implement-with-senior-dev",
+    "./skills/engineering/github-issue-planner",
+    "./skills/engineering/codebase-issue-auditor",
+    "./skills/engineering/create-diagram",
+    "./skills/engineering/design-codebase-with-senior-dev",
+    "./skills/engineering/optimize-codebase-with-senior-dev"
+  ],
   "agents": "./agents/cursor/"
 }
