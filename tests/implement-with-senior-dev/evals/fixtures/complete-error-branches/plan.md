@@ -1,6 +1,7 @@
 # Parse integer input completely
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: 5285fa3c1faad3cb54c38a9170be3384182661f908dd4c0ff6d4dc94c05f26e2 -->
 
 ## Outcome and Scope
 - SC-1: Parser handles valid, empty, and invalid input exactly.

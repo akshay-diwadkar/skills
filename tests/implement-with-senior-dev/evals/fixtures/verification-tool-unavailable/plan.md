@@ -1,6 +1,7 @@
 # Enable the widget
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: feature -->
+<!-- plan-validation: 3; sha256: 9994a88757fb743a91446c6ae52f2bc9c278f1646ebc5068484701ef5e0bbe26 -->
 
 ## Outcome and Scope
 - SC-1: Widget is enabled.

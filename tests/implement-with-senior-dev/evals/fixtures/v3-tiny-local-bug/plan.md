@@ -1,6 +1,7 @@
 # Normalize missing names
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: e39e97d5f124d7c155a283ace11a49a2e5f36f3eeb104abca27384a96bcf0eaf -->
 
 ## Outcome and Scope
 - SC-1: `normalize_name(None)` returns an empty string.

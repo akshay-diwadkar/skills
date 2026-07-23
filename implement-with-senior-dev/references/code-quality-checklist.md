@@ -47,7 +47,7 @@
 - [ ] Function/method signatures match the plan exactly: name, parameter order, types, defaults, return type
 - [ ] New parameters have default values when the plan specifies them (to avoid breaking existing callers)
 - [ ] Serialization format matches the plan: JSON keys, field names, wire types, enums
-- [ ] Every caller named by a v2 `CH-n`, trace row, or accepted mechanical-propagation record has been updated
+- [ ] Every caller named by a canonical `CH-n`, trace row, or accepted mechanical-propagation record has been updated
 - [ ] No signature changes beyond what the plan specifies
 - [ ] Public API surface (exports, visibility modifiers) matches the plan
 - [ ] Deprecation markers are added where the plan specifies them

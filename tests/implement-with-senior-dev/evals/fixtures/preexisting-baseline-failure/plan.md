@@ -1,6 +1,7 @@
 # Return the feature name
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: feature -->
+<!-- plan-validation: 3; sha256: 8a09ae9f59fa5d8325d88b22e934920898fad7da728d48e0df57f417a315df17 -->
 
 ## Outcome and Scope
 - SC-1: `feature_name()` returns feature.

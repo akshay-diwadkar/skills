@@ -1,6 +1,7 @@
 # Add explicit locale formatting
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: standard; task-type: feature -->
+<!-- plan-validation: 3; sha256: 6c4388a4607cbc4e6b1e0e908db2c436a5550e3d2a45ccc07541141490e0ca0c -->
 
 ## Outcome and Scope
 - SC-1: Formatting uses an explicit locale.

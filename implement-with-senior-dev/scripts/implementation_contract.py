@@ -7,9 +7,11 @@ import json
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from _plan_utils import Diagnostic, plan_digest, strip_fenced_code_blocks, validate_receipt
 
 
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "implementation-contract.json"
@@ -19,40 +21,25 @@ ID_RE = re.compile(r"\b(?P<prefix>SC|CH|T|C|R)-(?P<number>\d+)\b")
 SC_RE = re.compile(r"^- (?P<id>SC-\d+):\s*(?P<body>.+)$", re.MULTILINE)
 CONSTRAINT_RE = re.compile(r"^- (?P<id>C-\d+):\s*(?P<body>.+)$", re.MULTILINE)
 RISK_RE = re.compile(r"^- (?P<id>R-\d+)(?:\s+(?P<severity>P[0-3]))?:\s*(?P<body>.+)$", re.MULTILINE)
-V2_CHANGE_RE = re.compile(
-    r"^- (?P<id>CH-\d+): `(?P<path>[^`]+)` \| anchor: `(?P<anchor>[^`]+)` "
-    r"\| status: (?P<status>existing|new) \| change: (?P<body>.+)$",
+CANONICAL_CHANGE_RE = re.compile(
+    r"^- (?P<id>CH-\d+):\s+`(?P<path>[^`]+)`\s+\|\s+anchor:\s+`(?P<anchor>[^`]+)`"
+    r"\s+\|\s+status:\s+(?P<status>existing|new)\s+\|\s+change:\s+(?P<body>.+)$",
     re.MULTILINE,
 )
-LEGACY_CHANGE_RE = re.compile(
-    r"^-?\s*(?P<id>CH-\d+):\s*(?:`(?P<path>[^`]+)`)?(?P<body>.+)$",
+CANONICAL_TEST_RE = re.compile(
+    r"^- (?P<id>T-\d+):\s+given:\s+(?P<given>.+?)\s+\|\s+expect:\s+(?P<expect>.+?)\s+\|\s+command:\s+`(?P<command>[^`]+)`$",
     re.MULTILINE,
 )
-V2_TEST_RE = re.compile(
-    r"^- (?P<id>T-\d+): given: (?P<given>.+?) \| expect: (?P<expect>.+?) \| command: `(?P<command>[^`]+)`$",
-    re.MULTILINE,
-)
-LEGACY_TEST_RE = re.compile(r"^-?\s*(?P<id>T-\d+):\s*(?P<body>.+)$", re.MULTILINE)
 TRACE_RE = re.compile(
     r"^\|\s*(?P<criterion>(?:SC|C)-\d+)\s*\|\s*(?P<changes>CH-\d+(?:\s*,\s*CH-\d+)*)\s*"
     r"\|\s*(?P<tests>T-\d+(?:\s*,\s*T-\d+)*)\s*\|",
     re.MULTILINE,
 )
+BLUEPRINT_HEADER_RE = re.compile(
+    r"^###\s+Execution\s+Blueprint:\s*(?P<changes>CH-\d+(?:\s*,\s*CH-\d+)*)\s*[—–-]\s*(?P<purpose>.+)$",
+    re.MULTILINE,
+)
 PLACEHOLDER_RE = re.compile(r"\b(?:Replace(?: with)?|TBD|TODO)\b", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class Diagnostic:
-    code: str
-    message: str
-    line: int | None = None
-
-    def __str__(self) -> str:
-        location = f" line {self.line}:" if self.line is not None else ":"
-        return f"{self.code}{location} {self.message}"
-
-    def to_dict(self) -> dict[str, Any]:
-        return {"code": self.code, "message": self.message, "line": self.line}
 
 
 @dataclass(frozen=True)
@@ -66,6 +53,7 @@ class NormalizedPlan:
     constraints: list[dict[str, str]]
     risks: list[dict[str, str]]
     traceability: list[dict[str, Any]]
+    blueprints: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -78,6 +66,7 @@ class NormalizedPlan:
             "constraints": self.constraints,
             "risks": self.risks,
             "traceability": self.traceability,
+            "blueprints": self.blueprints,
         }
 
 
@@ -137,32 +126,49 @@ def _validate_references(plan: NormalizedPlan) -> list[Diagnostic]:
         diagnostics.append(Diagnostic("plan.change.untraced", f"Change {identifier} is not in traceability."))
     for identifier in sorted(test_ids - traced_tests):
         diagnostics.append(Diagnostic("plan.test.untraced", f"Test {identifier} is not in traceability."))
+    for bp in plan.blueprints:
+        for identifier in bp.get("changes", []):
+            if identifier not in change_ids:
+                diagnostics.append(Diagnostic("plan.blueprint.change", f"Blueprint references unknown change {identifier}."))
     return diagnostics
 
 
-def _parse_v2(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tuple[NormalizedPlan, list[Diagnostic]]:
+def _parse_v3(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tuple[NormalizedPlan, list[Diagnostic]]:
     diagnostics: list[Diagnostic] = []
-    changes = [match.groupdict() for match in V2_CHANGE_RE.finditer(text)]
-    tests = [match.groupdict() for match in V2_TEST_RE.finditer(text)]
-    success = [{"id": match.group("id"), "body": match.group("body")} for match in SC_RE.finditer(text)]
-    constraints = [{"id": match.group("id"), "body": match.group("body")} for match in CONSTRAINT_RE.finditer(text)]
+    receipt_diagnostics = validate_receipt(text, required=True)
+    for diag in receipt_diagnostics:
+        diagnostics.append(Diagnostic(diag.code, diag.message, diag.line))
+
+    unfenced_text = strip_fenced_code_blocks(text)
+    changes = [match.groupdict() for match in CANONICAL_CHANGE_RE.finditer(unfenced_text)]
+    tests = [match.groupdict() for match in CANONICAL_TEST_RE.finditer(unfenced_text)]
+    success = [{"id": match.group("id"), "body": match.group("body")} for match in SC_RE.finditer(unfenced_text)]
+    constraints = [{"id": match.group("id"), "body": match.group("body")} for match in CONSTRAINT_RE.finditer(unfenced_text)]
     risks = [
         {"id": match.group("id"), "severity": match.group("severity") or "", "body": match.group("body")}
-        for match in RISK_RE.finditer(text)
+        for match in RISK_RE.finditer(unfenced_text)
     ]
     if not success:
-        diagnostics.append(Diagnostic("plan.v2.success.missing", "At least one SC-n record is required."))
+        diagnostics.append(Diagnostic("plan.v3.success.missing", "At least one SC-n record is required."))
     if not changes:
-        diagnostics.append(Diagnostic("plan.v2.change.missing", "At least one canonical CH-n record is required."))
+        diagnostics.append(Diagnostic("plan.v3.change.missing", "At least one canonical CH-n record is required."))
     if not tests:
-        diagnostics.append(Diagnostic("plan.v2.test.missing", "At least one canonical T-n record is required."))
-    for placeholder in PLACEHOLDER_RE.finditer(text):
+        diagnostics.append(Diagnostic("plan.v3.test.missing", "At least one canonical T-n record is required."))
+    for placeholder in PLACEHOLDER_RE.finditer(unfenced_text):
         diagnostics.append(Diagnostic("plan.placeholder", f"Unresolved placeholder {placeholder.group(0)!r}.", _line(text, placeholder.start())))
     tier = tier_match.group("tier")
     if tier == "high-risk":
         for heading in ("## Compatibility and Rollout", "## Durable Rollback"):
             if heading not in text:
                 diagnostics.append(Diagnostic("plan.high-risk.section", f"High-Risk plan requires {heading}."))
+
+    blueprints: list[dict[str, Any]] = []
+    for match in BLUEPRINT_HEADER_RE.finditer(text):
+        blueprints.append({
+            "changes": _split_ids(match.group("changes")),
+            "purpose": match.group("purpose").strip(),
+        })
+
     plan = NormalizedPlan(
         contract_version=int(marker.group("version")),
         tier=tier,
@@ -172,80 +178,12 @@ def _parse_v2(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tu
         tests=tests,
         constraints=constraints,
         risks=risks,
-        traceability=_traceability(text),
+        traceability=_traceability(unfenced_text),
+        blueprints=blueprints,
     )
     if not plan.traceability:
         diagnostics.append(Diagnostic("plan.trace.missing", "Canonical traceability rows are required."))
     diagnostics.extend(_validate_references(plan))
-    return plan, diagnostics
-
-
-def _section_present(text: str, names: tuple[str, ...]) -> bool:
-    return any(re.search(rf"^##?\s+.*{re.escape(name)}", text, re.IGNORECASE | re.MULTILINE) for name in names)
-
-
-def _legacy_path(match: re.Match[str]) -> str:
-    if match.group("path"):
-        return match.group("path")
-    inline = re.search(r"`(?P<path>[^`]+\.[A-Za-z0-9]+)`", match.group("body"))
-    return inline.group("path") if inline else ""
-
-
-def _parse_legacy(text: str) -> tuple[NormalizedPlan, list[Diagnostic]]:
-    diagnostics: list[Diagnostic] = []
-    id_types = {match.group("prefix") for match in ID_RE.finditer(text)}
-    high_risk = all(_section_present(text, (name,)) for name in ("Compatibility", "Rollback"))
-    if {"SC", "CH", "T"}.issubset(id_types):
-        tier = "high-risk" if high_risk else "standard"
-        changes = [
-            {"id": match.group("id"), "path": _legacy_path(match), "anchor": "", "status": "existing", "body": match.group("body").strip()}
-            for match in LEGACY_CHANGE_RE.finditer(text)
-        ]
-        tests = [
-            {"id": match.group("id"), "given": "legacy", "expect": match.group("body").strip(), "command": command.group("command") if (command := re.search(r"`(?P<command>[^`]+)`", match.group("body"))) else ""}
-            for match in LEGACY_TEST_RE.finditer(text)
-        ]
-        success = [{"id": match.group("id"), "body": match.group("body")} for match in SC_RE.finditer(text)]
-        constraints = [{"id": match.group("id"), "body": match.group("body")} for match in CONSTRAINT_RE.finditer(text)]
-        risks = [{"id": match.group("id"), "severity": match.group("severity") or "", "body": match.group("body")} for match in RISK_RE.finditer(text)]
-        for change in changes:
-            if not change["path"]:
-                diagnostics.append(Diagnostic("plan.legacy.change.path", f"{change['id']} must name one target path in backticks."))
-        for test in tests:
-            if not test["command"]:
-                diagnostics.append(Diagnostic("plan.legacy.test.command", f"{test['id']} must name one verification command in backticks."))
-        plan = NormalizedPlan("legacy", tier, "external", success, changes, tests, constraints, risks, _traceability(text))
-        if not plan.traceability:
-            diagnostics.append(Diagnostic("plan.legacy.trace", "ID-based legacy plans require an unambiguous traceability table."))
-        diagnostics.extend(_validate_references(plan))
-        return plan, diagnostics
-
-    required = {
-        "outcome": _section_present(text, ("Outcome", "Goal")),
-        "scope": _section_present(text, ("Scope",)),
-        "change": _section_present(text, ("Change", "Implementation")),
-        "verification": _section_present(text, ("Verification", "Test")),
-    }
-    for field, present in required.items():
-        if not present:
-            diagnostics.append(Diagnostic(f"plan.legacy.tiny.{field}", f"Legacy Tiny plan requires a concrete {field} section."))
-    paths = re.findall(r"`([^`]+\.[A-Za-z0-9]+)`", text)
-    commands = re.findall(r"`((?:python|pytest|npm|pnpm|yarn|cargo|go|dotnet|mvn|gradle)[^`]*)`", text)
-    if not paths:
-        diagnostics.append(Diagnostic("plan.legacy.tiny.path", "Legacy Tiny plan must name a target file in backticks."))
-    if not commands:
-        diagnostics.append(Diagnostic("plan.legacy.tiny.command", "Legacy Tiny plan must name a verification command in backticks."))
-    plan = NormalizedPlan(
-        "legacy",
-        "tiny",
-        "external",
-        [{"id": "SC-1", "body": "Legacy Tiny observable outcome"}],
-        [{"id": "CH-1", "path": paths[0] if paths else "", "anchor": "", "status": "existing", "body": "Legacy Tiny change"}],
-        [{"id": "T-1", "given": "legacy", "expect": "Legacy Tiny verification", "command": commands[0] if commands else ""}],
-        [],
-        [],
-        [{"criterion": "SC-1", "changes": ["CH-1"], "tests": ["T-1"]}],
-    )
     return plan, diagnostics
 
 
@@ -260,11 +198,10 @@ def parse_plan(text: str) -> tuple[NormalizedPlan, list[Diagnostic]]:
         if tier_match is None:
             fallback = NormalizedPlan(version, "tiny", "unknown", [], [], [], [], [], [])
             return fallback, [Diagnostic("plan.tier.marker", "Versioned plan requires an explicit tier/task marker.")]
-        return _parse_v2(text, marker, tier_match)
-    if tier_match is not None:
-        fallback = NormalizedPlan("legacy", tier_match.group("tier"), tier_match.group("task"), [], [], [], [], [], [])
-        return fallback, [Diagnostic("plan.version.marker", "Tier marker requires a plan-contract marker.")]
-    return _parse_legacy(text)
+        return _parse_v3(text, marker, tier_match)
+
+    fallback = NormalizedPlan("legacy", "tiny", "unknown", [], [], [], [], [], [])
+    return fallback, [Diagnostic("plan.version.unsupported", "Only plan-contract version 3 plans are supported.")]
 
 
 def git_status(repo_root: Path) -> dict[str, str]:
@@ -339,7 +276,7 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         for path, status in sorted(dirty.items())
     ]
     normalized = plan.to_dict()
-    normalized.update({"source": str(plan_path), "sha256": sha256_bytes(plan_text.encode("utf-8"))})
+    normalized.update({"source": str(plan_path), "sha256": plan_digest(plan_text)})
     return {
         "schema_version": 1,
         "run_id": run_id,

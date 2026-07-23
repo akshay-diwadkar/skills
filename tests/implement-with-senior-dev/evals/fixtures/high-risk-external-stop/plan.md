@@ -1,6 +1,7 @@
 # Deploy the service
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: high-risk; task-type: external-integration -->
+<!-- plan-validation: 3; sha256: 4929b7dd281e86687ce1d6964df62f5751c98abfc3251d2c62c2f33fae14d7e1 -->
 
 ## Outcome and Scope
 - SC-1: Service is deployed.

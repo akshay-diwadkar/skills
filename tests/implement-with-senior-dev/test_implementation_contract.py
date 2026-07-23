@@ -9,9 +9,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "implement-with-senior-dev" / "scripts"
-PLAN_SCRIPTS = REPO_ROOT / "plan-with-senior-dev" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
+from _plan_utils import finalize_plan_text  # noqa: E402
 from implementation_contract import load_contract, parse_plan, scaffold_bundle  # noqa: E402
 
 
@@ -23,9 +24,9 @@ def init_repo(path: Path) -> None:
     subprocess.run(["git", "commit", "-qm", "baseline"], cwd=path, check=True)
 
 
-def v2_plan(path: str = "src/names.py") -> str:
-    return f"""# Return a normalized name
-<!-- plan-contract: 2 -->
+def v3_plan(path: str = "src/names.py") -> str:
+    draft = f"""# Return a normalized name
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: bug-fix -->
 
 ## Outcome and Scope
@@ -56,32 +57,20 @@ def v2_plan(path: str = "src/names.py") -> str:
 - A2: not-applicable | evidence: No external effect.
 - A6: not-applicable | evidence: Focused test.
 """
+    return finalize_plan_text(draft)
 
 
 def test_contract_declares_safety_and_bundle_fields() -> None:
     contract = load_contract()
 
     assert contract["contract_version"] == 1
+    assert contract["supported_plan_contract_versions"] == [3]
     assert "mechanical-propagation" in contract["change_kinds"]
     assert "git restore" in contract["forbidden_automatic_commands"]
     assert "final_workspace" in contract["required_bundle_fields"]
 
 
-def test_v3_planner_scaffolds_are_rejected_until_implementer_is_upgraded() -> None:
-    for tier in ("tiny", "standard", "high-risk"):
-        result = subprocess.run(
-            [sys.executable, str(PLAN_SCRIPTS / "scaffold_plan.py"), "--tier", tier, "--task-type", "bug-fix"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        plan, diagnostics = parse_plan(result.stdout.replace("Replace", "Specify").replace("existing_anchor", "anchor"))
-
-        assert plan.contract_version == 3
-        assert {item.code for item in diagnostics} == {"plan.version.unsupported"}
-
-
-def test_v3_worked_examples_are_rejected_until_implementer_is_upgraded() -> None:
+def test_v3_worked_examples_pass_intake() -> None:
     worked_examples = (REPO_ROOT / "plan-with-senior-dev" / "references" / "worked-examples.md").read_text(encoding="utf-8")
     blocks = re.findall(r"```plan\n(.*?)```", worked_examples, re.DOTALL)
 
@@ -89,50 +78,81 @@ def test_v3_worked_examples_are_rejected_until_implementer_is_upgraded() -> None
 
     assert len(parsed) == 3
     assert all(plan.contract_version == 3 for plan, _ in parsed)
-    assert all({item.code for item in diagnostics} == {"plan.version.unsupported"} for _, diagnostics in parsed)
+    assert all(diagnostics == [] for _, diagnostics in parsed)
 
 
-def test_v2_tiny_with_ids_remains_tiny() -> None:
-    plan, diagnostics = parse_plan(v2_plan())
-
-    assert diagnostics == []
-    assert plan.tier == "tiny"
-    assert [item["id"] for item in plan.changes] == ["CH-1"]
-
-
-def test_strict_legacy_tiny_requires_each_field() -> None:
-    plan, diagnostics = parse_plan("# Goal\n\n## Goal\nFix it.\n")
-
-    assert plan.contract_version == "legacy"
-    assert {item.code for item in diagnostics} >= {
-        "plan.legacy.tiny.scope",
-        "plan.legacy.tiny.change",
-        "plan.legacy.tiny.verification",
-        "plan.legacy.tiny.path",
-        "plan.legacy.tiny.command",
-    }
-
-
-def test_legacy_tiny_accepts_concrete_sections() -> None:
-    text = """# Fix names
-
-## Outcome
-None returns an empty string.
-
-## Scope
-Only `src/names.py` changes.
-
-## Change
-Guard the existing function.
-
+def test_v2_and_legacy_plans_are_rejected() -> None:
+    v2_text = """# Return a normalized name
+<!-- plan-contract: 2 -->
+<!-- tier: tiny; task-type: bug-fix -->
+## Outcome and Scope
+- SC-1: Test
+## Implementation Specification
+- CH-1: `src/a.py` | anchor: `a` | status: existing | change: change
+## Traceability
+| SC-1 | CH-1 | T-1 | None |
 ## Verification
-Run `python -m pytest -q`.
+- T-1: given: a | expect: b | command: `pytest`
 """
-    plan, diagnostics = parse_plan(text)
+    plan, diagnostics = parse_plan(v2_text)
+    assert plan.contract_version == 2
+    assert {item.code for item in diagnostics} == {"plan.version.unsupported"}
 
+    plan_legacy, diag_legacy = parse_plan("# Legacy Goal\n\n## Goal\nFix it.\n")
+    assert plan_legacy.contract_version == "legacy"
+    assert {item.code for item in diag_legacy} == {"plan.version.unsupported"}
+
+
+def test_v3_unfinalized_and_stale_plans_are_rejected() -> None:
+    draft = """# Return a normalized name
+<!-- plan-contract: 3 -->
+<!-- tier: tiny; task-type: bug-fix -->
+## Outcome and Scope
+- SC-1: None returns empty.
+## Implementation Specification
+- CH-1: `src/names.py` | anchor: `normalize_name` | status: existing | change: Fix.
+## Traceability
+| SC-1 | CH-1 | T-1 | None |
+## Verification
+- T-1: given: None | expect: empty | command: `pytest`
+"""
+    plan, diagnostics = parse_plan(draft)
+    assert any(diag.code == "finalization.receipt.missing" for diag in diagnostics)
+
+    finalized = finalize_plan_text(draft)
+    tampered = finalized.replace("None returns empty", "None returns modified empty")
+    plan_tampered, diag_tampered = parse_plan(tampered)
+    assert any(diag.code == "finalization.receipt.stale" for diag in diag_tampered)
+
+
+def test_v3_plan_parses_execution_blueprints() -> None:
+    draft = """# Refactor feature
+<!-- plan-contract: 3 -->
+<!-- tier: standard; task-type: feature -->
+## Outcome and Scope
+- SC-1: Feature refactored.
+## Implementation Specification
+- CH-1: `src/core.py` | anchor: `process` | status: existing | change: Update process.
+
+### Execution Blueprint: CH-1 — Workflow control flow
+```python
+def process(data):
+    if not data:
+        return None
+    return transform(data)
+```
+
+## Traceability
+| SC-1 | CH-1 | T-1 | Rollback |
+## Verification
+- T-1: given: input | expect: output | command: `pytest`
+"""
+    finalized = finalize_plan_text(draft)
+    plan, diagnostics = parse_plan(finalized)
     assert diagnostics == []
-    assert plan.tier == "tiny"
-    assert plan.changes[0]["path"] == "src/names.py"
+    assert len(plan.blueprints) == 1
+    assert plan.blueprints[0]["changes"] == ["CH-1"]
+    assert plan.blueprints[0]["purpose"] == "Workflow control flow"
 
 
 def test_scaffold_snapshots_plan_targets_and_dirty_state(tmp_path: Path) -> None:
@@ -143,15 +163,16 @@ def test_scaffold_snapshots_plan_targets_and_dirty_state(tmp_path: Path) -> None
     source.parent.mkdir()
     source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
     output = repo / ".scratch" / "implement-with-senior-dev" / "run" / "implementation.json"
 
     bundle = scaffold_bundle(repo, plan_path, output, "run-1")
 
+    assert bundle["plan"]["contract_version"] == 3
     assert bundle["plan"]["tier"] == "tiny"
     assert bundle["workspace"]["targets"][0]["sha256"]
-    assert (output.parent / "plan.md").read_text(encoding="utf-8") == v2_plan()
+    assert (output.parent / "plan.md").read_text(encoding="utf-8") == v3_plan()
     assert (output.parent / "baseline" / "src" / "names.py").is_file()
 
 
@@ -162,7 +183,7 @@ def test_scaffold_rejects_tracked_output(tmp_path: Path) -> None:
     source.parent.mkdir()
     source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
 
     with pytest.raises(ValueError, match="confirmed ignored"):
@@ -177,7 +198,7 @@ def test_scaffold_cli_writes_json(tmp_path: Path) -> None:
     source.parent.mkdir()
     source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
     output = repo / ".scratch" / "run" / "implementation.json"
 

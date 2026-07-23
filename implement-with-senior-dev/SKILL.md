@@ -1,6 +1,10 @@
 ---
 name: implement-with-senior-dev
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
+metadata:
+  implementation-contract: "1"
+  finalizer: "scripts/finalize_implementation.py"
+  validation-required: "true"
 ---
 
 # Implement With Senior Dev
@@ -19,17 +23,17 @@ Read these files completely before editing:
 ## Non-Negotiables
 
 - Identify and snapshot the exact approved plan before editing.
-- Prefer `plan-contract: 2` metadata and anchor-based records. Use the strict legacy adapter only when no version marker exists.
-- Refuse a plan when the parser reports ambiguity or a material repository contradiction.
+- Require `plan-contract: 3` metadata, canonical `SC/CH/T` records, a valid `finalize_plan.py` SHA-256 receipt (`<!-- plan-validation: 3; sha256: <digest> -->`), and execution blueprints. Reject v1, v2, and unversioned/legacy plans.
+- Refuse a plan when the parser reports ambiguity, unfinalized status, receipt mismatch, or a material repository contradiction.
 - Never use an implementation interview to reinterpret, repair, or extend approved product intent. Record semantic gaps and route them to `plan-with-senior-dev`; ask only for execution-state authorization already permitted by this contract.
 - Create an implementation-run bundle in confirmed ignored storage or an OS temporary directory.
 - Preserve unrelated dirty paths byte-for-byte. Never edit a dirty target without explicit user authorization.
 - Recheck a target against the last recorded snapshot before every edit; stop on concurrent changes.
-- Apply planned changes in dependency order and implement every specified branch, error, side effect, and test.
+- Apply planned changes in dependency order and implement every specified branch, error, side effect, execution blueprint, and test.
 - Allow unplanned edits only under the Mechanical Propagation Gate in the canonical protocol.
 - Attribute a failure as pre-existing only when the exact check failed in the recorded pre-edit baseline; otherwise use `unknown-baseline`.
 - Reverse only positively identified agent-owned hunks whose current context still matches. Never perform automatic whole-file, worktree, or branch restoration.
-- Run the implementation checker before claiming completion.
+- Run `finalize_implementation.py` to stamp a SHA-256 validation receipt into the bundle before claiming completion.
 
 ## Execution Gates
 
@@ -37,11 +41,8 @@ Read these files completely before editing:
 
 Save conversational plans verbatim to the run directory. Parse the plan with `implementation_contract.parse_plan`.
 
-- Versioned plans: require `<!-- plan-contract: 2 -->`, the explicit tier/task marker, canonical `SC/CH/T` records, and traceability.
-- Legacy ID plans: require unambiguous `SC/CH/T` records, target paths, verification commands, and traceability.
-- Legacy Tiny plans: require concrete Outcome/Goal, Scope, Change/Implementation, and Verification/Test sections, plus a target path and command.
-
-Stop with field-specific diagnostics when parsing fails. Do not reinterpret the plan.
+- Require `<!-- plan-contract: 3 -->`, explicit tier/task markers, canonical `SC/CH/T` records, a valid SHA-256 validation receipt (`<!-- plan-validation: 3; sha256: <digest> -->`), and execution blueprints.
+- Stop with field-specific diagnostics when parsing or receipt validation fails. Reject all v1/v2/legacy plans. Do not reinterpret the plan.
 
 If inspection exposes a semantic contradiction or a choice affecting product behavior, failure semantics, contracts, persistence, dependencies, migration, or external effects, stop and hand the evidence back to `plan-with-senior-dev`. Dirty-target incorporation and explicitly scoped unsafe/external-operation authorization remain execution questions; their answers do not revise the plan.
 
@@ -69,9 +70,9 @@ Before editing:
 
 For each `CH-n`:
 
-1. Re-read its exact path, anchor, behavior, branches, errors, ordering, and side effects.
+1. Re-read its exact path, anchor, behavior, branches, errors, ordering, side effects, and corresponding Execution Blueprints (pseudocode, Mermaid diagrams, before/after shapes, or tables).
 2. Verify the target still matches the last snapshot.
-3. Apply the smallest edit following the nearest repository analogue.
+3. Apply the smallest edit following the nearest repository analogue and execution blueprint logic.
 4. Record a `planned` change with its `CH-n`, paths, anchors, before/after hashes, and evidence.
 5. Run the narrowest useful smoke check and record its evidence.
 
@@ -99,13 +100,13 @@ Reconcile actual workspace status against the initial bundle. Every new changed 
 Finalize `status`, unresolved `CH/T` records, final changed paths, deviations, residual risks, and report summary. Then run:
 
 ```bash
-python scripts/check_implementation.py \
+python scripts/finalize_implementation.py \
   --repo-root <repo> \
   --plan <run-dir>/plan.md \
   <run-dir>/implementation.json
 ```
 
-Use `complete` only when the checker passes, every `CH/T` is accounted for, required verification passed, and the final delta is fully declared. Use `partial` or `blocked` only with exact unresolved records and a safe workspace.
+The finalizer runs all bundle and workspace validation checks in-process. On success, it stamps a SHA-256 validation receipt (`validation_receipt`) into the bundle JSON. Submit only the finalized output. A failed or unfinalized bundle blocks implementation completion.
 
 ### 7. Report
 

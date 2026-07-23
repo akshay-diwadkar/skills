@@ -1,6 +1,7 @@
 # Enable the feature
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: feature -->
+<!-- plan-validation: 3; sha256: e6ee187779063c2d1b3cb8ab9d06f97f02ea106a477a4333c8ef313849eaa431 -->
 
 ## Outcome and Scope
 - SC-1: The feature is enabled.

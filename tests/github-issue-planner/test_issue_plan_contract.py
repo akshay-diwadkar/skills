@@ -11,10 +11,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "github-issue-planner" / "scripts"
-sys.path.insert(0, str(SCRIPTS_DIR))
+SENIOR_DEV_SCRIPTS = REPO_ROOT / "implement-with-senior-dev" / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+if str(SENIOR_DEV_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SENIOR_DEV_SCRIPTS))
 
 import check_issue_plan as checker  # noqa: E402
 import scaffold_issue_plan as scaffolder  # noqa: E402

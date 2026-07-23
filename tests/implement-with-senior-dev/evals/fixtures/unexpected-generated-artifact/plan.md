@@ -1,6 +1,7 @@
 # Rename the model field
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: refactor -->
+<!-- plan-validation: 3; sha256: 638c16cd75a33608ca73d05b24324598f776681b5edefc44c9d6e549fc42761e -->
 
 ## Outcome and Scope
 - SC-1: Internal model uses display_name.

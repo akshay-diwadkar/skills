@@ -76,7 +76,7 @@ def score(
             try:
                 bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
                 plan_text = (fixture / "plan.md").read_text(encoding="utf-8")
-                bundle_diagnostics = [item.code for item in validate_bundle(bundle, plan_text, fixture)]
+                bundle_diagnostics = [item.code for item in validate_bundle(bundle, plan_text, fixture, require_receipt=True)]
                 hard_failures.extend(f"bundle:{code}" for code in bundle_diagnostics)
                 expected_status = case.get("expected_bundle_status")
                 if expected_status and bundle.get("status") != expected_status:

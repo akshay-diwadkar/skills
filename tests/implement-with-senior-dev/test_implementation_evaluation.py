@@ -14,8 +14,8 @@ def test_expectations_cover_every_required_reliability_scenario() -> None:
     expectations = json.loads(score_implementation_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
 
     assert set(expectations) == {
-        "v2-tiny-local-bug",
-        "v2-standard-mechanical-propagation",
+        "v3-tiny-local-bug",
+        "v3-standard-mechanical-propagation",
         "legacy-tiny-plan",
         "stale-plan-contradiction",
         "dirty-target-refusal",

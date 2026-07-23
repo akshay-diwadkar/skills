@@ -12,7 +12,10 @@ sys.path.insert(0, str(DEV_DIR))
 
 from check_implementation import validate_bundle  # noqa: E402
 from implementation_contract import scaffold_bundle, sha256_file  # noqa: E402
-from test_implementation_contract import init_repo, v2_plan  # noqa: E402
+from test_implementation_contract import init_repo, v3_plan  # noqa: E402
+
+
+from _plan_utils import bundle_digest  # noqa: E402
 
 
 def completed_run(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
@@ -23,7 +26,7 @@ def completed_run(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
     source.parent.mkdir()
     source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
     output = repo / ".scratch" / "run" / "implementation.json"
     bundle = scaffold_bundle(repo, plan_path, output, "run-1")
@@ -68,6 +71,7 @@ def completed_run(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
             "report": {"summary": "Implemented CH-1 and verified T-1.", "path": ""},
         }
     )
+    bundle["validation_receipt"] = {"version": 1, "sha256": bundle_digest(bundle)}
     return repo, plan_path, output, bundle
 
 
@@ -115,7 +119,7 @@ def test_checker_detects_modified_initial_user_path(tmp_path: Path) -> None:
     notes = repo / "notes.txt"
     notes.write_text("baseline\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
     notes.write_text("user work\n", encoding="utf-8")
     bundle = scaffold_bundle(repo, plan_path, repo / ".scratch" / "run" / "implementation.json", "run-1")
@@ -132,7 +136,7 @@ def test_checker_allows_blocked_dirty_target_when_no_edit_was_attempted(tmp_path
     source.parent.mkdir()
     source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
     plan_path = repo / "plan.md"
-    plan_path.write_text(v2_plan(), encoding="utf-8")
+    plan_path.write_text(v3_plan(), encoding="utf-8")
     init_repo(repo)
     source.write_text("def normalize_name(value):\n    return value  # user\n", encoding="utf-8")
     bundle = scaffold_bundle(repo, plan_path, repo / ".scratch" / "run" / "implementation.json", "run-1")

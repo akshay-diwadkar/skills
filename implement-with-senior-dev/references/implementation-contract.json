@@ -1,6 +1,6 @@
 {
   "contract_version": 1,
-  "supported_plan_contract_versions": [2],
+  "supported_plan_contract_versions": [3],
   "supported_tiers": ["tiny", "standard", "high-risk"],
   "statuses": ["in-progress", "complete", "partial", "blocked"],
   "change_kinds": ["planned", "mechanical-propagation"],

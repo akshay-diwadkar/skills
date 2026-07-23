@@ -1,3 +1,7 @@
+<!-- plan-contract: 3 -->
+<!-- tier: tiny; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: 241752c366ab62e065663bfd4446d45c3400f8d16b03a21e5df97cc304ecb51a -->
+
 # Reject division by zero
 
 ## Outcome

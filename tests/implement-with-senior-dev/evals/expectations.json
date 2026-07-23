@@ -1,5 +1,5 @@
 {
-  "v2-tiny-local-bug": {
+  "v3-tiny-local-bug": {
     "minimum_score": 90,
     "required_changed": ["src/names.py", "tests/test_names.py"],
     "allowed_changed": ["src/names.py", "tests/test_names.py"],
@@ -9,7 +9,7 @@
     "required_report": ["CH-1", "T-1", "complete"],
     "forbidden_report": ["not tested"]
   },
-  "v2-standard-mechanical-propagation": {
+  "v3-standard-mechanical-propagation": {
     "minimum_score": 90,
     "required_changed": ["src/api.py", "src/caller.py", "tests/test_api.py"],
     "allowed_changed": ["src/api.py", "src/caller.py", "tests/test_api.py"],

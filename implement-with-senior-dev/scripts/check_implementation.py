@@ -8,7 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from implementation_contract import Diagnostic, git_status, load_contract, parse_plan, sha256_bytes, sha256_file
+from _plan_utils import Diagnostic, plan_digest, validate_bundle_receipt
+from implementation_contract import git_status, load_contract, parse_plan, sha256_file
 
 
 def _strings(value: Any) -> list[str]:
@@ -55,10 +56,12 @@ def _actual_run_paths(bundle: dict[str, Any], repo_root: Path) -> tuple[set[str]
     return (set(current) - set(initial)) | changed_initial_targets, diagnostics
 
 
-def validate_bundle(bundle: Any, plan_text: str, repo_root: Path) -> list[Diagnostic]:
+def validate_bundle(bundle: Any, plan_text: str, repo_root: Path, *, require_receipt: bool = False) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     if not isinstance(bundle, dict):
         return [Diagnostic("bundle.type", "Implementation bundle must be a JSON object.")]
+    if require_receipt:
+        diagnostics.extend(validate_bundle_receipt(bundle, required=True))
     contract = load_contract()
     for field in contract["required_bundle_fields"]:
         if field not in bundle:
@@ -73,9 +76,9 @@ def validate_bundle(bundle: Any, plan_text: str, repo_root: Path) -> list[Diagno
     diagnostics.extend(plan_diagnostics)
     recorded_plan = bundle.get("plan", {})
     if isinstance(recorded_plan, dict):
-        if recorded_plan.get("sha256") != sha256_bytes(plan_text.encode("utf-8")):
+        if recorded_plan.get("sha256") != plan_digest(plan_text):
             diagnostics.append(Diagnostic("bundle.plan.hash", "Plan snapshot hash does not match the supplied plan."))
-        for field in ("contract_version", "tier", "task_type"):
+        for field in ("contract_version", "tier", "task_type", "blueprints"):
             if recorded_plan.get(field) != plan.to_dict().get(field):
                 diagnostics.append(Diagnostic("bundle.plan.metadata", f"Recorded plan {field} does not match parsed plan."))
 
@@ -227,6 +230,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("bundle", type=Path)
+    parser.add_argument("--require-receipt", action="store_true", help="Require a valid finalizer bundle receipt.")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser.parse_args(argv)
 
@@ -238,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
         plan_text = args.plan.read_text(encoding="utf-8")
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(str(exc)) from exc
-    diagnostics = validate_bundle(bundle, plan_text, args.repo_root.resolve())
+    diagnostics = validate_bundle(bundle, plan_text, args.repo_root.resolve(), require_receipt=args.require_receipt)
     if args.format == "json":
         print(json.dumps({"valid": not diagnostics, "diagnostics": [item.to_dict() for item in diagnostics]}, indent=2))
     elif diagnostics:

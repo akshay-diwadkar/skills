@@ -1,6 +1,7 @@
 # Update the missing handler
-<!-- plan-contract: 2 -->
+<!-- plan-contract: 3 -->
 <!-- tier: tiny; task-type: bug-fix -->
+<!-- plan-validation: 3; sha256: a6c1eea5df310f34eed7154b603122be417e67872e81000a117065d5220462f9 -->
 
 ## Outcome and Scope
 - SC-1: The missing handler returns ok.

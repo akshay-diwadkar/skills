@@ -1,19 +1,22 @@
 """
-Shared utilities for plan validation scripts.
+Shared utilities for plan validation, receipt verification, fence stripping, and plan finalization.
 
 NOTE: The plan-validation functions (validate_receipt, plan_digest, canonical_plan_body,
 finalize_plan_text, strip_fenced_code_blocks, etc.) are duplicated in
-implement-with-senior-dev/scripts/_plan_utils.py. Keep them in sync when making changes to
-shared plan-handling logic.
+plan-with-senior-dev/scripts/_plan_utils.py. Keep them in sync when making changes to
+shared plan-handling logic. Bundle-specific functions (canonical_bundle_bytes,
+bundle_digest, validate_bundle_receipt) live only here.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
 
 @dataclass(frozen=True)
 class Diagnostic:
@@ -121,3 +124,27 @@ def finalize_plan_text(text: str) -> str:
         )
     lines.insert(insertion, receipt)
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def canonical_bundle_bytes(bundle: dict) -> bytes:
+    """Return canonical LF-normalized JSON bytes of bundle with validation_receipt removed."""
+    cleaned = {k: v for k, v in bundle.items() if k != "validation_receipt"}
+    raw_json = json.dumps(cleaned, indent=2, sort_keys=True)
+    normalized = raw_json.replace("\r\n", "\n").replace("\r", "\n").rstrip("\n") + "\n"
+    return normalized.encode("utf-8")
+
+
+def bundle_digest(bundle: dict) -> str:
+    return hashlib.sha256(canonical_bundle_bytes(bundle)).hexdigest()
+
+
+def validate_bundle_receipt(bundle: dict, *, required: bool = True) -> list[Diagnostic]:
+    receipt = bundle.get("validation_receipt")
+    if not isinstance(receipt, dict):
+        return [Diagnostic("bundle.receipt.missing", "Implementation bundle requires a valid validation receipt.")] if required else []
+    if receipt.get("version") != 1 or not isinstance(receipt.get("sha256"), str):
+        return [Diagnostic("bundle.receipt.malformed", "Validation receipt must specify version 1 and a SHA-256 digest.")]
+    expected = bundle_digest(bundle)
+    if receipt.get("sha256") != expected:
+        return [Diagnostic("bundle.receipt.stale", "Validation receipt does not match the current bundle state.")]
+    return []
