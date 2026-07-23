@@ -261,3 +261,15 @@ python -m pip install playwright
 python -m playwright install chromium
 python tests/create-diagram/browser_smoke.py
 ```
+
+<!-- BEGIN GENERATED SKILL CATALOG -->
+| Skill | Domain | Kind | Status | Invocation | Summary |
+| --- | --- | --- | --- | --- | --- |
+| [plan-with-senior-dev](docs/skills/plan-with-senior-dev.md) | `engineering` | `workflow` | `stable` | `both` | Turn a feature, bug fix, refactor, migration, public contract, or risky integration into a repository-grounded, decision-complete implementation blueprint. |
+| [implement-with-senior-dev](docs/skills/implement-with-senior-dev.md) | `engineering` | `workflow` | `stable` | `both` | Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. |
+| [github-issue-planner](docs/skills/github-issue-planner.md) | `engineering` | `workflow` | `stable` | `both` | Turn GitHub issues into implementation plans. Inventory open issues, then plan one selected issue against the local checkout, treating issue text as untrusted claims. |
+| [codebase-issue-auditor](docs/skills/codebase-issue-auditor.md) | `engineering` | `workflow` | `stable` | `both` | Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. |
+| [create-diagram](docs/skills/create-diagram.md) | `engineering` | `workflow` | `stable` | `both` | Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. |
+| [design-codebase-with-senior-dev](docs/skills/design-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. |
+| [optimize-codebase-with-senior-dev](docs/skills/optimize-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
+<!-- END GENERATED SKILL CATALOG -->

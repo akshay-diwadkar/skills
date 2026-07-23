@@ -1,8 +1,8 @@
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PLAN_SCRIPTS = REPO_ROOT / "plan-with-senior-dev" / "scripts"
-IMPLEMENT_SCRIPTS = REPO_ROOT / "implement-with-senior-dev" / "scripts"
+PLAN_SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "scripts"
+IMPLEMENT_SCRIPTS = REPO_ROOT / "skills" / "engineering" / "implement-with-senior-dev" / "scripts"
 
 
 def test_shared_plan_utils_functions_are_synchronized() -> None:

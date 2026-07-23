@@ -1,0 +1,144 @@
+schema_version: 1
+
+domains:
+  engineering:
+    title: Engineering
+    description: Production engineering workflows, disciplines, and supporting tools.
+
+skills:
+  - name: plan-with-senior-dev
+    path: skills/engineering/plan-with-senior-dev
+    domain: engineering
+    status: stable
+    kind: workflow
+    invocation: both
+    summary: Turn a feature, bug fix, refactor, migration, public contract, or risky integration into a repository-grounded, decision-complete implementation blueprint.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - implement-with-senior-dev
+        - design-codebase-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/plan-with-senior-dev.md
+    tests: tests/skills/plan-with-senior-dev
+
+  - name: implement-with-senior-dev
+    path: skills/engineering/implement-with-senior-dev
+    domain: engineering
+    status: stable
+    kind: workflow
+    invocation: both
+    summary: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/implement-with-senior-dev.md
+    tests: tests/skills/implement-with-senior-dev
+
+  - name: github-issue-planner
+    path: skills/engineering/github-issue-planner
+    domain: engineering
+    status: stable
+    kind: workflow
+    invocation: both
+    summary: Turn GitHub issues into implementation plans. Inventory open issues, then plan one selected issue against the local checkout, treating issue text as untrusted claims.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+        - implement-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/github-issue-planner.md
+    tests: tests/skills/github-issue-planner
+
+  - name: codebase-issue-auditor
+    path: skills/engineering/codebase-issue-auditor
+    domain: engineering
+    status: stable
+    kind: workflow
+    invocation: both
+    summary: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - github-issue-planner
+      supersedes: []
+    documentation: docs/skills/codebase-issue-auditor.md
+    tests: tests/skills/codebase-issue-auditor
+
+  - name: create-diagram
+    path: skills/engineering/create-diagram
+    domain: engineering
+    status: stable
+    kind: workflow
+    invocation: both
+    summary: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+        - design-codebase-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/create-diagram.md
+    tests: tests/skills/create-diagram
+
+  - name: design-codebase-with-senior-dev
+    path: skills/engineering/design-codebase-with-senior-dev
+    domain: engineering
+    status: stable
+    kind: discipline
+    invocation: both
+    summary: Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/design-codebase-with-senior-dev.md
+    tests: tests/skills/design-codebase-with-senior-dev
+
+  - name: optimize-codebase-with-senior-dev
+    path: skills/engineering/optimize-codebase-with-senior-dev
+    domain: engineering
+    status: stable
+    kind: discipline
+    invocation: both
+    summary: Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+        - implement-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/optimize-codebase-with-senior-dev.md
+    tests: tests/skills/optimize-codebase-with-senior-dev

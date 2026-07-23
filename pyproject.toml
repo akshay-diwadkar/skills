@@ -4,15 +4,17 @@ target-version = "py311"
 
 [tool.mypy]
 python_version = "3.11"
+explicit_package_bases = true
+mypy_path = ["tools/validation", "tools/packaging", "tools/catalog", "tools/release"]
 warn_unused_ignores = true
 strict_optional = true
 no_implicit_optional = true
 exclude = [
-  "tests/plan-with-senior-dev/fixtures/",
-  "tests/plan-with-senior-dev/evals/fixtures/",
-  "tests/implement-with-senior-dev/evals/fixtures/",
-  "tests/design-codebase-with-senior-dev/evals/fixtures/",
-  "tests/optimize-codebase-with-senior-dev/evals/fixtures/",
+  "tests/skills/plan-with-senior-dev/fixtures/",
+  "tests/skills/plan-with-senior-dev/evals/fixtures/",
+  "tests/skills/implement-with-senior-dev/evals/fixtures/",
+  "tests/skills/design-codebase-with-senior-dev/evals/fixtures/",
+  "tests/skills/optimize-codebase-with-senior-dev/evals/fixtures/",
 ]
 
 [[tool.mypy.overrides]]

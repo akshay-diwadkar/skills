@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SkillsCatalog",
+  "type": "object",
+  "required": ["schema_version", "domains", "skills"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "domains": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["title", "description"],
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "domain",
+          "status",
+          "kind",
+          "invocation",
+          "summary",
+          "platforms",
+          "relationships",
+          "documentation",
+          "tests"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "domain": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["experimental", "beta", "stable", "deprecated"]
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["workflow", "discipline", "utility"]
+          },
+          "invocation": {
+            "type": "string",
+            "enum": ["user", "model", "both"]
+          },
+          "summary": { "type": "string" },
+          "platforms": {
+            "type": "object",
+            "properties": {
+              "skills_sh": { "type": "boolean" },
+              "claude_plugin": { "type": "boolean" },
+              "codex": { "type": "boolean" }
+            }
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "invokes": { "type": "array", "items": { "type": "string" } },
+              "complements": { "type": "array", "items": { "type": "string" } },
+              "supersedes": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "documentation": { "type": "string" },
+          "tests": { "type": "string" },
+          "replacement": { "type": "string" },
+          "deprecation_reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

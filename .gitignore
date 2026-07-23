@@ -1,43 +1,19 @@
-# Ignore everything by default
-*
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Repository metadata/docs
-!.gitignore
-!README.md
-!pyproject.toml
-!skills-lock.json
+# Caches and local environments
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.scratch/
+scratch/
+.dist/
+*.egg-info/
+.env
+.env.*
 
-# CI workflows
-!.github/
-!.github/**
-
-# Repository-level development tests (not distributed with skills)
-!tests/
-!tests/**
-
-# Tracked skill folders
-!create-diagram/
-!create-diagram/**
-!design-codebase-with-senior-dev/
-!design-codebase-with-senior-dev/**
-!plan-with-senior-dev/
-!plan-with-senior-dev/**
-!plan-with-senior-dev/scripts/*.py
-!implement-with-senior-dev/
-!implement-with-senior-dev/**
-!implement-with-senior-dev/scripts/*.py
-!codebase-issue-auditor/
-!codebase-issue-auditor/**
-!github-issue-planner/
-!github-issue-planner/**
-!optimize-codebase-with-senior-dev/
-!optimize-codebase-with-senior-dev/**
-
-# Secret and generated local files
-**/.env
-issues.json
-issues_draft.json
-**/__pycache__/
-**/*.py[cod]
-**/.scratch/
-create-diagram/.playwright-cli/
+# OS generated files
+.DS_Store
+Thumbs.db
