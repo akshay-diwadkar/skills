@@ -31,6 +31,13 @@ Planning is mandatory. Implementation remains available only after the planning 
 - `H-n` — exactly one next owner.
 - `E-n` — explicitly authorized implementation action and result; implementation stage only.
 
+## Skill Directory Resolution
+
+Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
+- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
+When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+
 ## Contract and Reference Routing
 
 1. Read `references/optimization-protocol.md` before starting non-trivial work.

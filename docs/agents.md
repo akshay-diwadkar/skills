@@ -4,13 +4,14 @@ Agents are focused, role-based orchestration layers built on top of canonical en
 
 ## Platform Support & Distribution Matrix
 
-| Platform | Skills Distributed | Agents Distributed | Scope |
-| --- | ---: | ---: | --- |
-| Claude Code plugin | Yes | Yes | Installed plugin |
-| Cursor plugin | Yes | Yes | Installed plugin |
-| Codex skill installation | Yes | No automatic custom-agent installation | Installed skills |
-| Codex repository clone | Yes | Yes | Current project |
-| Codex explicit installer | Existing installed skills | Yes | Selected target project |
+| Platform | Skills Distributed | Agents Distributed | Scope | Status |
+| --- | ---: | ---: | --- | --- |
+| Claude Code plugin | Yes | Yes | Installed plugin | Supported (Plugin) |
+| Cursor plugin | Yes | Yes | Installed plugin | Supported (Plugin) |
+| Codex skill installation | Yes | No automatic custom-agent installation | Installed skills | Supported (Skills only) |
+| Codex repository clone | Yes | Yes | Current project | Supported (Project) |
+| Codex explicit installer | Existing installed skills | Yes | Selected target project | Supported via project installer |
+| Codex app / hosted surfaces | Unverified | Not automatically discovered | Remote / App | Best-effort / Unverified |
 
 ## Available Agents
 

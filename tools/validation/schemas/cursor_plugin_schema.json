@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Cursor Plugin Manifest Schema",
-  "description": "Official pinned schema for .cursor-plugin/plugin.json",
+  "title": "Cursor Plugin Manifest Repository Policy Schema",
+  "description": "Repository policy schema for .cursor-plugin/plugin.json (enforces repository quality rules)",
   "type": "object",
   "required": [
     "name",

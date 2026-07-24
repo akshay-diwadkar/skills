@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Cursor Marketplace Manifest Schema",
-  "description": "Official pinned schema for .cursor-plugin/marketplace.json",
+  "title": "Cursor Marketplace Manifest Repository Policy Schema",
+  "description": "Repository policy schema for .cursor-plugin/marketplace.json (enforces repository quality rules)",
   "type": "object",
   "required": [
     "name",

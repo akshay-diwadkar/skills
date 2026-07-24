@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -15,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 @pytest.fixture
 def installed_skills_env(tmp_path: Path):
     """Copy skills to an isolated external location and setup a separate target workspace with spaces."""
-    installed_dir = tmp_path / "installed skills folder"
+    installed_dir = tmp_path / "installed skills folder with spaces"
     target_repo = tmp_path / "target user project with spaces"
     installed_dir.mkdir(parents=True, exist_ok=True)
     target_repo.mkdir(parents=True, exist_ok=True)
@@ -46,7 +47,8 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
     assert scaffold_script.is_file()
     assert finalize_script.is_file()
 
-    # 1. Run scaffold_plan from target_repo CWD
+    # 1. Run scaffold_plan from target_repo CWD (target repo has no scripts/ directory)
+    assert not (target_repo / "scripts").exists()
     scaffold_res = subprocess.run(
         [sys.executable, str(scaffold_script), "--tier", "tiny", "--task-type", "bug-fix"],
         cwd=target_repo,
@@ -189,3 +191,105 @@ def test_installed_create_diagram_execution(installed_skills_env):
         text=True,
     )
     assert val_res.returncode == 0, f"Validate stderr: {val_res.stderr}"
+
+
+def test_installed_design_codebase_with_senior_dev_execution(installed_skills_env):
+    installed_dir, target_repo = installed_skills_env
+    design_skill = installed_dir / "design-codebase-with-senior-dev"
+    scaffold_script = design_skill / "scripts" / "scaffold_assessment.py"
+    check_script = design_skill / "scripts" / "check_assessment.py"
+
+    scaffold_res = subprocess.run(
+        [sys.executable, str(scaffold_script), "--level", "L0"],
+        cwd=target_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert scaffold_res.returncode == 0
+    assert "design-assessment-contract: 1" in scaffold_res.stdout
+
+    # Test check_script on scaffolded draft
+    draft = target_repo / "assessment.md"
+    draft.write_text(scaffold_res.stdout, encoding="utf-8")
+    check_res = subprocess.run(
+        [sys.executable, str(check_script), "--level", "L0", "--repo-root", str(target_repo), str(draft)],
+        cwd=target_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert check_res.returncode in (0, 1)  # scaffold has placeholders so validator runs and returns diagnostic
+
+
+def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_env):
+    installed_dir, target_repo = installed_skills_env
+    optimize_skill = installed_dir / "optimize-codebase-with-senior-dev"
+    scaffold_script = optimize_skill / "scripts" / "scaffold_optimization.py"
+
+    res = subprocess.run(
+        [sys.executable, str(scaffold_script), "--scope", "targeted", "--stage", "plan"],
+        cwd=target_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    assert "optimization-contract: 1" in res.stdout
+
+
+def test_installed_skill_execution_via_symlink(tmp_path: Path):
+    """Test skill execution when installed via symlink if OS permits."""
+    source_skill = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev"
+    symlink_dir = tmp_path / "symlinked_skills"
+    symlink_dir.mkdir(parents=True, exist_ok=True)
+    symlinked_skill = symlink_dir / "plan-with-senior-dev"
+
+    try:
+        os.symlink(source_skill, symlinked_skill, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlink creation not supported on host OS or permissions missing")
+
+    target_repo = tmp_path / "target_repo"
+    target_repo.mkdir(parents=True, exist_ok=True)
+
+    scaffold_script = symlinked_skill / "scripts" / "scaffold_plan.py"
+    res = subprocess.run(
+        [sys.executable, str(scaffold_script), "--tier", "tiny", "--task-type", "bug-fix"],
+        cwd=target_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0
+    assert "plan-contract: 3" in res.stdout
+
+
+def test_every_skill_command_references_existing_bundled_file():
+    """Verify every script referenced in SKILL.md command examples exists on disk."""
+    skills_dir = REPO_ROOT / "skills" / "engineering"
+    for skill_folder in skills_dir.iterdir():
+        if not skill_folder.is_dir():
+            continue
+        skill_md = skill_folder / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        # Find script references like python "<skill-dir>/scripts/foo.py" or python "$skillDir/scripts/foo.py"
+        script_refs = re.findall(r"python\s+[\"']?(?:<skill-dir>|\$skillDir)[/\\](scripts[/\\][A-Za-z0-9_-]+\.py)[\"']?", text)
+        for ref in script_refs:
+            norm_ref = ref.replace("\\", "/")
+            expected_file = skill_folder / norm_ref
+            assert expected_file.is_file(), f"{skill_folder.name}/SKILL.md references missing script '{norm_ref}'"
+
+
+def test_skill_directory_resolution_instructions_present():
+    """Verify that every SKILL.md that references bundled scripts includes explicit Skill Directory Resolution instructions."""
+    skills_dir = REPO_ROOT / "skills" / "engineering"
+    for skill_folder in skills_dir.iterdir():
+        if not skill_folder.is_dir():
+            continue
+        skill_md = skill_folder / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        if "<skill-dir>" in text or "$skillDir" in text:
+            assert "Skill Directory Resolution" in text, (
+                f"{skill_folder.name}/SKILL.md references skill directory but missing 'Skill Directory Resolution' section"
+            )

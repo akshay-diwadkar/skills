@@ -44,6 +44,13 @@ Select the smallest correct approach and record the nearest rejected alternative
 
 Complete this step only when no material product or contract decision remains deferred.
 
+## Skill Directory Resolution
+
+Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
+- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
+When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+
 ## 4. Blueprint
 
 Read the matching tier example in [worked-examples.md](references/worked-examples.md), then generate the working scaffold:

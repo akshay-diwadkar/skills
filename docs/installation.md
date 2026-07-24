@@ -17,7 +17,7 @@ Add the marketplace source and install the plugin:
 /plugin marketplace add akshay-diwadkar/skills
 
 # Install the engineering-skills plugin
-/plugin install engineering-skills
+/plugin install engineering-skills@engineering-skills-marketplace
 ```
 
 ### Local Development Installation
@@ -25,18 +25,18 @@ Add the marketplace source and install the plugin:
 To load the plugin locally from a cloned repository during development:
 
 ```bash
-# From within your target repository or workspace
-/plugin load /path/to/cloned/skills
+# Start Claude Code with local plugin directory
+claude --plugin-dir /path/to/cloned/skills
 ```
 
 ### Updating & Uninstallation
 
 ```bash
 # Update installed plugins
-/plugin update engineering-skills
+/plugin update engineering-skills@engineering-skills-marketplace
 
 # Remove the plugin
-/plugin uninstall engineering-skills
+/plugin uninstall engineering-skills@engineering-skills-marketplace
 ```
 
 ---

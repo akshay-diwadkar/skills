@@ -82,13 +82,13 @@ Install the plugin from the marketplace:
 
 ```bash
 /plugin marketplace add akshay-diwadkar/skills
-/plugin install engineering-skills
+/plugin install engineering-skills@engineering-skills-marketplace
 ```
 
 For local development, load the repository directory:
 
 ```bash
-/plugin load /path/to/cloned/skills
+claude --plugin-dir /path/to/cloned/skills
 ```
 
 ### 2. Cursor (Plugin Manifest)

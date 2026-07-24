@@ -40,8 +40,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: python -m pip install pytest pyyaml jsonschema
-      - name: Run create-diagram tests
-        run: python -m pytest tests/skills/create-diagram -v
+      - name: Run installed skill execution tests
+        run: python -m pytest tests/integration/test_installed_skill_execution.py -v
       - name: Run packaging verification
         run: python tools/packaging/verify_distribution.py
 

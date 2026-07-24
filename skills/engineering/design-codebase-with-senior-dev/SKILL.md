@@ -16,7 +16,7 @@ This skill is **assessment-only**. Inspect and run non-mutating checks, but neve
 3. Preserve public APIs, schemas, events, files, CLIs, persistence, errors, side effects, user workflows, and operational promises unless explicit authorization names the permitted change.
 4. Prefer L0 over L1, L1 over L2, and L2 over L3 whenever the lower level satisfies the evidenced constraints.
 5. A fashionable pattern name, long file, large class, duplicate branch, disliked abstraction, or clean diagram is never sufficient evidence.
-6. Reconcile the requested design with grounded pressures and protected contracts, then obtain explicit confirmation of the resolved design brief before classification or approval.
+6. Reconcile the requested design with grounded pressures and protected contracts. Ask for user confirmation ONLY when material ambiguity remains that cannot be resolved through repository evidence (such as user-visible behavior, public/shared contracts, persisted state, state ownership, security/authorization, failure semantics, migration/rollback constraints, external effects, or deployment compatibility). When no material ambiguity remains, continue automatically and record the resolved frame in the assessment.
 
 ## Evidence Records
 
@@ -35,6 +35,13 @@ Use stable records throughout the assessment:
 - `H-n` — assessment-only handoff state.
 
 Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption]` when they are not already expressed by one of these records. Do not guess a repository fact or erase contradictory evidence.
+
+## Skill Directory Resolution
+
+Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
+- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
+When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
 
 ## Reference and Tool Routing
 
@@ -76,12 +83,15 @@ Complete Gates 1-7 in order. If later evidence changes the level, regenerate the
 ### Gate 3: Align Request and Current Design
 
 - Follow the request-to-evidence alignment protocol in `references/design-decision-rubric.md`. Maintain a temporary gap ledger; do not add it to the assessment contract.
-- Grill the user on every gap that could change the goal, scope, protected contracts, ownership, failure semantics, migration constraints, success measures, or admissible design level. Ask up to three related questions per round with cited request/evidence, consequence, two to four options when feasible, and a repository-grounded recommendation.
-- Incorporate answers and re-ground changed boundaries until no blocking gap remains. Then recap the resolved goal, audience, scope, exclusions, pressures, protected contracts, ownership, failure semantics, constraints, and success measures and require explicit confirmation, even when no mismatch was found.
-- If the recap is corrected, restart alignment. If confirmation is unavailable, pause without approving or finalizing an assessment. Alignment confirmation does not authorize implementation.
-- Fold confirmed outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger.
+- Ask the user for clarification ONLY when a material ambiguity remains that cannot be resolved through repository evidence. Material ambiguity includes decisions affecting user-visible behavior, public or shared contracts, persisted state, state ownership, security or authorization, failure semantics, migration and rollback constraints, external effects, or deployment compatibility. Ask up to three related questions per round with cited request/evidence, consequence, two to four options when feasible, and a repository-grounded recommendation.
+- When no material ambiguity remains:
+  - continue automatically without adding a mandatory confirmation pause;
+  - record the resolved frame in the assessment;
+  - do not pause or block an otherwise decision-complete assessment due to lack of user availability.
+- If an unresolved material ambiguity remains unanswered, pause with the exact unresolved question; do not choose an unresolved product or contract decision on the user's behalf.
+- Fold confirmed or resolved outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger.
 
-**Completion gate:** no blocking gap remains and the resolved design brief is explicitly confirmed.
+**Completion gate:** no unresolved material ambiguity remains and the resolved design brief is recorded in the assessment.
 
 ### Gate 4: Rank Pressures and Classify L0-L3
 

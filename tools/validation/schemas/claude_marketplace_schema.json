@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Claude Marketplace Manifest Schema",
-  "description": "Official pinned schema for .claude-plugin/marketplace.json",
+  "title": "Claude Marketplace Manifest Repository Policy Schema",
+  "description": "Repository policy schema for .claude-plugin/marketplace.json (enforces repository quality rules)",
   "type": "object",
   "required": [
     "name",

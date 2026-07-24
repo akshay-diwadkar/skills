@@ -35,6 +35,13 @@ Read these files completely before editing:
 - Reverse only positively identified agent-owned hunks whose current context still matches. Never perform automatic whole-file, worktree, or branch restoration.
 - Run `finalize_implementation.py` to stamp a SHA-256 validation receipt into the bundle before claiming completion.
 
+## Skill Directory Resolution
+
+Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
+- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
+When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+
 ## Execution Gates
 
 ### 1. Normalize the Plan

@@ -24,9 +24,9 @@ Record requested patterns or boundaries unsupported by current pressure, missing
 
 Ask up to three related blocking questions per round. State the request and cited `F-n` evidence, explain the affected design decision, offer two to four mutually exclusive options when feasible, and identify the recommended option based on the admission rules, lower-level sufficiency, repository idioms, contract preservation, and reversibility. Use scoped free text only when the choices cannot be bounded honestly.
 
-Record answers, re-ground changed boundaries, and repeat until every gap is resolved or non-blocking. Then recap the goal, audience, scope, exclusions, ranked pressures, protected contracts, ownership, failure semantics, migration constraints, and success measures. Require explicit confirmation even if exploration found no mismatch. Corrections restart the loop; missing confirmation blocks classification and assessment approval.
+Record answers, re-ground changed boundaries, and repeat until no material ambiguity remains. Ask the user for confirmation ONLY when a material ambiguity remains that cannot be resolved through repository evidence (such as user-visible behavior, public or shared contracts, persisted state, state ownership, security/authorization, failure semantics, migration/rollback constraints, external effects, or deployment compatibility). When no material ambiguity remains, proceed automatically without a mandatory confirmation pause and record the resolved frame in the assessment.
 
-Translate confirmed outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger. Alignment confirmation establishes the assessment brief and never authorizes implementation.
+Translate confirmed or resolved outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger. Alignment confirmation establishes the assessment brief and never authorizes implementation.
 
 ## 1. Analysis Dimensions
 

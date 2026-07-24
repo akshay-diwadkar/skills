@@ -1,4 +1,4 @@
 interface:
   display_name: "Design Codebase with Senior Dev"
-  short_description: "Confirmed, evidence-driven design assessments"
-  default_prompt: "Use $design-codebase-with-senior-dev to reconcile my design request with repository evidence, close structural gaps with recommended options, confirm the brief, and select the smallest justified change without editing implementation files."
+  short_description: "Minimal, evidence-driven design assessments"
+  default_prompt: "Use $design-codebase-with-senior-dev to reconcile my design request with repository evidence, resolve structural gaps with recommended options, and select the smallest justified change without editing implementation files."
