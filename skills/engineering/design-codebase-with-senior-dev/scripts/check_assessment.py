@@ -9,7 +9,6 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Any
 
 from assessment_contract import (
     Diagnostic,
@@ -279,7 +278,6 @@ def _validate_facts(text: str, repo_root: Path) -> list[Diagnostic]:
         return [Diagnostic("fact.format", "At least one canonical F-n citation is required.")]
     root = repo_root.resolve()
 
-    has_multi_category = False
     categories = set()
 
     for match in matches:
