@@ -97,3 +97,55 @@ def test_check_version_tag_mismatch_rejection() -> None:
     res = subprocess.run([sys.executable, str(check_version_script), "--tag", "v9.9.9"], capture_output=True, text=True)
     assert res.returncode != 0
     assert "does not match expected tag" in res.stderr or "does not match expected tag" in res.stdout
+
+
+def test_command_path_contract_validation() -> None:
+    """Verify command path contract validator rejects relative non-script filesystem arguments and passes on absolute examples."""
+    sys.path.insert(0, str(REPO_ROOT / "tools" / "validation"))
+    import validate_repository
+
+    # 1. Real repository check must pass cleanly
+    repo_errors = validate_repository.validate_command_path_contracts()
+    assert not repo_errors, "Repository command path validation failed:\n" + "\n".join(repo_errors)
+
+    # 2. Test rejection of relative filesystem flag examples
+    invalid_examples = [
+        "python scripts/post_merge_issue_followup.py --env .env --github-repo-url owner/repo",
+        "python scripts/build_diagram.py --output diagram.html",
+        "python scripts/build_diagram.py --data payload.json",
+        "python scripts/check_issue_plan.py issue-plan.md --repo-root <checkout>",
+        "python scripts/check_issue_plan.py <run-dir>/issue-1.md --repo-root /absolute/path/to/repo",
+        "python scripts/check_issue_plan.py /absolute/path/to/plan.md --issue-json fresh-issue.json",
+        "python scripts/post_merge_issue_followup.py --verification-summary-file summary.md",
+    ]
+
+    for ex in invalid_examples:
+        cmd_tokens = ex.split()
+        has_invalid = False
+        for i, tok in enumerate(cmd_tokens):
+            if tok in validate_repository.FILESYSTEM_FLAGS:
+                if i + 1 < len(cmd_tokens) and not validate_repository.is_visibly_absolute(cmd_tokens[i + 1]):
+                    has_invalid = True
+            elif i > 0 and cmd_tokens[i - 1] not in validate_repository.FILESYSTEM_FLAGS and not tok.startswith("-"):
+                if (
+                    tok.startswith(("<run-dir>", "<issue-plan", "<fresh-issue"))
+                    or (any(tok.endswith(ext) for ext in (".md", ".json", ".html", ".py")) and not tok.startswith("scripts/"))
+                ):
+                    if not validate_repository.is_visibly_absolute(tok):
+                        has_invalid = True
+        assert has_invalid, f"Expected validation failure for invalid command example: '{ex}'"
+
+    # 3. Test allowance of valid absolute examples and non-filesystem arguments
+    valid_examples = [
+        "python scripts/post_merge_issue_followup.py --env /absolute/path/to/repository/.env --github-repo-url owner/repo --base main --issue-number <number>",
+        "python scripts/build_diagram.py --output /absolute/path/to/diagram.html",
+        "python scripts/check_issue_plan.py /absolute/path/to/run-dir/issue-1.md --repo-root /absolute/path/to/repository",
+    ]
+
+    for ex in valid_examples:
+        cmd_tokens = ex.split()
+        for i, tok in enumerate(cmd_tokens):
+            if tok in validate_repository.FILESYSTEM_FLAGS:
+                val = cmd_tokens[i + 1]
+                assert validate_repository.is_visibly_absolute(val), f"Expected visibly absolute path for option '{tok}', got: {val}"
+

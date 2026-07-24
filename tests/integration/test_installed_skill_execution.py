@@ -12,14 +12,30 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+SUBPROCESS_ENV = {
+    **os.environ,
+    "PYTHONDONTWRITEBYTECODE": "1",
+}
+
 
 def get_skill_snapshot(skill_dir: Path) -> set[tuple[str, int]]:
     """Record relative path and size of every file inside a skill directory."""
     snapshot = set()
     for p in skill_dir.rglob("*"):
-        if p.is_file() and "__pycache__" not in p.parts:
+        if p.is_file():
             snapshot.add((p.relative_to(skill_dir).as_posix(), p.stat().st_size))
     return snapshot
+
+
+def assert_no_skill_mutation(before: set[tuple[str, int]], after: set[tuple[str, int]]) -> None:
+    added = after - before
+    removed = before - after
+    diff = []
+    if added:
+        diff.append(f"Added files: {sorted(added)}")
+    if removed:
+        diff.append(f"Removed files: {sorted(removed)}")
+    assert before == after, "Skill directory mutated during execution:\n" + "\n".join(diff)
 
 
 @pytest.fixture
@@ -62,6 +78,7 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
         cwd=plan_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
     assert "plan-contract: 3" in scaffold_res.stdout
@@ -93,12 +110,13 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
         cwd=plan_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert finalize_res.returncode == 0, f"Finalizer stderr: {finalize_res.stderr}"
     assert "plan-validation: 3" in finalize_res.stdout
 
     after_snapshot = get_skill_snapshot(plan_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp_path: Path):
@@ -141,6 +159,7 @@ def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp
         cwd=implement_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0, f"Scaffold stderr: {scaffold_res.stderr}"
     assert output_file.is_file()
@@ -159,11 +178,12 @@ def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp
         cwd=implement_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert finalize_res.returncode == 0, f"Finalize stderr: {finalize_res.stderr}"
 
     after_snapshot = get_skill_snapshot(implement_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_github_issue_planner_execution(installed_skills_env):
@@ -211,12 +231,13 @@ def test_installed_github_issue_planner_execution(installed_skills_env):
         cwd=github_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0, f"Scaffold stderr: {scaffold_res.stderr}"
     assert output_md.is_file()
 
     after_snapshot = get_skill_snapshot(github_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_codebase_issue_auditor_execution(installed_skills_env):
@@ -238,11 +259,12 @@ def test_installed_codebase_issue_auditor_execution(installed_skills_env):
         cwd=auditor_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert res.returncode == 0, f"Validator stderr: {res.stderr}"
 
     after_snapshot = get_skill_snapshot(auditor_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_create_diagram_execution(installed_skills_env):
@@ -316,6 +338,7 @@ def test_installed_create_diagram_execution(installed_skills_env):
         cwd=diagram_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert build_res.returncode == 0, f"Build stderr: {build_res.stderr}"
     assert output_file.is_file()
@@ -326,11 +349,12 @@ def test_installed_create_diagram_execution(installed_skills_env):
         cwd=diagram_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert val_res.returncode == 0, f"Validate stderr: {val_res.stderr}"
 
     after_snapshot = get_skill_snapshot(diagram_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_design_codebase_with_senior_dev_execution(installed_skills_env):
@@ -345,6 +369,7 @@ def test_installed_design_codebase_with_senior_dev_execution(installed_skills_en
         cwd=design_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
     assert "design-assessment-contract: 1" in scaffold_res.stdout
@@ -357,11 +382,12 @@ def test_installed_design_codebase_with_senior_dev_execution(installed_skills_en
         cwd=design_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert check_res.returncode in (0, 1)
 
     after_snapshot = get_skill_snapshot(design_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_env):
@@ -376,12 +402,13 @@ def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_
         cwd=optimize_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert res.returncode == 0
     assert "optimization-contract: 1" in res.stdout
 
     after_snapshot = get_skill_snapshot(optimize_skill)
-    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
 def test_installed_missing_script_or_root_failures(installed_skills_env):
@@ -394,6 +421,7 @@ def test_installed_missing_script_or_root_failures(installed_skills_env):
         cwd=plan_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert res_missing_script.returncode != 0
 
@@ -414,6 +442,7 @@ def test_installed_missing_script_or_root_failures(installed_skills_env):
         cwd=plan_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert res_missing_root.returncode != 0
 
@@ -435,6 +464,7 @@ def test_installed_skill_execution_via_symlink(tmp_path: Path):
         cwd=symlinked_skill,
         capture_output=True,
         text=True,
+        env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
     assert "plan-contract: 3" in scaffold_res.stdout
@@ -479,3 +509,19 @@ def test_skill_directory_resolution_instructions_present():
             assert "Skill Directory Resolution" in text, (
                 f"{skill_folder.name}/SKILL.md references bundled scripts but missing 'Skill Directory Resolution' section"
             )
+
+
+def test_installed_skill_mutation_detection(installed_skills_env):
+    """Verify that unexpected file creation inside an installed skill triggers mutation detection failure."""
+    installed_dir, _ = installed_skills_env
+    plan_skill = installed_dir / "plan-with-senior-dev"
+    before_snapshot = get_skill_snapshot(plan_skill)
+
+    # Inject unexpected file (including bytecode simulation)
+    unexpected = plan_skill / "unexpected_runtime_file.pyc"
+    unexpected.write_bytes(b"bytecode")
+
+    after_snapshot = get_skill_snapshot(plan_skill)
+    with pytest.raises(AssertionError) as excinfo:
+        assert_no_skill_mutation(before_snapshot, after_snapshot)
+    assert "unexpected_runtime_file.pyc" in str(excinfo.value)

@@ -245,46 +245,53 @@ def validate_agent_discovery(agents_catalog: dict[str, Any] | None = None) -> li
 ALLOWED_SKILL_SUBDIRS = {"scripts", "references", "assets", "templates", "agents"}
 ALLOWED_SKILL_EXTENSIONS = {".py", ".md", ".json", ".html", ".css", ".js", ".yaml", ".yml", ".png", ".jpg", ".svg", ".txt", ".example"}
 ALLOWED_SKILL_ROOT_FILES = {"SKILL.md", ".env.example"}
-ALLOWED_SKILL_SCRIPTS = {
-    # codebase-issue-auditor
-    "audit_bundle.py",
-    "check_github_env.py",
-    "publish_github_issues.py",
-    "validate_audit_bundle.py",
-    # create-diagram",
-    "_diagram_utils.py",
-    "build_diagram.py",
-    "validate_diagram.py",
-    # design-codebase-with-senior-dev
-    "assessment_contract.py",
-    "check_assessment.py",
-    "scaffold_assessment.py",
-    # github-issue-planner
-    "check_github_env.py",
-    "check_issue_plan.py",
-    "fetch_github_issues.py",
-    "github_common.py",
-    "post_merge_issue_followup.py",
-    "scaffold_issue_plan.py",
-    # implement-with-senior-dev
-    "_plan_utils.py",
-    "check_implementation.py",
-    "finalize_implementation.py",
-    "implementation_contract.py",
-    "scaffold_implementation.py",
-    # optimize-codebase-with-senior-dev
-    "check_optimization.py",
-    "optimization_contract.py",
-    "scaffold_optimization.py",
-    # plan-with-senior-dev
-    "_plan_utils.py",
-    "check_plan.py",
-    "check_plan_rubric.py",
-    "check_plan_shape.py",
-    "finalize_plan.py",
-    "plan_contract.py",
-    "plan_model.py",
-    "scaffold_plan.py",
+ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
+    "codebase-issue-auditor": {
+        "audit_bundle.py",
+        "check_github_env.py",
+        "publish_github_issues.py",
+        "validate_audit_bundle.py",
+    },
+    "create-diagram": {
+        "_diagram_utils.py",
+        "build_diagram.py",
+        "validate_diagram.py",
+    },
+    "design-codebase-with-senior-dev": {
+        "assessment_contract.py",
+        "check_assessment.py",
+        "scaffold_assessment.py",
+    },
+    "github-issue-planner": {
+        "check_github_env.py",
+        "check_issue_plan.py",
+        "fetch_github_issues.py",
+        "github_common.py",
+        "post_merge_issue_followup.py",
+        "scaffold_issue_plan.py",
+    },
+    "implement-with-senior-dev": {
+        "_plan_utils.py",
+        "check_implementation.py",
+        "finalize_implementation.py",
+        "implementation_contract.py",
+        "scaffold_implementation.py",
+    },
+    "optimize-codebase-with-senior-dev": {
+        "check_optimization.py",
+        "optimization_contract.py",
+        "scaffold_optimization.py",
+    },
+    "plan-with-senior-dev": {
+        "_plan_utils.py",
+        "check_plan.py",
+        "check_plan_rubric.py",
+        "check_plan_shape.py",
+        "finalize_plan.py",
+        "plan_contract.py",
+        "plan_model.py",
+        "scaffold_plan.py",
+    },
 }
 
 
@@ -316,8 +323,10 @@ def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any
                 top_dir = rel_parts[0].lower()
                 if top_dir not in ALLOWED_SKILL_SUBDIRS:
                     errors.append(f"Unrecognized runtime directory inside skill package '{skill_name}': {path}")
-                if top_dir == "scripts" and rel_parts[1] not in ALLOWED_SKILL_SCRIPTS:
-                    errors.append(f"Unrecognized runtime script inside skill package '{skill_name}': {path}")
+                if top_dir == "scripts":
+                    allowed_scripts = ALLOWED_SKILL_SCRIPTS.get(skill_name, set())
+                    if rel_parts[1] not in allowed_scripts:
+                        errors.append(f"Unrecognized runtime script inside skill package '{skill_name}': {path}")
                 ext = Path(rel_parts[-1]).suffix.lower()
                 if ext not in ALLOWED_SKILL_EXTENSIONS:
                     errors.append(f"Unrecognized runtime file extension inside skill package '{skill_name}': {path}")
@@ -446,6 +455,90 @@ def validate_platform_manifest_schemas(catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
+FILESYSTEM_FLAGS = {
+    "--repo-root",
+    "--plan",
+    "--output",
+    "--input",
+    "--data",
+    "--env",
+    "--issue-json",
+    "--senior-plan",
+    "--verification-summary-file",
+    "--file",
+    "--draft",
+    "--report",
+}
+
+
+def is_visibly_absolute(path_str: str) -> bool:
+    s = path_str.strip("'\"").lower()
+    return (
+        s.startswith(("/", "\\", "<absolute", "/absolute", "\\absolute"))
+        or bool(re.match(r"^[a-z]:[/\\]", s))
+        or "/absolute/" in s
+        or "\\absolute\\" in s
+    )
+
+
+def validate_command_path_contracts() -> list[str]:
+    errors: list[str] = []
+    skills_dir = ROOT / "skills" / "engineering"
+    if not skills_dir.is_dir():
+        return errors
+
+    for skill_folder in skills_dir.iterdir():
+        if not skill_folder.is_dir():
+            continue
+        for md_file in skill_folder.rglob("*.md"):
+            try:
+                content = md_file.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            rel_path = md_file.relative_to(ROOT)
+
+            code_blocks = re.findall(r"```(?:bash|powershell|sh)?\n(.*?)\n```", content, re.DOTALL)
+            for block in code_blocks:
+                lines = [line.strip() for line in block.splitlines() if line.strip()]
+                normalized_cmds = []
+                curr = []
+                for line in lines:
+                    if line.endswith("\\"):
+                        curr.append(line[:-1].strip())
+                    else:
+                        curr.append(line)
+                        normalized_cmds.append(" ".join(curr))
+                        curr = []
+                if curr:
+                    normalized_cmds.append(" ".join(curr))
+
+                for cmd in normalized_cmds:
+                    if "python scripts/" not in cmd and "python scripts\\" not in cmd:
+                        continue
+
+                    tokens = cmd.split()
+                    for i, tok in enumerate(tokens):
+                        if tok in FILESYSTEM_FLAGS:
+                            if i + 1 < len(tokens):
+                                val = tokens[i + 1]
+                                if not is_visibly_absolute(val):
+                                    errors.append(
+                                        f"{rel_path}: option '{tok}' has non-absolute path example '{val}' in command: {cmd}"
+                                    )
+                        elif i > 0 and tokens[i - 1] not in FILESYSTEM_FLAGS and not tok.startswith("-"):
+                            if (
+                                tok.startswith(("<run-dir>", "<issue-plan", "<fresh-issue", "<validated-v3-plan", "<summary"))
+                                or (any(tok.endswith(ext) for ext in (".md", ".json", ".html", ".py")) and not tok.startswith("scripts/"))
+                            ):
+                                if i > 1 and tokens[i - 1] in ("--tier", "--task-type", "--level", "--scope", "--stage", "--base", "--github-repo-url", "--issue-number", "--pr-number"):
+                                    continue
+                                if not is_visibly_absolute(tok):
+                                    errors.append(
+                                        f"{rel_path}: positional argument has non-absolute path example '{tok}' in command: {cmd}"
+                                    )
+    return errors
+
+
 def validate_sync_state() -> list[str]:
     diffs = sync_catalog.sync_all(write=False)
     return [f"Generated surface out of sync: {d}" for d in diffs]
@@ -475,6 +568,7 @@ def main() -> int:
     errors.extend(validate_package_boundaries(tracked_files, catalog))
     errors.extend(validate_skills_lock())
     errors.extend(validate_platform_manifest_schemas(catalog))
+    errors.extend(validate_command_path_contracts())
     errors.extend(validate_sync_state())
 
     if errors:

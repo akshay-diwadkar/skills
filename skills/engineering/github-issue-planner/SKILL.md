@@ -74,7 +74,10 @@ Execute bundled runtime commands with the active skill directory (the directory 
 7. **Validate and report**
    - Run the checker and repair the artifact until it passes:
      ```bash
-     python scripts/check_issue_plan.py <run-dir>/issue-<number>.md --repo-root <checkout> --issue-json <run-dir>/issue-<number>.json
+     python scripts/check_issue_plan.py \
+       /absolute/path/to/run-dir/issue-<number>.md \
+       --repo-root /absolute/path/to/repository \
+       --issue-json /absolute/path/to/run-dir/issue-<number>.json
      ```
    - Never promote a failing artifact. Update the index and summarize the selected issue, status, artifact path, top risks, open questions, and senior handoff in chat.
    - Continue with another issue only in a new pass using the same backlog index.
@@ -87,9 +90,22 @@ Execute one issue per branch only after explicit user authorization.
 2. Run `git status -sb` and inspect existing diffs. Do not overwrite or stage unrelated work.
 3. Run the execution gate before checkout, pull, branch creation, or edits:
    ```bash
-   python scripts/check_issue_plan.py <issue-plan.md> --repo-root <checkout> --issue-json <fresh-issue.json> --execution-ready
+   python scripts/check_issue_plan.py \
+     /absolute/path/to/run-dir/issue-<number>.md \
+     --repo-root /absolute/path/to/repository \
+     --issue-json /absolute/path/to/run-dir/fresh-issue-<number>.json \
+     --execution-ready
    ```
-   For `ready-for-senior-plan`, also pass `--senior-plan <validated-v3-plan.md>`. If the checker or senior skill is unavailable, fail closed.
+   For `ready-for-senior-plan`, also pass `--senior-plan /absolute/path/to/run-dir/validated-v3-plan.md`:
+   ```bash
+   python scripts/check_issue_plan.py \
+     /absolute/path/to/run-dir/issue-<number>.md \
+     --repo-root /absolute/path/to/repository \
+     --issue-json /absolute/path/to/run-dir/fresh-issue-<number>.json \
+     --senior-plan /absolute/path/to/run-dir/validated-v3-plan.md \
+     --execution-ready
+   ```
+   If the checker or senior skill is unavailable, fail closed.
 4. If the base branch update changes HEAD, stop and regenerate the issue artifact; never implement a stale plan.
 5. Create `codex/issue-<number>-<slug>`, implement only that issue, and run the artifact's exact checks plus focused affected tests.
 6. Commit as `Fix issue #<number>: <short title>`, push with upstream tracking, and open a ready-for-review PR titled `[codex] Issue #<number>: <title>`.
@@ -101,7 +117,13 @@ Execute one issue per branch only after explicit user authorization.
 After approval and merge, update the expected base branch, rerun the recorded checks, and write a short verification summary. Then run:
 
 ```bash
-python scripts/post_merge_issue_followup.py --env .env --github-repo-url owner/repo --issue-number <number> --pr-number <pr> --base main --verification-summary-file <summary.md>
+python scripts/post_merge_issue_followup.py \
+  --env /absolute/path/to/repository/.env \
+  --github-repo-url owner/repo \
+  --issue-number <number> \
+  --pr-number <pr> \
+  --base main \
+  --verification-summary-file /absolute/path/to/run-dir/verification-summary.md
 ```
 
 The script verifies merge, base, approval evidence, issue reference, issue identity, and duplicate marker before posting one comment. It never closes or labels the issue.

@@ -19,6 +19,38 @@ ROOT = Path(__file__).resolve().parents[2]
 CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
 
 
+def build_release_readme(source_readme: Path, output_readme: Path) -> None:
+    """Generate a release-specific README from source README."""
+    text = source_readme.read_text(encoding="utf-8")
+
+    # Omit Maintainer Verification section
+    if "## Maintainer Verification" in text:
+        parts = text.split("## Maintainer Verification")
+        prefix = parts[0]
+        remainder = parts[1]
+        next_sec_idx = remainder.find("\n## ")
+        if next_sec_idx != -1:
+            suffix = remainder[next_sec_idx:]
+        else:
+            suffix = ""
+        text = prefix.rstrip() + "\n\n---" + suffix
+
+    # Convert relative maintainer doc links to absolute GitHub links
+    replacements = {
+        "docs/architecture.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/architecture.md",
+        "docs/testing.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/testing.md",
+        "docs/evaluations.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/evaluations.md",
+        "docs/authoring-skills.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/authoring-skills.md",
+        "docs/release-process.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/release-process.md",
+        "docs/contributing.md": "https://github.com/akshay-diwadkar/skills/blob/main/docs/contributing.md",
+        "CONTRIBUTING.md": "https://github.com/akshay-diwadkar/skills/blob/main/CONTRIBUTING.md",
+    }
+    for rel_link, abs_url in replacements.items():
+        text = text.replace(f"({rel_link})", f"({abs_url})")
+
+    output_readme.write_text(text, encoding="utf-8")
+
+
 def build_distribution(output_dir: Path) -> Path:
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -99,7 +131,10 @@ def build_distribution(output_dir: Path) -> Path:
     for root_file in ("README.md", "VERSION", "LICENSE", "SECURITY.md", "CHANGELOG.md", "pyproject.toml"):
         src_f = ROOT / root_file
         if src_f.is_file():
-            shutil.copy2(src_f, output_dir / root_file)
+            if root_file == "README.md":
+                build_release_readme(src_f, output_dir / root_file)
+            else:
+                shutil.copy2(src_f, output_dir / root_file)
 
     return output_dir
 
