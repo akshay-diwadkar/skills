@@ -65,6 +65,23 @@ def test_malformed_receipt_is_rejected() -> None:
     assert any(d.code == "finalization.receipt.malformed" for d in diags)
 
 
+def test_receipt_like_text_inside_code_fence_ignored() -> None:
+    raw = valid_v2_assessment("L0")
+    raw_with_fence = raw + "\n```markdown\n<!-- assessment-validation: 2; level: L0; sha256: fake -->\n```\n"
+    finalized = finalize_assessment_text(raw_with_fence, "L0")
+    
+    diags = validate_receipt(finalized, required=True, expected_level_or_mode="L0")
+    assert not diags, f"Expected no receipt errors, got {diags}"
+
+
+def test_repeated_finalization_is_idempotent() -> None:
+    raw = valid_v2_assessment("L0")
+    finalized1 = finalize_assessment_text(raw, "L0")
+    finalized2 = finalize_assessment_text(finalized1, "L0")
+
+    assert finalized1 == finalized2
+
+
 def test_finalizer_cli_file_and_stdin_input(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()

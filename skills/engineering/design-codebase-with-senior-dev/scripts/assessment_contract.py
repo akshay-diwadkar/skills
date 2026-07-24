@@ -15,6 +15,7 @@ VALIDATION_PREFIX_RE = re.compile(r"^\s*<!--\s*assessment-validation\s*:", re.IG
 VALIDATION_RECEIPT_RE = re.compile(
     r"^<!-- assessment-validation: 2; (?:level: (?P<level>L[0-3])|mode: (?P<mode>discovery-only)); sha256: (?P<digest>[0-9a-f]{64}) -->$"
 )
+GIT_HISTORY_LOCATOR_RE = re.compile(r"^git-history:[a-zA-Z0-9_/\.\-]+(?::.+)?$")
 
 VALID_SOURCES = {
     "code",
@@ -327,16 +328,31 @@ def _normalized_lines(text: str) -> list[str]:
 
 
 def receipt_lines(text: str) -> list[tuple[int, str]]:
-    return [
-        (line_number, line.strip())
-        for line_number, line in enumerate(_normalized_lines(text), start=1)
-        if VALIDATION_PREFIX_RE.match(line)
-    ]
+    res = []
+    in_code_fence = False
+    for line_number, line in enumerate(_normalized_lines(text), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code_fence = not in_code_fence
+            continue
+        if not in_code_fence and VALIDATION_PREFIX_RE.match(line):
+            res.append((line_number, stripped))
+    return res
 
 
 def canonical_assessment_body(text: str) -> str:
-    """Return LF-normalized assessment content with every validation receipt removed."""
-    lines = [line for line in _normalized_lines(text) if not VALIDATION_PREFIX_RE.match(line)]
+    """Return LF-normalized assessment content with every validation receipt removed (ignoring code fences)."""
+    lines = []
+    in_code_fence = False
+    for line in _normalized_lines(text):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code_fence = not in_code_fence
+            lines.append(line)
+            continue
+        if not in_code_fence and VALIDATION_PREFIX_RE.match(line):
+            continue
+        lines.append(line)
     return "\n".join(lines).rstrip("\n") + "\n"
 
 

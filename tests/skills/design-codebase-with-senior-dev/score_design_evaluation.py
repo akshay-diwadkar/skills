@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score a design assessment against one blind fixture expectation."""
+"""Score a design assessment against one blind fixture expectation using structured Contract v2 model assertions."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-de
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from check_assessment import validate  # noqa: E402
+from check_assessment import parse_assessment, validate  # noqa: E402
 
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
 WEIGHTS = {
@@ -53,36 +53,57 @@ def _section(text: str, name: str) -> str:
     return match.group("body") if match else ""
 
 
-def score(assessment: str, case: dict[str, Any], repo_root: Path) -> dict[str, Any]:
-    level = str(case["level"])
-    if "mode: discovery-only" in assessment.lower() or "invocation mode: discovery-only" in assessment.lower():
+def score(assessment_text: str, case: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    level = str(case.get("level", "L0"))
+    if "mode: discovery-only" in assessment_text.lower() or "invocation mode: discovery-only" in assessment_text.lower():
         level = "discovery-only"
-    diagnostics = validate(assessment, level, repo_root, require_finalized=True)
+
+    parsed_assessment, parse_diags = parse_assessment(assessment_text)
+    diagnostics = validate(assessment_text, level, repo_root, require_finalized=True)
+
     hard_failures = [f"validator:{item.code}" for item in diagnostics if not item.is_warning]
+
+    # Model-level semantic assertions
+    if "expected_mode" in case and parsed_assessment.mode != case["expected_mode"]:
+        hard_failures.append(f"semantic:mode-mismatch:{parsed_assessment.mode}!={case['expected_mode']}")
+
+    if "expected_level" in case and parsed_assessment.level != case["expected_level"]:
+        hard_failures.append(f"semantic:level-mismatch:{parsed_assessment.level}!={case['expected_level']}")
+
+    if "expected_handoff" in case:
+        act_handoff = parsed_assessment.handoff.next if parsed_assessment.handoff else ""
+        if act_handoff != case["expected_handoff"]:
+            hard_failures.append(f"semantic:handoff-mismatch:{act_handoff}!={case['expected_handoff']}")
+
+    if "expected_debt_disposition" in case:
+        act_disp = parsed_assessment.decision_summary.debt_disposition if parsed_assessment.decision_summary else ""
+        if act_disp != case["expected_debt_disposition"]:
+            hard_failures.append(f"semantic:debt-disposition-mismatch:{act_disp}!={case['expected_debt_disposition']}")
+
     sources = {
         "grounding": "\n".join(
             (
-                _section(assessment, "Evidence and Current State"),
-                _section(assessment, "Target Discovery Candidates"),
+                _section(assessment_text, "Evidence and Current State"),
+                _section(assessment_text, "Target Discovery Candidates"),
             )
         ),
         "classification": "\n".join(
             (
-                _section(assessment, "Design Pressures and Classification"),
-                _section(assessment, "Decision Summary"),
+                _section(assessment_text, "Design Pressures and Classification"),
+                _section(assessment_text, "Decision Summary"),
             )
         ),
-        "preservation": _section(assessment, "Scope and Protected Contracts"),
-        "alternatives": _section(assessment, "Alternatives and Pattern Decisions"),
+        "preservation": _section(assessment_text, "Scope and Protected Contracts"),
+        "alternatives": _section(assessment_text, "Alternatives and Pattern Decisions"),
         "migration": "\n".join(
-            _section(assessment, name)
+            _section(assessment_text, name)
             for name in ("Migration and Rollback", "Operational Semantics", "System Ownership and Evolution")
         ),
         "handoff": "\n".join(
             (
-                _section(assessment, "Scope and Protected Contracts"),
-                _section(assessment, "Decision Summary"),
-                _section(assessment, "Verification and Residual Risk"),
+                _section(assessment_text, "Scope and Protected Contracts"),
+                _section(assessment_text, "Decision Summary"),
+                _section(assessment_text, "Verification and Residual Risk"),
             )
         ),
     }
@@ -90,13 +111,15 @@ def score(assessment: str, case: dict[str, Any], repo_root: Path) -> dict[str, A
         dimension: _dimension_score(sources[dimension], case.get(dimension, []))
         for dimension in WEIGHTS
     }
-    lowered = assessment.casefold()
+
+    lowered = assessment_text.casefold()
     for forbidden in case.get("forbidden", []):
         if all(keyword.casefold() in lowered for keyword in forbidden["keywords"]):
             hard_failures.append(f"forbidden:{forbidden['id']}")
     for critical in case.get("critical", []):
         if not all(_keyword_matches(lowered, keyword) for keyword in critical["keywords"]):
             hard_failures.append(f"critical-miss:{critical['id']}")
+
     total = sum(dimension_scores[name] * weight for name, weight in WEIGHTS.items())
     return {
         "score": round(total, 2),

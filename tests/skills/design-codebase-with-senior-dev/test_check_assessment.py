@@ -197,3 +197,46 @@ def test_l3_requires_multi_category_evidence(tmp_path: Path) -> None:
 
     text = valid_v2_assessment("L3").replace("source: deployment", "source: code").replace("source: schema", "source: code")
     assert "evidence.l3.categories_insufficient" in codes(text, "L3", tmp_path)
+
+
+def test_git_history_locator_format(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): pass\n", encoding="utf-8")
+    
+    text = valid_v2_assessment("L0").replace(
+        "`src/system.py:1`", "`git-history:abc1234:src/system.py`"
+    )
+    # git-history: ref does not trigger fact.path.missing
+    diags = validate(text, "L0", tmp_path)
+    assert "fact.path.missing" not in {d.code for d in diags}
+
+
+def test_inferred_only_evidence_fails_l2(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): pass\n", encoding="utf-8")
+
+    text = valid_v2_assessment("L2").replace("strength: direct", "strength: inferred")
+    diags = validate(text, "L2", tmp_path)
+    assert "evidence.l2_l3.inferred_only" in {d.code for d in diags}
+
+
+def test_at_risk_unresolved_contract_fails_approval(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): pass\n", encoding="utf-8")
+
+    text = valid_v2_assessment("L0").replace("status: preserved", "status: at-risk | owner: team | resolution: none | blocking: true")
+    diags = validate(text, "L0", tmp_path)
+    assert "contract.at_risk.unresolved" in {d.code for d in diags}
+
+
+def test_verification_proving_self_fails(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): pass\n", encoding="utf-8")
+
+    text = valid_v2_assessment("L0").replace("proves: D-1", "proves: V-1")
+    diags = validate(text, "L0", tmp_path)
+    assert "verification.proves.invalid" in {d.code for d in diags}

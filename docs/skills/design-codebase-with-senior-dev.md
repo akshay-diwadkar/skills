@@ -71,7 +71,7 @@ Finalization is mandatory for submission-ready assessments.
 
 ## Workflow Handoffs (`H-n`)
 
-- `finish-assessment`: When no structural change is justified (L0) or the request is fully answered.
+- `finish assessment`: When no structural change is justified (L0) or the request is fully answered.
 - `plan-with-senior-dev`: When the target design is approved and ready for file/symbol-level specification.
 - `codebase-issue-auditor`: When no single defensible target can be selected, or repository-wide prioritization/debt inventory is required.
 - `optimize-codebase-with-senior-dev`: When the primary bottleneck is measured runtime/tooling performance.

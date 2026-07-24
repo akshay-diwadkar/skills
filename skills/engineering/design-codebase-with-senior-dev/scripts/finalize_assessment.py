@@ -13,6 +13,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from assessment_contract import (  # noqa: E402
     finalize_assessment_text,
+    receipt_lines,
 )
 from check_assessment import parse_assessment, validate  # noqa: E402
 
@@ -34,8 +35,13 @@ def main() -> int:
     else:
         text = sys.stdin.read()
 
-    if not text.strip():
+    if not text or not text.strip():
         print("Error: Empty assessment input.", file=sys.stderr)
+        return 1
+
+    rcpt_count = len(receipt_lines(text))
+    if rcpt_count > 1:
+        print("Error: Input contains multiple validation receipts.", file=sys.stderr)
         return 1
 
     assessment, parse_diags = parse_assessment(text)

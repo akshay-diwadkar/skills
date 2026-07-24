@@ -14,6 +14,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from assessment_contract import (  # noqa: E402
+    GIT_HISTORY_LOCATOR_RE,
     HARD_PATTERN_QUESTIONS,
     VALID_DEBT_DISPOSITIONS,
     VALID_DEBT_TYPES,
@@ -124,7 +125,7 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
             elif line_str.startswith("- Next owner:"):
                 ds.next_owner = line_str.split(":", 1)[1].strip()
         assessment.decision_summary = ds
-        if assessment.mode != "discovery-only" and ds.mode:
+        if ds.mode in {"targeted", "autonomous-discovery", "discovery-only"}:
             assessment.mode = ds.mode
     elif assessment.mode != "discovery-only":
         diagnostics.append(Diagnostic("summary.section.missing", "Section ## Decision Summary is required", summary_line))
@@ -134,6 +135,9 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
     if ev_body:
         for idx, line in enumerate(ev_body.splitlines(), start=ev_line or 1):
             line_str = line.strip()
+            if not line_str.startswith("- "):
+                continue
+
             # F-n parsing: - F-1: `path:1` | anchor: `foo` | observation: bar | source: code | strength: direct | freshness: current
             f_match = re.match(
                 r"^-\s*(?P<id>F-\d+):\s*`(?P<path>[^:]+)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
@@ -317,7 +321,7 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
                     AlternativeRecord(
                         id=o_id,
                         level=kv.get("level", "L0"),
-                        selected=kv.get("selected", "no").lower() == "yes",
+                        selected=kv.get("selected", "no").lower() in {"yes", "true"},
                         concepts=kv.get("concepts", ""),
                         arg_for=kv.get("argument-for", ""),
                         arg_against=kv.get("argument-against", ""),
@@ -480,6 +484,20 @@ def validate(
     mode = assessment.mode
     is_discovery_only = (mode == "discovery-only" or effective_level == "discovery-only")
 
+    valid_record_ids = (
+        {f.id for f in assessment.facts}
+        | {e.id for e in assessment.external_facts}
+        | {c.id for c in assessment.contracts}
+        | {p.id for p in assessment.pressures}
+        | ({assessment.decision.id} if assessment.decision else set())
+        | {o.id for o in assessment.alternatives}
+        | {g.id for g in assessment.pattern_gates}
+        | {td.id for td in assessment.tech_debts}
+        | {t.id for t in assessment.discovery_candidates}
+        | {m.id for m in assessment.migrations}
+        | {v.id for v in assessment.verifications}
+    )
+
     # Mode 1: Targeted Mode Rules
     if mode == "targeted":
         if not assessment.facts and not assessment.external_facts:
@@ -504,6 +522,10 @@ def validate(
         if not (1 <= len(assessment.discovery_candidates) <= 5):
             diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Autonomous discovery mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
         
+        ranks = [tc.rank for tc in assessment.discovery_candidates]
+        if len(ranks) != len(set(ranks)):
+            diagnostics.append(Diagnostic("discovery.candidates.duplicate_ranks", "T-n candidates must have unique ranks."))
+
         selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
         if len(selected_candidates) != 1:
             diagnostics.append(Diagnostic("discovery.autonomous.selected_count_invalid", f"Autonomous discovery mode requires exactly one selected candidate, found {len(selected_candidates)}."))
@@ -520,14 +542,10 @@ def validate(
             if sel.rank != 1:
                 diagnostics.append(Diagnostic("discovery.autonomous.rank_invalid", f"Selected candidate {sel.id} must have rank 1.", sel.line_number))
 
-            if assessment.decision_summary and assessment.decision_summary.target != sel.target:
+            if assessment.decision_summary and assessment.decision_summary.target and assessment.decision_summary.target != sel.target:
                 diagnostics.append(Diagnostic("summary.target.mismatch", f"Decision Summary target '{assessment.decision_summary.target}' != selected candidate target '{sel.target}'"))
-            if assessment.decision and assessment.decision.selected and sel.target not in assessment.decision.selected and assessment.decision.selected not in sel.target:
+            if assessment.decision and assessment.decision.selected and sel.target.casefold() not in assessment.decision.selected.casefold() and assessment.decision.selected.casefold() not in sel.target.casefold():
                 diagnostics.append(Diagnostic("decision.target.mismatch", f"Decision selected '{assessment.decision.selected}' does not match candidate target '{sel.target}'", assessment.decision.line_number))
-
-        ranks = [tc.rank for tc in assessment.discovery_candidates]
-        if len(ranks) != len(set(ranks)):
-            diagnostics.append(Diagnostic("discovery.candidates.duplicate_ranks", "T-n candidates must have unique ranks."))
 
     # Mode 3: Discovery-Only Mode Rules
     elif is_discovery_only:
@@ -537,7 +555,7 @@ def validate(
         if selected_candidates:
             diagnostics.append(Diagnostic("discovery.only.selected_prohibited", f"Discovery-only mode prohibits selected candidates, found {len(selected_candidates)}.", selected_candidates[0].line_number))
         for tc in assessment.discovery_candidates:
-            if not tc.reason:
+            if not tc.reason or tc.reason.strip() == "":
                 diagnostics.append(Diagnostic("discovery.only.reason_missing", f"Candidate {tc.id} in discovery-only mode must state a refusal reason.", tc.line_number))
         
         if assessment.decision:
@@ -554,6 +572,16 @@ def validate(
             if assessment.handoff.next != "codebase-issue-auditor":
                 diagnostics.append(Diagnostic("discovery.only.handoff_invalid", f"Discovery-only mode handoff must be codebase-issue-auditor, got '{assessment.handoff.next}'", assessment.handoff.line_number))
 
+    # Decision Summary Consistency Validation
+    if assessment.decision_summary:
+        ds = assessment.decision_summary
+        if ds.mode and ds.mode != mode:
+            diagnostics.append(Diagnostic("summary.mode.mismatch", f"Decision Summary mode '{ds.mode}' != assessment mode '{mode}'"))
+        if ds.level and ds.level != effective_level:
+            diagnostics.append(Diagnostic("summary.level.mismatch", f"Decision Summary level '{ds.level}' != declared level '{effective_level}'"))
+        if ds.next_owner and assessment.handoff and ds.next_owner != assessment.handoff.next:
+            diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{ds.next_owner}' != Handoff next '{assessment.handoff.next}'"))
+
     # General Fact & Evidence Validation
     valid_fact_ids = {f.id for f in assessment.facts} | {e.id for e in assessment.external_facts}
     root = repo_root.resolve()
@@ -566,7 +594,10 @@ def validate(
         if f.freshness not in VALID_FRESHNESS:
             diagnostics.append(Diagnostic("fact.freshness.invalid", f"Fact {f.id} has invalid freshness '{f.freshness}'", f.line_number))
 
-        if f.source not in {"repository-history", "fixture"} and not f.path.startswith("git-history:"):
+        if f.path.startswith("git-history:"):
+            if not GIT_HISTORY_LOCATOR_RE.match(f.path):
+                diagnostics.append(Diagnostic("fact.git_history.malformed", f"Fact {f.id} has malformed git-history locator '{f.path}'", f.line_number))
+        elif f.source not in {"repository-history", "fixture"}:
             fact_path = root / f.path.split(":")[0]
             if not fact_path.is_file():
                 diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
@@ -575,15 +606,29 @@ def validate(
         if ef.freshness not in VALID_FRESHNESS:
             diagnostics.append(Diagnostic("fact.freshness.invalid", f"External fact {ef.id} has invalid freshness '{ef.freshness}'", ef.line_number))
 
-    # L3 Evidence Diversity Check
-    if effective_level == "L3" and not is_discovery_only:
-        sources_used = {f.source for f in assessment.facts}
-        if len(sources_used) < 3:
-            diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", f"L3 assessment requires at least 3 distinct evidence categories, found {len(sources_used)} ({sources_used})"))
+    # L2/L3 Evidence Checks
+    if effective_level in {"L2", "L3"} and not is_discovery_only:
+        valid_facts = [f for f in assessment.facts if f.source in VALID_SOURCES]
+        sources_used = {f.source for f in valid_facts}
 
-        strengths_used = {f.strength for f in assessment.facts}
+        if effective_level == "L3":
+            if len(sources_used) < 3:
+                diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", f"L3 assessment requires at least 3 distinct evidence categories, found {len(sources_used)} ({sources_used})"))
+
+            # Require representation across pillars
+            code_pillar = {"code", "test", "runtime"} & sources_used
+            state_pillar = {"schema", "configuration", "ownership", "production"} & sources_used
+            ops_pillar = {"deployment", "production", "ownership", "repository-history"} & sources_used
+            if not code_pillar or not state_pillar or not ops_pillar:
+                diagnostics.append(Diagnostic("evidence.l3.pillar_missing", f"L3 evidence must span code ({code_pillar}), state/contracts ({state_pillar}), and operations/history ({ops_pillar})"))
+
+        strengths_used = {f.strength for f in valid_facts}
         if strengths_used == {"inferred"}:
             diagnostics.append(Diagnostic("evidence.l2_l3.inferred_only", "L2/L3 design cannot be approved solely by inferred evidence"))
+
+        freshness_used = {f.freshness for f in valid_facts}
+        if freshness_used.issubset({"potentially-stale", "historical"}):
+            diagnostics.append(Diagnostic("evidence.stale_only", "Stale evidence alone cannot override or establish current local behavior"))
 
     # Pressure Validation
     for p in assessment.pressures:
@@ -633,14 +678,17 @@ def validate(
 
     # Pattern Gate Validation
     for g in assessment.pattern_gates:
-        if g.result in {"admit", "admit-narrowed"}:
+        if g.questions and g.result in {"admit", "admit-narrowed"}:
             for hard_q in HARD_PATTERN_QUESTIONS:
                 if hard_q in g.questions:
                     qa = g.questions[hard_q]
                     if qa.answer != "yes":
                         diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Pattern gate {g.id} result '{g.result}' requires Q{hard_q}=yes, got '{qa.answer}'", g.line_number))
-        if g.scope == "removed" and not g.removed_destination:
-            diagnostics.append(Diagnostic("pattern.removal.destination_missing", f"Pattern removal {g.id} must state removed-destination", g.line_number))
+                else:
+                    diagnostics.append(Diagnostic("pattern.hard_gate.missing", f"Pattern gate {g.id} requires question Q{hard_q}", g.line_number))
+        if g.scope == "removed" or g.result == "remove":
+            if not g.removed_destination or g.removed_destination.strip() == "":
+                diagnostics.append(Diagnostic("pattern.removal.destination_missing", f"Pattern removal {g.id} must state removed-destination", g.line_number))
         if g.result == "defer" and not g.revisit_trigger:
             diagnostics.append(Diagnostic("pattern.defer.revisit_missing", f"Pattern deferral {g.id} must specify revisit-trigger", g.line_number))
 
@@ -661,6 +709,10 @@ def validate(
     for v in assessment.verifications:
         if not v.proves:
             diagnostics.append(Diagnostic("verification.proves.missing", f"Verification {v.id} must state proves", v.line_number))
+        else:
+            for p_item in v.proves:
+                if p_item.startswith("V-") or p_item.startswith("H-") or p_item not in valid_record_ids:
+                    diagnostics.append(Diagnostic("verification.proves.invalid", f"Verification {v.id} cannot prove self/handoff or unknown record '{p_item}'", v.line_number))
         if not v.method or not v.expected:
             diagnostics.append(Diagnostic("verification.method_expected.missing", f"Verification {v.id} requires concrete method and expected result", v.line_number))
 
@@ -677,6 +729,11 @@ def validate(
         if assessment.decision_summary and assessment.decision_summary.next_owner:
             if assessment.decision_summary.next_owner != h.next:
                 diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{assessment.decision_summary.next_owner}' != Handoff next '{h.next}'", h.line_number))
+        if h.next == "implement-with-senior-dev":
+            # Must explicitly evidence an approved plan
+            plan_ev = [f for f in assessment.facts if "plan" in f.observation.casefold() or "plan" in f.path.casefold()]
+            if not plan_ev:
+                diagnostics.append(Diagnostic("handoff.implement.unplanned", "Handoff to implement-with-senior-dev requires an approved, decision-complete plan in evidence", h.line_number))
 
     return diagnostics
 

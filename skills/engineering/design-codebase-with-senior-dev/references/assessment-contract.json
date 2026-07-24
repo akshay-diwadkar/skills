@@ -91,5 +91,24 @@
     "remove",
     "reject",
     "defer"
+  ],
+  "valid_sources": [
+    "code",
+    "test",
+    "fixture",
+    "configuration",
+    "schema",
+    "repository-history",
+    "runtime",
+    "production",
+    "ownership",
+    "deployment"
+  ],
+  "valid_handoffs": [
+    "finish assessment",
+    "plan-with-senior-dev",
+    "codebase-issue-auditor",
+    "optimize-codebase-with-senior-dev",
+    "implement-with-senior-dev"
   ]
 }
