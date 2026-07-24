@@ -125,6 +125,9 @@ skills:
       invokes: []
       complements:
         - plan-with-senior-dev
+        - codebase-issue-auditor
+        - create-diagram
+        - optimize-codebase-with-senior-dev
       supersedes: []
     documentation: docs/skills/design-codebase-with-senior-dev.md
     tests: tests/skills/design-codebase-with-senior-dev

@@ -14,7 +14,7 @@ LEVELS = ("L0", "L1", "L2", "L3")
 def test_contract_declares_exact_sections_for_every_level() -> None:
     contract = load_contract()
 
-    assert contract["contract_version"] == 1
+    assert contract["contract_version"] == 2
     assert section_names("L0") == contract["base_sections"]
     assert section_names("L1")[-1] == "Local Simplification and Preservation"
     assert section_names("L2")[-1] == "Operational Semantics"
@@ -26,6 +26,8 @@ def test_scaffold_contains_level_marker_and_required_records() -> None:
         scaffold = render_scaffold(level)
 
         assert marker(level) in scaffold
+        assert "<!-- design-assessment-contract: 2;" in scaffold
+        assert "## Decision Summary" in scaffold
         assert "- C-1:" in scaffold
         assert "- H-1: status: assessment-only" in scaffold
         assert f"- D-1: level: {level}" in scaffold

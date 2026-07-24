@@ -372,7 +372,7 @@ def test_installed_design_codebase_with_senior_dev_execution(installed_skills_en
         env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
-    assert "design-assessment-contract: 1" in scaffold_res.stdout
+    assert "design-assessment-contract: 2" in scaffold_res.stdout
 
     draft = target_repo / "assessment.md"
     draft.write_text(scaffold_res.stdout, encoding="utf-8")

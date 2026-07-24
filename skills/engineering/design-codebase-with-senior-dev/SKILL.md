@@ -1,13 +1,25 @@
 ---
 name: design-codebase-with-senior-dev
-description: Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. Use for boundary, dependency-direction, or state-ownership redesign, design-pattern evaluation or removal, and subsystem restructuring. Assessment-only — produces no code; route approved designs to plan-with-senior-dev.
+description: Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. Use for boundary, dependency-direction, or state-ownership redesign, design-pattern evaluation or removal, structural technical-debt analysis, and subsystem restructuring. Assessment-only — produces no code; route approved designs to plan-with-senior-dev.
+metadata:
+  design-contract: "2"
+  finalizer: "scripts/finalize_assessment.py"
+  validation-required: "true"
 ---
 
 # Design Codebase With Senior Dev
 
-Determine whether the codebase needs a structural change at all. Reconstruct the current design from repository evidence, expose the forces that make it costly or unsafe, and choose the least powerful design that resolves those forces without silently changing behavior.
+Determine whether the codebase needs a structural change at all. Reconstruct the current design from repository evidence, expose the forces that make it costly or unsafe, analyze structural technical debt, and choose the least powerful design that resolves those forces without silently changing behavior.
 
-This skill is **assessment-only**. Inspect and run non-mutating checks, but never edit implementation files. Finish with a validated `Codebase Design Assessment` and a deterministic handoff.
+This skill is **assessment-only**. Inspect and run non-mutating checks, but never edit implementation files. Finish with a validated, receipt-stamped `Codebase Design Assessment` emitted through `finalize_assessment.py` and a deterministic handoff.
+
+## Invocation Modes
+
+### Mode A: Targeted Design Assessment
+Use this mode when the user supplies a specific target: a module, subsystem, file set, dependency boundary, architectural concern, technical-debt concern, proposed pattern, migration, or requested structural change. Assess the supplied target without broadening into an unrelated repository audit.
+
+### Mode B: Autonomous Target Discovery
+Use this mode when the user asks for architectural improvement or design assessment but does not identify a specific target, pain point, module, or subsystem. In this mode, perform a bounded, read-only discovery pass to select one defensible structural concern for assessment. Do not stop or ask the user to choose a target when repository evidence can safely do so.
 
 ## Non-Negotiables
 
@@ -15,167 +27,118 @@ This skill is **assessment-only**. Inspect and run non-mutating checks, but neve
 2. **Removal rule:** remove an in-scope pattern only when its present protection is worth less than its cognitive and operational cost, and its contracts can be preserved through an incremental, reversible migration.
 3. Preserve public APIs, schemas, events, files, CLIs, persistence, errors, side effects, user workflows, and operational promises unless explicit authorization names the permitted change.
 4. Prefer L0 over L1, L1 over L2, and L2 over L3 whenever the lower level satisfies the evidenced constraints.
-5. A fashionable pattern name, long file, large class, duplicate branch, disliked abstraction, or clean diagram is never sufficient evidence.
-6. Reconcile the requested design with grounded pressures and protected contracts. Ask for user confirmation ONLY when material ambiguity remains that cannot be resolved through repository evidence (such as user-visible behavior, public/shared contracts, persisted state, state ownership, security/authorization, failure semantics, migration/rollback constraints, external effects, or deployment compatibility). When no material ambiguity remains, continue automatically and record the resolved frame in the assessment.
+5. A fashionable pattern name, long file, large class, duplicate branch, disliked abstraction, or clean diagram is never sufficient evidence by itself.
+6. **Material ambiguity reconciliation:** inspect the repository before asking questions. Never ask for a repository-discoverable fact. Ask for user confirmation ONLY when material ambiguity remains that cannot be resolved through repository evidence (such as user-visible behavior, public or shared contracts, persisted state, state ownership, security or authorization, failure semantics, migration and rollback constraints, external effects, or deployment compatibility). When no material ambiguity remains, continue automatically and record the resolved frame in the assessment.
+7. **Fail-closed finalization:** raw checker passes are not submission-ready. Run `finalize_assessment.py` to produce the final, receipt-stamped output (`<!-- assessment-validation: 2; sha256: <hash> -->`).
 
 ## Evidence Records
 
-Use stable records throughout the assessment:
+Use canonical records throughout the assessment:
 
-- `F-n` — verified fact with an existing `path:line`, anchor, and observation.
+- `Decision Summary` — mandatory summary block at the top detailing mode, target, level, recommendation, protected contracts, primary pressure, debt disposition, risk, and next owner.
+- `F-n` — verified fact with `path:line`, anchor, observation, source (`code`, `test`, `schema`, `history`, `runtime`, `deployment`), strength (`direct`, `corroborated`, `inferred`), and freshness (`current`, `potentially-stale`).
 - `P-n` — ranked structural pressure citing the facts that establish its cost or risk.
 - `C-n` — protected contract classified as `preserved`, `authorized-change`, or `at-risk`.
 - `D-n` — selected L0-L3 decision, cited reasons, and nearest rejected level or option.
 - `A-n` — assumption with status, impact, and verification path.
 - `O-n` — serious alternative with level, concept cost, strongest arguments, and revisit trigger.
-- `G-n` — pattern decision for a pattern introduced, removed, or deliberately relied upon by the scoped design.
+- `G-n` — pattern decision (`admit`, `admit-narrowed`, `retain`, `remove`, `reject`, `defer`) with Q1-Q14 gate answers and cited evidence.
+- `TD-n` — structural technical debt record with type, principal, interest, frequency, blast radius, disposition (`accept`, `monitor`, `contain`, `repay`, `retire`), reason, repayment boundary, recurrence guard, and revisit trigger.
+- `T-n` — autonomous target-discovery candidate record (used in Mode B) with target, evidence, pressure, affected contracts, confidence, likely level, blast radius, product-intent dependency, status (`selected`, `rejected`, `deferred`), and reason.
 - `V-n` — exact command, test, or manual check and its expected observable result.
-- `M-n` — reversible L2/L3 migration slice with proof, rollback, and cleanup.
+- `M-n` — reversible L2/L3 migration slice with proof, rollback trigger, rollback action, and cleanup.
 - `R-n` — residual risk with severity, scenario, consequence, owner, and follow-up.
-- `H-n` — assessment-only handoff state.
-
-Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption]` when they are not already expressed by one of these records. Do not guess a repository fact or erase contradictory evidence.
+- `H-n` — assessment-only handoff state (`finish assessment`, `plan-with-senior-dev`, `codebase-issue-auditor`, `optimize-codebase-with-senior-dev`, `implement-with-senior-dev`).
 
 ## Skill Directory Resolution
 
 Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
-- On other platforms: execute commands with process `cwd` set to the active skill directory.
 - Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
-- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
-- Fail closed if `skill-root` or `repo-root` cannot be resolved.
+- All non-script paths passed as arguments MUST be absolute paths.
 - Never write output or state files relative to the installed skill package directory.
 
 ## Reference and Tool Routing
 
-1. Read `references/design-decision-rubric.md` before classifying the change. Apply the analysis dimensions and simplicity controls relevant to the scoped path; apply the full runtime and distributed-system analysis for L3.
-2. Read only the matching scenario in `references/worked-examples.md` when the concern resembles conditional dispatch, volatile integrations, redundant abstraction stacks, or distributed processing.
-3. `references/assessment-contract.json` is the executable source of truth for output sections and hard gates. Do not recreate its headings or field grammar from memory.
-4. After the provisional level is grounded, generate the matching scaffold from the active skill directory:
+1. Read `references/design-decision-rubric.md` before classifying the change. Apply analysis dimensions, target ranking rules, material ambiguity rules, technical-debt dispositions, and evidence matrix.
+2. Read `references/worked-examples.md` for reference implementations of Contract v2 assessments.
+3. `references/assessment-contract.json` is the executable source of truth for contract v2 sections and hard gates.
+4. Scaffold matching structure:
    ```bash
-   python scripts/scaffold_assessment.py --level L0|L1|L2|L3
+   python scripts/scaffold_assessment.py --level L0|L1|L2|L3 [--mode targeted|autonomous-discovery|discovery-only]
    ```
-5. Before finalizing, validate from the active skill directory:
+5. Check draft assessment:
    ```bash
    python scripts/check_assessment.py --level <L0|L1|L2|L3> --repo-root /absolute/path/to/repository /absolute/path/to/assessment.md
+   ```
+6. Finalize assessment (mandatory submission path):
+   ```bash
+   python scripts/finalize_assessment.py --level <L0|L1|L2|L3> --repo-root /absolute/path/to/repository /absolute/path/to/draft_assessment.md > /absolute/path/to/final_assessment.md
    ```
 
 ## Workflow
 
-Complete Gates 1-7 in order. If later evidence changes the level, regenerate the scaffold for the new level and re-run every applicable gate.
+Complete Gates 1-7 in order.
 
 ### Gate 1: Frame and Protect
+- Determine invocation mode (Targeted Mode A vs Autonomous Mode B).
+- Identify protected behavior and contracts as `C-n` records. Default to `preserved`.
+- Record assumptions as `A-n`.
 
-- Restate the observable goal, audience, scope, exclusions, constraints, invariants, and success measures.
-- Inspect repository guidance and worktree state before drawing conclusions.
-- Inventory public, durable, user-visible, and operational contracts as `C-n` records. Default each to `preserved` unless the user explicitly authorizes a named change.
-- Record assumptions as `A-n`. A blocking product, contract, state-ownership, or failure-semantics choice prevents design approval; do not choose it on the user's behalf.
+### Gate 2: Discover or Ground the Target
+- **Targeted Mode A:** Ground supplied target in repository evidence (`F-n`).
+- **Autonomous Mode B:** Perform bounded discovery pass. Generate up to 5 candidate `T-n` records. Rank candidates by correctness risk, operational risk, evidence strength, debt interest, change propagation, state ambiguity, blast radius, bounded scope feasibility, reversibility, and structural confidence. Select exactly 1 dominant candidate if safe; otherwise emit discovery-only assessment and hand off to `codebase-issue-auditor`.
 
-**Completion gate:** scope and success are observable, protected contracts are recorded, and no discoverable repository fact is being asked of the user.
-
-### Gate 2: Ground the Current Design
-
-- Identify entry points, modules, packages, deployments, storage, queues, external systems, tests, configuration, observability, and ownership on the scoped path.
-- Trace at least one real request, command, job, or event from input through owner and dependencies to side effect and observable outcome.
-- Map responsibility, dependency direction, data/control flow, state ownership, consistency boundaries, failure paths, and deployment units.
-- Find local analogues and use history only when it can prove churn, repeated propagation, or ownership boundaries.
-- Record facts as canonical `F-n` citations. Directory names and diagrams may guide discovery but cannot establish current behavior.
-
-**Completion gate:** current behavior, ownership, dependencies, state, failures, contracts, and at least one end-to-end flow are grounded in existing repository evidence.
-
-### Gate 3: Align Request and Current Design
-
-- Follow the request-to-evidence alignment protocol in `references/design-decision-rubric.md`. Maintain a temporary gap ledger; do not add it to the assessment contract.
-- Ask the user for clarification ONLY when a material ambiguity remains that cannot be resolved through repository evidence. Material ambiguity includes decisions affecting user-visible behavior, public or shared contracts, persisted state, state ownership, security or authorization, failure semantics, migration and rollback constraints, external effects, or deployment compatibility. Ask up to three related questions per round with cited request/evidence, consequence, two to four options when feasible, and a repository-grounded recommendation.
-- When no material ambiguity remains:
-  - continue automatically without adding a mandatory confirmation pause;
-  - record the resolved frame in the assessment;
-  - do not pause or block an otherwise decision-complete assessment due to lack of user availability.
+### Gate 3: Reconcile Material Ambiguity
+- Ask the user for clarification ONLY when a material ambiguity remains that cannot be resolved through repository evidence.
+- When no material ambiguity remains, continue automatically without adding a mandatory confirmation pause; do not pause or block an otherwise decision-complete assessment.
 - If an unresolved material ambiguity remains unanswered, pause with the exact unresolved question; do not choose an unresolved product or contract decision on the user's behalf.
-- Fold confirmed or resolved outcomes into existing `P-n`, `C-n`, `D-n`, and `A-n` records and discard the ledger.
 
-**Completion gate:** no unresolved material ambiguity remains and the resolved design brief is recorded in the assessment.
+### Gate 4: Diagnose Pressures and Technical Debt
+- Establish structural pressures (`P-n`) and technical debt (`TD-n`).
+- Classify technical debt disposition: `accept`, `monitor`, `contain`, `repay`, or `retire`.
+- Require a recurrence guard for `repay`/`retire` and a revisit trigger for `accept`/`monitor`/`contain`.
 
-### Gate 4: Rank Pressures and Classify L0-L3
+### Gate 5: Classify Level and Evaluate Patterns
+- Classify minimum sufficient level: L0 (Preserve Structure), L1 (Local Simplification), L2 (Boundary Redesign), L3 (Architectural Migration).
+- Require L3 evidence across at least 3 independent categories (`code`, `test`, `deployment`, `schema`, `history`, etc.).
+- Evaluate pattern decisions (`G-n`) using Q1-Q14 questions. Enforce hard gates (Q1, Q3, Q4, Q8, Q9, Q11, Q13, Q14).
 
-Separate symptoms from structural causes and rank each accepted cause as `P-n` by correctness risk, frequency, blast radius, and cost of leaving it unchanged.
+### Gate 6: Define Level-Specific Assessment
+- Complete required sections for selected level.
+- Include reversible `M-n` migration slices and `V-n` verification checks.
+- Do not write symbol-level implementation code.
 
-Apply this decision tree literally:
+### Gate 7: Finalize and Handoff
+- Run `finalize_assessment.py`.
+- Select exactly one handoff state (`H-n`): `finish assessment`, `plan-with-senior-dev`, `codebase-issue-auditor`, `optimize-codebase-with-senior-dev`, or `implement-with-senior-dev`.
 
-1. **L0 — No structural change:** choose L0 when no structural cause is demonstrated. Tests, evidence, naming, documentation, configuration, or a direct behavior fix may still be recommended.
-2. **L1 — Local simplification:** choose L1 when an evidenced cause can be resolved inside one cohesive module without changing ownership or adding a shared boundary.
-3. **L2 — Boundary redesign:** choose L2 only when evidence identifies an independently changing or externally volatile boundary, L1 is demonstrably insufficient, and the boundary has a precise owner and more stable contract than the details it hides.
-4. **L3 — Architectural migration:** choose L3 only when cross-system pressure is proven, L2 is demonstrably insufficient, a system-level invariant and authoritative state owner are named, operational semantics are defined, and an incremental rollback path exists.
+## External Research Guidance
 
-The caps are distinct:
+1. Ground local architecture and dependency versions first.
+2. Research externally only when a decision depends on current framework/API capabilities, deployment mechanics, or platform limits.
+3. Prefer official, primary, version-matched sources.
+4. Keep local facts (`F-n`) and externally verified facts (`E-n`) distinct.
 
-- Missing evidence of an independently changing boundary caps the decision at **L1**.
-- When evidence supports a boundary but not the L3-only obligations, cap the decision at **L2**, never L1.
+## Pattern Admission Questions (Q1-Q14)
 
-Record exactly one canonical `D-n` classification citing both `F-n` and `P-n`.
-
-**Completion gate:** the selected level satisfies its gate, every lower level has a concrete insufficiency argument when applicable, and no stronger level is admitted speculatively.
-
-### Gate 5: Compare, Admit, and Attack
-
-- For L0, compare the current design with direct targeted relief using at least two `O-n` records.
-- For L1-L3, compare at least three serious options: keep/current with relief, the minimum sufficient design, and one credible stronger or differently shaped design.
-- Give each option the same criteria: pressure fit, change level, behavior safety, net complexity, ownership, operational correctness, migration, repository/language fit, testability, security/performance, and revisitability.
-- Run the complete 14-question admission test only for each pattern materially **introduced**, **removed**, or **deliberately relied upon** by the scoped decision. Do not inventory every pattern in the repository.
-- Attack the leading option with concrete counterexamples: lower-level sufficiency, accidental contract changes, hidden coupling, ambiguous state or retry ownership, partial failure, coexistence, observability, rollback, and evidence that would make a rejected option win.
-- Repair the design or lower its level. Do not leave an attack as an unowned risk list.
-
-**Completion gate:** required alternatives exist, the selected option survives adversarial review, every applicable `G-n` is scoped and evidenced, and rejected options have revisit triggers.
-
-### Gate 6: Define the Level-Specific Assessment
-
-Use the generated scaffold and complete only the sections required by the selected level:
-
-- **L0:** current design, evidence, targeted relief, verification, residual risk, and revisit trigger.
-- **L1:** L0 obligations plus the cohesive local owner, concepts removed/retained, and behavior-preservation proof.
-- **L2:** full alternatives and pattern gates plus target boundary, dependency direction, state/contract ownership, operational semantics, and reversible `M-n` migration slices.
-- **L3:** all L2 obligations plus the full runtime/distributed hazard analysis, system invariant, deployment compatibility, durable-state evolution, reconciliation, and rollback compatibility.
-
-For every L2/L3 `M-n`, state prerequisite, changed boundary, preserved `C-n`, proving `V-n`, rollback trigger, rollback action, and cleanup condition. Avoid unguarded dual writes; when dual operation is unavoidable, define source of truth, reconciliation, idempotency, ordering, and recovery.
-
-Do not write file/symbol-level implementation instructions. The assessment owns structural diagnosis, target boundaries, and migration shape; `plan-with-senior-dev` owns the exact implementation specification.
-
-**Completion gate:** every contract field is concrete, the assessment contains no scaffold placeholders, and the target design assigns responsibility, ownership, dependencies, failures, proof, and rollback at the depth required by its level.
-
-### Gate 7: Validate and Handoff
-
-- Run `check_assessment.py` and repair every diagnostic.
-- Re-read citations, protected-contract statuses, classification, lower-level rejection evidence, pattern gates, migration proof, rollback, and residual risks after the last repair.
-- Record exactly one `H-n` state:
-  - `finish assessment` when the design is not approved or no further work is requested;
-  - `plan-with-senior-dev` when the target design is approved but no decision-complete implementation specification exists;
-  - `implement-with-senior-dev` only when an approved decision-complete plan already exists.
-- Never edit implementation files, even when the request combines assessment and implementation. Complete this assessment, then hand off according to the state above.
-
-**Completion gate:** the checker passes, no unowned blocking decision is presented as approved, and exactly one next owner is named.
-
-## Pattern Admission Questions
-
-For each applicable `G-n`, answer Q1-Q14 as `yes`, `no`, or `unknown` with evidence. Questions 1, 3, 4, 8, 9, 11, 13, and 14 are hard gates: `no` rejects the pattern and `unknown` blocks its approval.
-
-1. Does it resolve a current evidenced pressure or correctness risk?
+1. Does it resolve a current evidenced pressure or correctness risk? *(Hard Gate)*
 2. Is that pressure recurrent or tied to a demonstrably volatile boundary?
-3. Are lower-level alternatives described and insufficient?
-4. Does each abstraction have one precise responsibility and owner?
+3. Are lower-level alternatives described and insufficient? *(Hard Gate)*
+4. Does each abstraction have one precise responsibility and owner? *(Hard Gate)*
 5. Is its contract more stable than the details it hides?
-6. Does it reduce propagation across independently changing modules or contracts?
+6. Does it reduce propagation across independently changing modules?
 7. Does it constrain rather than hide dependencies?
-8. Is affected state ownership unambiguous?
-9. Are protected contracts preserved or explicitly authorized to change?
+8. Is affected state ownership unambiguous? *(Hard Gate)*
+9. Are protected contracts preserved or explicitly authorized to change? *(Hard Gate)*
 10. Can behavior and production outcomes be verified without mock-only proof?
-11. Are applicable operational semantics explicit?
+11. Are applicable operational semantics explicit? *(Hard Gate)*
 12. Does it fit repository and language idioms?
-13. Can it be introduced in independently verifiable, reversible slices?
-14. Does evidenced value exceed cognitive, runtime, operational, migration, and ownership cost?
+13. Can it be introduced in independently verifiable, reversible slices? *(Hard Gate)*
+14. Does evidenced value exceed cognitive, runtime, operational, migration, and ownership cost? *(Hard Gate)*
 
 ## Handoff Boundaries
 
-- Use `codebase-issue-auditor` before this skill when the structural concern has not yet been discovered and proven.
-- Use `plan-with-senior-dev` after a target design is approved to produce an exact file/symbol-level implementation specification.
-- Use `implement-with-senior-dev` only when that decision-complete plan is approved.
-- Use `optimize-codebase-with-senior-dev` when the primary objective is measured performance, build/runtime efficiency, dependency/tooling leverage, or ecosystem capability.
+- Use `codebase-issue-auditor` when broad repository triage, repository-wide debt inventory, or unselected discovery requires prioritization.
+- Use `plan-with-senior-dev` after a target design is approved to produce a file/symbol-level specification.
+- Use `optimize-codebase-with-senior-dev` when the primary issue is measured performance or tooling efficiency.
+- Use `implement-with-senior-dev` ONLY when an approved decision-complete plan already exists.

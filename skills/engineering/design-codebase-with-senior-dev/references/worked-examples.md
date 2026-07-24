@@ -1,120 +1,123 @@
 # Worked Examples
 
-Use these examples as calibration, not templates to copy. Each shows how evidence, change level, pattern cost, migration, and operational semantics shape the decision.
+Use these examples as calibration, not templates to copy. Each shows how evidence, change level, pattern cost, technical debt, migration, operational semantics, and validation receipts shape Contract v2 assessments.
 
 ## Contents
 
-1. Reject Strategy for a stable two-branch decision
-2. Introduce an Adapter around a volatile SDK
-3. Remove a one-interface/one-implementation/one-factory stack
-4. Reject a superficially clean distributed split
+1. Reject Strategy for a stable two-branch decision (L1)
+2. Introduce an Adapter around a volatile SDK (L2)
+3. Remove a one-interface/one-implementation/one-factory stack (L1)
+4. Reject a superficially clean distributed split (L1 / L3 Refusal)
+
+---
 
 ## 1. Reject Strategy for a Stable Two-Branch Decision
 
-**Scenario:** An invoice formatter chooses `compact` or `detailed` output. A proposal adds `FormatterStrategy`, two implementation classes, a registry, and a factory.
+# Assessment: Invoice Output Formatter Structure
+<!-- design-assessment-contract: 2; level: L1 -->
 
-**Evidence**
+## Decision Summary
+- Invocation mode: targeted
+- Selected target: `billing/formatter.py`
+- Selected level: L1
+- Recommended design: Reject Strategy pattern. Retain direct exhaustive branch in `billing/formatter.py` with local function extraction.
+- Why minimum sufficient: L0 is insufficient because rendering logic needs local function decomposition; L2/Strategy adds 4 unevidenced concepts without reducing cross-module change propagation.
+- Protected behavior and contracts: C-1 preserved (CLI output format and error bytes).
+- Primary structural pressure: P-1 (local readability of rendering logic).
+- Technical-debt disposition: TD-1 disposition: accept | revisit: third format requested.
+- Residual risk: R-1 low
+- Next owner: finish-assessment
 
-- `[Fact]` The choice is a closed enum with two variants used in one module.
-- `[Fact]` Five years of history show no third format and no independent ownership or deployment boundary.
-- `[Fact]` Both branches share validation and differ in a short rendering step.
-- `[Inference]` The pressure is local readability, not substitutability or volatile integration.
+## Scope and Protected Contracts
+- C-1: status: preserved | contract: `billing/formatter.py:render_invoice` output bytes and error types | authorization: none
+- H-1: status: assessment-only | next: finish assessment
+- A-1: status: none | impact: none | verification: none
+- TD-1: type: structural | evidence: F-1 | principal: monolithic formatting function | interest: minor cognitive overhead | frequency: current | blast-radius: billing/formatter.py | disposition: accept | reason: repayment cost of Strategy pattern exceeds interest | repayment-boundary: none | recurrence-guard: none | revisit-trigger: adding third format provider
 
-**Decision:** Classify as **L1 — Local simplification**. Reject Strategy. Keep a direct exhaustive branch, extract only branch-local rendering functions if they clarify the shared flow, and use the language’s closed-union or enum exhaustiveness support.
+## Evidence and Current State
+- F-1: `billing/formatter.py:12` | anchor: `def render_invoice` | observation: Output choice is a closed enum with two variants used in one module | source: code | strength: direct | freshness: current
+- F-2: `tests/test_formatter.py:45` | anchor: `test_compact_and_detailed` | observation: Characterization tests verify exact output bytes for both variants | source: test | strength: direct | freshness: current
+- Current flow: CLI input -> `render_invoice` -> enum branch -> compact/detailed string -> output bytes.
 
-**Admission result:** The proposed Strategy fails concrete recurring pressure, lower-level exhaustion, stable seam, and net-value questions. It adds four concepts without reducing cross-boundary change.
+## Design Pressures and Classification
+- P-1: rank: 1 | evidence: F-1 | pressure: Local function body is long, but choice has zero external volatility or substitution requirement.
+- D-1: level: L1 | selected: local simplification via helper functions in billing/formatter.py | because: F-1, F-2, P-1 | rejected: L2 Strategy pattern adds 4 classes and a factory without evidence.
 
-**Preservation and proof:** Keep accepted inputs, output bytes, validation order, and error messages unchanged. Characterization tests assert exact output for both variants and invalid input. No migration or runtime rollout is needed.
+## Alternatives and Pattern Decisions
+- O-1: level: L0 | selected: no | concepts: none | argument-for: zero edits | argument-against: leaves 120-line function intact | revisit: none
+- O-2: level: L1 | selected: yes | concepts: local helper functions | argument-for: keeps zero cross-module indirection | argument-against: keeps enum dispatch | revisit: adding third format
+- O-3: level: L2 | selected: no | concepts: FormatterStrategy, CompactFormatter, DetailedFormatter, FormatterFactory | argument-for: satisfies design pattern textbook | argument-against: 4 new classes for 2 stable variants | revisit: third format externally owned
 
-**Revisit when:** formats become externally supplied, independently released, or numerous enough that changes repeatedly collide in the central module.
+## Verification and Residual Risk
+- V-1: proves: D-1 | method: `pytest tests/test_formatter.py` | expected: 100% pass on exact byte assertions.
+- R-1: severity: low | scenario: future third format added | consequence: revisit design level | owner: maintainer | follow-up: monitor PR requests
+
+## Local Simplification and Preservation
+- Responsibility: `billing/formatter.py` owns invoice rendering.
+- Concepts removed: none
+- Concepts retained: `render_invoice` function and Enum variants.
+- Preservation proof: C-1 and V-1.
+
+---
 
 ## 2. Introduce an Adapter Around a Volatile SDK
 
-**Scenario:** Four modules call a payment provider SDK directly. Minor SDK releases repeatedly rename request fields and exception types, forcing coordinated edits and leaking provider errors into domain code.
+# Assessment: Payment Provider SDK Integration Boundary
+<!-- design-assessment-contract: 2; level: L2 -->
 
-**Evidence**
+## Decision Summary
+- Invocation mode: targeted
+- Selected target: `payments/gateway` boundary
+- Selected level: L2
+- Recommended design: Introduce narrow `PaymentGateway` interface and provider `Adapter` in `payments/adapter.py`.
+- Why minimum sufficient: L1 is insufficient because 4 domain modules directly import volatile SDK and edit in lockstep on SDK updates; L3 is unnecessary as no cross-system state migration is needed.
+- Protected behavior and contracts: C-1 preserved (payment authorization API signatures).
+- Primary structural pressure: P-1 (external SDK volatility propagating to 4 domain modules).
+- Technical-debt disposition: TD-1 disposition: repay | boundary: L2 boundary redesign.
+- Residual risk: R-1 low
+- Next owner: plan-with-senior-dev
 
-- `[Fact]` Four consumers construct provider requests and translate the same three errors differently.
-- `[Fact]` Three recent provider upgrades changed all four modules.
-- `[Fact]` Domain callers need only `authorize`, `capture`, and `refund`; they do not need the SDK’s full surface.
-- `[Inference]` External volatility and inconsistent translation cross independently changing modules; L1 cannot contain the propagation.
+## Scope and Protected Contracts
+- C-1: status: preserved | contract: `payments/service.py` payment processing signature | authorization: none
+- H-1: status: assessment-only | next: plan-with-senior-dev
+- A-1: status: none | impact: none | verification: none
+- TD-1: type: boundary | evidence: F-1, F-2 | principal: direct SDK coupling in domain callers | interest: 3 recent SDK upgrades forced edits across 4 modules | frequency: recurring | blast-radius: payments, orders, subscriptions, checkout | disposition: repay | reason: Adapter isolates SDK field renames to 1 file | repayment-boundary: L2 boundary redesign | recurrence-guard: lint rule blocking direct SDK imports outside payments/adapter.py | revisit-trigger: none
 
-**Decision:** Classify as **L2 — Boundary redesign**. Admit a narrow `PaymentGateway` boundary owned by the domain and one provider Adapter that owns SDK construction, request/response translation, timeouts, and provider-error classification. Do not wrap unused SDK methods.
+## Evidence and Current State
+- F-1: `payments/service.py:34` | anchor: `import provider_sdk` | observation: 4 domain modules construct provider SDK requests directly | source: code | strength: direct | freshness: current
+- F-2: `git-history:45` | anchor: `commit_3a2f` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
+- Current flow: Domain caller -> Direct SDK constructor -> Network call -> SDK Exception.
 
-**Level-gate result:** Cross-module volatility and repeated propagation prove an independently changing boundary, so L1 is insufficient. No subsystem, state-ownership, deployment, or consistency migration is needed; absent L3-only proof therefore caps this decision at L2, not L1.
+## Design Pressures and Classification
+- P-1: rank: 1 | evidence: F-1, F-2 | pressure: SDK field renames and exception types leak into domain logic across 4 independent modules.
+- D-1: level: L2 | selected: PaymentGateway interface and Adapter implementation | because: F-1, F-2, P-1 | rejected: L1 local edits do not prevent cross-module change propagation.
 
-**Why Adapter earns its cost:** It has a named external-volatility seam, multiple real consumers, a contract smaller and more stable than the SDK, explicit failure semantics, and measurable propagation reduction.
+## Alternatives and Pattern Decisions
+- O-1: level: L0 | selected: no | concepts: none | argument-for: no new files | argument-against: SDK updates continue breaking 4 modules | revisit: none
+- O-2: level: L1 | selected: no | concepts: shared helper function | argument-for: simple | argument-against: leaves direct SDK dependencies in caller imports | revisit: none
+- O-3: level: L2 | selected: yes | concepts: PaymentGateway interface, ProviderAdapter | argument-for: isolates SDK to 1 module | argument-against: 1 new interface file | revisit: provider deprecation
+- G-1: pattern: Adapter | scope: introduced | result: admit | questions: Q1=yes, Q2=yes, Q3=yes, Q4=yes, Q5=yes, Q6=yes, Q7=yes, Q8=yes, Q9=yes, Q10=yes, Q11=yes, Q12=yes, Q13=yes, Q14=yes | evidence: F-1, F-2, P-1
 
-**Incremental migration**
+## Target Boundary
+- Responsibility and owner: `payments/adapter.py` owns SDK lifecycle and translation.
+- Dependency direction: domain policy -> `PaymentGateway` port -> `ProviderAdapter` -> SDK.
+- State and contract ownership: domain owns `PaymentResult` value object.
+- Allowed calls and failures: authorize, capture, refund; raises `PaymentProviderError`.
 
-1. Characterize current requests, returned domain values, error mapping, logs, and timeout behavior.
-2. Add the boundary and Adapter behind one existing consumer; compare provider payloads in tests.
-3. Migrate one consumer per slice, keeping direct SDK use available for rollback.
-4. After all consumers use the Adapter and production telemetry is stable, remove direct SDK imports and duplicated translation.
+## Migration and Rollback
+- M-1: prerequisite: characterize current SDK responses | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch or latency spike | rollback action: repoint caller to direct SDK implementation | cleanup: remove direct SDK imports after 1 release cycle
 
-**Rollback:** Repoint the migrated consumer to its previous direct call without changing domain contracts. Trigger rollback on payload mismatch, changed error classification, or latency/error-budget regression.
+## Operational Semantics
+- Source of truth: provider API response.
+- Failures: mapped to PaymentProviderError.
+- Timeouts: 5000ms deadline passed to SDK.
+- Retries: 2 retries with exponential backoff on 5xx errors.
+- Idempotency: idempotency key generated per request ID.
+- Ordering: not-applicable: single payment requests are stateless.
+- Transactions: not-applicable: no local database transaction involved.
+- Observability: log provider request ID and status code.
+- Resource limits: max 50 concurrent HTTP connections.
 
-**Operational proof:** Verify retry ownership, idempotency keys, timeout propagation, provider rate limits, correlation IDs, and mixed-version deployment. The Adapter centralizes these semantics; it does not silently invent new retries.
-
-## 3. Remove a One-Interface/One-Implementation/One-Factory Abstraction
-
-**Scenario:** `UserPreferencesRepository` has one implementation, `SqlUserPreferencesRepository`, created only by `UserPreferencesRepositoryFactory`, whose sole method calls the constructor. No plugin or alternate datastore exists.
-
-**Evidence**
-
-- `[Fact]` The interface and factory each have one production consumer path and one implementation.
-- `[Fact]` The factory performs no selection, lifecycle, validation, caching, or configuration translation.
-- `[Fact]` Tests mock the interface, but integration tests already provide a disposable database.
-- `[Fact]` Common schema changes require edits to the interface, implementation, factory fixtures, and mocks in lockstep.
-- `[Inference]` The stack hides construction and increases change propagation without protecting a volatile boundary.
-
-**Decision:** Classify as **L1 — Local simplification**. Remove the factory and interface; inject or construct the concrete repository explicitly at the composition root. Keep its public module function/method contract if callers depend on it.
-
-**Removal-rule result:** Current protection is lower than cognitive and maintenance cost. Removal is admissible because state ownership, SQL behavior, transactions, errors, and caller-visible signatures can remain unchanged.
-
-**Incremental migration**
-
-1. Add characterization/integration coverage for queries, transaction participation, missing data, and error mapping.
-2. Change one composition path to construct the concrete repository directly while preserving the caller type shape where needed.
-3. Replace mock-heavy tests with fakes only where behavior-level integration is impractical; do not weaken coverage.
-4. Remove the unused factory, interface, bindings, and fixtures after reference searches and tests prove no runtime discovery path remains.
-
-**Rollback:** Restore the previous binding and types from the last slice. Do not combine the collapse with schema or query changes.
-
-**Revisit when:** a second independently maintained datastore or remote provider becomes a committed requirement and a consumer-owned seam would reduce real propagation.
-
-## 4. Reject a Superficially Clean Distributed Design
-
-**Scenario:** A monolithic order workflow is proposed as three services—Orders, Inventory, and Billing—connected by at-least-once events. The diagram assigns one database per service but does not define duplicate delivery, ordering, or cross-service invariants.
-
-**Evidence**
-
-- `[Fact]` Today, order creation, stock reservation, and payment authorization share one database transaction.
-- `[Fact]` The proposal’s broker provides at-least-once delivery and may reorder events across partitions.
-- `[Fact]` Payment authorization is externally visible and cannot always be undone synchronously.
-- `[Fact]` No service owns the composite invariant “an accepted order has exactly one valid reservation and authorization outcome.”
-- `[Inference]` The split converts a known atomic invariant into an undefined distributed protocol.
-
-**Adversarial trace**
-
-1. `OrderCreated` is delivered twice after the consumer commits but before acknowledging.
-2. Inventory reserves twice because no durable idempotency key or uniqueness rule is defined.
-3. Billing succeeds, but the inventory compensation times out.
-4. The Orders service cannot truthfully report accepted, rejected, or pending because ownership and reconciliation are unspecified.
-
-**Decision:** Reject **L3 — Architectural migration**. Keep the workflow in one transactional boundary. If code organization is the concern, use **L1** modules or an in-process **L2** boundary with explicit ownership and no remote semantics.
-
-**Why the distributed pattern fails:** It fails unambiguous state ownership, behavior preservation, operational semantics, incremental reversibility, and net-value gates. Separate deployability is not currently supported by scale, isolation, compliance, or team evidence.
-
-**Revisit when:** independent scaling or deployment is evidenced and the design specifies, tests, and operates:
-
-- an authoritative order state machine and owner;
-- stable idempotency keys and deduplication retention;
-- partition/ordering rules and stale-event handling;
-- transaction/outbox boundaries, retry ownership, and bounded backoff;
-- compensation and reconciliation for every partial-failure state;
-- mixed-version event compatibility, telemetry, alerts, and operator runbooks;
-- a staged migration that shadows or mirrors behavior without unsafe dual writes;
-- rollback compatible with data already written by the new protocol.
-
-Until those obligations have owners and proof, the visually clean service split is a correctness regression, not an architecture improvement.
+## Verification and Residual Risk
+- V-1: proves: D-1 | method: `pytest tests/test_payments.py` | expected: Adapter correctly translates success and error payloads.
+- R-1: severity: low | scenario: SDK adds new error code | consequence: update adapter mapping | owner: payments team | follow-up: monitor error logs

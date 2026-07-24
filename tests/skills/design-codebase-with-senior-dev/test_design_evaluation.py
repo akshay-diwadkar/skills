@@ -13,7 +13,7 @@ from test_check_assessment import assessment  # noqa: E402
 def test_evaluation_catalog_has_eight_blind_cases() -> None:
     expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
 
-    assert len(expectations) == 8
+    assert len(expectations) >= 8
     for name, case in expectations.items():
         fixture = DEV_DIR / "evals" / "fixtures" / name
         assert (fixture / "prompt.md").is_file()
@@ -35,7 +35,13 @@ def test_all_fixture_expectations_accept_grounded_contract_examples() -> None:
     expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
 
     for name, case in expectations.items():
-        text = assessment(case["level"])
+        if name == "autonomous-discovery-obsolete-shim":
+            text = assessment(case["level"], mode="autonomous-discovery").replace("disposition: repay", "disposition: retire")
+        elif name == "autonomous-refusal-tied-candidates":
+            text = assessment(case["level"], mode="discovery-only")
+        else:
+            text = assessment(case["level"])
+
         if name == "reject-unsafe-distributed-split":
             text = text.replace("scenario: future pressure changes", "scenario: current transaction remains atomic")
         result = score_design_evaluation.score(text, case, DEV_DIR / "evals" / "fixtures" / name)

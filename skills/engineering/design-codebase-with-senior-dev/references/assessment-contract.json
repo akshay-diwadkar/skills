@@ -1,5 +1,5 @@
 {
-  "contract_version": 1,
+  "contract_version": 2,
   "levels": {
     "L0": {
       "minimum_alternatives": 2,
@@ -42,6 +42,7 @@
     }
   },
   "base_sections": [
+    "Decision Summary",
     "Scope and Protected Contracts",
     "Evidence and Current State",
     "Design Pressures and Classification",
@@ -75,5 +76,20 @@
     "durable state evolution",
     "reconciliation",
     "rollback compatibility"
+  ],
+  "debt_dispositions": [
+    "accept",
+    "monitor",
+    "contain",
+    "repay",
+    "retire"
+  ],
+  "pattern_results": [
+    "admit",
+    "admit-narrowed",
+    "retain",
+    "remove",
+    "reject",
+    "defer"
   ]
 }

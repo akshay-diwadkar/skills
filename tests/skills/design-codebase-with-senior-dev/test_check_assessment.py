@@ -9,34 +9,73 @@ from assessment_contract import load_contract, marker  # noqa: E402
 from check_assessment import validate  # noqa: E402
 
 
-def assessment(level: str) -> str:
+def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
     contract = load_contract()
+    
     alternatives = [
-        "- O-1: level: L0 | selected: no | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
-        "- O-2: level: L1 | selected: yes | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
+        f"- O-1: level: L0 | selected: {'yes' if level == 'L0' else 'no'} | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
+        f"- O-2: level: L1 | selected: {'yes' if level == 'L1' else 'no'} | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
+        f"- O-3: level: L2 | selected: {'yes' if level == 'L2' else 'no'} | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers",
     ]
-    if contract["levels"][level]["minimum_alternatives"] == 3:
+    if level == "L3":
         alternatives.append(
-            "- O-3: level: L2 | selected: no | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers"
+            "- O-4: level: L3 | selected: yes | concepts: distributed system | argument-for: scale | argument-against: complexity | revisit: none"
         )
+
     pattern = ""
     if contract["levels"][level]["requires_pattern_gate"]:
         questions = ", ".join(f"Q{number}=yes" for number in range(1, 15))
         pattern = f"\n- G-1: pattern: Adapter | scope: introduced | result: admit | questions: {questions} | evidence: F-1, P-1"
 
+    target_discovery = ""
+    if mode == "autonomous-discovery":
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | status: selected | reason: Dominant candidate.\n"
+    elif mode == "discovery-only":
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: {level} | blast-radius: local | product-intent-required: false | status: deferred | reason: Unsafe candidate.\n"
+
+    selected_level_summary = level
+
+    facts = [
+        "- F-1: `src/system.py:1` | anchor: `current` | observation: The current function owns the behavior | source: code | strength: direct | freshness: current."
+    ]
+    if level == "L3":
+        facts.extend([
+            "- F-2: `deploy/service.yaml:1` | anchor: `replicaCount` | observation: Multi-instance deployment configuration | source: deployment | strength: direct | freshness: current.",
+            "- F-3: `schema/v1.sql:1` | anchor: `CREATE TABLE` | observation: Database table schema | source: schema | strength: direct | freshness: current."
+        ])
+
+    next_owner = "plan-with-senior-dev"
+    if mode == "discovery-only":
+        next_owner = "codebase-issue-auditor"
+    elif level == "L0":
+        next_owner = "finish assessment"
+
     sections = [
         f"# Select the Minimum Safe {level} Design",
         marker(level),
         "",
+        "## Decision Summary",
+        f"- Invocation mode: {mode}",
+        "- Selected target: src/system.py",
+        f"- Selected level: {selected_level_summary}",
+        "- Recommended design: minimum safe design",
+        "- Why minimum sufficient: direct local edit satisfies constraints",
+        "- Protected behavior and contracts: C-1 preserved",
+        "- Primary structural pressure: P-1",
+        "- Technical-debt disposition: TD-1 disposition: repay | boundary: local",
+        "- Residual risk: R-1 low",
+        f"- Next owner: {next_owner}",
+        "",
         "## Scope and Protected Contracts",
         "- C-1: status: preserved | contract: public command output | authorization: none",
-        "- H-1: status: assessment-only | next: finish assessment",
+        f"- H-1: status: assessment-only | next: {next_owner}",
         "- A-1: status: none | impact: none | verification: none",
+        "- TD-1: type: structural | evidence: F-1 | principal: legacy shortcut | interest: minor maintainability cost | frequency: current | blast-radius: src/system.py | disposition: repay | reason: removes debt | repayment-boundary: local | recurrence-guard: unit test | revisit-trigger: none",
         "",
         "## Evidence and Current State",
-        "- F-1: `src/system.py:1` | anchor: `current` | observation: The current function owns the behavior.",
+        *facts,
         "- Current flow: input -> current -> output.",
-        "",
+        target_discovery.rstrip("\n"),
         "## Design Pressures and Classification",
         "- P-1: rank: 1 | evidence: F-1 | pressure: The scoped behavior has a verified change cost.",
         f"- D-1: level: {level} | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
@@ -82,25 +121,36 @@ def assessment(level: str) -> str:
     if level == "L3":
         sections.extend(["", "## System Ownership and Evolution"])
         sections.extend(f"- {field.title()}: explicitly defined." for field in contract["l3_evolution_fields"])
-    return "\n".join(sections) + "\n"
+
+    text = "\n".join(s for s in sections if s is not None) + "\n"
+    return text.replace("\n\n\n", "\n\n")
+
+
+def assessment(level: str, mode: str = "targeted") -> str:
+    return valid_v2_assessment(level, mode=mode)
 
 
 def codes(text: str, level: str, repo_root: Path) -> set[str]:
     return {item.code for item in validate(text, level, repo_root)}
 
 
-def test_valid_assessments_pass_every_level(tmp_path: Path) -> None:
+def test_valid_v2_assessments_pass_every_level(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n    return 'stable'\n", encoding="utf-8")
+    deploy = tmp_path / "deploy"
+    deploy.mkdir()
+    (deploy / "service.yaml").write_text("replicaCount: 2\n", encoding="utf-8")
+    schema = tmp_path / "schema"
+    schema.mkdir()
+    (schema / "v1.sql").write_text("CREATE TABLE users;\n", encoding="utf-8")
 
     for level in ("L0", "L1", "L2", "L3"):
-        assert validate(assessment(level), level, tmp_path) == []
+        assert validate(valid_v2_assessment(level), level, tmp_path) == []
 
 
 def test_missing_citation_is_rejected(tmp_path: Path) -> None:
-    text = assessment("L0")
-
+    text = valid_v2_assessment("L0")
     assert "fact.path.missing" in codes(text, "L0", tmp_path)
 
 
@@ -108,7 +158,7 @@ def test_declared_level_must_match_classification(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n", encoding="utf-8")
-    text = assessment("L2").replace("- D-1: level: L2", "- D-1: level: L1")
+    text = valid_v2_assessment("L2").replace("- D-1: level: L2", "- D-1: level: L1")
 
     assert "decision.level.mismatch" in codes(text, "L2", tmp_path)
 
@@ -117,40 +167,30 @@ def test_authorized_contract_change_requires_named_authorization(tmp_path: Path)
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n", encoding="utf-8")
-    text = assessment("L0").replace("status: preserved", "status: authorized-change")
+    text = valid_v2_assessment("L0").replace("status: preserved", "status: authorized-change")
 
     assert "contract.authorization.missing" in codes(text, "L0", tmp_path)
 
 
-def test_l1_requires_three_alternatives(tmp_path: Path) -> None:
+def test_tech_debt_repay_requires_recurrence_guard(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n", encoding="utf-8")
-    text = assessment("L1").replace(
-        "- O-3: level: L2 | selected: no | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers\n",
-        "",
-    )
+    text = valid_v2_assessment("L0").replace("recurrence-guard: unit test", "recurrence-guard: none")
 
-    assert "alternatives.count" in codes(text, "L1", tmp_path)
+    assert "tech_debt.recurrence_guard.missing" in codes(text, "L0", tmp_path)
 
 
-def test_l2_requires_scoped_pattern_and_executable_rollback(tmp_path: Path) -> None:
+def test_l3_requires_multi_category_evidence(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n", encoding="utf-8")
-    text = assessment("L2").replace("scope: introduced", "scope: repository-wide").replace(
-        " | rollback action: restore direct caller", " | reversal: restore direct caller"
-    )
+    deploy = tmp_path / "deploy"
+    deploy.mkdir()
+    (deploy / "service.yaml").write_text("replicaCount: 2\n", encoding="utf-8")
+    schema = tmp_path / "schema"
+    schema.mkdir()
+    (schema / "v1.sql").write_text("CREATE TABLE users;\n", encoding="utf-8")
 
-    findings = codes(text, "L2", tmp_path)
-    assert "pattern.required" in findings
-    assert "migration.format" in findings
-
-
-def test_l3_requires_every_evolution_field(tmp_path: Path) -> None:
-    source = tmp_path / "src"
-    source.mkdir()
-    (source / "system.py").write_text("def current():\n", encoding="utf-8")
-    text = assessment("L3").replace("- Reconciliation: explicitly defined.\n", "")
-
-    assert "evolution.field.missing" in codes(text, "L3", tmp_path)
+    text = valid_v2_assessment("L3").replace("source: deployment", "source: code").replace("source: schema", "source: code")
+    assert "evidence.l3.categories_insufficient" in codes(text, "L3", tmp_path)

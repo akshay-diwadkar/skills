@@ -260,6 +260,7 @@ ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
     "design-codebase-with-senior-dev": {
         "assessment_contract.py",
         "check_assessment.py",
+        "finalize_assessment.py",
         "scaffold_assessment.py",
     },
     "github-issue-planner": {
