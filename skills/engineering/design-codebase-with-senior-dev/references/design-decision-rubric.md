@@ -27,17 +27,6 @@ Record requested patterns or boundaries unsupported by current pressure, missing
 
 ### Material Ambiguity Reconciliation
 Inspect the repository before asking questions. Never ask for a repository-discoverable fact. Ask the user for confirmation ONLY when a material ambiguity remains that cannot be resolved through repository evidence (such as user-visible behavior, public or shared contracts, persisted state, state ownership, security/authorization, failure semantics, migration/rollback constraints, external effects, or deployment compatibility). When no material ambiguity remains, proceed automatically without a mandatory confirmation pause and record the resolved frame in the assessment.
-- user-visible or observable behavior;
-- public or shared contracts;
-- durable or persisted state;
-- authoritative state ownership;
-- security or authorization boundaries;
-- failure semantics;
-- deployment topology or compatibility;
-- irreversible migration paths;
-- rollback behavior;
-- legal or compliance obligations;
-- admissible L0–L3 classification level.
 
 Ask up to three related blocking questions per round. State the request and cited `F-n` evidence, explain the affected design decision, offer two to four mutually exclusive options when feasible, and identify the recommended option based on admission rules, lower-level sufficiency, repository idioms, contract preservation, and reversibility. When no material ambiguity remains, proceed automatically without a confirmation pause and record the resolved frame in the assessment.
 
@@ -62,37 +51,43 @@ Search repository entry points, module boundaries, dependency direction, contrac
 - Test fragility caused by unstable boundaries.
 - Distributed/async workflows lacking idempotency, reconciliation, or ownership.
 
-### 1.3 Candidate Ranking Criteria
-Rank candidates using:
-1. Correctness and contract risk.
-2. Operational and migration risk.
-3. Strength of direct repository evidence.
-4. Recurring technical-debt interest.
-5. Repeated change propagation.
-6. State or ownership ambiguity.
-7. Blast radius.
-8. Bounded scope feasibility.
-9. Reversibility of likely intervention.
-10. Confidence that the issue is structural rather than stylistic.
+### 1.3 Candidate Ranking Criteria & Score Calculation
+Candidates (`T-n`) are scored deterministically based on structured ranking enums defined in `assessment-contract.json`:
+- `debt_interest` (weight 3.0): `high` (3), `medium` (2), `low` (1), `none` (0)
+- `correctness_risk` (weight 2.0): `low` (3), `medium` (2), `high` (1)
+- `operational_risk` (weight 2.0): `low` (3), `medium` (2), `high` (1)
+- `change_propagation` (weight 2.0): `local` (3), `bounded` (2), `wide` (1)
+- `state_ambiguity` (weight 2.0): `low` (3), `medium` (2), `high` (1)
+- `scope_boundedness` (weight 2.0): `high` (3), `medium` (2), `low` (1)
+- `reversibility` (weight 2.0): `high` (3), `medium` (2), `low` (1)
+- `structural_confidence` (weight 2.0): `high` (3), `medium` (2), `low` (1)
 
-### 1.4 Autonomous Selection Rules
-Proceed autonomously with the highest-ranked candidate when all of the following are true:
+Candidate score = $\sum (\text{weight} \times \text{enum\_value})$. Candidates are sorted in descending order of score. Candidate declared rank MUST match calculated score rank.
+
+### 1.4 Material Tie Threshold & Fail-Closed Rule
+The canonical material tie threshold is `top_score - second_score <= 2.0`.
+If the score difference between the top candidate and the second candidate is $\le 2.0$, a material tie exists.
+- In autonomous discovery mode, any material tie MUST fail closed.
+- Zero selected candidates during a tie, one selected candidate during a tie, or multiple selected candidates during a tie CANNOT pass autonomous validation.
+- Tied assessments MUST be emitted in `discovery-only` mode with handoff `codebase-issue-auditor`.
+
+### 1.5 Autonomous Selection Rules
+Proceed autonomously with the top candidate ONLY when all of the following are true:
+- Top score exceeds second score by $> 2.0$ (no material tie).
 - It has direct or corroborated repository evidence (`F-n`).
-- Its scope can be bounded to one coherent responsibility, boundary, or invariant.
-- It materially outranks remaining candidates.
+- Its scope can be bounded to one coherent responsibility, boundary, or invariant (`scope-boundedness: high | medium`).
 - Assessing it does not require guessing product intent (`product-intent-required: false`).
 - Protected behavior and contracts can be identified (`C-n`).
+- Reversibility and structural confidence are non-low (`reversibility: high | medium`, `structural-confidence: high | medium`).
 - The assessment remains read-only.
 - The likely recommendation remains incremental and reversible.
-- The discovery does not require a repository-wide debt inventory.
 
-Record in the final assessment: candidate ranking rationale, why the selected target outranked alternatives, and why it is safe to assess without user confirmation.
-
-### 1.5 Tie-Breaking
-When candidates rank similarly, prefer: 1) greater correctness/state/security risk, 2) smaller coherent scope, 3) more reversible intervention, 4) stronger direct evidence, 5) fewer assumptions.
-
-### 1.6 When Not to Select a Target (Discovery-Only Mode)
-Do not force a target when evidence is weak, product intent is required, or broad repository triage is needed. Emit a discovery-only assessment with ranked `T-n` records and hand off to `codebase-issue-auditor`.
+### 1.6 Discovery-Only Mode
+When top candidates tie ($\le 2.0$), evidence is weak, product intent is required, or broad repository triage is needed, emit a `discovery-only` assessment:
+- Must contain 1 to 5 `T-n` candidates, all marked `rejected` or `deferred` with specific refusal reasons.
+- Prohibits `D-n` decisions, selected `O-n` alternatives, `G-n` pattern gates, and `M-n` migrations.
+- Requires handoff `H-1: next: codebase-issue-auditor`.
+- Finalized receipt format: `<!-- assessment-validation: 2; mode: discovery-only; sha256: <hash> -->`.
 
 ## 2. Structural Technical-Debt Framework
 
@@ -113,46 +108,55 @@ Structural technical debt is quantified through `TD-n` records:
 | `revisit-trigger` | Measurable future condition | `Adding second payment gateway provider` |
 
 ### Debt Dispositions:
-- `accept`: Repayment cost exceeds expected interest; require measurable revisit trigger.
-- `monitor`: Interest is plausible but not yet evidenced strongly enough; require measurable revisit trigger.
+- `accept`: Repayment cost exceeds expected interest; require explicit owner or non-placeholder revisit trigger.
+- `monitor`: Interest is plausible but not yet evidenced strongly enough; require explicit owner or non-placeholder revisit trigger.
 - `contain`: Eliminating debt is unsafe, too broad, or unjustified; bound its blast radius; require revisit trigger.
-- `repay`: Bounded structural change removes recurring interest; require recurrence guard.
-- `retire`: Remove obsolete shims, flags, dual paths, adapters after exit criteria met; require recurrence guard.
+- `repay`: Bounded structural change removes recurring interest; require recurrence guard and repayment boundary.
+- `retire`: Remove obsolete shims, flags, dual paths, adapters after exit criteria met; require recurrence guard and repayment boundary.
 
 Unattractive, old, or complex code is NOT automatically technical debt. Debt requires evidenced current or near-term interest.
 
-## 3. Evidence Source, Strength, and Freshness
+## 3. Evidence Source, Strength, Freshness, and Git-History
 
 Every `F-n` fact is categorized across three axes:
 
 ### Source Categories
-- `code` — direct implementation source.
-- `test` — unit, integration, or end-to-end test suite.
-- `fixture` — static data, mocks, serialized payload.
-- `configuration` — deployment, build, environment config.
-- `schema` — database migration, OpenAPI, protobuf, GraphQL schema.
-- `repository-history` — Git commit history, release notes.
-- `runtime` / `production` — execution logs, metrics, telemetry.
-- `ownership` — CODEOWNERS, package manifest, team boundary.
-- `deployment` — Docker, Kubernetes, CI/CD pipeline.
-- `official-external-documentation` — framework or library docs.
+- `code`, `test`, `fixture`, `configuration`, `schema`, `repository-history`, `runtime`, `production`, `ownership`, `deployment`
 
-### Evidence Strength
-- `direct` — explicit line-by-line evidence.
-- `corroborated` — supported by multiple independent files/sources.
-- `inferred` — logical conclusion requiring verification.
+### Repository History Locators
+Facts with source `repository-history` MUST use the locator format:
+```text
+git-history:<commit-sha>:<repository-path>:<line>
+```
+Example:
+```text
+F-2: `git-history:3a2f1b70298d5c4e90218175f7396781f8084a91:payments/service.py:34` | anchor: `import provider_sdk` | observation: SDK upgrades repeatedly modified four domain callers | source: repository-history | strength: corroborated | freshness: historical
+```
+The validator checks:
+1. Repository is a Git checkout.
+2. Commit exists in git log.
+3. File exists at commit.
+4. Line is within historical file bounds.
+5. Anchor exists near cited line in historical content.
+6. Path does not escape repository root.
 
-### Freshness
-- `current` — matches active HEAD checkout.
-- `potentially-stale` — documentation or historical commit that may differ from current code.
-- `historical` — past commit or retired branch context.
+### Evidence Strength & Freshness
+- Strength: `direct`, `corroborated`, `inferred`
+- Freshness: `current`, `potentially-stale`, `historical`
 
-### Proportional Evidence Requirements
-- **L0 & L1:** Supported primarily by direct `code`, `test`, `configuration`, or `fixture` evidence.
-- **L2:** Requires evidence of real boundary pressure (multiple consumers, change propagation, external contract, independent dependency).
-- **L3:** Requires evidence from at least 3 independent categories (e.g., `code` + `state`/`schema` + `deployment`/`runtime`).
+## 4. Operational Semantics & Not-Applicable Format
 
-## 4. Analysis Dimensions
+Level L2/L3 assessments require explicit `Operational Semantics` fields (`source of truth`, `failures`, `timeouts`, `retries`, `idempotency`, `ordering`, `transactions`, `observability`, `resource limits`).
+
+If a field is not applicable, it must use the structured format:
+```text
+Ordering: not-applicable | evidence: F-1 | reason: Each request is independently processed by one synchronous owner.
+```
+Requirements:
+- Cites valid `F-n` or `E-n` evidence.
+- Provides a repository-specific non-placeholder explanation.
+
+## 5. Analysis Dimensions
 
 Evaluate current and target designs against evidence in each dimension:
 
@@ -173,7 +177,7 @@ Evaluate current and target designs against evidence in each dimension:
 | Delivery and team topology | Does the boundary align with independently owned and released work, or create coordination tax? | CODEOWNERS, deployment units, review history |
 | Cognitive load and evolvability | How many concepts must a maintainer understand to make a common change safely? | onboarding path, indirection depth, common change walkthrough |
 
-## 5. Design Principles
+## 6. Design Principles
 
 - Preserve observable behavior unless a contract change is explicitly authorized.
 - Keep policy independent from mechanisms only where mechanisms demonstrably vary or threaten policy correctness.
@@ -186,7 +190,7 @@ Evaluate current and target designs against evidence in each dimension:
 - Delete superseded paths. A completed migration should usually reduce total concepts.
 - Treat tests, telemetry, runbooks, schemas, and deployment compatibility as design artifacts.
 
-## 6. Simplicity Controls
+## 7. Simplicity Controls
 
 Apply direct-change, concept-budget, and reversibility controls at every level. Apply all controls before approving L2 or L3:
 
@@ -199,7 +203,7 @@ Apply direct-change, concept-budget, and reversibility controls at every level. 
 7. **Net-complexity check:** compare concepts removed, concepts added, cross-boundary calls, operational states, and ownership ambiguity.
 8. **Pattern-name delay:** describe responsibilities and forces before assigning a pattern name.
 
-## 7. Alternative Comparison
+## 8. Alternative Comparison
 
 Compare at least three options using the same scale. Include “keep the current structure with targeted relief.”
 
@@ -218,7 +222,7 @@ Compare at least three options using the same scale. Include “keep the current
 | Team fit | Matches real ownership and release units without unnecessary coordination. |
 | Revisitability | States evidence that would change the decision and avoids foreclosing later options. |
 
-## 8. Fourteen-Question Pattern Admission Test
+## 9. Fourteen-Question Pattern Admission Test
 
 Run all 14 questions only for every pattern materially introduced, removed, or deliberately relied upon by the scoped decision. Answer `yes`, `no`, or `unknown` with evidence. Questions 1, 3, 4, 8, 9, 11, 13, and 14 are hard gates: `no` rejects the pattern; `unknown` blocks design approval.
 
@@ -237,7 +241,7 @@ Run all 14 questions only for every pattern materially introduced, removed, or d
 13. **Incremental reversibility:** Can it be introduced in independently verifiable slices with explicit rollback triggers and actions? *(Hard Gate)*
 14. **Net value:** Over the evidenced change horizon, do avoided risk and change cost exceed cognitive, runtime, operational, migration, and ownership costs? *(Hard Gate)*
 
-## 9. Pattern-Removal Signals
+## 10. Pattern-Removal Signals
 
 Investigate removal or collapse when evidence shows:
 - one interface, one implementation, and one factory with no substitution;
@@ -250,7 +254,7 @@ Investigate removal or collapse when evidence shows:
 
 Characterize preserved contracts (`C-n`) and remove in reversible slices (`M-n`).
 
-## 10. Language-Aware Idioms
+## 11. Language-Aware Idioms
 
 - **Python:** Modules, functions, Protocols, dataclasses. Avoid Java-style interface/factory stacks around 1 implementation.
 - **TypeScript:** Structural interfaces at real boundaries, discriminated unions, plain functions.
@@ -258,7 +262,7 @@ Characterize preserved contracts (`C-n`) and remove in reversible slices (`M-n`)
 - **Go:** Small consumer-owned interfaces, concrete return types, explicit constructors. Avoid interface-per-struct.
 - **Rust:** Enums for closed variants, traits for generic/substitution needs, ownership/lifetimes for state authority.
 
-## 11. Runtime and Distributed-System Hazards
+## 12. Runtime and Distributed-System Hazards
 
 For every process, queue, datastore, cache, or external boundary, examine:
 - Delivery semantics & Idempotency

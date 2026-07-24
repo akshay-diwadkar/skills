@@ -18,13 +18,14 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Invocation mode: targeted
 - Selected target: `billing/formatter.py`
 - Selected level: L1
-- Recommended design: Reject Strategy pattern. Retain direct exhaustive branch in `billing/formatter.py` with local function extraction.
+- Recommended design: Reject Strategy pattern. Retain direct exhaustive branch in `billing/formatter.py` with local function extraction (formatter-local-simplification).
 - Why minimum sufficient: L0 is insufficient because rendering logic needs local function decomposition; L2/Strategy adds 4 unevidenced concepts without reducing cross-module change propagation.
-- Protected behavior and contracts: C-1 preserved (CLI output format and error bytes).
-- Primary structural pressure: P-1 (local readability of rendering logic).
-- Technical-debt disposition: TD-1 disposition: accept | boundary: local
-- Residual risk: R-1 low
+- Protected behavior and contracts: C-1 preserved
+- Primary structural pressure: P-1
+- Technical-debt disposition: accept
+- Residual risk: R-1
 - Next owner: finish assessment
+- Selected design-id: formatter-local-simplification
 
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: `billing/formatter.py:render_invoice` output bytes and error types | authorization: none
@@ -38,7 +39,7 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 ## Design Pressures and Classification
 - P-1: rank: 1 | evidence: F-1 | pressure: Local function body is long, but choice has zero external volatility or substitution requirement.
-- D-1: level: L1 | design-id: formatter-local-simplification | selected: local simplification via helper functions in billing/formatter.py | because: F-1, F-2, P-1 | rejected: L2 Strategy pattern adds 4 classes and a factory without evidence.
+- D-1: level: L1 | design-id: formatter-local-simplification | selected: local simplification via helper functions in billing/formatter.py | because: F-1, P-1 | rejected: L0 leaves 120-line monolithic function intact; L2 Strategy adds 4 unevidenced classes.
 
 ## Alternatives and Pattern Decisions
 - O-1: level: L0 | design-id: formatter-no-op | selected: no | concepts: none | argument-for: zero edits | argument-against: leaves 120-line function intact | revisit: none
@@ -66,13 +67,14 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Invocation mode: targeted
 - Selected target: `payments/adapter.py`
 - Selected level: L2
-- Recommended design: Introduce narrow `PaymentGateway` interface and provider `Adapter` in `payments/adapter.py`.
+- Recommended design: Introduce narrow `PaymentGateway` interface and provider `Adapter` in `payments/adapter.py` (payment-gateway-adapter).
 - Why minimum sufficient: L1 is insufficient because 4 domain modules directly import volatile SDK and edit in lockstep on SDK updates; L3 is unnecessary as no cross-system state migration is needed.
-- Protected behavior and contracts: C-1 preserved (payment authorization API signatures).
-- Primary structural pressure: P-1 (external SDK volatility propagating to 4 domain modules).
-- Technical-debt disposition: TD-1 disposition: repay | boundary: L2 boundary redesign
-- Residual risk: R-1 low
+- Protected behavior and contracts: C-1 preserved
+- Primary structural pressure: P-1
+- Technical-debt disposition: repay
+- Residual risk: R-1
 - Next owner: plan-with-senior-dev
+- Selected design-id: payment-gateway-adapter
 
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: `payments/service.py` payment processing signature | authorization: none
@@ -81,12 +83,12 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 ## Evidence and Current State
 - F-1: `payments/service.py:34` | anchor: `import provider_sdk` | observation: 4 domain modules construct provider SDK requests directly | source: code | strength: direct | freshness: current
-- F-2: `git-history:3a2f1b70298d5c4e90218175f7396781f8084a91:payments/service.py:34` | anchor: `import provider_sdk` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
+- F-2: `git-history:3a2f1b70298d5c4e90218175f7396781f8084a91:payments/service.py:34` | anchor: `import provider_sdk` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: historical
 - Current flow: Domain caller -> Direct SDK constructor -> Network call -> SDK Exception.
 
 ## Design Pressures and Classification
 - P-1: rank: 1 | evidence: F-1, F-2 | pressure: SDK field renames and exception types leak into domain logic across 4 independent modules.
-- D-1: level: L2 | design-id: payment-gateway-adapter | selected: PaymentGateway interface and Adapter implementation | because: F-1, F-2, P-1 | rejected: L1 local edits do not prevent cross-module change propagation.
+- D-1: level: L2 | design-id: payment-gateway-adapter | selected: PaymentGateway interface and Adapter implementation | because: F-1, P-1 | rejected: L1 helper functions leave SDK imports leaky across 4 domain modules.
 
 ## Alternatives and Pattern Decisions
 - O-1: level: L0 | design-id: payment-sdk-direct | selected: no | concepts: none | argument-for: no new files | argument-against: SDK updates continue breaking 4 modules | revisit: none
@@ -120,7 +122,7 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Allowed calls and failures: authorize, capture, refund; raises `PaymentProviderError`.
 
 ## Migration and Rollback
-- M-1: prerequisite: characterize current SDK responses | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch or latency spike | rollback action: repoint caller to direct SDK implementation | cleanup: remove direct SDK imports after 1 release cycle
+- M-1: prerequisite: characterize current SDK responses | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch or latency spike | rollback action: repoint caller to direct SDK implementation | cleanup: remove direct SDK imports after 1 release cycle with direct verification proof.
 
 ## Operational Semantics
 - Source of truth: provider API response.

@@ -15,7 +15,7 @@ VALIDATION_PREFIX_RE = re.compile(r"^\s*<!--\s*assessment-validation\s*:", re.IG
 VALIDATION_RECEIPT_RE = re.compile(
     r"^<!-- assessment-validation: 2; (?:level: (?P<level>L[0-3])|mode: (?P<mode>discovery-only)); sha256: (?P<digest>[0-9a-f]{64}) -->$"
 )
-GIT_HISTORY_LOCATOR_RE = re.compile(r"^git-history:[a-zA-Z0-9_/\.\-]+(?::.+)?$")
+GIT_HISTORY_LOCATOR_RE = re.compile(r"^git-history:[0-9a-fA-F]{4,40}:[^\s:]+:\d+$")
 
 VALID_SOURCES = {
     "code",
@@ -77,6 +77,7 @@ class DecisionSummary:
     debt_disposition: str | None = None
     residual_risk: str | None = None
     next_owner: str = ""
+    selected_design_id: str = ""
 
 
 @dataclass
@@ -163,21 +164,13 @@ RANKING_ENUMS: dict[str, dict[str, int]] = {
 
 
 def compute_candidate_score(tc: TargetCandidateRecord) -> float:
+    contract = load_contract()
+    weights_cfg = contract.get("candidate_ranking_weights", {})
     score = 0.0
-    fields = [
-        ("debt_interest", 3.0),
-        ("correctness_risk", 2.0),
-        ("operational_risk", 2.0),
-        ("change_propagation", 2.0),
-        ("state_ambiguity", 2.0),
-        ("scope_boundedness", 2.0),
-        ("reversibility", 2.0),
-        ("structural_confidence", 2.0),
-    ]
-    for fname, weight in fields:
+    for fname, cfg in weights_cfg.items():
         val = getattr(tc, fname, None)
-        if val is not None and val.lower() in RANKING_ENUMS[fname]:
-            score += weight * RANKING_ENUMS[fname][val.lower()]
+        if val is not None and val.lower() in cfg.get("values", {}):
+            score += float(cfg.get("score_weight", 1.0)) * cfg["values"][val.lower()]
     return score
 
 
@@ -332,6 +325,8 @@ def marker(level: str, mode: str = "targeted") -> str:
         return "<!-- design-assessment-contract: 2; mode: discovery-only -->"
     if level not in load_contract()["levels"]:
         raise ValueError(f"unsupported level: {level}")
+    if mode == "autonomous-discovery":
+        return f"<!-- design-assessment-contract: 2; level: {level}; mode: autonomous-discovery -->"
     return f"<!-- design-assessment-contract: 2; level: {level} -->"
 
 
@@ -457,6 +452,7 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             "",
         ]
         sec_names = section_names("discovery-only", mode="discovery-only")
+        design_id = ""
     else:
         if level not in contract["levels"]:
             raise ValueError(f"unsupported level: {level}")
@@ -466,6 +462,7 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             "",
         ]
         sec_names = section_names(level, mode=mode)
+        design_id = f"replace-{level.lower()}-design"
 
     default_next_owner = "finish assessment" if level == "L0" else "plan-with-senior-dev"
     if mode == "discovery-only" or level == "discovery-only":
@@ -475,13 +472,14 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
         "Decision Summary": [
             "## Decision Summary",
             f"- Invocation mode: {mode}",
-            "- Selected target: " + ("none" if mode == "discovery-only" else "Replace with named module, subsystem, boundary, or candidate"),
+            "- Selected target: " + ("none" if mode == "discovery-only" else ("Replace module/boundary" if mode == "autonomous-discovery" else "Replace with named module, subsystem, boundary, or candidate")),
             f"- Selected level: {level if mode != 'discovery-only' else 'discovery-only'}",
-            "- Recommended design: " + ("Refuse autonomous target selection. Hand off repository-wide triage to codebase-issue-auditor." if mode == "discovery-only" else "Replace with concise summary of the minimum sufficient design"),
+            "- Recommended design: " + ("Refuse autonomous target selection. Hand off repository-wide triage to codebase-issue-auditor." if mode == "discovery-only" else f"Replace with concise summary of the minimum sufficient design ({design_id})"),
             "- Why minimum sufficient: " + ("Multiple unrelated candidate concerns rank similarly or require unavailable product intent." if mode == "discovery-only" else "Replace with explanation of why lower level fails and higher level is unnecessary"),
             "- Protected behavior and contracts: C-1 preserved",
             "- Primary structural pressure: P-1",
             f"- Next owner: {default_next_owner}",
+            f"- Selected design-id: {design_id if design_id else 'none'}",
         ],
         "Scope and Protected Contracts": [
             "## Scope and Protected Contracts",
@@ -507,16 +505,16 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
         "Design Pressures and Classification": [
             "## Design Pressures and Classification",
             "- P-1: rank: 1 | evidence: F-1 | pressure: Replace with structural cause and observed cost.",
-            f"- D-1: level: {level} | design-id: replace-design | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
+            f"- D-1: level: {level} | design-id: {design_id} | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
         ],
         "Alternatives and Pattern Decisions": (
             [
                 "## Alternatives and Pattern Decisions",
-                "- O-1: level: L0 | design-id: replace-l0 | selected: " + ("yes" if level == "L0" else "no") + " | concepts: none | argument-for: Replace | argument-against: Replace | revisit: Replace",
-                "- O-2: level: L1 | design-id: replace-design | selected: " + ("yes" if level == "L1" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace",
+                "- O-1: level: L0 | design-id: replace-l0-design | selected: " + ("yes" if level == "L0" else "no") + " | concepts: none | argument-for: Replace | argument-against: Replace | revisit: Replace",
+                "- O-2: level: L1 | design-id: replace-l1-design | selected: " + ("yes" if level == "L1" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace",
             ]
-            + (["- O-3: level: L2 | design-id: replace-l2 | selected: " + ("yes" if level == "L2" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if contract["levels"].get(level, {}).get("minimum_alternatives", 0) >= 3 else [])
-            + (["- O-4: level: L3 | design-id: replace-l3 | selected: yes | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if level == "L3" else [])
+            + (["- O-3: level: L2 | design-id: replace-l2-design | selected: " + ("yes" if level == "L2" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if contract["levels"].get(level, {}).get("minimum_alternatives", 0) >= 3 else [])
+            + (["- O-4: level: L3 | design-id: replace-l3-design | selected: yes | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if level == "L3" else [])
             + ([
                 "",
                 "### G-1: Replace Pattern — admit",
@@ -556,7 +554,7 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
         ],
         "Migration and Rollback": [
             "## Migration and Rollback",
-            "- M-1: prerequisite: Replace | changed boundary: Replace | preserved: C-1 | proof: V-1 | rollback trigger: Replace | rollback action: Replace | cleanup: Replace",
+            "- M-1: prerequisite: Replace | changed boundary: Replace | preserved: C-1 | proof: V-1 | rollback trigger: Replace | rollback action: Replace | cleanup: Replace with observable completion criteria.",
         ],
         "Operational Semantics": [
             "## Operational Semantics",
@@ -582,4 +580,3 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             lines.extend(sec_map[sname])
 
     return "\n".join(lines).rstrip() + "\n"
-

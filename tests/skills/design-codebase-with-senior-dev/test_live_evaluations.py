@@ -10,7 +10,6 @@ sys.path.insert(0, str(DEV_DIR))
 
 import score_design_evaluation  # noqa: E402
 from run_live_evaluations import invoke_adapter, run_case, tree_hash  # noqa: E402
-from test_check_assessment import assessment  # noqa: E402
 
 
 def test_adapter_uses_json_stdin_and_stdout(tmp_path: Path) -> None:
@@ -60,16 +59,23 @@ def test_tree_hash_detects_fixture_mutation(tmp_path: Path) -> None:
 
 
 def test_run_case_scores_adapter_output_and_writes_artifacts(tmp_path: Path) -> None:
+    from assessment_contract import finalize_assessment_text
+    from test_design_evaluation import build_scenario_assessment
+
+    expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
+    case = expectations["l0-long-file-decoy"]
+    raw = build_scenario_assessment("l0-long-file-decoy", case)
+    finalized = finalize_assessment_text(raw, "L0")
+
     adapter = tmp_path / "adapter.py"
     output = tmp_path / "assessment.md"
-    output.write_text(assessment("L0"), encoding="utf-8")
+    output.write_text(finalized, encoding="utf-8")
     adapter.write_text(
         "import json, pathlib, sys\n"
         "json.load(sys.stdin)\n"
         "print(json.dumps({'assessment_markdown': pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')}))\n",
         encoding="utf-8",
     )
-    expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
 
     result = run_case(
         [sys.executable, str(adapter), str(output)],

@@ -1,5 +1,6 @@
 {
   "contract_version": 2,
+  "material_tie_threshold": 2.0,
   "levels": {
     "L0": {
       "minimum_alternatives": 2,
@@ -84,6 +85,20 @@
     "repay",
     "retire"
   ],
+  "debt_frequencies": [
+    "current",
+    "recurring",
+    "historical",
+    "unknown"
+  ],
+  "pattern_scopes": [
+    "introduced",
+    "removed",
+    "retained",
+    "rejected",
+    "deferred",
+    "relied-upon"
+  ],
   "pattern_results": [
     "admit",
     "admit-narrowed",
@@ -110,5 +125,65 @@
     "codebase-issue-auditor",
     "optimize-codebase-with-senior-dev",
     "implement-with-senior-dev"
+  ],
+  "candidate_enums": {
+    "confidence": ["low", "medium", "high"],
+    "likely_level": ["L0", "L1", "L2", "L3"],
+    "status": ["selected", "rejected", "deferred"],
+    "correctness_risk": ["low", "medium", "high"],
+    "operational_risk": ["low", "medium", "high"],
+    "debt_interest": ["none", "low", "medium", "high"],
+    "change_propagation": ["local", "bounded", "wide"],
+    "state_ambiguity": ["low", "medium", "high"],
+    "scope_boundedness": ["low", "medium", "high"],
+    "reversibility": ["low", "medium", "high"],
+    "structural_confidence": ["low", "medium", "high"]
+  },
+  "candidate_ranking_weights": {
+    "debt_interest": {
+      "score_weight": 3.0,
+      "values": { "high": 3, "medium": 2, "low": 1, "none": 0 }
+    },
+    "correctness_risk": {
+      "score_weight": 2.0,
+      "values": { "low": 3, "medium": 2, "high": 1 }
+    },
+    "operational_risk": {
+      "score_weight": 2.0,
+      "values": { "low": 3, "medium": 2, "high": 1 }
+    },
+    "change_propagation": {
+      "score_weight": 2.0,
+      "values": { "local": 3, "bounded": 2, "wide": 1 }
+    },
+    "state_ambiguity": {
+      "score_weight": 2.0,
+      "values": { "low": 3, "medium": 2, "high": 1 }
+    },
+    "scope_boundedness": {
+      "score_weight": 2.0,
+      "values": { "high": 3, "medium": 2, "low": 1 }
+    },
+    "reversibility": {
+      "score_weight": 2.0,
+      "values": { "high": 3, "medium": 2, "low": 1 }
+    },
+    "structural_confidence": {
+      "score_weight": 2.0,
+      "values": { "high": 3, "medium": 2, "low": 1 }
+    }
+  },
+  "summary_structured_fields": [
+    "Invocation mode",
+    "Selected target",
+    "Selected level",
+    "Recommended design",
+    "Why minimum sufficient",
+    "Protected behavior and contracts",
+    "Primary structural pressure",
+    "Technical-debt disposition",
+    "Residual risk",
+    "Next owner",
+    "Selected design-id"
   ]
 }

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Score a design assessment against one blind fixture expectation using structured Contract v2 model assertions."""
+"""Score a design assessment against one blind fixture expectation using parsed Contract v2 semantic model assertions."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -19,114 +18,134 @@ if str(SCRIPTS) not in sys.path:
 from check_assessment import parse_assessment, validate  # noqa: E402
 
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
-WEIGHTS = {
-    "grounding": 25,
-    "classification": 25,
-    "preservation": 15,
-    "alternatives": 15,
-    "migration": 10,
-    "handoff": 10,
-}
-
-
-def _keyword_matches(text: str, keyword: str) -> bool:
-    return any(alternative.strip().casefold() in text for alternative in keyword.split("||"))
-
-
-def _contains_groups(text: str, groups: list[list[str]]) -> tuple[int, int]:
-    lowered = text.casefold()
-    matched = sum(all(_keyword_matches(lowered, keyword) for keyword in group) for group in groups)
-    return matched, len(groups)
-
-
-def _dimension_score(text: str, groups: list[list[str]]) -> float:
-    matched, total = _contains_groups(text, groups)
-    return 1.0 if total == 0 else matched / total
-
-
-def _section(text: str, name: str) -> str:
-    match = re.search(
-        rf"^## {re.escape(name)}\s*$\n(?P<body>.*?)(?=^## |\Z)",
-        text,
-        re.MULTILINE | re.DOTALL,
-    )
-    return match.group("body") if match else ""
 
 
 def score(assessment_text: str, case: dict[str, Any], repo_root: Path) -> dict[str, Any]:
-    level = str(case.get("level", "L0"))
+    level = str(case.get("expected_level", case.get("level", "L0")))
     if "mode: discovery-only" in assessment_text.lower() or "invocation mode: discovery-only" in assessment_text.lower():
         level = "discovery-only"
 
     parsed_assessment, parse_diags = parse_assessment(assessment_text)
     diagnostics = validate(assessment_text, level, repo_root, require_finalized=True)
 
-    hard_failures = [f"validator:{item.code}" for item in diagnostics if not item.is_warning]
+    hard_failures: list[str] = [f"validator:{item.code}" for item in diagnostics if not item.is_warning]
+    semantic_checks: list[tuple[str, bool, str]] = []
 
-    # Model-level semantic assertions
-    if "expected_mode" in case and parsed_assessment.mode != case["expected_mode"]:
-        hard_failures.append(f"semantic:mode-mismatch:{parsed_assessment.mode}!={case['expected_mode']}")
+    def check(name: str, condition: bool, err_msg: str) -> None:
+        semantic_checks.append((name, condition, err_msg))
+        if not condition:
+            hard_failures.append(f"semantic:{name}:{err_msg}")
 
-    if "expected_level" in case and parsed_assessment.level != case["expected_level"]:
-        hard_failures.append(f"semantic:level-mismatch:{parsed_assessment.level}!={case['expected_level']}")
+    # Mode check
+    if "expected_mode" in case:
+        check("mode", parsed_assessment.mode == case["expected_mode"], f"{parsed_assessment.mode}!={case['expected_mode']}")
 
+    # Level check
+    if "expected_level" in case:
+        check("level", parsed_assessment.level == case["expected_level"], f"{parsed_assessment.level}!={case['expected_level']}")
+
+    # Target check
+    if "expected_target" in case:
+        act_target = parsed_assessment.decision_summary.target if parsed_assessment.decision_summary else ""
+        check("target", act_target == case["expected_target"], f"{act_target}!={case['expected_target']}")
+
+    # Design ID check
+    if "expected_design_id" in case:
+        act_did = parsed_assessment.decision.design_id if parsed_assessment.decision else ""
+        check("design_id", act_did == case["expected_design_id"], f"{act_did}!={case['expected_design_id']}")
+
+    # Handoff check
     if "expected_handoff" in case:
         act_handoff = parsed_assessment.handoff.next if parsed_assessment.handoff else ""
-        if act_handoff != case["expected_handoff"]:
-            hard_failures.append(f"semantic:handoff-mismatch:{act_handoff}!={case['expected_handoff']}")
+        check("handoff", act_handoff == case["expected_handoff"], f"{act_handoff}!={case['expected_handoff']}")
 
-    if "expected_debt_disposition" in case:
-        act_disp = parsed_assessment.decision_summary.debt_disposition if parsed_assessment.decision_summary else ""
-        if act_disp != case["expected_debt_disposition"]:
-            hard_failures.append(f"semantic:debt-disposition-mismatch:{act_disp}!={case['expected_debt_disposition']}")
+    # Required Contracts
+    if "required_contracts" in case:
+        c_dict = {c.id: c.status for c in parsed_assessment.contracts}
+        for req_c in case["required_contracts"]:
+            cid = req_c["id"]
+            stat = req_c.get("status")
+            present = cid in c_dict
+            check(f"contract:{cid}", present and (stat is None or c_dict[cid] == stat), f"missing or status mismatch for {cid}")
 
-    sources = {
-        "grounding": "\n".join(
-            (
-                _section(assessment_text, "Evidence and Current State"),
-                _section(assessment_text, "Target Discovery Candidates"),
-            )
-        ),
-        "classification": "\n".join(
-            (
-                _section(assessment_text, "Design Pressures and Classification"),
-                _section(assessment_text, "Decision Summary"),
-            )
-        ),
-        "preservation": _section(assessment_text, "Scope and Protected Contracts"),
-        "alternatives": _section(assessment_text, "Alternatives and Pattern Decisions"),
-        "migration": "\n".join(
-            _section(assessment_text, name)
-            for name in ("Migration and Rollback", "Operational Semantics", "System Ownership and Evolution")
-        ),
-        "handoff": "\n".join(
-            (
-                _section(assessment_text, "Scope and Protected Contracts"),
-                _section(assessment_text, "Decision Summary"),
-                _section(assessment_text, "Verification and Residual Risk"),
-            )
-        ),
-    }
-    dimension_scores = {
-        dimension: _dimension_score(sources[dimension], case.get(dimension, []))
-        for dimension in WEIGHTS
-    }
+    # Required Evidence Sources
+    if "required_evidence_sources" in case:
+        sources_present = {f.source for f in parsed_assessment.facts} | {ef.source_id for ef in parsed_assessment.external_facts}
+        for req_src in case["required_evidence_sources"]:
+            check(f"evidence_source:{req_src}", req_src in sources_present, f"source {req_src} missing")
 
-    lowered = assessment_text.casefold()
-    for forbidden in case.get("forbidden", []):
-        if all(keyword.casefold() in lowered for keyword in forbidden["keywords"]):
-            hard_failures.append(f"forbidden:{forbidden['id']}")
-    for critical in case.get("critical", []):
-        if not all(_keyword_matches(lowered, keyword) for keyword in critical["keywords"]):
-            hard_failures.append(f"critical-miss:{critical['id']}")
+    # Minimum Evidence Strength
+    if "minimum_evidence_strength" in case:
+        req_st = case["minimum_evidence_strength"]
+        strengths = {f.strength for f in parsed_assessment.facts}
+        if req_st == "direct":
+            check("evidence_strength", "direct" in strengths or "corroborated" in strengths, f"lacks direct/corroborated evidence (got {strengths})")
 
-    total = sum(dimension_scores[name] * weight for name, weight in WEIGHTS.items())
+    # Technical Debt Disposition
+    if "expected_debt" in case:
+        req_debt = case["expected_debt"]
+        req_id = req_debt.get("id", "TD-1")
+        req_disp = req_debt.get("disposition")
+        act_td = next((td for td in parsed_assessment.tech_debts if td.id == req_id), None)
+        if act_td is None:
+            check(f"debt:{req_id}", False, f"technical debt {req_id} missing")
+        elif req_disp:
+            check(f"debt_disposition:{req_id}", act_td.disposition == req_disp, f"{act_td.disposition}!={req_disp}")
+
+    # Selected Candidate Rank
+    if "expected_selected_candidate_rank" in case:
+        sel_cands = [tc for tc in parsed_assessment.discovery_candidates if tc.status == "selected"]
+        exp_rank = case["expected_selected_candidate_rank"]
+        check("selected_candidate_rank", len(sel_cands) == 1 and sel_cands[0].rank == exp_rank, "selected candidate rank mismatch")
+
+    # Selected Alternative Level
+    if "expected_selected_alternative_level" in case:
+        sel_alts = [a for a in parsed_assessment.alternatives if a.selected]
+        exp_l = case["expected_selected_alternative_level"]
+        check("selected_alt_level", len(sel_alts) == 1 and sel_alts[0].level == exp_l, "selected alternative level mismatch")
+
+    # Pattern Result
+    if "expected_pattern_result" in case:
+        exp_res = case["expected_pattern_result"]
+        act_res = parsed_assessment.pattern_gates[0].result if parsed_assessment.pattern_gates else None
+        check("pattern_result", act_res == exp_res, f"{act_res}!={exp_res}")
+
+    # Migration Requirement
+    if "requires_migration" in case:
+        req_mig = case["requires_migration"]
+        check("migration", (len(parsed_assessment.migrations) > 0) == req_mig, "migration presence mismatch")
+
+    # Discovery Refusal
+    if "requires_discovery_refusal" in case:
+        req_ref = case["requires_discovery_refusal"]
+        check("discovery_refusal", (parsed_assessment.mode == "discovery-only") == req_ref, "discovery refusal mismatch")
+
+    # Prohibited Free-text Claims
+    if "prohibited_claims" in case:
+        text_lower = assessment_text.lower()
+        for claim in case["prohibited_claims"]:
+            if claim.lower() in text_lower:
+                hard_failures.append(f"prohibited_claim:{claim}")
+
+    # Calculate Score
+    total_checks = len(semantic_checks)
+    passed_checks = sum(1 for _, cond, _ in semantic_checks if cond)
+    if total_checks == 0:
+        sem_score = 100.0
+    else:
+        sem_score = round((passed_checks / total_checks) * 100.0, 2)
+
+    passed = (len(hard_failures) == 0) and (sem_score >= float(case.get("minimum_score", 90.0)))
+
     return {
-        "score": round(total, 2),
-        "passed": not hard_failures and total >= float(case.get("minimum_score", 90)),
+        "score": sem_score,
+        "passed": passed,
         "level": level,
         "hard_failures": sorted(set(hard_failures)),
-        "dimension_scores": {name: round(value * 100, 2) for name, value in dimension_scores.items()},
+        "dimension_scores": {
+            "semantic_compliance": sem_score,
+            "validator_pass": 100.0 if not [item for item in diagnostics if not item.is_warning] else 0.0,
+        },
         "diagnostics": [item.to_dict() for item in diagnostics],
     }
 

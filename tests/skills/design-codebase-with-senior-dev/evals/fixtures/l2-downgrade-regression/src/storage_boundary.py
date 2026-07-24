@@ -1,0 +1,2 @@
+def current():
+    return 'stable'

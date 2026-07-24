@@ -22,11 +22,15 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 - Why minimum sufficient: Multiple candidate concerns rank similarly or require unavailable product intent.
 - Protected behavior and contracts: C-1 preserved
 - Primary structural pressure: P-1
+- Technical-debt disposition: accept
+- Residual risk: R-1
 - Next owner: codebase-issue-auditor
+- Selected design-id: none
 
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: public command output | authorization: none
 - H-1: status: assessment-only | next: codebase-issue-auditor
+- TD-1: type: structural | evidence: F-1 | principal: legacy shortcut | interest: minor | frequency: current | blast-radius: src/system.py | disposition: accept | reason: low impact | repayment-boundary: none | recurrence-guard: none | revisit-trigger: when scope expands
 
 ## Evidence and Current State
 - F-1: `src/system.py:1` | anchor: `current` | observation: Verified current behavior | source: code | strength: direct | freshness: current
@@ -40,15 +44,16 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 - R-1: severity: low | scenario: future pressure changes | consequence: revisit design | owner: maintainer | follow-up: inspect history
 """
     contract = load_contract()
-    
+
+    design_id = f"test-{level.lower()}-design"
     alternatives = [
-        f"- O-1: level: L0 | design-id: {'test-design' if level == 'L0' else 'test-l0'} | selected: {'yes' if level == 'L0' else 'no'} | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
-        f"- O-2: level: L1 | design-id: {'test-design' if level == 'L1' else 'test-l1'} | selected: {'yes' if level == 'L1' else 'no'} | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
-        f"- O-3: level: L2 | design-id: {'test-design' if level == 'L2' else 'test-l2'} | selected: {'yes' if level == 'L2' else 'no'} | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers",
+        f"- O-1: level: L0 | design-id: {'test-l0-design' if level == 'L0' else 'test-l0-alt'} | selected: {'yes' if level == 'L0' else 'no'} | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
+        f"- O-2: level: L1 | design-id: {'test-l1-design' if level == 'L1' else 'test-l1-alt'} | selected: {'yes' if level == 'L1' else 'no'} | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
+        f"- O-3: level: L2 | design-id: {'test-l2-design' if level == 'L2' else 'test-l2-alt'} | selected: {'yes' if level == 'L2' else 'no'} | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers",
     ]
     if level == "L3":
         alternatives.append(
-            "- O-4: level: L3 | design-id: test-design | selected: yes | concepts: distributed system | argument-for: scale | argument-against: complexity | revisit: none"
+            "- O-4: level: L3 | design-id: test-l3-design | selected: yes | concepts: distributed system | argument-for: scale | argument-against: complexity | revisit: none"
         )
 
     pattern = ""
@@ -98,19 +103,20 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 
     sections = [
         f"# Select the Minimum Safe {level} Design",
-        marker(level),
+        marker(level, mode=mode),
         "",
         "## Decision Summary",
         f"- Invocation mode: {mode}",
         "- Selected target: src/system.py",
         f"- Selected level: {selected_level_summary}",
-        "- Recommended design: minimum safe design",
+        f"- Recommended design: minimum safe design ({design_id})",
         "- Why minimum sufficient: direct local edit satisfies constraints",
         "- Protected behavior and contracts: C-1 preserved",
         "- Primary structural pressure: P-1",
         "- Technical-debt disposition: TD-1 disposition: repay | boundary: local",
         "- Residual risk: R-1 low",
         f"- Next owner: {next_owner}",
+        f"- Selected design-id: {design_id}",
         "",
         "## Scope and Protected Contracts",
         "- C-1: status: preserved | contract: public command output | authorization: none",
@@ -123,14 +129,14 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         target_discovery.rstrip("\n"),
         "## Design Pressures and Classification",
         "- P-1: rank: 1 | evidence: F-1 | pressure: The scoped behavior has a verified change cost.",
-        f"- D-1: level: {level} | design-id: test-design | selected: minimum safe design for src/system.py | because: F-1, P-1 | rejected: a stronger design adds cost.",
+        f"- D-1: level: {level} | design-id: {design_id} | selected: minimum safe design for src/system.py | because: F-1, P-1 | rejected: a stronger design adds cost.",
         "",
         "## Alternatives and Pattern Decisions",
         *alternatives,
     ]
     if pattern:
         sections.append(pattern)
-    
+
     if level == "L1":
         sections.extend([
             "",
@@ -150,7 +156,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
             "- Allowed calls and failures: authorize with explicit provider errors.",
             "",
             "## Migration and Rollback",
-            "- M-1: prerequisite: characterize current calls | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch | rollback action: restore direct caller | cleanup: remove shim after all callers migrate",
+            "- M-1: prerequisite: characterize current calls | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch | rollback action: restore direct caller | cleanup: remove shim after all callers migrate with direct verification proof.",
             "",
             "## Operational Semantics",
             "- Source Of Truth: primary database table.",
@@ -214,6 +220,44 @@ def test_missing_citation_is_rejected(tmp_path: Path) -> None:
     assert "fact.path.missing" in codes(text, "L0", tmp_path)
 
 
+def test_summary_field_mismatches_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current():\n    return 'stable'\n", encoding="utf-8")
+
+    # 1. Mode mismatch
+    text1 = valid_v2_assessment("L1").replace("- Invocation mode: targeted", "- Invocation mode: autonomous-discovery")
+    assert "summary.mode.mismatch" in codes(text1, "L1", tmp_path)
+
+    # 2. Level mismatch
+    text2 = valid_v2_assessment("L1").replace("- Selected level: L1", "- Selected level: L2")
+    assert "summary.level.mismatch" in codes(text2, "L1", tmp_path)
+
+    # 3. Next owner mismatch
+    text3 = valid_v2_assessment("L1").replace("- Next owner: plan-with-senior-dev", "- Next owner: finish assessment")
+    assert "summary.next_owner.mismatch" in codes(text3, "L1", tmp_path)
+
+    # 4. Design ID mismatch
+    text4 = valid_v2_assessment("L1").replace("- Selected design-id: test-l1-design", "- Selected design-id: wrong-id")
+    assert "summary.design_id.mismatch" in codes(text4, "L1", tmp_path)
+
+    # 5. Contract mismatch
+    text5 = valid_v2_assessment("L1").replace("C-1 preserved", "C-99 preserved")
+    assert "summary.contract.invalid" in codes(text5, "L1", tmp_path)
+
+    # 6. Pressure mismatch
+    text6 = valid_v2_assessment("L1").replace("- Primary structural pressure: P-1", "- Primary structural pressure: P-99")
+    assert "summary.pressure.invalid" in codes(text6, "L1", tmp_path)
+
+    # 7. Debt disposition mismatch
+    text7 = valid_v2_assessment("L1").replace("TD-1 disposition: repay", "TD-1 disposition: retire")
+    assert "summary.debt_disposition.mismatch" in codes(text7, "L1", tmp_path)
+
+    # 8. Residual risk mismatch
+    text8 = valid_v2_assessment("L1").replace("- Residual risk: R-1 low", "- Residual risk: R-99 low")
+    assert "summary.risk.invalid" in codes(text8, "L1", tmp_path)
+
+
 def test_declared_level_must_match_classification(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
@@ -260,7 +304,7 @@ def test_git_history_locator_format(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current(): pass\n", encoding="utf-8")
-    
+
     text = valid_v2_assessment("L0").replace(
         "`src/system.py:1`", "`git-history:abc1234:src/system.py`"
     )

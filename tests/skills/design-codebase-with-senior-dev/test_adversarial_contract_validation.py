@@ -171,7 +171,7 @@ def test_15_selected_alt_inconsistent_with_decision(tmp_path: Path) -> None:
     text = valid_v2_assessment("L1").replace(
         "selected: yes", "selected: no_temp"
     ).replace(
-        "- O-1: level: L0 | design-id: test-l0 | selected: no", "- O-1: level: L0 | design-id: test-l0 | selected: yes"
+        "- O-1: level: L0 | design-id: test-l0-alt | selected: no", "- O-1: level: L0 | design-id: test-l0-alt | selected: yes"
     ).replace(
         "selected: no_temp", "selected: no"
     )

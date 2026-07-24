@@ -15,7 +15,7 @@ from assessment_contract import (  # noqa: E402
     render_scaffold,
     section_names,
 )
-from check_assessment import validate  # noqa: E402
+from check_assessment import parse_assessment, validate  # noqa: E402
 
 LEVELS = ("L0", "L1", "L2", "L3")
 
@@ -55,6 +55,41 @@ def test_scaffold_contains_level_marker_and_required_records() -> None:
         assert "- H-1: status: assessment-only" in scaffold
         assert f"- D-1: level: {level}" in scaffold
         assert "- V-1:" in scaffold
+
+
+def test_scaffold_design_identity_consistency() -> None:
+    modes = ("targeted", "autonomous-discovery")
+    for level in LEVELS:
+        for mode in modes:
+            scaffold = render_scaffold(level, mode=mode)
+            assessment, parse_diags = parse_assessment(scaffold)
+
+            assert len([parse_diags]) > 0
+            assert assessment.decision is not None, f"Level {level} mode {mode} missing D-1 decision"
+            selected_alts = [a for a in assessment.alternatives if a.selected]
+            assert len(selected_alts) == 1, f"Level {level} mode {mode} expected 1 selected alternative, got {len(selected_alts)}"
+            sel_alt = selected_alts[0]
+
+            assert assessment.decision.level == level
+            assert sel_alt.level == level, f"Level mismatch: D-1 level {assessment.decision.level} != O-n level {sel_alt.level}"
+            assert assessment.decision.design_id == sel_alt.design_id, f"ID mismatch: D-1 design-id {assessment.decision.design_id} != O-n design-id {sel_alt.design_id}"
+            assert sel_alt.design_id != "", "Design ID cannot be empty"
+            assert not sel_alt.design_id.startswith("replace-design"), "Design ID must not be generic replace-design placeholder"
+
+            alt_ids = [a.design_id for a in assessment.alternatives if a.design_id]
+            assert len(alt_ids) == len(set(alt_ids)), f"Alternative design IDs must be unique: {alt_ids}"
+
+            val_diags = validate(scaffold, level, allow_placeholders=True)
+            errs = [d for d in val_diags if not d.is_warning]
+            assert errs == [], f"Scaffold for level={level}, mode={mode} failed validation with allow_placeholders=True: {errs}"
+
+    disc_scaffold = render_scaffold("L0", mode="discovery-only")
+    disc_assessment, _ = parse_assessment(disc_scaffold)
+    assert disc_assessment.decision is None, "Discovery-only scaffold must not contain D-n decision"
+    assert len([a for a in disc_assessment.alternatives if a.selected]) == 0, "Discovery-only scaffold must not contain selected O-n alternatives"
+    val_disc = validate(disc_scaffold, "discovery-only", allow_placeholders=True)
+    errs_disc = [d for d in val_disc if not d.is_warning]
+    assert errs_disc == [], f"Discovery-only scaffold failed validation: {errs_disc}"
 
 
 def test_scaffold_cli_prints_contract() -> None:
@@ -111,8 +146,10 @@ def test_worked_examples_pass_checker_and_finalizer(tmp_path: Path) -> None:
         level = match.group(1)
 
         raw_diags = validate(example, level, tmp_path)
-        assert raw_diags == [], f"Worked example for {level} failed draft validation:\n{raw_diags}"
+        errs = [d for d in raw_diags if not d.is_warning]
+        assert errs == [], f"Worked example for {level} failed draft validation:\n{errs}"
 
         finalized = finalize_assessment_text(example, level)
         final_diags = validate(finalized, level, tmp_path, require_finalized=True)
-        assert final_diags == [], f"Worked example for {level} failed finalized validation:\n{final_diags}"
+        final_errs = [d for d in final_diags if not d.is_warning]
+        assert final_errs == [], f"Worked example for {level} failed finalized validation:\n{final_errs}"

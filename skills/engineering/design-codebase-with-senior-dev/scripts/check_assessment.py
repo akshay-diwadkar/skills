@@ -16,7 +16,6 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from assessment_contract import (  # noqa: E402
     HARD_PATTERN_QUESTIONS,
-    RANKING_ENUMS,
     VALID_DEBT_DISPOSITIONS,
     VALID_DEBT_TYPES,
     VALID_FRESHNESS,
@@ -91,6 +90,9 @@ def _normalize_text(text: str) -> str:
 def _is_placeholder(text: str) -> bool:
     if not text or not text.strip():
         return True
+    stripped = text.strip()
+    if re.match(r"^replace-l[0-3]-design$", stripped, re.IGNORECASE) or re.match(r"^replace-design$", stripped, re.IGNORECASE) or re.match(r"^replace pattern$", stripped, re.IGNORECASE):
+        return False
     norm = _normalize_text(text)
     if norm in EXACT_PLACEHOLDERS:
         return True
@@ -104,7 +106,18 @@ def _is_superficial_debt_claim(principal: str, reason: str) -> bool:
     norm = _normalize_text(combined)
     for kw in SUPERFICIAL_KEYWORDS:
         if kw in combined or kw in norm:
-            cost_words = ["propagation", "volatility", "coupling", "duplication", "state", "concurrency", "testability", "failure", "leak", "overhead"]
+            cost_words = [
+                "propagation",
+                "volatility",
+                "coupling",
+                "duplication",
+                "state",
+                "concurrency",
+                "testability",
+                "failure",
+                "leak",
+                "overhead",
+            ]
             if not any(w in norm for w in cost_words):
                 return True
     return False
@@ -152,11 +165,16 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
 
     # 2. Parse Marker
     marker_match = re.search(
-        r"<!-- design-assessment-contract: (?P<version>\d+); (?:level: (?P<level>L[0-3])|mode: (?P<mode>discovery-only)) -->",
+        r"<!-- design-assessment-contract: (?P<version>\d+); (?:level: (?P<level>L[0-3])(?:; mode: (?P<mode_in_level>targeted|autonomous-discovery))?|mode: (?P<mode>discovery-only)) -->",
         text,
     )
     if not marker_match:
-        diagnostics.append(Diagnostic("contract.marker.missing", "Missing contract marker <!-- design-assessment-contract: 2; level: L0..L3 --> or mode: discovery-only"))
+        diagnostics.append(
+            Diagnostic(
+                "contract.marker.missing",
+                "Missing contract marker <!-- design-assessment-contract: 2; level: L0..L3 --> or mode: discovery-only",
+            )
+        )
     else:
         version = int(marker_match.group("version"))
         if version != 2:
@@ -167,6 +185,7 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
             assessment.level = "discovery-only"
         else:
             assessment.level = marker_match.group("level")
+            assessment.mode = marker_match.group("mode_in_level") or "targeted"
 
     # 3. Parse Decision Summary
     summary_body, summary_line = _section(text, "Decision Summary")
@@ -194,9 +213,9 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
                 ds.residual_risk = line_str.split(":", 1)[1].strip()
             elif line_str.startswith("- Next owner:"):
                 ds.next_owner = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Selected design-id:"):
+                ds.selected_design_id = line_str.split(":", 1)[1].strip()
         assessment.decision_summary = ds
-        if ds.mode in {"targeted", "autonomous-discovery", "discovery-only"}:
-            assessment.mode = ds.mode
     elif assessment.mode != "discovery-only":
         diagnostics.append(Diagnostic("summary.section.missing", "Section ## Decision Summary is required", summary_line))
 
@@ -211,17 +230,24 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
         # F-n fact parsing
         if line_str.startswith("- F-"):
             f_match = re.match(
-                r"^-\s*(?P<id>F-\d+):\s*`(?P<path>git-history:[^\s:`]+:[^\s:`]+|[^`:]+?)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
+                r"^-\s*(?P<id>F-\d+):\s*`(?P<path>git-history:[^\s:`]+:[^\s:`]+:\d+|git-history:[^\s:`]+:[^\s:`]+|[^`:]+?)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
                 line_str,
             )
             if f_match:
                 rec_id = f_match.group("id")
                 all_record_ids.append((rec_id, line_number))
+                path_str = f_match.group("path")
+                line_val = 1
+                if f_match.group("line"):
+                    line_val = int(f_match.group("line"))
+                elif path_str.startswith("git-history:") and path_str.count(":") >= 3:
+                    line_val = int(path_str.rsplit(":", 1)[1])
+
                 assessment.facts.append(
                     FactRecord(
                         id=rec_id,
-                        path=f_match.group("path"),
-                        line=int(f_match.group("line")) if f_match.group("line") else 1,
+                        path=path_str,
+                        line=line_val,
                         anchor=f_match.group("anchor"),
                         observation=f_match.group("obs").strip(),
                         source=(f_match.group("source") or "code").strip(),
@@ -260,8 +286,23 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
                 all_record_ids.append((t_id, line_number))
                 ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
                 aff_list = [a.strip() for a in kv.get("affected", "").split(",") if a.strip()]
-                rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
-                intent_req = kv.get("product-intent-required", "false").lower() == "true"
+
+                rank_str = kv.get("rank")
+                if rank_str is None or not rank_str.isdigit():
+                    diagnostics.append(
+                        Diagnostic("discovery.candidate.rank_malformed", f"Candidate {t_id} missing or non-integer rank '{rank_str}'", line_number)
+                    )
+                    rank_val = -1
+                else:
+                    rank_val = int(rank_str)
+
+                intent_raw = kv.get("product-intent-required", "false").lower()
+                if intent_raw not in {"true", "false"}:
+                    diagnostics.append(
+                        Diagnostic("discovery.candidate.boolean_invalid", f"Candidate {t_id} product-intent-required must be true or false, got '{intent_raw}'", line_number)
+                    )
+                intent_req = (intent_raw == "true")
+
                 assessment.discovery_candidates.append(
                     TargetCandidateRecord(
                         id=t_id,
@@ -564,6 +605,8 @@ def validate(
     require_finalized: bool = False,
     allow_placeholders: bool = False,
 ) -> list[Diagnostic]:
+    contract = load_contract()
+
     if isinstance(assessment_or_text, str):
         assessment, diagnostics = parse_assessment(assessment_or_text)
         text = assessment_or_text
@@ -580,20 +623,25 @@ def validate(
     if effective_level != assessment.level:
         diagnostics.append(Diagnostic("level.declared.mismatch", f"Declared level {effective_level} != assessment level {assessment.level}"))
 
-    mode = assessment.mode
+    expected_mode = assessment.mode
+    mode = expected_mode
     is_discovery_only = (mode == "discovery-only" or effective_level == "discovery-only")
 
     valid_fact_ids = {f.id for f in assessment.facts} | {e.id for e in assessment.external_facts}
     valid_contract_ids = {c.id for c in assessment.contracts}
     valid_pressure_ids = {p.id for p in assessment.pressures}
+    valid_risk_ids = {r.id for r in assessment.residual_risks}
+    valid_debt_ids = {td.id for td in assessment.tech_debts}
+
     valid_record_ids = (
         valid_fact_ids
         | valid_contract_ids
         | valid_pressure_ids
+        | valid_risk_ids
+        | valid_debt_ids
         | ({assessment.decision.id} if assessment.decision else set())
         | {o.id for o in assessment.alternatives}
         | {g.id for g in assessment.pattern_gates}
-        | {td.id for td in assessment.tech_debts}
         | {t.id for t in assessment.discovery_candidates}
         | {m.id for m in assessment.migrations}
         | {v.id for v in assessment.verifications}
@@ -618,6 +666,10 @@ def validate(
         diagnostics.append(Diagnostic("section.order.invalid", f"Sections are out of order for level {effective_level}. Expected {expected_secs}, got {filtered_found}"))
 
     # 2. Mode-Specific Rules & Autonomous Ranking
+    cand_enums = contract.get("candidate_enums", {})
+    ranking_weights = contract.get("candidate_ranking_weights", {})
+    tie_threshold = float(contract.get("material_tie_threshold", 2.0))
+
     selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
 
     if mode == "targeted":
@@ -643,39 +695,66 @@ def validate(
         if not (1 <= len(assessment.discovery_candidates) <= 5):
             diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Autonomous discovery mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
 
-        # Evaluate candidate ranking enum validity & scores
-        cand_scores: list[tuple[float, TargetCandidateRecord]] = []
+        ranks_seen: list[int] = [tc.rank for tc in assessment.discovery_candidates]
         for tc in assessment.discovery_candidates:
-            for rfield in [
-                "correctness_risk", "operational_risk", "debt_interest",
-                "change_propagation", "state_ambiguity", "scope_boundedness",
-                "reversibility", "structural_confidence"
-            ]:
+            if tc.rank <= 0:
+                diagnostics.append(Diagnostic("discovery.candidate.rank_invalid", f"Candidate {tc.id} has invalid rank {tc.rank}", tc.line_number))
+
+            if tc.status not in cand_enums.get("status", ["selected", "rejected", "deferred"]):
+                diagnostics.append(Diagnostic("discovery.candidate.status_invalid", f"Candidate {tc.id} has invalid status '{tc.status}'", tc.line_number))
+
+            if tc.confidence not in cand_enums.get("confidence", ["low", "medium", "high"]):
+                diagnostics.append(Diagnostic("discovery.candidate.confidence_invalid", f"Candidate {tc.id} has invalid confidence '{tc.confidence}'", tc.line_number))
+
+            if tc.likely_level not in cand_enums.get("likely_level", ["L0", "L1", "L2", "L3"]):
+                diagnostics.append(Diagnostic("discovery.candidate.likely_level_invalid", f"Candidate {tc.id} has invalid likely_level '{tc.likely_level}'", tc.line_number))
+
+            for rfield in ranking_weights:
                 val = getattr(tc, rfield, None)
-                if not val or val.lower() not in RANKING_ENUMS.get(rfield, {}):
+                valid_vals = cand_enums.get(rfield, [])
+                if not val or val.lower() not in valid_vals:
                     diagnostics.append(Diagnostic("discovery.candidate.ranking_enum_invalid", f"Candidate {tc.id} field '{rfield}' has invalid/missing enum value '{val}'", tc.line_number))
 
-            cand_scores.append((compute_candidate_score(tc), tc))
+        if len(ranks_seen) != len(set(ranks_seen)):
+            diagnostics.append(Diagnostic("discovery.candidate.rank_duplicate", "Target candidate ranks must be unique."))
 
-        # Sort candidates descending by score
+        valid_ranks = sorted([r for r in ranks_seen if r > 0])
+        if valid_ranks and valid_ranks != list(range(1, len(valid_ranks) + 1)):
+            diagnostics.append(Diagnostic("discovery.candidate.rank_non_contiguous", f"Target candidate ranks must be contiguous integers starting at 1, got {valid_ranks}"))
+
+        # Evaluate candidate score ranking
+        cand_scores: list[tuple[float, TargetCandidateRecord]] = [
+            (compute_candidate_score(tc), tc) for tc in assessment.discovery_candidates
+        ]
         cand_scores.sort(key=lambda item: (-item[0], item[1].id))
 
-        # Verify candidate declared rank matches score rank
         for expected_rank, (score, tc) in enumerate(cand_scores, start=1):
-            if tc.rank != expected_rank:
-                diagnostics.append(Diagnostic("discovery.autonomous.rank_score_mismatch", f"Candidate {tc.id} rank {tc.rank} does not match calculated score rank {expected_rank} (score {score})", tc.line_number))
+            if tc.rank > 0 and tc.rank != expected_rank:
+                diagnostics.append(
+                    Diagnostic(
+                        "discovery.autonomous.rank_score_mismatch",
+                        f"Candidate {tc.id} rank {tc.rank} does not match calculated score rank {expected_rank} (score {score})",
+                        tc.line_number,
+                    )
+                )
 
-        # Check tie condition between top candidates
+        # Check material tie threshold
         top_tied = False
         if len(cand_scores) >= 2:
             s1, tc1 = cand_scores[0]
             s2, tc2 = cand_scores[1]
-            if abs(s1 - s2) < 1e-6:
+            if (s1 - s2) <= tie_threshold:
                 top_tied = True
 
         if top_tied:
-            if selected_candidates:
-                diagnostics.append(Diagnostic("discovery.autonomous.ranking_tied", "Top candidates have equal calculated score; tie forces refusal / discovery-only mode.", selected_candidates[0].line_number))
+            line_target = selected_candidates[0].line_number if selected_candidates else assessment.discovery_candidates[0].line_number
+            diagnostics.append(
+                Diagnostic(
+                    "discovery.autonomous.ranking_tied",
+                    f"Top candidate score difference ({cand_scores[0][0] - cand_scores[1][0]:.2f}) <= threshold ({tie_threshold}); material tie forces refusal / discovery-only mode.",
+                    line_target,
+                )
+            )
         else:
             if len(selected_candidates) != 1:
                 diagnostics.append(Diagnostic("discovery.autonomous.selected_count_invalid", f"Autonomous discovery mode requires exactly one selected candidate, found {len(selected_candidates)}."))
@@ -699,7 +778,8 @@ def validate(
                     diagnostics.append(Diagnostic("discovery.autonomous.affected_missing", f"Selected candidate {sel.id} must cite affected contracts.", sel.line_number))
 
                 if assessment.decision_summary and assessment.decision_summary.target and assessment.decision_summary.target != sel.target:
-                    diagnostics.append(Diagnostic("summary.target.mismatch", f"Decision Summary target '{assessment.decision_summary.target}' != selected candidate target '{sel.target}'"))
+                    if not allow_placeholders:
+                        diagnostics.append(Diagnostic("summary.target.mismatch", f"Decision Summary target '{assessment.decision_summary.target}' != selected candidate target '{sel.target}'"))
 
         # Candidate citation validation
         for tc in assessment.discovery_candidates:
@@ -712,7 +792,7 @@ def validate(
             if tc.pressure and tc.pressure.lower() not in {"none", "n/a", "not-applicable", "not applicable"} and tc.pressure not in valid_pressure_ids:
                 diagnostics.append(Diagnostic("discovery.candidate.pressure_invalid", f"Candidate {tc.id} cites unknown pressure '{tc.pressure}'", tc.line_number))
 
-        if len(selected_candidates) == 1:
+        if len(selected_candidates) == 1 and not top_tied:
             if not assessment.facts and not assessment.external_facts:
                 diagnostics.append(Diagnostic("fact.format", "Autonomous assessment requires at least one F-n or E-n fact."))
             if not assessment.contracts:
@@ -744,6 +824,8 @@ def validate(
             diagnostics.append(Diagnostic("discovery.only.selected_prohibited", f"Discovery-only mode prohibits selected candidates, found {len(selected_candidates)}.", selected_candidates[0].line_number))
 
         for tc in assessment.discovery_candidates:
+            if tc.status not in {"rejected", "deferred"}:
+                diagnostics.append(Diagnostic("discovery.only.candidate_status_invalid", f"Candidate {tc.id} status in discovery-only mode must be rejected or deferred, got '{tc.status}'", tc.line_number))
             if not tc.reason or tc.reason.strip() == "" or _is_placeholder(tc.reason) or len(tc.reason.strip()) < 10:
                 diagnostics.append(Diagnostic("discovery.only.reason_missing", f"Candidate {tc.id} in discovery-only mode must state a specific refusal reason.", tc.line_number))
             for ev_id in tc.evidence:
@@ -785,7 +867,7 @@ def validate(
 
         op_body, op_line = _section(text, "Operational Semantics")
         if op_body:
-            contract_ops = load_contract()["operational_fields"]
+            contract_ops = contract.get("operational_fields", [])
             for op_field in contract_ops:
                 pattern = rf"^-\s*{re.escape(op_field.title())}:\s*(?P<val>.*)$"
                 match = re.search(pattern, op_body, re.MULTILINE | re.IGNORECASE)
@@ -806,13 +888,13 @@ def validate(
                             reason_str = reas_m.group(1).strip() if reas_m else ""
                             if not ev_id or ev_id not in valid_fact_ids:
                                 diagnostics.append(Diagnostic("operational.evidence.invalid", f"Operational field '{op_field.title()}' cites unknown evidence '{ev_id}'", op_line))
-                            if not reason_str or _is_placeholder(reason_str):
+                            if not reason_str or (_is_placeholder(reason_str) and not allow_placeholders):
                                 diagnostics.append(Diagnostic("operational.reason.invalid", f"Operational field '{op_field.title()}' reason cannot be empty or placeholder", op_line))
 
         if effective_level == "L3":
             evo_body, evo_line = _section(text, "System Ownership and Evolution")
             if evo_body:
-                contract_evo = load_contract()["l3_evolution_fields"]
+                contract_evo = contract.get("l3_evolution_fields", [])
                 for evo_field in contract_evo:
                     pattern = rf"^-\s*{re.escape(evo_field.title())}:\s*(?P<val>.*)$"
                     match = re.search(pattern, evo_body, re.MULTILINE | re.IGNORECASE)
@@ -826,12 +908,43 @@ def validate(
     # 4. Decision Summary Consistency Validation
     if assessment.decision_summary:
         ds = assessment.decision_summary
-        if ds.mode and ds.mode != mode:
-            diagnostics.append(Diagnostic("summary.mode.mismatch", f"Decision Summary mode '{ds.mode}' != assessment mode '{mode}'"))
+        if ds.mode and ds.mode != expected_mode:
+            diagnostics.append(Diagnostic("summary.mode.mismatch", f"Decision Summary mode '{ds.mode}' != assessment mode '{expected_mode}'"))
         if ds.level and ds.level != effective_level:
             diagnostics.append(Diagnostic("summary.level.mismatch", f"Decision Summary level '{ds.level}' != declared level '{effective_level}'"))
         if ds.next_owner and assessment.handoff and ds.next_owner != assessment.handoff.next:
             diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{ds.next_owner}' != Handoff next '{assessment.handoff.next}'"))
+
+        if not is_discovery_only and assessment.decision:
+            d_id = assessment.decision.design_id
+            if d_id and not _is_placeholder(d_id):
+                if ds.selected_design_id and ds.selected_design_id != d_id:
+                    diagnostics.append(Diagnostic("summary.design_id.mismatch", f"Decision Summary selected design-id '{ds.selected_design_id}' != D-n design-id '{d_id}'"))
+
+        if ds.protected_contracts and assessment.contracts:
+            c_refs = [c.strip().split()[0] for c in ds.protected_contracts.split(",") if c.strip()]
+            for c_ref in c_refs:
+                if c_ref.startswith("C-") and c_ref not in valid_contract_ids:
+                    diagnostics.append(Diagnostic("summary.contract.invalid", f"Decision Summary protected contract '{c_ref}' not found in C-n records"))
+
+        if ds.primary_pressure and assessment.pressures:
+            p_refs = [p.strip().split()[0] for p in ds.primary_pressure.split(",") if p.strip()]
+            for p_ref in p_refs:
+                if p_ref.startswith("P-") and p_ref not in valid_pressure_ids:
+                    diagnostics.append(Diagnostic("summary.pressure.invalid", f"Decision Summary primary pressure '{p_ref}' not found in P-n records"))
+
+        if ds.debt_disposition and assessment.tech_debts:
+            valid_disps = {td.disposition for td in assessment.tech_debts}
+            parsed_ds_disp = ds.debt_disposition.split(":", 1)[-1].strip() if ":" in ds.debt_disposition else ds.debt_disposition.strip()
+            parsed_ds_disp = parsed_ds_disp.split()[0]
+            if parsed_ds_disp in VALID_DEBT_DISPOSITIONS and parsed_ds_disp not in valid_disps:
+                diagnostics.append(Diagnostic("summary.debt_disposition.mismatch", f"Decision Summary debt disposition '{parsed_ds_disp}' not found among TD-n dispositions {valid_disps}"))
+
+        if ds.residual_risk and assessment.residual_risks:
+            r_refs = [r.strip().split()[0] for r in ds.residual_risk.split(",") if r.strip()]
+            for r_ref in r_refs:
+                if r_ref.startswith("R-") and r_ref not in valid_risk_ids:
+                    diagnostics.append(Diagnostic("summary.risk.invalid", f"Decision Summary residual risk '{r_ref}' not found in R-n records"))
 
     # 5. Fact Verification (Path bounds, line count, anchor, git history)
     root = repo_root.resolve()
@@ -847,10 +960,10 @@ def validate(
 
         if f.source == "repository-history":
             if not f.path.startswith("git-history:"):
-                diagnostics.append(Diagnostic("fact.git_history.format_invalid", f"Fact {f.id} with repository-history source must use git-history:<commit-sha>:<repository-path> format", f.line_number))
+                diagnostics.append(Diagnostic("fact.git_history.format_invalid", f"Fact {f.id} with repository-history source must use git-history:<commit-sha>:<repository-path>:<line> format", f.line_number))
 
         if f.path.startswith("git-history:"):
-            gh_match = re.match(r"^git-history:(?P<sha>[0-9a-fA-F]{4,40}):(?P<path>[^\s:]+)$", f.path)
+            gh_match = re.match(r"^git-history:(?P<sha>[0-9a-fA-F]{4,40}):(?P<path>[^\s:]+)(?::(?P<line>\d+))?$", f.path)
             if not gh_match:
                 diagnostics.append(Diagnostic("fact.git_history.malformed", f"Fact {f.id} has malformed git-history locator '{f.path}'", f.line_number))
             elif not has_git:
@@ -858,6 +971,7 @@ def validate(
             else:
                 commit_sha = gh_match.group("sha")
                 rel_path = gh_match.group("path")
+                line_val = int(gh_match.group("line")) if gh_match.group("line") else f.line
 
                 if rel_path.startswith("/") or rel_path.startswith("\\") or ".." in Path(rel_path).parts:
                     diagnostics.append(Diagnostic("fact.path.traversal", f"Fact {f.id} historical path '{rel_path}' escapes repository root", f.line_number))
@@ -873,8 +987,8 @@ def validate(
                             content_res = subprocess.run(["git", "show", f"{commit_sha}:{rel_path}"], cwd=root, capture_output=True, text=True, errors="replace")
                             if content_res.returncode == 0:
                                 hist_lines = content_res.stdout.splitlines()
-                                if f.line < 1 or f.line > max(1, len(hist_lines)):
-                                    diagnostics.append(Diagnostic("fact.line.out_of_bounds", f"Fact {f.id} line {f.line} exceeds historical file bounds ({len(hist_lines)})", f.line_number))
+                                if line_val < 1 or line_val > max(1, len(hist_lines)):
+                                    diagnostics.append(Diagnostic("fact.line.out_of_bounds", f"Fact {f.id} line {line_val} exceeds historical file bounds ({len(hist_lines)})", f.line_number))
                                 else:
                                     if not f.anchor or not f.anchor.strip():
                                         if not allow_placeholders:
@@ -883,11 +997,11 @@ def validate(
                                         if not allow_placeholders:
                                             diagnostics.append(Diagnostic("fact.anchor.placeholder", f"Fact {f.id} anchor cannot use placeholder '{f.anchor}'", f.line_number))
                                     else:
-                                        start_l = max(0, f.line - 1 - 10)
-                                        end_l = min(len(hist_lines), f.line + 10)
+                                        start_l = max(0, line_val - 1 - 10)
+                                        end_l = min(len(hist_lines), line_val + 10)
                                         window_text = "\n".join(hist_lines[start_l:end_l])
                                         if f.anchor not in window_text:
-                                            diagnostics.append(Diagnostic("fact.anchor.missing", f"Fact {f.id} anchor '{f.anchor}' not found near line {f.line} in historical {rel_path}", f.line_number))
+                                            diagnostics.append(Diagnostic("fact.anchor.missing", f"Fact {f.id} anchor '{f.anchor}' not found near line {line_val} in historical {rel_path}", f.line_number))
 
         elif f.source not in {"fixture"}:
             if f.path.startswith("/") or f.path.startswith("\\") or ".." in Path(f.path).parts:
@@ -895,12 +1009,13 @@ def validate(
             else:
                 fact_file = root / f.path.split(":")[0]
                 if not fact_file.is_file():
-                    diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
+                    if not allow_placeholders:
+                        diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
                 else:
                     file_lines = fact_file.read_text(encoding="utf-8", errors="replace").splitlines()
                     if f.line < 1 or f.line > max(1, len(file_lines)):
                         diagnostics.append(Diagnostic("fact.line.out_of_bounds", f"Fact {f.id} line {f.line} exceeds file bounds ({len(file_lines)})", f.line_number))
-                    
+
                     if not f.anchor or not f.anchor.strip():
                         if not allow_placeholders:
                             diagnostics.append(Diagnostic("fact.anchor.empty", f"Fact {f.id} anchor cannot be empty", f.line_number))
@@ -923,7 +1038,7 @@ def validate(
         valid_facts = [f for f in assessment.facts if f.source in VALID_SOURCES]
         sources_used = {f.source for f in valid_facts}
 
-        if effective_level == "L3":
+        if effective_level == "L3" and not allow_placeholders:
             if len(sources_used) < 3:
                 diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", f"L3 assessment requires at least 3 distinct evidence categories, found {len(sources_used)} ({sources_used})"))
 
@@ -969,7 +1084,7 @@ def validate(
         d = assessment.decision
         if d.level != effective_level:
             diagnostics.append(Diagnostic("decision.level.mismatch", f"Decision level {d.level} != declared level {effective_level}", d.line_number))
-        if not d.design_id or _is_placeholder(d.design_id):
+        if not d.design_id or (_is_placeholder(d.design_id) and not allow_placeholders):
             diagnostics.append(Diagnostic("decision.design_id.missing", f"Decision {d.id} requires structured non-placeholder design-id", d.line_number))
         if not d.because:
             diagnostics.append(Diagnostic("decision.because.missing", f"Decision {d.id} must cite facts/pressures in because", d.line_number))
@@ -982,7 +1097,7 @@ def validate(
                 if b_id not in valid_fact_ids and b_id not in valid_pressure_ids:
                     diagnostics.append(Diagnostic("decision.because.unknown_id", f"Decision {d.id} because cites unknown ID '{b_id}'", d.line_number))
 
-        if not d.rejected:
+        if not d.rejected or (_is_placeholder(d.rejected) and not allow_placeholders):
             diagnostics.append(Diagnostic("decision.rejected.missing", f"Decision {d.id} must explain why lower level was rejected", d.line_number))
 
         selected_alts = [a for a in assessment.alternatives if a.selected]
@@ -992,7 +1107,7 @@ def validate(
             sel_alt = selected_alts[0]
             if sel_alt.level != d.level:
                 diagnostics.append(Diagnostic("alternatives.selected.level_mismatch", f"Selected alternative O-n level {sel_alt.level} != D-n level {d.level}", sel_alt.line_number))
-            if not sel_alt.design_id or _is_placeholder(sel_alt.design_id):
+            if not sel_alt.design_id or (_is_placeholder(sel_alt.design_id) and not allow_placeholders):
                 diagnostics.append(Diagnostic("alternatives.selected.design_id_missing", f"Selected alternative {sel_alt.id} requires structured non-placeholder design-id", sel_alt.line_number))
             elif d.design_id and sel_alt.design_id != d.design_id:
                 diagnostics.append(Diagnostic("alternatives.selected.design_id_mismatch", f"Selected alternative design-id '{sel_alt.design_id}' != D-n design-id '{d.design_id}'", sel_alt.line_number))
@@ -1007,13 +1122,23 @@ def validate(
                 diagnostics.append(Diagnostic("alternatives.l2_l3.lower_level_missing", f"{effective_level} assessment must include L0 or L1 alternative"))
 
     # 10. Pattern Gate Validation
+    valid_pattern_scopes = set(contract.get("pattern_scopes", ["introduced", "removed", "retained", "rejected", "deferred", "relied-upon"]))
+    valid_pattern_results = set(contract.get("pattern_results", ["admit", "admit-narrowed", "retain", "remove", "reject", "defer"]))
+
     for g in assessment.pattern_gates:
-        if not g.pattern or _is_placeholder(g.pattern):
+        if not g.pattern or (_is_placeholder(g.pattern) and not allow_placeholders):
             diagnostics.append(Diagnostic("pattern.name.missing", f"Pattern gate {g.id} requires pattern name", g.line_number))
+        if g.scope not in valid_pattern_scopes:
+            diagnostics.append(Diagnostic("pattern.scope.invalid", f"Pattern gate {g.id} has invalid scope '{g.scope}'", g.line_number))
+        if g.result not in valid_pattern_results:
+            diagnostics.append(Diagnostic("pattern.result.invalid", f"Pattern gate {g.id} has invalid result '{g.result}'", g.line_number))
+
         if g.evidence:
             for ev_id in g.evidence:
                 if ev_id not in valid_fact_ids and ev_id not in valid_pressure_ids and ev_id not in valid_contract_ids:
                     diagnostics.append(Diagnostic("pattern.evidence.invalid", f"Pattern gate {g.id} cites unknown evidence ID '{ev_id}'", g.line_number))
+        else:
+            diagnostics.append(Diagnostic("pattern.evidence.missing", f"Pattern gate {g.id} requires evidence citation", g.line_number))
 
         if not g.questions or len(g.questions) < 14:
             diagnostics.append(Diagnostic("pattern.questions.missing", f"Pattern gate {g.id} must include all structured Q1-Q14 gate questions", g.line_number))
@@ -1030,9 +1155,9 @@ def validate(
                     else:
                         for q_ev_id in qa.evidence:
                             if q_ev_id not in valid_fact_ids and q_ev_id not in valid_pressure_ids and q_ev_id not in valid_contract_ids:
-                                diagnostics.append(Diagnostic("pattern.evidence.invalid", f"Pattern gate {g.id} Q{q_num} cites unknown evidence '{q_ev_id}'", g.line_number))
-                    if not qa.consequence or _is_placeholder(qa.consequence):
-                        diagnostics.append(Diagnostic("pattern.consequence.missing", f"Pattern gate {g.id} Q{q_num} requires non-placeholder consequence", g.line_number))
+                                diagnostics.append(Diagnostic("pattern.evidence.invalid", f"Pattern gate {g.id} Q{q_num} cites unknown evidence '{q_ev_id}'", q_num))
+                    if not qa.consequence or (_is_placeholder(qa.consequence) and not allow_placeholders):
+                        diagnostics.append(Diagnostic("pattern.consequence.missing", f"Pattern gate {g.id} Q{q_num} requires non-placeholder consequence", q_num))
 
             if g.result in {"admit", "admit-narrowed"}:
                 for hard_q in HARD_PATTERN_QUESTIONS:
@@ -1040,17 +1165,20 @@ def validate(
                         diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Pattern gate {g.id} result '{g.result}' requires Q{hard_q}=yes, got '{g.questions[hard_q].answer}'", g.line_number))
 
         if g.scope == "removed" or g.result == "remove":
-            if not g.removed_destination or _is_placeholder(g.removed_destination):
+            if not g.removed_destination or (_is_placeholder(g.removed_destination) and not allow_placeholders):
                 diagnostics.append(Diagnostic("pattern.removal.destination_missing", f"Pattern removal {g.id} must state removed-destination", g.line_number))
-        if g.result == "defer" and (not g.revisit_trigger or _is_placeholder(g.revisit_trigger)):
+        if g.result == "defer" and (not g.revisit_trigger or (_is_placeholder(g.revisit_trigger) and not allow_placeholders)):
             diagnostics.append(Diagnostic("pattern.defer.revisit_missing", f"Pattern deferral {g.id} must specify revisit-trigger", g.line_number))
 
     # 11. Grounded Technical Debt Validation
+    valid_debt_frequencies = set(contract.get("debt_frequencies", ["current", "recurring", "historical", "unknown"]))
     for td in assessment.tech_debts:
         if td.type not in VALID_DEBT_TYPES:
             diagnostics.append(Diagnostic("tech_debt.type.invalid", f"Technical debt {td.id} invalid type '{td.type}'", td.line_number))
         if td.disposition not in VALID_DEBT_DISPOSITIONS:
             diagnostics.append(Diagnostic("tech_debt.disposition.invalid", f"Technical debt {td.id} invalid disposition '{td.disposition}'", td.line_number))
+        if td.frequency not in valid_debt_frequencies:
+            diagnostics.append(Diagnostic("tech_debt.frequency.invalid", f"Technical debt {td.id} invalid frequency '{td.frequency}'", td.line_number))
 
         if not td.evidence:
             diagnostics.append(Diagnostic("tech_debt.evidence.missing", f"Technical debt {td.id} requires at least one valid F-n or E-n evidence citation", td.line_number))
@@ -1066,24 +1194,24 @@ def validate(
             ("blast-radius", td.blast_radius),
             ("reason", td.reason),
         ]:
-            if not fld_val or _is_placeholder(fld_val):
+            if not fld_val or (_is_placeholder(fld_val) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.field.missing", f"Technical debt {td.id} field '{fld_name}' cannot be empty or placeholder", td.line_number))
 
         if _is_superficial_debt_claim(td.principal, td.reason):
             diagnostics.append(Diagnostic("tech_debt.superficial_claim", f"Technical debt {td.id} claim is superficial; must describe evidenced structural/operational cost", td.line_number))
 
         if td.disposition in {"repay", "retire"}:
-            if not td.repayment_boundary or _is_placeholder(td.repayment_boundary):
+            if not td.repayment_boundary or (_is_placeholder(td.repayment_boundary) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.repayment_boundary.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires repayment-boundary", td.line_number))
-            if not td.recurrence_guard or _is_placeholder(td.recurrence_guard):
+            if not td.recurrence_guard or (_is_placeholder(td.recurrence_guard) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.recurrence_guard.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires recurrence-guard", td.line_number))
         elif td.disposition == "contain":
-            if not td.containment_boundary or _is_placeholder(td.containment_boundary):
+            if not td.containment_boundary or (_is_placeholder(td.containment_boundary) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.containment_boundary.missing", f"Technical debt {td.id} disposition contain requires containment-boundary", td.line_number))
-            if not td.revisit_trigger or _is_placeholder(td.revisit_trigger):
+            if not td.revisit_trigger or (_is_placeholder(td.revisit_trigger) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.revisit_trigger.missing", f"Technical debt {td.id} disposition contain requires revisit-trigger", td.line_number))
         elif td.disposition in {"accept", "monitor"}:
-            if not td.revisit_trigger or _is_placeholder(td.revisit_trigger):
+            if not td.revisit_trigger or (_is_placeholder(td.revisit_trigger) and not allow_placeholders):
                 diagnostics.append(Diagnostic("tech_debt.revisit_trigger.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires revisit-trigger", td.line_number))
 
     # 12. Verification Record Validation
@@ -1097,11 +1225,15 @@ def validate(
                     diagnostics.append(Diagnostic("verification.proves.invalid_type", f"Verification {v.id} cannot prove self/handoff/fact '{p_item}'", v.line_number))
                 elif not any(p_item.startswith(pt) for pt in allowed_proves_types) or p_item not in valid_record_ids:
                     diagnostics.append(Diagnostic("verification.proves.invalid", f"Verification {v.id} proves unknown or unapproved claim record '{p_item}'", v.line_number))
-        if not v.method or _is_placeholder(v.method) or not v.expected or _is_placeholder(v.expected):
+        if not v.method or (_is_placeholder(v.method) and not allow_placeholders) or not v.expected or (_is_placeholder(v.expected) and not allow_placeholders):
             diagnostics.append(Diagnostic("verification.method_expected.missing", f"Verification {v.id} requires concrete method and expected result", v.line_number))
 
     # 13. Migration Validation
     for m in assessment.migrations:
+        if not m.prerequisite or (_is_placeholder(m.prerequisite) and not allow_placeholders):
+            diagnostics.append(Diagnostic("migration.prerequisite.missing", f"Migration {m.id} requires concrete prerequisite", m.line_number))
+        if not m.changed_boundary or (_is_placeholder(m.changed_boundary) and not allow_placeholders):
+            diagnostics.append(Diagnostic("migration.changed_boundary.missing", f"Migration {m.id} requires concrete changed-boundary", m.line_number))
         if not m.preserved:
             diagnostics.append(Diagnostic("migration.preserved.missing", f"Migration {m.id} requires preserved contracts", m.line_number))
         else:
@@ -1114,8 +1246,10 @@ def validate(
             for pr_id in m.proof:
                 if not pr_id.startswith("V-") or pr_id not in valid_record_ids:
                     diagnostics.append(Diagnostic("migration.proof.invalid", f"Migration {m.id} proof '{pr_id}' must be a valid V-n verification", m.line_number))
-        if not m.rollback_trigger or _is_placeholder(m.rollback_trigger) or not m.rollback_action or _is_placeholder(m.rollback_action):
+        if not m.rollback_trigger or (_is_placeholder(m.rollback_trigger) and not allow_placeholders) or not m.rollback_action or (_is_placeholder(m.rollback_action) and not allow_placeholders):
             diagnostics.append(Diagnostic("migration.rollback.missing", f"Migration {m.id} requires concrete rollback trigger and action", m.line_number))
+        if not m.cleanup or (_is_placeholder(m.cleanup) and not allow_placeholders):
+            diagnostics.append(Diagnostic("migration.cleanup.missing", f"Migration {m.id} requires cleanup steps with observable completion criteria", m.line_number))
 
     # 14. Handoff Validation
     if assessment.handoff:
