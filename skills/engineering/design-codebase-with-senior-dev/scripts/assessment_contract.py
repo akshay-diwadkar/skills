@@ -150,6 +150,37 @@ class ContractRecord:
     line_number: int = 1
 
 
+RANKING_ENUMS: dict[str, dict[str, int]] = {
+    "correctness_risk": {"low": 3, "medium": 2, "high": 1},
+    "operational_risk": {"low": 3, "medium": 2, "high": 1},
+    "debt_interest": {"high": 3, "medium": 2, "low": 1, "none": 0},
+    "change_propagation": {"local": 3, "bounded": 2, "wide": 1},
+    "state_ambiguity": {"low": 3, "medium": 2, "high": 1},
+    "scope_boundedness": {"high": 3, "medium": 2, "low": 1},
+    "reversibility": {"high": 3, "medium": 2, "low": 1},
+    "structural_confidence": {"high": 3, "medium": 2, "low": 1},
+}
+
+
+def compute_candidate_score(tc: TargetCandidateRecord) -> float:
+    score = 0.0
+    fields = [
+        ("debt_interest", 3.0),
+        ("correctness_risk", 2.0),
+        ("operational_risk", 2.0),
+        ("change_propagation", 2.0),
+        ("state_ambiguity", 2.0),
+        ("scope_boundedness", 2.0),
+        ("reversibility", 2.0),
+        ("structural_confidence", 2.0),
+    ]
+    for fname, weight in fields:
+        val = getattr(tc, fname, None)
+        if val is not None and val.lower() in RANKING_ENUMS[fname]:
+            score += weight * RANKING_ENUMS[fname][val.lower()]
+    return score
+
+
 @dataclass
 class DecisionRecord:
     id: str
@@ -157,6 +188,7 @@ class DecisionRecord:
     selected: str
     because: list[str]
     rejected: str
+    design_id: str = ""
     line_number: int = 1
 
 
@@ -169,6 +201,7 @@ class AlternativeRecord:
     arg_for: str
     arg_against: str
     revisit: str
+    design_id: str = ""
     line_number: int = 1
 
 
@@ -315,11 +348,14 @@ def section_names(level: str, mode: str = "targeted") -> list[str]:
     level_contract = contract["levels"].get(level)
     if level_contract is None:
         raise ValueError(f"unsupported level: {level}")
-    names = [*contract["base_sections"]]
-    if mode == "autonomous-discovery":
-        idx = names.index("Evidence and Current State") + 1 if "Evidence and Current State" in names else len(names)
-        names.insert(idx, "Target Discovery Candidates")
-    names.extend(level_contract["extra_sections"])
+
+    names = []
+    for sec in contract["base_sections"]:
+        if sec == "Verification and Residual Risk":
+            names.extend(level_contract["extra_sections"])
+        names.append(sec)
+        if sec == "Evidence and Current State" and mode == "autonomous-discovery":
+            names.append("Target Discovery Candidates")
     return names
 
 
@@ -419,142 +455,131 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             "# Assessment: Architectural Discovery and Triage",
             marker("L0", mode="discovery-only"),
             "",
-            "## Decision Summary",
-            "- Invocation mode: discovery-only",
-            "- Selected target: none",
-            "- Selected level: discovery-only",
-            "- Recommended design: Refuse autonomous target selection. Hand off repository-wide triage to codebase-issue-auditor.",
-            "- Why minimum sufficient: Multiple unrelated candidate concerns rank similarly or require unavailable product intent.",
-            "- Protected behavior and contracts: C-1 preserved",
-            "- Primary structural pressure: P-1",
-            "- Residual risk: none",
-            "- Next owner: codebase-issue-auditor",
-            "",
-            "## Scope and Protected Contracts",
-            "- C-1: status: preserved | contract: Replace with API, schema, event, or operational promise | authorization: none",
-            "- H-1: status: assessment-only | next: codebase-issue-auditor",
-            "",
-            "## Evidence and Current State",
-            "- F-1: `src/system.py:1` | anchor: `current` | observation: Verified current behavior | source: code | strength: direct | freshness: current",
-            "",
-            "## Target Discovery Candidates",
-            "- T-1: target: `src/module_a.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: medium | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Requires product intent alignment before structural change. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: medium",
-            "- T-2: target: `src/module_b.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: L1 | blast-radius: local | product-intent-required: true | rank: 2 | status: rejected | reason: Product intent required. | correctness-risk: high | operational-risk: medium | debt-interest: recurring | change-propagation: wide | state-ambiguity: high | scope-boundedness: medium | reversibility: low | structural-confidence: low",
-            "",
-            "## Verification and Residual Risk",
-            "- V-1: proves: T-1 | method: Inspect candidate evidence | expected: Confirms candidate bounds.",
         ]
-        return "\n".join(lines).rstrip() + "\n"
-
-    if level not in contract["levels"]:
-        raise ValueError(f"unsupported level: {level}")
+        sec_names = section_names("discovery-only", mode="discovery-only")
+    else:
+        if level not in contract["levels"]:
+            raise ValueError(f"unsupported level: {level}")
+        lines = [
+            "# Replace With a Concrete Design Decision",
+            marker(level, mode=mode),
+            "",
+        ]
+        sec_names = section_names(level, mode=mode)
 
     default_next_owner = "finish assessment" if level == "L0" else "plan-with-senior-dev"
+    if mode == "discovery-only" or level == "discovery-only":
+        default_next_owner = "codebase-issue-auditor"
 
-    lines = [
-        "# Replace With a Concrete Design Decision",
-        marker(level, mode=mode),
-        "",
-        "## Decision Summary",
-        f"- Invocation mode: {mode}",
-        "- Selected target: Replace with named module, subsystem, boundary, or candidate",
-        f"- Selected level: {level}",
-        "- Recommended design: Replace with concise summary of the minimum sufficient design",
-        "- Why minimum sufficient: Replace with explanation of why lower level fails and higher level is unnecessary",
-        "- Protected behavior and contracts: C-1 preserved",
-        "- Primary structural pressure: P-1",
-        f"- Next owner: {default_next_owner}",
-        "",
-        "## Scope and Protected Contracts",
-        "- C-1: status: preserved | contract: Replace with API, schema, event, or operational promise | authorization: none",
-        f"- H-1: status: assessment-only | next: {default_next_owner}",
-        "",
-        "## Evidence and Current State",
-        "- F-1: `path:1` | anchor: `existing_anchor` | observation: Replace with verified current behavior | source: code | strength: direct | freshness: current",
-        "- Current flow: Replace with input -> owner -> dependency -> side effect -> observable outcome.",
-    ]
-
-    if mode == "autonomous-discovery":
-        lines.extend([
-            "",
+    sec_map: dict[str, list[str]] = {
+        "Decision Summary": [
+            "## Decision Summary",
+            f"- Invocation mode: {mode}",
+            "- Selected target: " + ("none" if mode == "discovery-only" else "Replace with named module, subsystem, boundary, or candidate"),
+            f"- Selected level: {level if mode != 'discovery-only' else 'discovery-only'}",
+            "- Recommended design: " + ("Refuse autonomous target selection. Hand off repository-wide triage to codebase-issue-auditor." if mode == "discovery-only" else "Replace with concise summary of the minimum sufficient design"),
+            "- Why minimum sufficient: " + ("Multiple unrelated candidate concerns rank similarly or require unavailable product intent." if mode == "discovery-only" else "Replace with explanation of why lower level fails and higher level is unnecessary"),
+            "- Protected behavior and contracts: C-1 preserved",
+            "- Primary structural pressure: P-1",
+            f"- Next owner: {default_next_owner}",
+        ],
+        "Scope and Protected Contracts": [
+            "## Scope and Protected Contracts",
+            "- C-1: status: preserved | contract: Replace with API, schema, event, or operational promise | authorization: none",
+            f"- H-1: status: assessment-only | next: {default_next_owner}",
+        ],
+        "Evidence and Current State": [
+            "## Evidence and Current State",
+            "- F-1: `path:1` | anchor: `existing_anchor` | observation: Verified current behavior | source: code | strength: direct | freshness: current",
+        ] if mode == "discovery-only" else [
+            "## Evidence and Current State",
+            "- F-1: `path:1` | anchor: `existing_anchor` | observation: Replace with verified current behavior | source: code | strength: direct | freshness: current",
+            "- Current flow: Replace with input -> owner -> dependency -> side effect -> observable outcome.",
+        ],
+        "Target Discovery Candidates": [
             "## Target Discovery Candidates",
-            f"- T-1: target: Replace module/boundary | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate with strong repository evidence. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high",
-        ])
-
-    lines.extend([
-        "",
-        "## Design Pressures and Classification",
-        "- P-1: rank: 1 | evidence: F-1 | pressure: Replace with structural cause and observed cost.",
-        f"- D-1: level: {level} | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
-        "",
-        "## Alternatives and Pattern Decisions",
-        "- O-1: level: L0 | selected: " + ("yes" if level == "L0" else "no") + " | concepts: none | argument-for: Replace | argument-against: Replace | revisit: Replace",
-        "- O-2: level: L1 | selected: " + ("yes" if level == "L1" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace",
-    ])
-
-    if contract["levels"][level]["minimum_alternatives"] >= 3:
-        lines.append("- O-3: level: L2 | selected: " + ("yes" if level == "L2" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace")
-    if level == "L3":
-        lines.append("- O-4: level: L3 | selected: yes | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace")
-
-    if contract["levels"][level]["requires_pattern_gate"]:
-        lines.extend([
-            "",
-            "### G-1: Replace Pattern — admit",
-            "- Scope: introduced | Result: admit | Evidence: F-1, P-1",
-            "",
-            "| Gate | Answer | Evidence | Consequence |",
-            "|---|---|---|---|",
-            "| Q1 | yes | F-1, P-1 | Resolves current pressure |",
-            "| Q2 | yes | F-1, P-1 | Evidenced recurrence |",
-            "| Q3 | yes | F-1, P-1 | Lower levels insufficient |",
-            "| Q4 | yes | F-1, P-1 | Single owner |",
-            "| Q5 | yes | F-1, P-1 | Stable contract |",
-            "| Q6 | yes | F-1, P-1 | Reduces propagation |",
-            "| Q7 | yes | F-1, P-1 | Constrains coupling |",
-            "| Q8 | yes | F-1, P-1 | Unambiguous state |",
-            "| Q9 | yes | F-1, P-1 | Contracts preserved |",
-            "| Q10 | yes | F-1, P-1 | Observable proof |",
-            "| Q11 | yes | F-1, P-1 | Operational semantics explicit |",
-            "| Q12 | yes | F-1, P-1 | Repository idiom |",
-            "| Q13 | yes | F-1, P-1 | Reversible slices |",
-            "| Q14 | yes | F-1, P-1 | Net value positive |",
-        ])
-
-    if level == "L1":
-        lines.extend([
-            "",
+            "- T-1: target: `src/module_a.py` | evidence: F-1 | pressure: none | affected: C-1 | confidence: medium | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Requires product intent alignment before structural change. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: medium",
+            "- T-2: target: `src/module_b.py` | evidence: F-1 | pressure: none | affected: C-1 | confidence: low | likely-level: L1 | blast-radius: local | product-intent-required: true | rank: 2 | status: rejected | reason: Product intent required. | correctness-risk: high | operational-risk: medium | debt-interest: high | change-propagation: wide | state-ambiguity: high | scope-boundedness: medium | reversibility: low | structural-confidence: low",
+        ] if mode == "discovery-only" else [
+            "## Target Discovery Candidates",
+            f"- T-1: target: Replace module/boundary | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate with strong repository evidence. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high",
+        ],
+        "Design Pressures and Classification": [
+            "## Design Pressures and Classification",
+            "- P-1: rank: 1 | evidence: F-1 | pressure: Replace with structural cause and observed cost.",
+            f"- D-1: level: {level} | design-id: replace-design | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
+        ],
+        "Alternatives and Pattern Decisions": (
+            [
+                "## Alternatives and Pattern Decisions",
+                "- O-1: level: L0 | design-id: replace-l0 | selected: " + ("yes" if level == "L0" else "no") + " | concepts: none | argument-for: Replace | argument-against: Replace | revisit: Replace",
+                "- O-2: level: L1 | design-id: replace-design | selected: " + ("yes" if level == "L1" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace",
+            ]
+            + (["- O-3: level: L2 | design-id: replace-l2 | selected: " + ("yes" if level == "L2" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if contract["levels"].get(level, {}).get("minimum_alternatives", 0) >= 3 else [])
+            + (["- O-4: level: L3 | design-id: replace-l3 | selected: yes | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace"] if level == "L3" else [])
+            + ([
+                "",
+                "### G-1: Replace Pattern — admit",
+                "- Scope: introduced | Result: admit | Evidence: F-1, P-1",
+                "",
+                "| Gate | Answer | Evidence | Consequence |",
+                "|---|---|---|---|",
+                "| Q1 | yes | F-1, P-1 | Resolves current pressure |",
+                "| Q2 | yes | F-1, P-1 | Evidenced recurrence |",
+                "| Q3 | yes | F-1, P-1 | Lower levels insufficient |",
+                "| Q4 | yes | F-1, P-1 | Single owner |",
+                "| Q5 | yes | F-1, P-1 | Stable contract |",
+                "| Q6 | yes | F-1, P-1 | Reduces propagation |",
+                "| Q7 | yes | F-1, P-1 | Constrains coupling |",
+                "| Q8 | yes | F-1, P-1 | Unambiguous state |",
+                "| Q9 | yes | F-1, P-1 | Contracts preserved |",
+                "| Q10 | yes | F-1, P-1 | Observable proof |",
+                "| Q11 | yes | F-1, P-1 | Operational semantics explicit |",
+                "| Q12 | yes | F-1, P-1 | Repository idiom |",
+                "| Q13 | yes | F-1, P-1 | Reversible slices |",
+                "| Q14 | yes | F-1, P-1 | Net value positive |",
+            ] if contract["levels"].get(level, {}).get("requires_pattern_gate", False) else [])
+        ),
+        "Local Simplification and Preservation": [
             "## Local Simplification and Preservation",
             "- Responsibility: Replace with cohesive local owner.",
             "- Concepts removed: Replace or none.",
             "- Concepts retained: Replace.",
             "- Preservation proof: Replace with characterized behavior and V-1.",
-        ])
-
-    if level in {"L2", "L3"}:
-        lines.extend([
-            "",
+        ],
+        "Target Boundary": [
             "## Target Boundary",
             "- Responsibility and owner: Replace.",
             "- Dependency direction: Replace.",
             "- State and contract ownership: Replace.",
             "- Allowed calls and failures: Replace.",
-            "",
+        ],
+        "Migration and Rollback": [
             "## Migration and Rollback",
             "- M-1: prerequisite: Replace | changed boundary: Replace | preserved: C-1 | proof: V-1 | rollback trigger: Replace | rollback action: Replace | cleanup: Replace",
-            "",
+        ],
+        "Operational Semantics": [
             "## Operational Semantics",
-        ])
-        lines.extend(f"- {field.title()}: not-applicable: Replace with concrete reason." for field in contract["operational_fields"])
+        ] + [f"- {field.title()}: not-applicable | evidence: F-1 | reason: Replace with concrete reason." for field in contract["operational_fields"]],
+        "System Ownership and Evolution": [
+            "## System Ownership and Evolution",
+        ] + [f"- {field.title()}: Replace." for field in contract["l3_evolution_fields"]],
+        "Verification and Residual Risk": [
+            "## Verification and Residual Risk",
+            "- V-1: proves: D-1 | method: Replace with exact command or test | expected: Replace with observable result.",
+        ] if mode != "discovery-only" else [
+            "## Verification and Residual Risk",
+            "- V-1: proves: T-1 | method: Inspect candidate evidence | expected: Confirms candidate bounds.",
+        ],
+    }
 
-    if level == "L3":
-        lines.extend(["", "## System Ownership and Evolution"])
-        lines.extend(f"- {field.title()}: Replace." for field in contract["l3_evolution_fields"])
-
-    lines.extend([
-        "",
-        "## Verification and Residual Risk",
-        "- V-1: proves: D-1 | method: Replace with exact command or test | expected: Replace with observable result.",
-    ])
+    first = True
+    for sname in sec_names:
+        if sname in sec_map:
+            if not first:
+                lines.append("")
+            first = False
+            lines.extend(sec_map[sname])
 
     return "\n".join(lines).rstrip() + "\n"
+

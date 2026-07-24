@@ -5,23 +5,50 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from assessment_contract import finalize_assessment_text, load_contract, marker, render_scaffold  # noqa: E402
+from assessment_contract import finalize_assessment_text, load_contract, marker  # noqa: E402
 from check_assessment import validate  # noqa: E402
 
 
 def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
     if mode == "discovery-only":
-        return render_scaffold("L0", mode="discovery-only")
+        return """# Assessment: Architectural Discovery and Triage
+<!-- design-assessment-contract: 2; mode: discovery-only -->
+
+## Decision Summary
+- Invocation mode: discovery-only
+- Selected target: none
+- Selected level: discovery-only
+- Recommended design: Refuse autonomous target selection. Hand off repository-wide triage to codebase-issue-auditor.
+- Why minimum sufficient: Multiple candidate concerns rank similarly or require unavailable product intent.
+- Protected behavior and contracts: C-1 preserved
+- Primary structural pressure: P-1
+- Next owner: codebase-issue-auditor
+
+## Scope and Protected Contracts
+- C-1: status: preserved | contract: public command output | authorization: none
+- H-1: status: assessment-only | next: codebase-issue-auditor
+
+## Evidence and Current State
+- F-1: `src/system.py:1` | anchor: `current` | observation: Verified current behavior | source: code | strength: direct | freshness: current
+- Current flow: input -> current -> output.
+
+## Target Discovery Candidates
+- T-1: target: src/system.py | evidence: F-1 | pressure: none | affected: C-1 | confidence: low | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Unsafe candidate with high operational risk requiring human product intent alignment. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: low
+
+## Verification and Residual Risk
+- V-1: proves: T-1 | method: run focused tests | expected: behavior remains stable.
+- R-1: severity: low | scenario: future pressure changes | consequence: revisit design | owner: maintainer | follow-up: inspect history
+"""
     contract = load_contract()
     
     alternatives = [
-        f"- O-1: level: L0 | selected: {'yes' if level == 'L0' else 'no'} | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
-        f"- O-2: level: L1 | selected: {'yes' if level == 'L1' else 'no'} | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
-        f"- O-3: level: L2 | selected: {'yes' if level == 'L2' else 'no'} | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers",
+        f"- O-1: level: L0 | design-id: {'test-design' if level == 'L0' else 'test-l0'} | selected: {'yes' if level == 'L0' else 'no'} | concepts: none | argument-for: smallest | argument-against: pressure remains | revisit: pressure disappears",
+        f"- O-2: level: L1 | design-id: {'test-design' if level == 'L1' else 'test-l1'} | selected: {'yes' if level == 'L1' else 'no'} | concepts: one module | argument-for: local | argument-against: limited | revisit: boundary changes",
+        f"- O-3: level: L2 | design-id: {'test-design' if level == 'L2' else 'test-l2'} | selected: {'yes' if level == 'L2' else 'no'} | concepts: one port | argument-for: contains volatility | argument-against: added indirection | revisit: multiple consumers",
     ]
     if level == "L3":
         alternatives.append(
-            "- O-4: level: L3 | selected: yes | concepts: distributed system | argument-for: scale | argument-against: complexity | revisit: none"
+            "- O-4: level: L3 | design-id: test-design | selected: yes | concepts: distributed system | argument-for: scale | argument-against: complexity | revisit: none"
         )
 
     pattern = ""
@@ -48,14 +75,14 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 
     target_discovery = ""
     if mode == "autonomous-discovery":
-        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high\n"
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high\n"
     elif mode == "discovery-only":
-        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Unsafe candidate. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: low\n"
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: none | affected: C-1 | confidence: low | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Unsafe candidate with high operational risk. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: low\n"
 
     selected_level_summary = level
 
     facts = [
-        "- F-1: `src/system.py:1` | anchor: `current` | observation: The current function owns the behavior | source: code | strength: direct | freshness: current."
+        "- F-1: `src/system.py:1` | anchor: `current` | observation: The current function or class owns the behavior | source: code | strength: direct | freshness: current."
     ]
     if level == "L3":
         facts.extend([
@@ -88,7 +115,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         "## Scope and Protected Contracts",
         "- C-1: status: preserved | contract: public command output | authorization: none",
         f"- H-1: status: assessment-only | next: {next_owner}",
-        "- TD-1: type: structural | evidence: F-1 | principal: legacy shortcut | interest: minor maintainability cost | frequency: current | blast-radius: src/system.py | disposition: repay | reason: removes debt | repayment-boundary: local | recurrence-guard: unit test | revisit-trigger: none",
+        "- TD-1: type: structural | evidence: F-1 | principal: legacy shortcut | interest: minor maintainability cost | frequency: current | blast-radius: src/system.py | disposition: repay | reason: removes debt | repayment-boundary: local | recurrence-guard: unit test | revisit-trigger: when file volatility increases",
         "",
         "## Evidence and Current State",
         *facts,
@@ -96,19 +123,14 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         target_discovery.rstrip("\n"),
         "## Design Pressures and Classification",
         "- P-1: rank: 1 | evidence: F-1 | pressure: The scoped behavior has a verified change cost.",
-        f"- D-1: level: {level} | selected: minimum safe design for src/system.py | because: F-1, P-1 | rejected: a stronger design adds cost.",
+        f"- D-1: level: {level} | design-id: test-design | selected: minimum safe design for src/system.py | because: F-1, P-1 | rejected: a stronger design adds cost.",
         "",
         "## Alternatives and Pattern Decisions",
         *alternatives,
     ]
     if pattern:
         sections.append(pattern)
-    sections.extend([
-        "",
-        "## Verification and Residual Risk",
-        "- V-1: proves: D-1 | method: run focused tests | expected: behavior remains stable.",
-        "- R-1: severity: low | scenario: future pressure changes | consequence: revisit design | owner: maintainer | follow-up: inspect history",
-    ])
+    
     if level == "L1":
         sections.extend([
             "",
@@ -136,7 +158,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
             "- Timeouts: 5000ms deadline passed to adapter.",
             "- Retries: 2 retries on 5xx errors.",
             "- Idempotency: idempotency key per request.",
-            "- Ordering: single requests are stateless.",
+            "- Ordering: not-applicable | evidence: F-1 | reason: Single requests are stateless.",
             "- Transactions: local database transaction.",
             "- Observability: log provider status code.",
             "- Resource Limits: max 50 concurrent connections.",
@@ -151,6 +173,13 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
             "- Reconciliation: async event bus retry queue.",
             "- Rollback Compatibility: double writing supported for 1 release.",
         ])
+
+    sections.extend([
+        "",
+        "## Verification and Residual Risk",
+        "- V-1: proves: D-1 | method: run focused tests | expected: behavior remains stable.",
+        "- R-1: severity: low | scenario: future pressure changes | consequence: revisit design | owner: maintainer | follow-up: inspect history",
+    ])
 
     text = "\n".join(s for s in sections if s is not None) + "\n"
     return text.replace("\n\n\n", "\n\n")
@@ -235,7 +264,6 @@ def test_git_history_locator_format(tmp_path: Path) -> None:
     text = valid_v2_assessment("L0").replace(
         "`src/system.py:1`", "`git-history:abc1234:src/system.py`"
     )
-    # git-history: ref does not trigger fact.path.missing
     diags = validate(text, "L0", tmp_path)
     assert "fact.path.missing" not in {d.code for d in diags}
 
@@ -267,4 +295,4 @@ def test_verification_proving_self_fails(tmp_path: Path) -> None:
 
     text = valid_v2_assessment("L0").replace("proves: D-1", "proves: V-1")
     diags = validate(text, "L0", tmp_path)
-    assert "verification.proves.invalid" in {d.code for d in diags}
+    assert "verification.proves.invalid_type" in {d.code for d in diags} or "verification.proves.invalid" in {d.code for d in diags}

@@ -118,5 +118,65 @@
     "handoff": [["H-1", "codebase-issue-auditor"]],
     "critical": [{"id": "discovery-only-refusal", "keywords": ["mode: discovery-only", "codebase-issue-auditor"]}],
     "forbidden": [{"id": "forced-target-selection", "keywords": ["status: selected"]}]
+  },
+  "structural-debt-superficial-rejection": {
+    "level": "L0",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L0", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2"]],
+    "migration": [],
+    "handoff": [["H-1", "finish assessment"]],
+    "critical": [{"id": "accept-superficial-debt", "keywords": ["disposition: accept"]}],
+    "forbidden": [{"id": "superficial-debt-claim", "keywords": ["file age", "file length"]}]
+  },
+  "pattern-admission-gated-evidence": {
+    "level": "L2",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L2", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"], ["G-1", "scope: introduced"]],
+    "migration": [["rollback trigger", "rollback action"]],
+    "handoff": [["H-1", "plan-with-senior-dev"]],
+    "critical": [{"id": "pattern-admission", "keywords": ["G-1", "Admit"]}],
+    "forbidden": [{"id": "unevidenced-gate", "keywords": ["Result: remove"]}]
+  },
+  "operational-semantics-incomplete-refusal": {
+    "level": "L2",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L2", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3"]],
+    "migration": [["Source Of Truth", "Failures"]],
+    "handoff": [["H-1", "plan-with-senior-dev"]],
+    "critical": [{"id": "operational-semantics", "keywords": ["Source Of Truth", "Timeouts"]}],
+    "forbidden": [{"id": "placeholder-op-field", "keywords": ["tbd", "todo"]}]
+  },
+  "git-history-locator-validation": {
+    "level": "L0",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L0", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2"]],
+    "migration": [],
+    "handoff": [["H-1", "finish assessment"]],
+    "critical": [{"id": "history-locator", "keywords": ["source: code||repository-history"]}],
+    "forbidden": [{"id": "malformed-history-locator", "keywords": ["git-history:invalid"]}]
+  },
+  "l3-evolution-invariants-preservation": {
+    "level": "L3",
+    "minimum_score": 90,
+    "grounding": [["F-1", "current"]],
+    "classification": [["level: L3", "because"]],
+    "preservation": [["status: preserved", "assessment-only"]],
+    "alternatives": [["O-1", "O-2", "O-3", "O-4"]],
+    "migration": [["System Invariant", "Deployment Compatibility"]],
+    "handoff": [["H-1", "plan-with-senior-dev"]],
+    "critical": [{"id": "l3-evolution", "keywords": ["System Invariant", "Durable State Evolution"]}],
+    "forbidden": [{"id": "missing-l3-field", "keywords": ["System Invariant: tbd"]}]
   }
 }

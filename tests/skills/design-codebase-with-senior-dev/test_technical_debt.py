@@ -25,7 +25,7 @@ def test_accept_disposition_requires_revisit_trigger(tmp_path: Path) -> None:
     source.mkdir()
     (source / "system.py").write_text("def current(): return 'stable'\n", encoding="utf-8")
 
-    text = valid_v2_assessment("L0").replace("disposition: repay", "disposition: accept").replace("revisit-trigger: none", "revisit-trigger:")
+    text = valid_v2_assessment("L0").replace("disposition: repay", "disposition: accept").replace("revisit-trigger: when file volatility increases", "revisit-trigger: none")
     diags = validate(text, "L0", tmp_path)
 
     assert any(d.code == "tech_debt.revisit_trigger.missing" for d in diags)

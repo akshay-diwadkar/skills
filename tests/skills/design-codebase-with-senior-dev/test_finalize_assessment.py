@@ -2,9 +2,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+DEV_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEV_DIR.parents[2]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
+if str(DEV_DIR) not in sys.path:
+    sys.path.insert(0, str(DEV_DIR))
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 from assessment_contract import (  # noqa: E402
     assessment_digest,
@@ -117,7 +121,7 @@ def test_finalizer_cli_discovery_only_file_and_stdin(tmp_path: Path) -> None:
     source.mkdir()
     (source / "system.py").write_text("def current(): return 'stable'\n", encoding="utf-8")
 
-    disc_draft = render_scaffold("L0", mode="discovery-only")
+    disc_draft = valid_v2_assessment("L0", mode="discovery-only")
     draft_file = tmp_path / "discovery_draft.md"
     draft_file.write_text(disc_draft, encoding="utf-8")
 

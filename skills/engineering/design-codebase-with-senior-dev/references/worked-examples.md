@@ -29,31 +29,31 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: `billing/formatter.py:render_invoice` output bytes and error types | authorization: none
 - H-1: status: assessment-only | next: finish assessment
-- TD-1: type: structural | evidence: F-1 | principal: monolithic formatting function | interest: minor cognitive overhead | frequency: current | blast-radius: billing/formatter.py | disposition: accept | reason: repayment cost of Strategy pattern exceeds interest | repayment-boundary: local | recurrence-guard: none | revisit-trigger: adding third format provider
+- TD-1: type: structural | evidence: F-1 | principal: monolithic formatting function body | interest: minor cognitive overhead | frequency: current | blast-radius: billing/formatter.py | disposition: accept | reason: repayment cost of Strategy pattern exceeds interest | repayment-boundary: local | recurrence-guard: none | revisit-trigger: adding third format provider
 
 ## Evidence and Current State
 - F-1: `billing/formatter.py:12` | anchor: `def render_invoice` | observation: Output choice is a closed enum with two variants used in one module | source: code | strength: direct | freshness: current
-- F-2: `tests/test_formatter.py:45` | anchor: `test_compact_and_detailed` | observation: Characterization tests verify exact output bytes for both variants | source: test | strength: direct | freshness: current
+- F-2: `tests/test_formatter.py:45` | anchor: `def test_compact_and_detailed` | observation: Characterization tests verify exact output bytes for both variants | source: test | strength: direct | freshness: current
 - Current flow: CLI input -> `render_invoice` -> enum branch -> compact/detailed string -> output bytes.
 
 ## Design Pressures and Classification
 - P-1: rank: 1 | evidence: F-1 | pressure: Local function body is long, but choice has zero external volatility or substitution requirement.
-- D-1: level: L1 | selected: local simplification via helper functions in billing/formatter.py | because: F-1, F-2, P-1 | rejected: L2 Strategy pattern adds 4 classes and a factory without evidence.
+- D-1: level: L1 | design-id: formatter-local-simplification | selected: local simplification via helper functions in billing/formatter.py | because: F-1, F-2, P-1 | rejected: L2 Strategy pattern adds 4 classes and a factory without evidence.
 
 ## Alternatives and Pattern Decisions
-- O-1: level: L0 | selected: no | concepts: none | argument-for: zero edits | argument-against: leaves 120-line function intact | revisit: none
-- O-2: level: L1 | selected: yes | concepts: local helper functions | argument-for: keeps zero cross-module indirection | argument-against: keeps enum dispatch | revisit: adding third format
-- O-3: level: L2 | selected: no | concepts: FormatterStrategy, CompactFormatter, DetailedFormatter, FormatterFactory | argument-for: satisfies design pattern textbook | argument-against: 4 new classes for 2 stable variants | revisit: third format externally owned
-
-## Verification and Residual Risk
-- V-1: proves: D-1 | method: `pytest tests/test_formatter.py` | expected: 100% pass on exact byte assertions.
-- R-1: severity: low | scenario: future third format added | consequence: revisit design level | owner: maintainer | follow-up: monitor PR requests
+- O-1: level: L0 | design-id: formatter-no-op | selected: no | concepts: none | argument-for: zero edits | argument-against: leaves 120-line function intact | revisit: none
+- O-2: level: L1 | design-id: formatter-local-simplification | selected: yes | concepts: local helper functions | argument-for: keeps zero cross-module indirection | argument-against: keeps enum dispatch | revisit: adding third format
+- O-3: level: L2 | design-id: formatter-strategy | selected: no | concepts: FormatterStrategy, CompactFormatter, DetailedFormatter, FormatterFactory | argument-for: satisfies design pattern textbook | argument-against: 4 new classes for 2 stable variants | revisit: third format externally owned
 
 ## Local Simplification and Preservation
 - Responsibility: `billing/formatter.py` owns invoice rendering.
 - Concepts removed: none
 - Concepts retained: `render_invoice` function and Enum variants.
 - Preservation proof: C-1 and V-1.
+
+## Verification and Residual Risk
+- V-1: proves: D-1 | method: `pytest tests/test_formatter.py` | expected: 100% pass on exact byte assertions.
+- R-1: severity: low | scenario: future third format added | consequence: revisit design level | owner: maintainer | follow-up: monitor PR requests
 
 ---
 
@@ -81,17 +81,17 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 ## Evidence and Current State
 - F-1: `payments/service.py:34` | anchor: `import provider_sdk` | observation: 4 domain modules construct provider SDK requests directly | source: code | strength: direct | freshness: current
-- F-2: `payments/service.py:1` | anchor: `commit_3a2f` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
+- F-2: `git-history:3a2f1b70298d5c4e90218175f7396781f8084a91:payments/service.py:34` | anchor: `import provider_sdk` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
 - Current flow: Domain caller -> Direct SDK constructor -> Network call -> SDK Exception.
 
 ## Design Pressures and Classification
 - P-1: rank: 1 | evidence: F-1, F-2 | pressure: SDK field renames and exception types leak into domain logic across 4 independent modules.
-- D-1: level: L2 | selected: PaymentGateway interface and Adapter implementation | because: F-1, F-2, P-1 | rejected: L1 local edits do not prevent cross-module change propagation.
+- D-1: level: L2 | design-id: payment-gateway-adapter | selected: PaymentGateway interface and Adapter implementation | because: F-1, F-2, P-1 | rejected: L1 local edits do not prevent cross-module change propagation.
 
 ## Alternatives and Pattern Decisions
-- O-1: level: L0 | selected: no | concepts: none | argument-for: no new files | argument-against: SDK updates continue breaking 4 modules | revisit: none
-- O-2: level: L1 | selected: no | concepts: shared helper function | argument-for: simple | argument-against: leaves direct SDK dependencies in caller imports | revisit: none
-- O-3: level: L2 | selected: yes | concepts: PaymentGateway interface, ProviderAdapter | argument-for: isolates SDK to 1 module | argument-against: 1 new interface file | revisit: provider deprecation
+- O-1: level: L0 | design-id: payment-sdk-direct | selected: no | concepts: none | argument-for: no new files | argument-against: SDK updates continue breaking 4 modules | revisit: none
+- O-2: level: L1 | design-id: payment-sdk-helper | selected: no | concepts: shared helper function | argument-for: simple | argument-against: leaves direct SDK dependencies in caller imports | revisit: none
+- O-3: level: L2 | design-id: payment-gateway-adapter | selected: yes | concepts: PaymentGateway interface, ProviderAdapter | argument-for: isolates SDK to 1 module | argument-against: 1 new interface file | revisit: provider deprecation
 
 ### G-1: Adapter — admit
 - Scope: introduced | Result: admit | Evidence: F-1, F-2, P-1
@@ -113,10 +113,6 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 | Q13 | yes | F-1, P-1 | Reversible in 2 PRs |
 | Q14 | yes | F-1, F-2 | Net value exceeds cost |
 
-## Verification and Residual Risk
-- V-1: proves: D-1 | method: `pytest tests/test_payments.py` | expected: Adapter correctly translates success and error payloads.
-- R-1: severity: low | scenario: SDK adds new error code | consequence: update adapter mapping | owner: payments team | follow-up: monitor error logs
-
 ## Target Boundary
 - Responsibility and owner: `payments/adapter.py` owns SDK lifecycle and translation.
 - Dependency direction: domain policy -> `PaymentGateway` port -> `ProviderAdapter` -> SDK.
@@ -132,7 +128,11 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Timeouts: 5000ms deadline passed to SDK.
 - Retries: 2 retries with exponential backoff on 5xx errors.
 - Idempotency: idempotency key generated per request ID.
-- Ordering: single payment requests are stateless.
-- Transactions: single payment requests have no local database transaction.
+- Ordering: not-applicable | evidence: F-1 | reason: Single payment requests are stateless.
+- Transactions: not-applicable | evidence: F-1 | reason: Single payment requests have no local database transaction.
 - Observability: log provider request ID and status code.
 - Resource limits: max 50 concurrent HTTP connections.
+
+## Verification and Residual Risk
+- V-1: proves: D-1 | method: `pytest tests/test_payments.py` | expected: Adapter correctly translates success and error payloads.
+- R-1: severity: low | scenario: SDK adds new error code | consequence: update adapter mapping | owner: payments team | follow-up: monitor error logs

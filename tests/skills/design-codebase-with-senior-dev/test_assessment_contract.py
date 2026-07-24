@@ -25,9 +25,23 @@ def test_contract_declares_exact_sections_for_every_level() -> None:
 
     assert contract["contract_version"] == 2
     assert section_names("L0") == contract["base_sections"]
-    assert section_names("L1")[-1] == "Local Simplification and Preservation"
-    assert section_names("L2")[-1] == "Operational Semantics"
-    assert section_names("L3")[-1] == "System Ownership and Evolution"
+    for level in LEVELS:
+        assert section_names(level)[-1] == "Verification and Residual Risk"
+
+
+def test_scaffold_header_sequence_matches_section_names_exactly() -> None:
+    modes = ("targeted", "autonomous-discovery")
+    for level in LEVELS:
+        for mode in modes:
+            scaffold = render_scaffold(level, mode=mode)
+            found_headers = [m.group(1).strip() for m in re.finditer(r"^## ([^\n]+)", scaffold, re.MULTILINE)]
+            expected_headers = section_names(level, mode=mode)
+            assert found_headers == expected_headers, f"Scaffold headers for level={level}, mode={mode} disagree with section_names(): {found_headers} != {expected_headers}"
+
+    scaffold_disc = render_scaffold("L0", mode="discovery-only")
+    disc_headers = [m.group(1).strip() for m in re.finditer(r"^## ([^\n]+)", scaffold_disc, re.MULTILINE)]
+    expected_disc = section_names("discovery-only", mode="discovery-only")
+    assert disc_headers == expected_disc, f"Discovery-only headers disagree: {disc_headers} != {expected_disc}"
 
 
 def test_scaffold_contains_level_marker_and_required_records() -> None:
@@ -57,7 +71,10 @@ def test_scaffold_cli_prints_contract() -> None:
 
 
 def test_worked_examples_pass_checker_and_finalizer(tmp_path: Path) -> None:
-    # Setup mock files for worked examples
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
+
     billing = tmp_path / "billing"
     billing.mkdir()
     b_lines = ["\n"] * 50
@@ -76,13 +93,19 @@ def test_worked_examples_pass_checker_and_finalizer(tmp_path: Path) -> None:
     p_lines[33] = "import provider_sdk\n"
     (payments / "service.py").write_text("".join(p_lines), encoding="utf-8")
 
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=tmp_path, check=True, capture_output=True)
+    sha_proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    real_sha = sha_proc.stdout.strip()
+
     examples_file = SKILL_DIR / "references" / "worked-examples.md"
     content = examples_file.read_text(encoding="utf-8")
     example_blocks = [("# Assessment:" + block) for block in content.split("# Assessment:") if block.strip() and "<!-- design-assessment-contract:" in block]
 
     assert len(example_blocks) >= 2, f"Expected at least 2 worked examples, found {len(example_blocks)}"
 
-    for example in example_blocks:
+    for raw_example in example_blocks:
+        example = re.sub(r"3a2f1b70298d5c4e90218175f7396781f8084a91", real_sha, raw_example)
         match = re.search(r"level: (L[0-3])", example)
         assert match is not None, f"Example missing level marker:\n{example}"
         level = match.group(1)

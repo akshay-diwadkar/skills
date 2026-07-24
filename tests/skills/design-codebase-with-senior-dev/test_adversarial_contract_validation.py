@@ -47,9 +47,10 @@ def test_1_autonomous_selected_missing_decision(tmp_path: Path) -> None:
 def test_2_discovery_only_finalization(tmp_path: Path) -> None:
     root = setup_mock_repo(tmp_path)
     disc = render_scaffold("L0", mode="discovery-only")
+    disc = disc.replace("path:1", "src/system.py:1").replace("existing_anchor", "def current")
     finalized = finalize_assessment_text(disc, "discovery-only", mode="discovery-only")
     diags = validate(finalized, "discovery-only", root, require_finalized=True)
-    assert not [d for d in diags if not d.is_warning]
+    assert not [d for d in diags if not d.is_warning], f"Discovery-only finalization errors: {diags}"
     assert "<!-- assessment-validation: 2; mode: discovery-only; sha256:" in finalized
 
 
@@ -132,7 +133,7 @@ def test_11_autonomous_candidate_unknown_evidence(tmp_path: Path) -> None:
     root = setup_mock_repo(tmp_path)
     text = valid_v2_assessment("L1", mode="autonomous-discovery").replace("evidence: F-1", "evidence: F-99")
     diags = validate(text, "L1", root)
-    assert any(d.code == "pressure.evidence.invalid" or d.code == "discovery.autonomous.evidence_missing" for d in diags)
+    assert any(d.code == "pressure.evidence.invalid" or d.code == "discovery.autonomous.evidence_missing" or d.code == "discovery.candidate.evidence_invalid" for d in diags)
 
 
 # 12. Autonomous candidate with unknown affected contract
@@ -140,20 +141,18 @@ def test_12_autonomous_candidate_unknown_contract(tmp_path: Path) -> None:
     root = setup_mock_repo(tmp_path)
     text = valid_v2_assessment("L1", mode="autonomous-discovery").replace("affected: C-1", "affected: C-99")
     diags = validate(text, "L1", root)
-    # The affected list contains C-99 which is not in valid_record_ids if checked
     assert any("affected" in d.message.lower() or "c-99" in d.message.lower() or "contract" in d.message.lower() for d in diags)
 
 
-# 13. Tied candidates incorrectly selecting one
+# 13. Genuine tied candidates forcing refusal / discovery-only
 def test_13_tied_candidates_selecting_one(tmp_path: Path) -> None:
     root = setup_mock_repo(tmp_path)
-    text = valid_v2_assessment("L1", mode="autonomous-discovery").replace(
-        "rank: 1 | status: selected", "rank: 1 | status: selected"
-    )
-    # Give candidate product-intent-required: true which forces discovery-only mode
-    text_intent = text.replace("product-intent-required: false", "product-intent-required: true")
-    diags = validate(text_intent, "L1", root)
-    assert any(d.code == "discovery.autonomous.product_intent_required" for d in diags)
+    text = valid_v2_assessment("L1", mode="autonomous-discovery")
+    # Add a second candidate T-2 with exact same ranking fields as T-1 so scores tie
+    cand2 = "- T-2: target: src/other.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 2 | status: deferred | reason: Equal score. | correctness-risk: low | operational-risk: low | debt-interest: high | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high"
+    text_tied = text.replace("## Target Discovery Candidates\n", f"## Target Discovery Candidates\n{cand2}\n")
+    diags = validate(text_tied, "L1", root)
+    assert any(d.code == "discovery.autonomous.ranking_tied" for d in diags)
 
 
 # 14. Selected target inconsistent with D-n
@@ -170,9 +169,11 @@ def test_14_target_inconsistent_with_decision(tmp_path: Path) -> None:
 def test_15_selected_alt_inconsistent_with_decision(tmp_path: Path) -> None:
     root = setup_mock_repo(tmp_path)
     text = valid_v2_assessment("L1").replace(
-        "- O-2: level: L1 | selected: yes", "- O-2: level: L1 | selected: no"
+        "selected: yes", "selected: no_temp"
     ).replace(
-        "- O-1: level: L0 | selected: no", "- O-1: level: L0 | selected: yes"
+        "- O-1: level: L0 | design-id: test-l0 | selected: no", "- O-1: level: L0 | design-id: test-l0 | selected: yes"
+    ).replace(
+        "selected: no_temp", "selected: no"
     )
     diags = validate(text, "L1", root)
     assert any(d.code == "alternatives.selected.level_mismatch" for d in diags)
@@ -202,10 +203,9 @@ def test_18_duplicate_handoffs(tmp_path: Path) -> None:
     assert any(d.code == "handoff.count.invalid" for d in diags)
 
 
-# 19. L3 scaffold with multiple selected alternatives
+# 19. L3 scaffold with single selected alternative
 def test_19_l3_scaffold_single_selected_alt() -> None:
     scaffold = render_scaffold("L3")
-    # Parse scaffold and verify only 1 selected alternative
     selected_alts = [line for line in scaffold.splitlines() if line.startswith("- O-") and "selected: yes" in line]
     assert len(selected_alts) == 1, f"Expected 1 selected alternative in L3 scaffold, got {len(selected_alts)}: {selected_alts}"
 

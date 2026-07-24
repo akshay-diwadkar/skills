@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,7 +23,6 @@ def extract_worked_examples() -> list[tuple[str, str, str]]:
     worked_examples_path = SKILL_DIR / "references" / "worked-examples.md"
     text = worked_examples_path.read_text(encoding="utf-8")
     
-    # Split by level markers
     sections = re.split(r"(?=# Assessment:)", text)
     examples = []
     for sec in sections:
@@ -42,6 +42,11 @@ def test_worked_examples_pass_validation(tmp_path: Path):
     examples = extract_worked_examples()
     assert len(examples) >= 2, "Expected at least 2 worked examples in worked-examples.md"
 
+    # Initialize a real Git repository in tmp_path
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
+
     # Create dummy files referenced in examples for file checks
     (tmp_path / "billing").mkdir(parents=True, exist_ok=True)
     b_lines = ["\n"] * 50
@@ -58,7 +63,15 @@ def test_worked_examples_pass_validation(tmp_path: Path):
     p_lines[33] = "import provider_sdk\n"
     (tmp_path / "payments" / "service.py").write_text("".join(p_lines), encoding="utf-8")
 
-    for title, level, example_text in examples:
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=tmp_path, check=True, capture_output=True)
+    sha_proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    real_sha = sha_proc.stdout.strip()
+
+    for title, level, raw_example_text in examples:
+        # Substitute static commit SHA with real SHA from Git repo fixture
+        example_text = re.sub(r"3a2f1b70298d5c4e90218175f7396781f8084a91", real_sha, raw_example_text)
+
         assessment, parse_diags = parse_assessment(example_text)
         assert not parse_diags, f"Parse diagnostics for '{title}': {parse_diags}"
 
