@@ -46,17 +46,16 @@ Complete this step only when no material product or contract decision remains de
 
 ## Skill Directory Resolution
 
-Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
-- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
-When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
+- On other platforms: execute commands relative to the active skill directory.
 
 ## 4. Blueprint
 
-Read the matching tier example in [worked-examples.md](references/worked-examples.md), then generate the working scaffold:
+Read the matching tier example in [worked-examples.md](references/worked-examples.md), then generate the working scaffold from the active skill directory:
 
 ```bash
-python "<skill-dir>/scripts/scaffold_plan.py" --tier <tier> --task-type <type>
+python scripts/scaffold_plan.py --tier <tier> --task-type <type>
 ```
 
 Fill the v3 ledger in dependency order: contracts/data → core logic → orchestration/callers → tests/fixtures → generated/docs/operations. Every `CH-n` names its exact path, anchor, behavior, branches, errors, ordering, and side effects. Every `T-n` names exact setup/input, observable expectation, and command. Map every `SC-n` and `C-n` through `CH-n` to `T-n`.
@@ -78,10 +77,10 @@ Complete this step only when every success criterion, material constraint, chang
 
 ## 5. Finalize
 
-Read [adversarial-verification.md](references/adversarial-verification.md). Attack and repair the draft, then pass it through the finalizer from the repository root:
+Read [adversarial-verification.md](references/adversarial-verification.md). Attack and repair the draft, then pass it through the finalizer from the active skill directory:
 
 ```bash
-python "<skill-dir>/scripts/finalize_plan.py" --tier <tier> --repo-root <repo> <draft>
+python scripts/finalize_plan.py --tier <tier> --repo-root <repo> <draft>
 ```
 
 The finalizer is the only submission path. If it emits any diagnostic, repair the draft and rerun it. If it cannot run, report the validation block instead of presenting a plan. There is no manual or warning-only fallback.

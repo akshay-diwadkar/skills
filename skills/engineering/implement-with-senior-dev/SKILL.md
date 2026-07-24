@@ -37,10 +37,9 @@ Read these files completely before editing:
 
 ## Skill Directory Resolution
 
-Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
-- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
-When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
+- On other platforms: execute commands relative to the active skill directory.
 
 ## Execution Gates
 
@@ -55,10 +54,10 @@ If inspection exposes a semantic contradiction or a choice affecting product beh
 
 ### 2. Scaffold and Inspect
 
-Create the run bundle:
+Create the run bundle from the active skill directory:
 
 ```bash
-python "<skill-dir>/scripts/scaffold_implementation.py" \
+python scripts/scaffold_implementation.py \
   --repo-root <repo> \
   --plan <run-dir>/plan.md \
   --output <run-dir>/implementation.json
@@ -104,10 +103,10 @@ Reconcile actual workspace status against the initial bundle. Every new changed 
 
 ### 6. Validate Completion
 
-Finalize `status`, unresolved `CH/T` records, final changed paths, deviations, residual risks, and report summary. Then run:
+Finalize `status`, unresolved `CH/T` records, final changed paths, deviations, residual risks, and report summary. Then run from the active skill directory:
 
 ```bash
-python "<skill-dir>/scripts/finalize_implementation.py" \
+python scripts/finalize_implementation.py \
   --repo-root <repo> \
   --plan <run-dir>/plan.md \
   <run-dir>/implementation.json

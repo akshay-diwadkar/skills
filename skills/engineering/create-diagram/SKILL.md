@@ -9,10 +9,9 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
 
 ## Skill Directory Resolution
 
-Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
-- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
-When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
+- On other platforms: execute commands relative to the active skill directory.
 
 ## Workflow
 
@@ -39,19 +38,19 @@ When executing bundled scripts below, replace `<skill-dir>` with the resolved ab
    - Build only after the plan is approved and execution is allowed.
    - Create a JSON payload with top-level `diagram` and `metadata` objects as described in [html-output-guide.md](references/html-output-guide.md).
    - Prefer auto-layout by omitting node `x`/`y`; if manual positions are used, every node must include both `x` and `y`.
-   - Run the bundled builder with anchored paths:
+   - Run the bundled builder from the active skill directory:
      ```bash
-     python "<skill-dir>/scripts/build_diagram.py" --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
+     python scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
      ```
-     PowerShell example: `python "<skill-dir>\scripts\build_diagram.py" --data payload.json --output diagram.html`
-     Bash example: `python "<skill-dir>/scripts/build_diagram.py" --data payload.json --output diagram.html`
+     PowerShell example: `python scripts\build_diagram.py --data payload.json --output diagram.html`
+     Bash example: `python scripts/build_diagram.py --data payload.json --output diagram.html`
    - The generated HTML is self-contained: the builder embeds the local stylesheet and RoughJS runtime, so the output can be opened or served from any directory without copying sibling assets.
    - Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement.
 
 5. **Validate**
    - Validate HTML before opening it:
      ```bash
-     python "<skill-dir>/scripts/validate_diagram.py" <path-to-output.html>
+     python scripts/validate_diagram.py <path-to-output.html>
      ```
    - Fix all reported errors (exit code 1) before proceeding. Warnings should be reviewed but do not block verification.
 

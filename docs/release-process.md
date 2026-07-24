@@ -51,8 +51,18 @@ python tools/validation/run_mypy.py
 python -m pytest -q
 ```
 
-### 8. Tag Release & Verify Artifacts
-Create the git release tag only after all automated verification gates pass cleanly:
+### 8. Perform Manual Native-Host Smoke Tests
+
+Automated CI gates prove repository contract and schema compliance, but maintainers must manually verify live host installation prior to tagging a stable release:
+
+- **Claude Local Plugin**: `claude --plugin-dir .` (verify plugin loads and agents appear)
+- **Claude Marketplace**: `/plugin marketplace add akshay-diwadkar/skills` and `/plugin install engineering-skills@engineering-skills-marketplace`
+- **Cursor Local Plugin**: Symlink `~/.cursor/plugins/local/engineering-skills` and verify agents populate in Cursor
+- **Codex Project Installer**: `python tools/agents/install_codex_agents.py --target <test-project> --write` (verify TOML agents created)
+- **skills.sh CLI**: `npx skills add akshay-diwadkar/skills` (verify skills resolve)
+
+### 9. Tag Release & Verify Artifacts
+Create the git release tag only after all automated verification gates and manual native-host smoke tests pass cleanly:
 ```bash
 git tag -a v1.0.0 -m "Release v1.0.0"
 ```

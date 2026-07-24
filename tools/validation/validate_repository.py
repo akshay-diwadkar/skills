@@ -53,17 +53,6 @@ FORBIDDEN_SKILL_FILE_NAMES = {
     "debug_hash.py",
 }
 
-EXPECTED_RUNTIME_FILE_COUNTS = {
-    "codebase-issue-auditor": 12,
-    "create-diagram": 11,
-    "design-codebase-with-senior-dev": 8,
-    "github-issue-planner": 11,
-    "implement-with-senior-dev": 11,
-    "optimize-codebase-with-senior-dev": 12,
-    "plan-with-senior-dev": 16,
-}
-
-
 def parse_frontmatter(text: str) -> dict[str, str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
@@ -253,13 +242,18 @@ def validate_agent_discovery(agents_catalog: dict[str, Any] | None = None) -> li
     return errors
 
 
+ALLOWED_SKILL_SUBDIRS = {"scripts", "references", "assets", "templates", "agents"}
+ALLOWED_SKILL_EXTENSIONS = {".py", ".md", ".json", ".html", ".css", ".js", ".yaml", ".yml", ".png", ".jpg", ".svg", ".txt", ".example"}
+ALLOWED_SKILL_ROOT_FILES = {"SKILL.md", ".env.example"}
+
+
 def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     catalog_skills = {s["name"]: s["path"] for s in catalog.get("skills", [])}
 
     for path in tracked_files:
         parts = Path(path).parts
-        if any(part in FORBIDDEN_DIR_NAMES for part in parts) or path.endswith(".env"):
+        if any(part in FORBIDDEN_DIR_NAMES for part in parts) or (path.endswith(".env") and not path.endswith(".env.example")):
             errors.append(f"Forbidden tracked file: {path}")
 
         if len(parts) >= 3 and parts[0] == "skills":
@@ -267,15 +261,29 @@ def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any
             filename = parts[-1].lower()
             dirs = {p.lower() for p in parts[3:-1]}
 
-            if dirs & FORBIDDEN_SKILL_DIR_NAMES or filename in FORBIDDEN_SKILL_FILE_NAMES:
+            if dirs & FORBIDDEN_SKILL_DIR_NAMES or filename in FORBIDDEN_SKILL_FILE_NAMES or filename.startswith("test_") or filename.endswith("_test.py"):
                 errors.append(f"Development artifact inside distributable skill: {path}")
+                continue
 
-    for skill_name, expected in EXPECTED_RUNTIME_FILE_COUNTS.items():
-        if skill_name in catalog_skills:
-            rel_prefix = catalog_skills[skill_name]
-            actual = sum(path.startswith(f"{rel_prefix}/") for path in tracked_files)
-            if actual != expected:
-                errors.append(f"{skill_name}: expected {expected} runtime files under {rel_prefix}, found {actual}")
+            rel_parts = parts[3:]
+            if len(rel_parts) == 1:
+                if rel_parts[0] not in ALLOWED_SKILL_ROOT_FILES:
+                    ext = Path(rel_parts[0]).suffix.lower()
+                    if ext not in ALLOWED_SKILL_EXTENSIONS:
+                        errors.append(f"Unrecognized root runtime file inside skill package '{skill_name}': {path}")
+            elif len(rel_parts) > 1:
+                top_dir = rel_parts[0].lower()
+                if top_dir not in ALLOWED_SKILL_SUBDIRS:
+                    errors.append(f"Unrecognized runtime directory inside skill package '{skill_name}': {path}")
+                ext = Path(rel_parts[-1]).suffix.lower()
+                if ext not in ALLOWED_SKILL_EXTENSIONS:
+                    errors.append(f"Unrecognized runtime file extension inside skill package '{skill_name}': {path}")
+
+    # Ensure every catalog skill has runtime files
+    for skill_name, rel_prefix in catalog_skills.items():
+        actual = sum(path.startswith(f"{rel_prefix}/") for path in tracked_files)
+        if actual == 0:
+            errors.append(f"{skill_name}: no runtime files found under {rel_prefix}")
 
     return errors
 

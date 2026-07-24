@@ -9,6 +9,14 @@ This monorepo supports two primary interaction styles:
 1. **Role-Based Agents (Recommended)**: Higher-level AI personas tailored for specific engineering disciplines (e.g. Architecture, Delivery, Issue Resolution, Health & Optimization). Agents automatically select and coordinate underlying skills to perform complex, multi-step workflows.
 2. **Direct Skill Invocation (Advanced / Focused)**: Specific, single-purpose workflow or discipline instructions (e.g. `plan-with-senior-dev`, `implement-with-senior-dev`, `create-diagram`). You can invoke individual skills directly when you need a single, isolated operation without agent orchestration.
 
+## Quick Installation
+
+- **Claude Code Marketplace**: `/plugin install engineering-skills@engineering-skills-marketplace`
+- **Cursor Local Plugin**: Symlink or copy to `~/.cursor/plugins/local/engineering-skills`
+- **Codex Project Installer**: Run `python tools/agents/install_codex_agents.py --repo <target-project>`
+
+For complete platform installation options, see [Installation Guide](installation.md).
+
 ## Recommended First Interaction
 
 When using a supported agent host (such as Claude Code, Cursor, or Codex), start by addressing your request to the appropriate role agent or asking the assistant to take on that role.

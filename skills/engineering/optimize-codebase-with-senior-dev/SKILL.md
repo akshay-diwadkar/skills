@@ -33,25 +33,24 @@ Planning is mandatory. Implementation remains available only after the planning 
 
 ## Skill Directory Resolution
 
-Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
-- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
-When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
+- On other platforms: execute commands relative to the active skill directory.
 
 ## Contract and Reference Routing
 
 1. Read `references/optimization-protocol.md` before starting non-trivial work.
 2. `references/optimization-contract.json` is the executable source of truth for output sections, records, bands, and sweep limits. Do not recreate its grammar from memory.
-3. Generate the artifact before filling it:
+3. Generate the artifact before filling it from the active skill directory:
    ```bash
-   python "<skill-dir>/scripts/scaffold_optimization.py" --scope targeted|sweep --stage plan|implementation
+   python scripts/scaffold_optimization.py --scope targeted|sweep --stage plan|implementation
    ```
 4. Read `references/optimization-rubric.md` before classifying candidates.
 5. Read `references/ecosystem-leverage.md` and `references/docs-research-protocol.md` only after a `B-n` or evidenced static leverage point names a relevant component.
 6. Read only the applicable pass in `references/optimization-patterns.md`. Read only the matching example in `references/worked-examples.md`.
-7. Validate before finalizing:
+7. Validate from the active skill directory before finalizing:
    ```bash
-   python "<skill-dir>/scripts/check_optimization.py" --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
+   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
    ```
 
 ## Eight Gates

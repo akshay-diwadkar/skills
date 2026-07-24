@@ -77,3 +77,52 @@ def test_codex_agent_installer_creates_expected_layout(tmp_path: Path) -> None:
 
     agent_files = list((codex_dir / "agents").glob("*.toml"))
     assert len(agent_files) >= 4
+
+
+def test_cursor_plugin_location_documentation() -> None:
+    """Verify Cursor installation documentation uses supported local plugin subpath and rejects legacy/unsupported paths."""
+    docs_to_check = [
+        REPO_ROOT / "README.md",
+        DOCS_DIR / "installation.md",
+        DOCS_DIR / "getting-started.md",
+        DOCS_DIR / "compatibility.md",
+    ]
+
+    expected_path = "~/.cursor/plugins/local/engineering-skills"
+    for doc_path in docs_to_check:
+        text = doc_path.read_text(encoding="utf-8")
+        rel_name = doc_path.relative_to(REPO_ROOT)
+        assert expected_path in text, f"{rel_name} missing expected Cursor local plugin path '{expected_path}'"
+
+        # Reject old unsupported path ~/.cursor/plugins/engineering-skills (without local/)
+        assert "~/.cursor/plugins/engineering-skills" not in text, f"{rel_name} contains unsupported path without 'local/' subpath"
+
+        # Reject workspace-level plugin installation claims
+        assert "Workspace scope:" not in text and "<your-project>/.cursor-plugin" not in text, (
+            f"{rel_name} contains unsupported workspace-level plugin installation claim"
+        )
+
+
+def test_codex_matrix_consistency() -> None:
+    """Verify key documentation files present a consistent Codex support matrix."""
+    docs = [
+        REPO_ROOT / "README.md",
+        DOCS_DIR / "compatibility.md",
+        DOCS_DIR / "installation.md",
+        DOCS_DIR / "agents.md",
+    ]
+    for doc_path in docs:
+        text = doc_path.read_text(encoding="utf-8")
+        rel_name = doc_path.relative_to(REPO_ROOT)
+        assert "Supported" in text and "Codex" in text, f"{rel_name} missing Codex support details"
+
+
+def test_validation_scope_documentation() -> None:
+    """Verify documentation accurately describes automated repository validation and avoids overclaiming."""
+    for md_file in REPO_ROOT.rglob("*.md"):
+        if ".scratch" in md_file.parts or ".git" in md_file.parts:
+            continue
+        text = md_file.read_text(encoding="utf-8")
+        assert "guarantees compatibility across every platform" not in text, (
+            f"{md_file.relative_to(REPO_ROOT)} overclaims platform compatibility guarantee"
+        )

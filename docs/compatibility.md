@@ -27,7 +27,7 @@ This document provides platform-by-platform details regarding discovery mechanis
 
 ### Cursor
 
-- **Discovery Mechanism**: Plugin manifest at `.cursor-plugin/plugin.json` and marketplace at `.cursor-plugin/marketplace.json`.
+- **Discovery Mechanism**: Local plugin directory at `~/.cursor/plugins/local/engineering-skills` via `.cursor-plugin/plugin.json`.
 - **Skills Support**: Explicit list of `./skills/engineering/<skill-name>` relative paths ensures complete discovery of nested domain skill directories.
 - **Agent Support**: Native agent definitions in `agents/cursor/*.md` with frontmatter `readonly` state matching catalog access rules.
 - **Safety Controls**: Host-enforced read-only state via `readonly: true` in agent frontmatter.
@@ -35,11 +35,18 @@ This document provides platform-by-platform details regarding discovery mechanis
 
 ### Codex / OpenAI
 
+- **Discovery Surface Breakdown**:
+  | Surface | Skills | Named Agents | Status |
+  | --- | --- | --- | --- |
+  | Codex project/repository checkout | Yes | Yes, via project config | Supported |
+  | Codex explicit project installer | Existing skills | Yes | Supported via installer |
+  | Portable skill installation | Yes | No automatic agents | Skills only |
+  | Codex app or hosted surfaces | Unverified | Not automatically discovered | Best effort / unverified |
 - **Discovery Mechanism**: Project-level `.codex/config.toml` and `.codex/agents/*.toml` files.
 - **Skills Support**: Individual skills under `skills/engineering/`.
 - **Agent Support**: TOML agent definitions automatically generated from `agents/source/*.md`. Attached to target projects via `tools/agents/install_codex_agents.py`.
 - **Safety Controls**: Host-enforced read-only sandbox mode (`sandbox_mode = "read-only"`).
-- **Testing**: Tested in `tests/repository/test_codex_agent_installer.py`.
+- **Testing**: Automated repository contract tests in `tests/repository/test_codex_agent_installer.py`.
 
 ### skills.sh
 
@@ -47,6 +54,12 @@ This document provides platform-by-platform details regarding discovery mechanis
 - **Skills Support**: Full support for all individual skills.
 - **Agent Support**: Skills only (`skills.sh` host specification does not define custom agent roles).
 - **Testing**: Validated by `tools/validation/validate_repository.py`.
+
+---
+
+## 3. Automated Repository Validation vs. Native Host Verification
+
+Automated CI checks prove repository contract compliance, valid manifest schemas, link integrity, and installed-runtime execution. They do not run native host installations inside proprietary applications. Maintainers execute manual native-host smoke tests before releasing major versions.
 
 ---
 

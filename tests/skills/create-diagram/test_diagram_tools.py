@@ -420,13 +420,10 @@ class DiagramToolTests(unittest.TestCase):
         docs.extend(path.read_text(encoding="utf-8") for path in REFERENCES.glob("*.md"))
         combined = "\n".join(docs)
 
-        self.assertIn('/path/to/create-diagram/scripts/build_diagram.py', combined)
-        self.assertIn('/path/to/create-diagram/scripts/validate_diagram.py', combined)
-        self.assertNotIn('$skillDir\\scripts\\build_diagram.py', combined)
-        self.assertNotIn('$skillDir\\scripts\\validate_diagram.py', combined)
-        self.assertNotIn('$skillDir\\scripts\\generate_excalidraw.py', combined)
-        self.assertNotIn('$skillDir\\scripts\\validate_excalidraw.py', combined)
-        self.assertNotRegex(combined, r"python\s+scripts[\\/]")
+        self.assertIn("python scripts/build_diagram.py", combined)
+        self.assertIn("python scripts/validate_diagram.py", combined)
+        self.assertNotIn("<skill-dir>", combined)
+        self.assertNotIn("$skillDir", combined)
 
     def test_template_uses_storage_helpers_for_local_storage_access(self):
         text = TEMPLATE.read_text(encoding="utf-8")

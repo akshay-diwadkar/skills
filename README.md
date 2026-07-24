@@ -6,12 +6,12 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 [![Claude Code Compatible](https://img.shields.io/badge/Claude%20Code-Supported-7c3aed.svg)](docs/compatibility.md)
 [![Cursor Compatible](https://img.shields.io/badge/Cursor-Supported-0066ff.svg)](docs/compatibility.md)
-[![Codex Compatible](https://img.shields.io/badge/Codex%2FOpenAI-Supported-00a67e.svg)](docs/compatibility.md)
+[![Codex Project Support](https://img.shields.io/badge/Codex-Project%20Agents%20%2B%20Skills-00a67e.svg)](docs/compatibility.md)
 [![skills.sh Compatible](https://img.shields.io/badge/skills.sh-Supported-black.svg)](docs/compatibility.md)
 
 A production engineering plugin for AI coding agents. It combines focused engineering agents with validated skills for auditing, architecture, planning, implementation, optimization, issue resolution, and system diagramming.
 
-Workflows are repository-grounded, safety-conscious, and backed by automated validators across multiple agent platforms.
+Workflows are repository-grounded, safety-conscious, and backed by automated repository compatibility checks across multiple agent platforms.
 
 ---
 
@@ -91,11 +91,25 @@ For local development, load the repository directory:
 claude --plugin-dir /path/to/cloned/skills
 ```
 
-### 2. Cursor (Plugin Manifest)
+### 2. Cursor (Local Plugin Manifest)
 
-Cursor detects the plugin via `.cursor-plugin/plugin.json`.
+Cursor detects the local plugin via `.cursor-plugin/plugin.json`.
 
-Place or symlink this repository into your user plugins folder (`~/.cursor/plugins/engineering-skills`) or workspace root. Bundled agents (`agents/cursor/`) and skills (`skills/engineering/`) will be loaded automatically.
+Place or symlink this repository into your user local plugins directory (`~/.cursor/plugins/local/engineering-skills`). Bundled agents (`agents/cursor/`) and skills (`skills/engineering/`) will be loaded automatically.
+
+```bash
+# Linux / macOS
+git clone https://github.com/akshay-diwadkar/skills.git
+mkdir -p ~/.cursor/plugins/local
+ln -s "$(pwd)" ~/.cursor/plugins/local/engineering-skills
+```
+
+```powershell
+# Windows PowerShell (Directory Junction)
+git clone https://github.com/akshay-diwadkar/skills.git
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cursor\plugins\local"
+cmd /c mklink /J "$env:USERPROFILE\.cursor\plugins\local\engineering-skills" "$PWD"
+```
 
 ### 3. Codex / OpenAI
 
@@ -214,7 +228,7 @@ For details, see [Safety & Controls](docs/safety.md).
 | --- | --- | --- | --- | --- |
 | **Claude Code** | Yes | Yes (`agents/claude/*.md`) | `.claude-plugin/plugin.json` | **Supported** (Plugin) |
 | **Cursor** | Yes | Yes (`agents/cursor/*.md`) | `.cursor-plugin/plugin.json` | **Supported** (Plugin) |
-| **Codex / OpenAI** | Yes | Yes (`.codex/agents/*.toml`) | `.codex/config.toml`<br>`tools/agents/install_codex_agents.py` | **Supported** (Project / Installer) |
+| **Codex (Project / Repo)** | Yes | Yes (`.codex/agents/*.toml`) | `.codex/config.toml`<br>`tools/agents/install_codex_agents.py` | **Supported** (Project / Installer) |
 | **skills.sh** | Yes | No (Skills only) | Canonical `skills/*/*/SKILL.md` | **Supported** (Skills CLI) |
 
 ---
@@ -238,9 +252,9 @@ Explore detailed documentation under `docs/`:
 
 ---
 
-## Maintainer Verification
+## Maintainer Verification (Source Repository)
 
-Maintainers run the following validation sweep before submitting PRs or tagging releases:
+When working in the source repository checkout, maintainers run the following validation sweep before submitting PRs or tagging releases:
 
 ```bash
 python tools/validation/validate_repository.py

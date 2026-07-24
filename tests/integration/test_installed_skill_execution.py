@@ -262,7 +262,7 @@ def test_installed_skill_execution_via_symlink(tmp_path: Path):
 
 
 def test_every_skill_command_references_existing_bundled_file():
-    """Verify every script referenced in SKILL.md command examples exists on disk."""
+    """Verify every script referenced in SKILL.md command examples exists on disk and contains no unresolved placeholders."""
     skills_dir = REPO_ROOT / "skills" / "engineering"
     for skill_folder in skills_dir.iterdir():
         if not skill_folder.is_dir():
@@ -271,8 +271,15 @@ def test_every_skill_command_references_existing_bundled_file():
         if not skill_md.is_file():
             continue
         text = skill_md.read_text(encoding="utf-8")
-        # Find script references like python "<skill-dir>/scripts/foo.py" or python "$skillDir/scripts/foo.py"
-        script_refs = re.findall(r"python\s+[\"']?(?:<skill-dir>|\$skillDir)[/\\](scripts[/\\][A-Za-z0-9_-]+\.py)[\"']?", text)
+
+        # Ensure no executable code block contains unresolved prose placeholders like <skill-dir> or $skillDir
+        code_blocks = re.findall(r"```(?:bash|powershell|sh)?\n(.*?)\n```", text, re.DOTALL)
+        for block in code_blocks:
+            assert "<skill-dir>" not in block, f"{skill_folder.name}/SKILL.md contains unresolved <skill-dir> in command example:\n{block}"
+            assert "$skillDir" not in block, f"{skill_folder.name}/SKILL.md contains unresolved $skillDir in command example:\n{block}"
+
+        # Find script references like python scripts/foo.py or python scripts\foo.py
+        script_refs = re.findall(r"python\s+[\"']?(scripts[/\\][A-Za-z0-9_-]+\.py)[\"']?", text)
         for ref in script_refs:
             norm_ref = ref.replace("\\", "/")
             expected_file = skill_folder / norm_ref
@@ -289,7 +296,7 @@ def test_skill_directory_resolution_instructions_present():
         if not skill_md.is_file():
             continue
         text = skill_md.read_text(encoding="utf-8")
-        if "<skill-dir>" in text or "$skillDir" in text:
+        if "python scripts/" in text or "python scripts\\" in text:
             assert "Skill Directory Resolution" in text, (
-                f"{skill_folder.name}/SKILL.md references skill directory but missing 'Skill Directory Resolution' section"
+                f"{skill_folder.name}/SKILL.md references bundled scripts but missing 'Skill Directory Resolution' section"
             )

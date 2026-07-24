@@ -38,23 +38,22 @@ Label narrative claims as `[Fact]`, `[Inference]`, `[Decision]`, or `[Assumption
 
 ## Skill Directory Resolution
 
-Before executing bundled scripts, resolve `<skill-dir>` as the absolute path to the directory containing this `SKILL.md` file:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if set.
-- On other platforms: resolve the absolute directory path of the folder containing this `SKILL.md` on disk.
-When executing bundled scripts below, replace `<skill-dir>` with the resolved absolute path (quoted, e.g. `"path/to/skill"`).
+Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
+- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
+- On other platforms: execute commands relative to the active skill directory.
 
 ## Reference and Tool Routing
 
 1. Read `references/design-decision-rubric.md` before classifying the change. Apply the analysis dimensions and simplicity controls relevant to the scoped path; apply the full runtime and distributed-system analysis for L3.
 2. Read only the matching scenario in `references/worked-examples.md` when the concern resembles conditional dispatch, volatile integrations, redundant abstraction stacks, or distributed processing.
 3. `references/assessment-contract.json` is the executable source of truth for output sections and hard gates. Do not recreate its headings or field grammar from memory.
-4. After the provisional level is grounded, generate the matching scaffold:
+4. After the provisional level is grounded, generate the matching scaffold from the active skill directory:
    ```bash
-   python "<skill-dir>/scripts/scaffold_assessment.py" --level L0|L1|L2|L3
+   python scripts/scaffold_assessment.py --level L0|L1|L2|L3
    ```
-5. Before finalizing, validate from the repository root:
+5. Before finalizing, validate from the active skill directory:
    ```bash
-   python "<skill-dir>/scripts/check_assessment.py" --level <L0|L1|L2|L3> --repo-root <repo> <assessment>
+   python scripts/check_assessment.py --level <L0|L1|L2|L3> --repo-root <repo> <assessment>
    ```
 
 ## Workflow

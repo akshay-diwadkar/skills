@@ -45,11 +45,24 @@ claude --plugin-dir /path/to/cloned/skills
 
 Cursor supports custom agent configurations and skill discovery via `.cursor-plugin/plugin.json`.
 
-### Repository / Local Installation
+### Local Plugin Installation
 
-1. Clone or symlink this repository into your project or user skills folder:
-   - User scope: `~/.cursor/plugins/engineering-skills`
-   - Workspace scope: `<your-project>/.cursor-plugin`
+1. Clone or symlink this repository into your user local plugins folder (`~/.cursor/plugins/local/engineering-skills`):
+
+```bash
+# Linux / macOS
+git clone https://github.com/akshay-diwadkar/skills.git
+mkdir -p ~/.cursor/plugins/local
+ln -s "$(pwd)" ~/.cursor/plugins/local/engineering-skills
+```
+
+```powershell
+# Windows PowerShell (Directory Junction)
+git clone https://github.com/akshay-diwadkar/skills.git
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cursor\plugins\local"
+cmd /c mklink /J "$env:USERPROFILE\.cursor\plugins\local\engineering-skills" "$PWD"
+```
+
 2. Cursor automatically detects the plugin manifest at `.cursor-plugin/plugin.json` and exposes bundled agents (`agents/cursor/*.md`) and skills (`skills/engineering/`).
 
 ### Verification
@@ -60,7 +73,16 @@ Open Cursor and verify that custom role agents (such as `architecture-engineer` 
 
 ## 3. Codex / OpenAI
 
-Codex and OpenAI-compatible environments discover skills from canonical path definitions (`skills/engineering/`) and role agents from `.codex/agents/*.toml`.
+Codex environments discover skills from canonical path definitions (`skills/engineering/`) and role agents from `.codex/agents/*.toml`.
+
+### Platform Support Matrix
+
+| Surface | Skills | Named Agents | Status |
+| --- | --- | --- | --- |
+| Codex project/repository checkout | Yes | Yes, via project config | Supported |
+| Codex explicit project installer | Existing skills | Yes | Supported via installer |
+| Portable skill installation | Yes | No automatic agents | Skills only |
+| Codex app or hosted surfaces | Unverified | Not automatically discovered | Best effort / unverified |
 
 ### Single Project Setup via Installer Tool
 
@@ -155,15 +177,14 @@ Restart your coding agent or IDE after installing or updating skills.
 
 ---
 
-## 6. Installed-Runtime Script Resolution
+## 6. Installed-Runtime Script Execution Contract
 
-Skills invoke bundled scripts (such as scaffolders, finalizers, and validators) during execution. When a skill is installed into a user's environment:
+Skills invoke bundled scripts (such as scaffolders, finalizers, and validators) during execution. When executing bundled runtime tools:
 
-- **Host-Native Variables**: Platforms that support skill-directory environment variables set `${CLAUDE_SKILL_DIR}` (Claude Code) or `${CURSOR_SKILL_DIR}` / `${SKILL_DIR}` (Cursor / portable hosts) pointing to the installed skill's directory path.
-- **Portable Resolution Syntax**: In `SKILL.md` instructions, script execution commands use:
+- **Deterministic Skill Root Contract**: Runtime commands execute with the active skill directory (the directory containing `SKILL.md`) set as the process working directory:
   ```bash
-  python "<skill-dir>/scripts/finalize_plan.py" --tier <tier> --repo-root <repo> <draft>
+  python scripts/finalize_plan.py --tier <tier> --repo-root <repo-root> <draft>
   ```
-  where `<skill-dir>` resolves to the absolute path of the skill's installation directory (or `${CLAUDE_SKILL_DIR:-${CURSOR_SKILL_DIR:-${SKILL_DIR}}}`).
-- **Internal Asset Resolution**: Bundled Python scripts locate internal contracts, assets, and templates relative to `Path(__file__).resolve().parent`. Commands execute cleanly regardless of whether the target repository has a `scripts/` directory, whether the CWD is the user's project, or whether installation paths contain spaces.
-
+- **Target Repository Isolation**: The target repository is specified explicitly via `--repo-root <repo-root>`. Tools inspect and modify target files independently without expecting scripts inside the target repository.
+- **Claude Code Environment Variable**: On Claude Code, execution from an external directory may resolve the active skill root via `${CLAUDE_SKILL_DIR}`.
+- **Internal Asset Resolution**: Bundled Python scripts locate internal contracts, assets, and templates relative to `Path(__file__).resolve().parent`. Commands execute cleanly regardless of whether the target repository has a `scripts/` directory, whether paths contain spaces, or whether installation is via symlinks.

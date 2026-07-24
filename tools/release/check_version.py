@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -16,7 +17,7 @@ MARKETPLACE_JSON_PATH = ROOT / ".claude-plugin" / "marketplace.json"
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 
 
-def check_versions() -> list[str]:
+def check_versions(tag: str | None = None) -> list[str]:
     errors = []
     if not VERSION_PATH.is_file():
         return ["Missing VERSION file"]
@@ -24,6 +25,10 @@ def check_versions() -> list[str]:
     version = VERSION_PATH.read_text(encoding="utf-8").strip()
     if not SEMVER_RE.match(version):
         errors.append(f"VERSION '{version}' is not valid Semantic Versioning")
+
+    expected_tag = f"v{version}"
+    if tag is not None and tag != expected_tag:
+        errors.append(f"Release tag '{tag}' does not match expected tag '{expected_tag}' derived from VERSION '{version}'")
 
     if PLUGIN_JSON_PATH.is_file():
         data = json.loads(PLUGIN_JSON_PATH.read_text(encoding="utf-8"))
@@ -42,13 +47,15 @@ def check_versions() -> list[str]:
         if data.get("version") != version:
             errors.append(f".cursor-plugin/plugin.json version '{data.get('version')}' != VERSION '{version}'")
 
-
-
     return errors
 
 
 def main() -> int:
-    errors = check_versions()
+    parser = argparse.ArgumentParser(description="Check version alignment across repository manifests.")
+    parser.add_argument("--tag", type=str, default=None, help="Tag name to validate against VERSION (e.g. v1.0.0)")
+    args = parser.parse_args()
+
+    errors = check_versions(tag=args.tag)
     if errors:
         print("Version check failed:", file=sys.stderr)
         for err in errors:

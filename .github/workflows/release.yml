@@ -12,11 +12,13 @@ on:
         default: ''
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate-release-gates:
     name: Mandatory Release Validation Gates
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -32,14 +34,31 @@ jobs:
       - name: Install dependencies
         run: python -m pip install ruff mypy pytest playwright pyyaml jsonschema
 
+      - name: Determine Target Release Tag
+        id: prep_tag
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+              TAG="${{ github.event.inputs.tag_name }}"
+            else
+              TAG="v${VERSION}"
+            fi
+          elif [ -n "${GITHUB_REF}" ] && [ "${GITHUB_REF#refs/tags/}" != "${GITHUB_REF}" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "target_tag=${TAG}" >> $GITHUB_OUTPUT
+
       - name: Lint (Ruff)
         run: ruff check .
 
       - name: Type check (mypy)
         run: python tools/validation/run_mypy.py
 
-      - name: Version alignment check
-        run: python tools/release/check_version.py
+      - name: Version and Tag alignment check
+        run: python tools/release/check_version.py --tag "${{ steps.prep_tag.outputs.target_tag }}"
 
       - name: Changelog validation
         run: python tools/release/build_changelog.py
@@ -68,6 +87,8 @@ jobs:
   publish-release:
     name: Publish GitHub Release
     needs: validate-release-gates
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

@@ -65,10 +65,31 @@ def build_distribution(output_dir: Path) -> Path:
     if agents_src.is_dir():
         shutil.copytree(agents_src, output_dir / "agents")
 
-    shutil.copy2(ROOT / "README.md", output_dir / "README.md")
-    shutil.copy2(ROOT / "VERSION", output_dir / "VERSION")
-    if (ROOT / "LICENSE").is_file():
-        shutil.copy2(ROOT / "LICENSE", output_dir / "LICENSE")
+    # Copy user-facing documentation
+    docs_src = ROOT / "docs"
+    if docs_src.is_dir():
+        dest_docs = output_dir / "docs"
+        dest_docs.mkdir(parents=True, exist_ok=True)
+        for p in docs_src.rglob("*"):
+            rel = p.relative_to(docs_src)
+            dest = dest_docs / rel
+            if p.is_dir():
+                dest.mkdir(parents=True, exist_ok=True)
+            elif p.is_file():
+                shutil.copy2(p, dest)
+
+    # Copy Codex installer script
+    installer_src = ROOT / "tools" / "agents" / "install_codex_agents.py"
+    if installer_src.is_file():
+        dest_tools_agents = output_dir / "tools" / "agents"
+        dest_tools_agents.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(installer_src, dest_tools_agents / "install_codex_agents.py")
+
+    # Copy root documentation and metadata files
+    for root_file in ("README.md", "VERSION", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "pyproject.toml"):
+        src_f = ROOT / root_file
+        if src_f.is_file():
+            shutil.copy2(src_f, output_dir / root_file)
 
     return output_dir
 

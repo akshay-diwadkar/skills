@@ -126,8 +126,8 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_mention_scripts(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("$skillDir\\scripts\\check_github_env.py", docs)
-        self.assertIn("$skillDir\\scripts\\fetch_github_issues.py", docs)
+        self.assertIn("scripts/check_github_env.py", docs)
+        self.assertIn("scripts/fetch_github_issues.py", docs)
 
     def test_skill_docs_preserve_opt_in_execution_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
@@ -138,7 +138,7 @@ class CheckGitHubEnvTests(unittest.TestCase):
         self.assertIn("Never batch issues into one branch or PR", docs)
         self.assertIn("Refs #<number>", docs)
         self.assertIn("never an auto-close keyword", docs)
-        self.assertIn("$skillDir\\scripts\\post_merge_issue_followup.py", docs)
+        self.assertIn("scripts/post_merge_issue_followup.py", docs)
         self.assertIn("never closes or labels", docs)
 
     def test_skill_docs_require_validated_single_issue_handoff(self):
