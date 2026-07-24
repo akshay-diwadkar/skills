@@ -22,6 +22,8 @@ def installed_skills_env(tmp_path: Path):
 
     # Initialize a minimal git repository in target_repo
     subprocess.run(["git", "init"], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "eval@example.com"], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Eval"], cwd=target_repo, capture_output=True, check=True)
     (target_repo / "README.md").write_text("# Target Project\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=target_repo, capture_output=True, check=True)
