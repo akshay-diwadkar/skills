@@ -5,11 +5,13 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from assessment_contract import load_contract, marker  # noqa: E402
+from assessment_contract import finalize_assessment_text, load_contract, marker, render_scaffold  # noqa: E402
 from check_assessment import validate  # noqa: E402
 
 
 def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
+    if mode == "discovery-only":
+        return render_scaffold("L0", mode="discovery-only")
     contract = load_contract()
     
     alternatives = [
@@ -78,7 +80,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         target_discovery.rstrip("\n"),
         "## Design Pressures and Classification",
         "- P-1: rank: 1 | evidence: F-1 | pressure: The scoped behavior has a verified change cost.",
-        f"- D-1: level: {level} | selected: minimum safe design | because: F-1, P-1 | rejected: a stronger design adds cost.",
+        f"- D-1: level: {level} | selected: minimum safe design for src/system.py | because: F-1, P-1 | rejected: a stronger design adds cost.",
         "",
         "## Alternatives and Pattern Decisions",
         *alternatives,
@@ -127,7 +129,8 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 
 
 def assessment(level: str, mode: str = "targeted") -> str:
-    return valid_v2_assessment(level, mode=mode)
+    raw = valid_v2_assessment(level, mode=mode)
+    return finalize_assessment_text(raw, level, mode=mode)
 
 
 def codes(text: str, level: str, repo_root: Path) -> set[str]:

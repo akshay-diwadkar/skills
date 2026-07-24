@@ -108,12 +108,12 @@
     "forbidden": [{"id": "implementation-completed", "keywords": ["implementation complete"]}]
   },
   "autonomous-refusal-tied-candidates": {
-    "level": "L0",
+    "level": "discovery-only",
     "minimum_score": 90,
     "grounding": [["F-1", "current"]],
-    "classification": [["level: L0", "because"]],
-    "preservation": [["status: preserved", "assessment-only"]],
-    "alternatives": [["O-1", "O-2"]],
+    "classification": [["Refuse autonomous target selection"]],
+    "preservation": [["status: preserved"]],
+    "alternatives": [],
     "migration": [],
     "handoff": [["H-1", "codebase-issue-auditor"]],
     "critical": [{"id": "discovery-only-refusal", "keywords": ["mode: discovery-only", "codebase-issue-auditor"]}],

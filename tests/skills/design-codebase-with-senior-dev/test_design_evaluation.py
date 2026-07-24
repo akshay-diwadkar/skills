@@ -4,10 +4,13 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "design-codebase-with-senior-dev"
+SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
 sys.path.insert(0, str(DEV_DIR))
+sys.path.insert(0, str(SCRIPTS))
 
 import score_design_evaluation  # noqa: E402
-from test_check_assessment import assessment  # noqa: E402
+from assessment_contract import finalize_assessment_text  # noqa: E402
+from test_check_assessment import valid_v2_assessment  # noqa: E402
 
 
 def test_evaluation_catalog_has_eight_blind_cases() -> None:
@@ -35,16 +38,22 @@ def test_all_fixture_expectations_accept_grounded_contract_examples() -> None:
     expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
 
     for name, case in expectations.items():
-        if name == "autonomous-discovery-obsolete-shim":
-            text = assessment(case["level"], mode="autonomous-discovery").replace("disposition: repay", "disposition: retire")
-        elif name == "autonomous-refusal-tied-candidates":
-            text = assessment(case["level"], mode="discovery-only")
-        else:
-            text = assessment(case["level"])
+        level = case["level"]
+        mode = "targeted"
 
-        if name == "reject-unsafe-distributed-split":
-            text = text.replace("scenario: future pressure changes", "scenario: current transaction remains atomic")
-        result = score_design_evaluation.score(text, case, DEV_DIR / "evals" / "fixtures" / name)
+        if name == "autonomous-discovery-obsolete-shim":
+            mode = "autonomous-discovery"
+            raw = valid_v2_assessment(level, mode=mode).replace("disposition: repay", "disposition: retire")
+        elif name == "autonomous-refusal-tied-candidates":
+            mode = "discovery-only"
+            raw = valid_v2_assessment(level, mode=mode)
+        elif name == "reject-unsafe-distributed-split":
+            raw = valid_v2_assessment(level, mode=mode).replace("scenario: future pressure changes", "scenario: current transaction remains atomic")
+        else:
+            raw = valid_v2_assessment(level, mode=mode)
+
+        finalized = finalize_assessment_text(raw, "discovery-only" if mode == "discovery-only" else level, mode=mode)
+        result = score_design_evaluation.score(finalized, case, DEV_DIR / "evals" / "fixtures" / name)
         assert result["passed"] is True, (name, result)
         assert result["score"] == 100, (name, result)
 
@@ -66,10 +75,11 @@ def test_scorer_hard_fails_invalid_assessment() -> None:
 def test_scorer_rejects_forbidden_implementation_claim() -> None:
     expectations = json.loads(score_design_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
     case = expectations["assess-and-implement-routing"]
-    text = assessment("L1").replace("follow-up: inspect history", "follow-up: implementation complete")
+    raw = valid_v2_assessment("L1").replace("follow-up: inspect history", "follow-up: implementation complete")
+    finalized = finalize_assessment_text(raw, "L1")
 
     result = score_design_evaluation.score(
-        text,
+        finalized,
         case,
         DEV_DIR / "evals" / "fixtures" / "assess-and-implement-routing",
     )

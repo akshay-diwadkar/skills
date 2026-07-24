@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a v2 design assessment and emit the only submission-ready, receipt-stamped form."""
+"""Finalize a design-codebase-with-senior-dev assessment artifact by stamping a SHA-256 validation receipt."""
 
 from __future__ import annotations
 
@@ -7,73 +7,79 @@ import argparse
 import sys
 from pathlib import Path
 
-from assessment_contract import (
-    VALIDATION_RECEIPT_RE,
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from assessment_contract import (  # noqa: E402
     finalize_assessment_text,
-    load_contract,
-    receipt_lines,
 )
-from check_assessment import validate
+from check_assessment import parse_assessment, validate  # noqa: E402
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--level", choices=tuple(load_contract()["levels"]), required=True)
-    parser.add_argument("--repo-root", type=Path, required=True)
-    parser.add_argument("path", nargs="?", help="Draft Markdown path; read stdin when omitted or '-'.")
-    return parser.parse_args(argv)
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Finalize a design assessment with a SHA-256 validation receipt.")
+    parser.add_argument("assessment_file", nargs="?", help="Path to draft assessment markdown file (reads stdin if omitted).")
+    parser.add_argument("--level", required=False, help="Assessment level (L0, L1, L2, L3, discovery-only).")
+    parser.add_argument("--mode", default="targeted", choices=["targeted", "autonomous-discovery", "discovery-only"], help="Invocation mode.")
+    parser.add_argument("--repo-root", default=".", help="Repository root path.")
+    args = parser.parse_args()
 
+    if args.assessment_file and args.assessment_file != "-":
+        path = Path(args.assessment_file)
+        if not path.is_file():
+            print(f"Error: Assessment file '{args.assessment_file}' not found.", file=sys.stderr)
+            return 1
+        text = path.read_text(encoding="utf-8")
+    else:
+        text = sys.stdin.read()
 
-def read_assessment(path: str | None) -> str:
-    if not path or path == "-":
-        return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    try:
-        draft = read_assessment(args.path)
-    except Exception as exc:
-        print(f"Error reading assessment: {exc}", file=sys.stderr)
+    if not text.strip():
+        print("Error: Empty assessment input.", file=sys.stderr)
         return 1
 
-    receipts = receipt_lines(draft)
-    if len(receipts) > 1:
-        print("Error [finalization.receipt.duplicate]: Draft contains multiple validation receipts", file=sys.stderr)
-        return 1
-    if receipts and VALIDATION_RECEIPT_RE.fullmatch(receipts[0][1]) is None:
-        print("Error [finalization.receipt.malformed]: Draft contains a malformed validation receipt", file=sys.stderr)
+    assessment, parse_diags = parse_assessment(text)
+    if parse_diags:
+        for diag in parse_diags:
+            print(f"Draft Diagnostic: {diag}", file=sys.stderr)
+
+    effective_level = args.level or assessment.level
+    effective_mode = args.mode if args.mode != "targeted" else assessment.mode
+
+    if effective_mode == "discovery-only" or effective_level == "discovery-only":
+        effective_mode = "discovery-only"
+        effective_level = "discovery-only"
+
+    # Validate draft before finalization
+    draft_diagnostics = validate(text, effective_level if effective_level != "discovery-only" else "L0", Path(args.repo_root))
+    draft_errors = [d for d in draft_diagnostics if not d.is_warning]
+    if draft_errors:
+        print("Error: Cannot finalize invalid assessment draft:", file=sys.stderr)
+        for diag in draft_errors:
+            print(f"  - {diag}", file=sys.stderr)
         return 1
 
-    diagnostics = validate(
-        draft,
-        args.level,
-        args.repo_root.resolve(),
-        require_finalized=False,
-    )
-    if diagnostics:
-        print(f"Assessment finalization blocked ({args.level} level):", file=sys.stderr)
-        for item in diagnostics:
-            print(f"- {item}", file=sys.stderr)
-        return 1
+    # Produce finalized text with stamped validation receipt
+    finalized_text = finalize_assessment_text(text, effective_level if effective_level != "discovery-only" else "L0", mode=effective_mode)
 
-    finalized = finalize_assessment_text(draft, args.level)
-    receipt_diagnostics = validate(
-        finalized,
-        args.level,
-        args.repo_root.resolve(),
+    # Re-validate finalized text with --require-finalized
+    final_diagnostics = validate(
+        finalized_text,
+        effective_level if effective_level != "discovery-only" else "L0",
+        Path(args.repo_root),
         require_finalized=True,
     )
-    if receipt_diagnostics:
-        print("Assessment finalization produced an invalid result:", file=sys.stderr)
-        for item in receipt_diagnostics:
-            print(f"- {item}", file=sys.stderr)
+    final_errors = [d for d in final_diagnostics if not d.is_warning]
+    if final_errors:
+        print("Error: Finalized output failed validation:", file=sys.stderr)
+        for diag in final_errors:
+            print(f"  - {diag}", file=sys.stderr)
         return 1
 
-    sys.stdout.write(finalized)
+    # Write ONLY the finalized assessment to stdout
+    sys.stdout.write(finalized_text)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

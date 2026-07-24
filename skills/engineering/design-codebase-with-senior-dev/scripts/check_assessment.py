@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a design assessment against the canonical contract v2 and target repository."""
+"""Check a design-codebase-with-senior-dev assessment artifact against Contract v2."""
 
 from __future__ import annotations
 
@@ -7,383 +7,710 @@ import argparse
 import json
 import re
 import sys
-from collections import Counter
 from pathlib import Path
 
-from assessment_contract import (
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from assessment_contract import (  # noqa: E402
+    HARD_PATTERN_QUESTIONS,
+    VALID_DEBT_DISPOSITIONS,
+    VALID_DEBT_TYPES,
+    VALID_FRESHNESS,
+    VALID_HANDOFFS,
+    VALID_SOURCES,
+    VALID_STRENGTHS,
+    AlternativeRecord,
+    Assessment,
+    AssumptionRecord,
+    ContractRecord,
+    DecisionRecord,
+    DecisionSummary,
     Diagnostic,
-    load_contract,
-    marker,
-    section_names,
+    ExternalFactRecord,
+    FactRecord,
+    HandoffRecord,
+    MigrationRecord,
+    PatternGateRecord,
+    PressureRecord,
+    QuestionAnswer,
+    ResidualRiskRecord,
+    TargetCandidateRecord,
+    TechDebtRecord,
+    VerificationRecord,
     validate_receipt,
 )
 
-RECORD_RE = re.compile(r"^- (?P<id>(?:TD|T|F|P|C|D|H|A|O|G|V|M|R)-\d+):", re.MULTILINE)
 
-FACT_RE = re.compile(
-    r"^- (?P<id>F-\d+): `(?P<path>[^`:]+):(?P<line>\d+)` \| anchor: `(?P<anchor>[^`]+)` \| observation: (?P<observation>.+?)"
-    r"(?: \| source: (?P<source>[^|]+))?(?: \| strength: (?P<strength>[^|]+))?(?: \| freshness: (?P<freshness>[^|]+))?$",
-    re.MULTILINE,
-)
-DECISION_RE = re.compile(
-    r"^- D-\d+: level: (?P<level>L[0-3]) \| selected: (?P<selected>.+?) \| because: (?P<because>.+?) \| rejected: (?P<rejected>.+)$",
-    re.MULTILINE,
-)
-CONTRACT_RE = re.compile(
-    r"^- C-\d+: status: (?P<status>preserved|authorized-change|at-risk) \| contract: (?P<contract>.+?) \| authorization: (?P<authorization>.+)$",
-    re.MULTILINE,
-)
-HANDOFF_RE = re.compile(
-    r"^- H-\d+: status: assessment-only \| next: (?P<next>finish assessment|plan-with-senior-dev|codebase-issue-auditor|optimize-codebase-with-senior-dev|implement-with-senior-dev)$",
-    re.MULTILINE,
-)
-PATTERN_RE = re.compile(
-    r"^- G-\d+: pattern: (?P<pattern>.+?) \| scope: (?P<scope>introduced|removed|relied-upon) \| result: (?P<result>admit|admit-narrowed|retain|remove|reject|defer) \| questions: (?P<questions>.+?) \| evidence: (?P<evidence>.+)$",
-    re.MULTILINE,
-)
-MIGRATION_RE = re.compile(
-    r"^- M-\d+: prerequisite: .+? \| changed boundary: .+? \| preserved: (?:C-\d+(?:, C-\d+)*) \| proof: (?:V-\d+(?:, V-\d+)*) \| rollback trigger: .+? \| rollback action: .+? \| cleanup: .+$",
-    re.MULTILINE,
-)
-TECH_DEBT_RE = re.compile(
-    r"^- (?P<id>TD-\d+): type: (?P<type>structural|boundary|state-ownership|dependency|migration|operational) \| evidence: (?P<evidence>.+?) \| principal: (?P<principal>.+?) \| interest: (?P<interest>.+?) \| frequency: (?P<frequency>.+?) \| blast-radius: (?P<blast_radius>.+?) \| disposition: (?P<disposition>accept|monitor|contain|repay|retire) \| reason: (?P<reason>.+?) \| repayment-boundary: (?P<repayment_boundary>.+?) \| recurrence-guard: (?P<recurrence_guard>.+?) \| revisit-trigger: (?P<revisit_trigger>.+)$",
-    re.MULTILINE,
-)
-TARGET_DISCOVERY_RE = re.compile(
-    r"^- (?P<id>T-\d+): target: (?P<target>.+?) \| evidence: (?P<evidence>.+?) \| pressure: (?P<pressure>.+?) \| affected: (?P<affected>.+?) \| confidence: (?P<confidence>high|medium|low) \| likely-level: (?P<likely_level>L[0-3]) \| blast-radius: (?P<blast_radius>.+?) \| product-intent-required: (?P<product_intent>true|false) \| status: (?P<status>selected|rejected|deferred) \| reason: (?P<reason>.+)$",
-    re.MULTILINE,
-)
-VERIFICATION_RE = re.compile(
-    r"^- (?P<id>V-\d+): proves: (?P<proves>[^|]+) \| method: (?P<method>.+?) \| expected: (?P<expected>.+)$",
-    re.MULTILINE,
-)
-ALTERNATIVE_RE = re.compile(
-    r"^- (?P<id>O-\d+): level: (?P<level>L[0-3]) \| selected: (?P<selected>yes|no) \| concepts: (?P<concepts>.+?) \| argument-for: (?P<arg_for>.+?) \| argument-against: (?P<arg_against>.+?) \| revisit: (?P<revisit>.+)$",
-    re.MULTILINE,
-)
-
-PLACEHOLDER_RE = re.compile(r"\bReplace(?: with)?\b|existing_anchor", re.IGNORECASE)
-REFERENCE_RE = re.compile(r"\b(?:TD|T|F|P|C|D|A|O|G|V|M|R|H)-\d+\b")
+def _section(text: str, name: str) -> tuple[str, int | None]:
+    match = re.search(
+        rf"^## {re.escape(name)}\s*$\n(?P<body>.*?)(?=^## |\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        return "", None
+    line_number = text[: match.start()].count("\n") + 1
+    return match.group("body"), line_number
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--level", choices=tuple(load_contract()["levels"]), required=True)
-    parser.add_argument("--repo-root", type=Path, required=True)
-    parser.add_argument("path", nargs="?", help="Assessment Markdown file; reads stdin when omitted or '-'.")
-    parser.add_argument("--require-finalized", action="store_true", help="Require valid SHA-256 validation receipt.")
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    return parser.parse_args(argv)
+def _parse_record_kv(line: str) -> tuple[str, dict[str, str]]:
+    line_str = line.strip().lstrip("- ").strip()
+    if ":" not in line_str:
+        return line_str, {}
+    rec_id, rest = line_str.split(":", 1)
+    rec_id = rec_id.strip()
+    parts = [p.strip() for p in rest.split("|") if p.strip()]
+    kv: dict[str, str] = {}
+    for p in parts:
+        if ":" in p:
+            k, v = p.split(":", 1)
+            kv[k.strip()] = v.strip()
+    return rec_id, kv
 
 
-def read_assessment(path: str | None) -> str:
-    if path is None or path == "-":
-        return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
-
-
-def _sections(text: str) -> list[tuple[str, int, str]]:
-    headings = list(re.finditer(r"^## (?P<name>.+)$", text, re.MULTILINE))
-    return [
-        (
-            match.group("name").strip(),
-            text[: match.start()].count("\n") + 1,
-            text[match.end() : headings[index + 1].start() if index + 1 < len(headings) else len(text)].strip(),
-        )
-        for index, match in enumerate(headings)
-    ]
-
-
-def _line(text: str, offset: int) -> int:
-    return text[:offset].count("\n") + 1
-
-
-def _validate_shape(text: str, level: str) -> list[Diagnostic]:
+def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
     diagnostics: list[Diagnostic] = []
-    first = next(((index, line.strip()) for index, line in enumerate(text.splitlines(), start=1) if line.strip()), None)
-    if first is None or not first[1].startswith("# "):
-        diagnostics.append(Diagnostic("shape.title.missing", "First non-empty line must be an H1 title.", first[0] if first else None))
-    
-    expected_marker = marker(level)
-    if expected_marker not in text:
-        diagnostics.append(Diagnostic("contract.marker.missing", f"Expected exact marker {expected_marker!r}."))
-    for other_level in load_contract()["levels"]:
-        if other_level != level and marker(other_level) in text:
-            diagnostics.append(Diagnostic("contract.level.mismatch", f"Assessment declares {other_level} but checker expects {level}."))
+    assessment = Assessment(raw_text=text)
 
-    parsed = _sections(text)
-    names = [name for name, _, _ in parsed]
-    expected = section_names(level)
-    
-    # Allow extra section "Target Discovery Candidates" if autonomous mode
-    filtered_names = [n for n in names if n != "Target Discovery Candidates"]
-    if filtered_names != expected:
-        diagnostics.append(Diagnostic("shape.sections.order", f"H2 sections must be: {', '.join(expected)} (with optional Target Discovery Candidates)."))
+    # 1. Parse Title
+    title_match = re.search(r"^# (?P<title>.+)$", text, re.MULTILINE)
+    if title_match:
+        assessment.title = title_match.group("title").strip()
 
-    for name, count in Counter(names).items():
-        if count > 1:
-            diagnostics.append(Diagnostic("shape.section.duplicate", f"Section {name!r} appears {count} times."))
-    for name, line_number, body in parsed:
-        if not body:
-            diagnostics.append(Diagnostic("shape.section.empty", f"Section {name!r} is empty.", line_number))
-    for match in PLACEHOLDER_RE.finditer(text):
-        diagnostics.append(Diagnostic("shape.placeholder", f"Unfilled scaffold placeholder {match.group(0)!r}.", _line(text, match.start())))
-    return diagnostics
-
-
-def _validate_decision_summary(text: str, level: str) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    summary_body = next((body for name, _, body in _sections(text) if name == "Decision Summary"), "")
-    if not summary_body:
-        return [Diagnostic("summary.missing", "Decision Summary section is required at top of assessment.")]
-
-    lowered = summary_body.casefold()
-    if "invocation mode:" not in lowered:
-        diagnostics.append(Diagnostic("summary.mode.missing", "Decision Summary must include Invocation mode."))
-    if "selected target:" not in lowered:
-        diagnostics.append(Diagnostic("summary.target.missing", "Decision Summary must include Selected target."))
-    if "selected level:" not in lowered:
-        diagnostics.append(Diagnostic("summary.level.missing", "Decision Summary must include Selected level."))
-    elif f"selected level: {level.casefold()}" not in lowered:
-        diagnostics.append(Diagnostic("summary.level.mismatch", f"Decision Summary selected level must match contract level {level}."))
-
-    if "recommended design:" not in lowered:
-        diagnostics.append(Diagnostic("summary.recommendation.missing", "Decision Summary must include Recommended design."))
-    if "protected behavior and contracts:" not in lowered:
-        diagnostics.append(Diagnostic("summary.contracts.missing", "Decision Summary must include Protected behavior and contracts."))
-    if "primary structural pressure:" not in lowered:
-        diagnostics.append(Diagnostic("summary.pressure.missing", "Decision Summary must include Primary structural pressure."))
-    if "next owner:" not in lowered:
-        diagnostics.append(Diagnostic("summary.owner.missing", "Decision Summary must include Next owner."))
-    return diagnostics
-
-
-def _validate_records(text: str, level: str) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    identifiers = [match.group("id") for match in RECORD_RE.finditer(text)]
-    known = set(identifiers)
-    for identifier, count in Counter(identifiers).items():
-        if count > 1:
-            diagnostics.append(Diagnostic("record.id.duplicate", f"Record {identifier} appears {count} times."))
-
-    required_prefixes = {"F", "P", "C", "D", "H", "A", "O", "V", "R"}
-    for prefix in required_prefixes:
-        if not any(identifier.startswith(f"{prefix}-") for identifier in identifiers):
-            diagnostics.append(Diagnostic("record.required.missing", f"At least one {prefix}-n record is required."))
-
-    for reference in REFERENCE_RE.findall(text):
-        if reference not in known:
-            diagnostics.append(Diagnostic("record.reference.missing", f"Reference {reference} has no matching record."))
-
-    # Decision record D-n
-    decisions = list(DECISION_RE.finditer(text))
-    if len(decisions) != 1:
-        diagnostics.append(Diagnostic("decision.format", "Exactly one canonical D-n classification record is required."))
+    # 2. Parse Marker
+    marker_match = re.search(
+        r"<!-- design-assessment-contract: (?P<version>\d+); (?:level: (?P<level>L[0-3])|mode: (?P<mode>discovery-only)) -->",
+        text,
+    )
+    if not marker_match:
+        diagnostics.append(Diagnostic("contract.marker.missing", "Missing contract marker <!-- design-assessment-contract: 2; level: L0..L3 --> or mode: discovery-only"))
     else:
-        d = decisions[0]
-        if d.group("level") != level:
-            diagnostics.append(Diagnostic("decision.level.mismatch", f"D-n selects {d.group('level')} but contract level is {level}."))
-        if not re.search(r"\bF-\d+\b", d.group("because")) or not re.search(r"\bP-\d+\b", d.group("because")):
-            diagnostics.append(Diagnostic("decision.evidence.missing", "D-n because field must cite both F-n and P-n."))
-
-    # Alternatives O-n
-    alternatives = list(ALTERNATIVE_RE.finditer(text))
-    minimum = int(load_contract()["levels"][level]["minimum_alternatives"])
-    if len(alternatives) < minimum:
-        diagnostics.append(Diagnostic("alternatives.count", f"{level} requires at least {minimum} O-n alternatives; found {len(alternatives)}."))
-
-    selected_alts = [alt for alt in alternatives if alt.group("selected") == "yes"]
-    if len(selected_alts) != 1:
-        diagnostics.append(Diagnostic("alternatives.selected.count", f"Exactly one O-n alternative must be selected (yes); found {len(selected_alts)}."))
-    elif selected_alts[0].group("level") != level:
-        diagnostics.append(Diagnostic("alternatives.selected.level_mismatch", f"Selected O-n level {selected_alts[0].group('level')} must match D-n level {level}."))
-
-    # Contracts C-n
-    contracts = list(CONTRACT_RE.finditer(text))
-    if not contracts:
-        diagnostics.append(Diagnostic("contract.record.format", "At least one canonical C-n protected-contract record is required."))
-    for contract in contracts:
-        status = contract.group("status")
-        auth = contract.group("authorization").strip().casefold()
-        if status == "authorized-change" and auth in {"none", "unknown", "n/a", "not-applicable"}:
-            diagnostics.append(Diagnostic("contract.authorization.missing", "An authorized-change C-n must name explicit authorization.", _line(text, contract.start())))
-        elif status == "at-risk":
-            if auth in {"none", "unknown", "n/a", "not-applicable"}:
-                diagnostics.append(Diagnostic("contract.at_risk.unhandled", "An at-risk C-n must name a resolution owner, path, or blocking status.", _line(text, contract.start())))
-
-    # Tech Debt TD-n
-    tech_debts = list(TECH_DEBT_RE.finditer(text))
-    for td in tech_debts:
-        evidence = td.group("evidence")
-        if not re.search(r"\bF-\d+\b", evidence):
-            diagnostics.append(Diagnostic("tech_debt.evidence.missing", f"TD record {td.group('id')} must cite at least one F-n record.", _line(text, td.start())))
-        disposition = td.group("disposition")
-        rec_guard = td.group("recurrence_guard").strip().casefold()
-        rev_trigger = td.group("revisit_trigger").strip().casefold()
-
-        if disposition in {"repay", "retire"} and rec_guard in {"none", "n/a", "not-applicable", "unknown"}:
-            diagnostics.append(Diagnostic("tech_debt.recurrence_guard.missing", f"TD disposition {disposition} requires a recurrence guard.", _line(text, td.start())))
-        if disposition in {"accept", "monitor", "contain"} and rev_trigger in {"none", "n/a", "not-applicable", "unknown"}:
-            diagnostics.append(Diagnostic("tech_debt.revisit_trigger.missing", f"TD disposition {disposition} requires a measurable revisit trigger.", _line(text, td.start())))
-
-    # Handoff H-n
-    handoff_match = HANDOFF_RE.search(text)
-    if not handoff_match:
-        diagnostics.append(Diagnostic("handoff.assessment_only", "H-n must keep this skill assessment-only and select one canonical next state."))
-
-    # Target Discovery T-n
-    candidates = list(TARGET_DISCOVERY_RE.finditer(text))
-    summary_body = next((body for name, _, body in _sections(text) if name == "Decision Summary"), "").casefold()
-    mode = "targeted"
-    if "invocation mode: autonomous-discovery" in summary_body:
-        mode = "autonomous-discovery"
-    elif "invocation mode: discovery-only" in summary_body:
-        mode = "discovery-only"
-
-    if mode == "targeted":
-        selected_targets = [t for t in candidates if t.group("status") == "selected"]
-        if selected_targets:
-            diagnostics.append(Diagnostic("discovery.targeted.selected_prohibited", "Targeted mode must not contain a selected autonomous target candidate."))
-    elif mode == "autonomous-discovery":
-        selected_targets = [t for t in candidates if t.group("status") == "selected"]
-        if len(selected_targets) != 1:
-            diagnostics.append(Diagnostic("discovery.autonomous.selected_count", f"Autonomous mode requires exactly 1 selected T-n candidate; found {len(selected_targets)}."))
+        version = int(marker_match.group("version"))
+        if version != 2:
+            diagnostics.append(Diagnostic("contract.version.invalid", f"Contract version must be 2, got {version}"))
+        assessment.contract_version = version
+        if marker_match.group("mode") == "discovery-only":
+            assessment.mode = "discovery-only"
+            assessment.level = "discovery-only"
         else:
-            sel = selected_targets[0]
-            if sel.group("product_intent").casefold() == "true":
-                diagnostics.append(Diagnostic("discovery.autonomous.product_intent_blocked", "Autonomous selection must fail when product intent is required."))
-            if sel.group("confidence").casefold() == "low":
-                diagnostics.append(Diagnostic("discovery.autonomous.low_confidence_blocked", "Autonomous selection must fail when candidate confidence is low."))
-    elif mode == "discovery-only":
-        selected_targets = [t for t in candidates if t.group("status") == "selected"]
-        if selected_targets:
-            diagnostics.append(Diagnostic("discovery.only.selected_prohibited", "Discovery-only mode must not select a design target."))
-        if handoff_match and handoff_match.group("next") != "codebase-issue-auditor":
-            diagnostics.append(Diagnostic("discovery.only.handoff_mismatch", "Discovery-only mode must hand off to codebase-issue-auditor."))
+            assessment.level = marker_match.group("level")
 
-    # Verification V-n
-    verifications = list(VERIFICATION_RE.finditer(text))
-    for v in verifications:
-        proves = v.group("proves")
-        if not re.search(r"\b(?:TD|T|F|P|C|D|A|O|G|V|M|R|H)-\d+\b", proves):
-            diagnostics.append(Diagnostic("verification.proves.missing", f"V-n record {v.group('id')} must cite a target record to prove.", _line(text, v.start())))
+    # 3. Parse Decision Summary
+    summary_body, summary_line = _section(text, "Decision Summary")
+    if summary_body:
+        ds = DecisionSummary()
+        for line in summary_body.splitlines():
+            line_str = line.strip()
+            if line_str.startswith("- Invocation mode:"):
+                ds.mode = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Selected target:"):
+                ds.target = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Selected level:"):
+                ds.level = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Recommended design:"):
+                ds.recommendation = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Why minimum sufficient:"):
+                ds.why_minimum = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Protected behavior and contracts:"):
+                ds.protected_contracts = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Primary structural pressure:"):
+                ds.primary_pressure = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Technical-debt disposition:"):
+                ds.debt_disposition = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Residual risk:"):
+                ds.residual_risk = line_str.split(":", 1)[1].strip()
+            elif line_str.startswith("- Next owner:"):
+                ds.next_owner = line_str.split(":", 1)[1].strip()
+        assessment.decision_summary = ds
+        if assessment.mode != "discovery-only" and ds.mode:
+            assessment.mode = ds.mode
+    elif assessment.mode != "discovery-only":
+        diagnostics.append(Diagnostic("summary.section.missing", "Section ## Decision Summary is required", summary_line))
 
-    return diagnostics
+    # 4. Parse Evidence and Current State (F-n and E-n)
+    ev_body, ev_line = _section(text, "Evidence and Current State")
+    if ev_body:
+        for idx, line in enumerate(ev_body.splitlines(), start=ev_line or 1):
+            line_str = line.strip()
+            # F-n parsing: - F-1: `path:1` | anchor: `foo` | observation: bar | source: code | strength: direct | freshness: current
+            f_match = re.match(
+                r"^-\s*(?P<id>F-\d+):\s*`(?P<path>[^:]+)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
+                line_str,
+            )
+            if f_match:
+                assessment.facts.append(
+                    FactRecord(
+                        id=f_match.group("id"),
+                        path=f_match.group("path"),
+                        line=int(f_match.group("line")) if f_match.group("line") else 1,
+                        anchor=f_match.group("anchor"),
+                        observation=f_match.group("obs").strip(),
+                        source=(f_match.group("source") or "code").strip(),
+                        strength=(f_match.group("strength") or "direct").strip(),
+                        freshness=(f_match.group("freshness") or "current").strip().rstrip("."),
+                        line_number=idx,
+                    )
+                )
+                continue
+
+            # E-n parsing: - E-1: source: `https://...` | version: `3.11` | claim: foo | freshness: current | relationship: supports | authoritative: true
+            e_match = re.match(
+                r"^-\s*(?P<id>E-\d+):\s*source:\s*`(?P<source>[^`]*)`\s*\|\s*version:\s*`(?P<ver>[^`]*)`\s*\|\s*claim:\s*(?P<claim>.*?)(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?(?:\s*\|\s*relationship:\s*(?P<rel>[^|]+))?(?:\s*\|\s*authoritative:\s*(?P<auth>[^|]+))?$",
+                line_str,
+            )
+            if e_match:
+                assessment.external_facts.append(
+                    ExternalFactRecord(
+                        id=e_match.group("id"),
+                        source_id=e_match.group("source"),
+                        version=e_match.group("ver"),
+                        claim=e_match.group("claim").strip(),
+                        freshness=(e_match.group("freshness") or "current").strip(),
+                        relationship=(e_match.group("rel") or "supports").strip(),
+                        authoritative=(e_match.group("auth") or "true").strip().lower() == "true",
+                        line_number=idx,
+                    )
+                )
+
+    # 5. Parse Target Discovery Candidates (T-n)
+    tdis_body, tdis_line = _section(text, "Target Discovery Candidates")
+    if tdis_body:
+        for idx, line in enumerate(tdis_body.splitlines(), start=tdis_line or 1):
+            line_str = line.strip()
+            if not line_str.startswith("- T-"):
+                continue
+            t_id, kv = _parse_record_kv(line_str)
+            if t_id:
+                ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+                aff_list = [a.strip() for a in kv.get("affected", "").split(",") if a.strip()]
+                rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
+                intent_req = kv.get("product-intent-required", "false").lower() == "true"
+                assessment.discovery_candidates.append(
+                    TargetCandidateRecord(
+                        id=t_id,
+                        target=kv.get("target", "").strip("`"),
+                        evidence=ev_list,
+                        pressure=kv.get("pressure", ""),
+                        affected=aff_list,
+                        confidence=kv.get("confidence", "high"),
+                        likely_level=kv.get("likely-level", "L1"),
+                        blast_radius=kv.get("blast-radius", "local"),
+                        product_intent_required=intent_req,
+                        rank=rank_val,
+                        status=kv.get("status", "deferred"),
+                        reason=kv.get("reason", ""),
+                        correctness_risk=kv.get("correctness-risk"),
+                        operational_risk=kv.get("operational-risk"),
+                        debt_interest=kv.get("debt-interest"),
+                        change_propagation=kv.get("change-propagation"),
+                        state_ambiguity=kv.get("state-ambiguity"),
+                        scope_boundedness=kv.get("scope-boundedness"),
+                        reversibility=kv.get("reversibility"),
+                        structural_confidence=kv.get("structural-confidence"),
+                        line_number=idx,
+                    )
+                )
+
+    # 6. Parse Scope and Protected Contracts (C-n, H-n, A-n, TD-n)
+    scope_body, scope_line = _section(text, "Scope and Protected Contracts")
+    if scope_body:
+        for idx, line in enumerate(scope_body.splitlines(), start=scope_line or 1):
+            line_str = line.strip()
+            if line_str.startswith("- C-"):
+                c_id, kv = _parse_record_kv(line_str)
+                assessment.contracts.append(
+                    ContractRecord(
+                        id=c_id,
+                        status=kv.get("status", "preserved"),
+                        contract=kv.get("contract", ""),
+                        authorization=kv.get("authorization", "none"),
+                        owner=kv.get("owner"),
+                        resolution=kv.get("resolution"),
+                        blocking=kv.get("blocking", "false").lower() == "true",
+                        line_number=idx,
+                    )
+                )
+            elif line_str.startswith("- H-"):
+                h_id, kv = _parse_record_kv(line_str)
+                assessment.handoff = HandoffRecord(
+                    id=h_id,
+                    status=kv.get("status", "assessment-only"),
+                    next=kv.get("next", ""),
+                    line_number=idx,
+                )
+            elif line_str.startswith("- A-"):
+                a_id, kv = _parse_record_kv(line_str)
+                assessment.assumptions.append(
+                    AssumptionRecord(
+                        id=a_id,
+                        status=kv.get("status", "unconfirmed"),
+                        impact=kv.get("impact", ""),
+                        verification=kv.get("verification", ""),
+                        line_number=idx,
+                    )
+                )
+            elif line_str.startswith("- TD-"):
+                td_id, kv = _parse_record_kv(line_str)
+                ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+                assessment.tech_debts.append(
+                    TechDebtRecord(
+                        id=td_id,
+                        type=kv.get("type", "structural"),
+                        evidence=ev_list,
+                        principal=kv.get("principal", ""),
+                        interest=kv.get("interest", ""),
+                        frequency=kv.get("frequency", "current"),
+                        blast_radius=kv.get("blast-radius", ""),
+                        disposition=kv.get("disposition", "repay"),
+                        reason=kv.get("reason", ""),
+                        repayment_boundary=kv.get("repayment-boundary", kv.get("boundary", "")),
+                        recurrence_guard=kv.get("recurrence-guard", ""),
+                        revisit_trigger=kv.get("revisit-trigger", kv.get("revisit", "")),
+                        containment_boundary=kv.get("containment-boundary"),
+                        line_number=idx,
+                    )
+                )
+
+    # 7. Parse Design Pressures and Classification (P-n and D-n)
+    dp_body, dp_line = _section(text, "Design Pressures and Classification")
+    if dp_body:
+        for idx, line in enumerate(dp_body.splitlines(), start=dp_line or 1):
+            line_str = line.strip()
+            if line_str.startswith("- P-"):
+                p_id, kv = _parse_record_kv(line_str)
+                ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+                rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
+                assessment.pressures.append(
+                    PressureRecord(
+                        id=p_id,
+                        rank=rank_val,
+                        evidence=ev_list,
+                        pressure=kv.get("pressure", ""),
+                        line_number=idx,
+                    )
+                )
+            elif line_str.startswith("- D-"):
+                d_id, kv = _parse_record_kv(line_str)
+                bec_list = [b.strip() for b in kv.get("because", "").split(",") if b.strip()]
+                assessment.decision = DecisionRecord(
+                    id=d_id,
+                    level=kv.get("level", "L0"),
+                    selected=kv.get("selected", ""),
+                    because=bec_list,
+                    rejected=kv.get("rejected", ""),
+                    line_number=idx,
+                )
+
+    # 8. Parse Alternatives and Pattern Decisions (O-n and G-n)
+    alt_body, alt_line = _section(text, "Alternatives and Pattern Decisions")
+    if alt_body:
+        lines = alt_body.splitlines()
+        idx = 0
+        while idx < len(lines):
+            line_str = lines[idx].strip()
+            curr_line_num = (alt_line or 1) + idx
+            if line_str.startswith("- O-"):
+                o_id, kv = _parse_record_kv(line_str)
+                assessment.alternatives.append(
+                    AlternativeRecord(
+                        id=o_id,
+                        level=kv.get("level", "L0"),
+                        selected=kv.get("selected", "no").lower() == "yes",
+                        concepts=kv.get("concepts", ""),
+                        arg_for=kv.get("argument-for", ""),
+                        arg_against=kv.get("argument-against", ""),
+                        revisit=kv.get("revisit", ""),
+                        line_number=curr_line_num,
+                    )
+                )
+            elif line_str.startswith("### G-") or line_str.startswith("- G-"):
+                g_id = ""
+                pattern_name = ""
+                result_val = "admit"
+                scope_val = "introduced"
+                evidence_val: list[str] = []
+
+                if line_str.startswith("### G-"):
+                    g_header = line_str.lstrip("#").strip()
+                    g_parts = g_header.split(":", 1)
+                    g_id = g_parts[0].strip()
+                    if len(g_parts) > 1:
+                        p_res = g_parts[1].split("—", 1) if "—" in g_parts[1] else g_parts[1].split("-", 1)
+                        pattern_name = p_res[0].strip()
+                        if len(p_res) > 1:
+                            result_val = p_res[1].strip()
+                else:
+                    g_id, kv = _parse_record_kv(line_str)
+                    pattern_name = kv.get("pattern", "")
+                    scope_val = kv.get("scope", "introduced")
+                    result_val = kv.get("result", "admit")
+                    evidence_val = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+
+                questions_dict: dict[int, QuestionAnswer] = {}
+                removed_dest = None
+                revisit_trig = None
+
+                sub_idx = idx + 1
+                while sub_idx < len(lines):
+                    sub_line = lines[sub_idx].strip()
+                    if sub_line.startswith("### G-") or sub_line.startswith("- G-") or sub_line.startswith("- O-") or sub_line.startswith("## "):
+                        break
+                    if sub_line.startswith("- Scope:"):
+                        _, kv = _parse_record_kv(sub_line)
+                        scope_val = kv.get("Scope", scope_val)
+                        result_val = kv.get("Result", result_val)
+                        if "Evidence" in kv:
+                            evidence_val = [e.strip() for e in kv["Evidence"].split(",") if e.strip()]
+                        removed_dest = kv.get("removed-destination")
+                        revisit_trig = kv.get("revisit-trigger")
+                    elif sub_line.startswith("| Q") or (sub_line.startswith("|") and "Gate" not in sub_line and "---" not in sub_line):
+                        cols = [c.strip() for c in sub_line.split("|")[1:-1]]
+                        if len(cols) >= 3 and cols[0].startswith("Q"):
+                            q_num_str = cols[0].lstrip("Q")
+                            if q_num_str.isdigit():
+                                q_num = int(q_num_str)
+                                q_ans = cols[1].lower()
+                                q_ev = [e.strip() for e in cols[2].split(",") if e.strip()]
+                                q_cons = cols[3] if len(cols) > 3 else ""
+                                questions_dict[q_num] = QuestionAnswer(
+                                    number=q_num,
+                                    answer=q_ans,
+                                    evidence=q_ev,
+                                    consequence=q_cons,
+                                )
+                    sub_idx += 1
+
+                assessment.pattern_gates.append(
+                    PatternGateRecord(
+                        id=g_id,
+                        pattern=pattern_name,
+                        scope=scope_val,
+                        result=result_val,
+                        questions=questions_dict,
+                        evidence=evidence_val,
+                        removed_destination=removed_dest,
+                        revisit_trigger=revisit_trig,
+                        line_number=curr_line_num,
+                    )
+                )
+            idx += 1
+
+    # 9. Parse Verification and Residual Risk (V-n and R-n)
+    v_body, v_line = _section(text, "Verification and Residual Risk")
+    if v_body:
+        for idx, line in enumerate(v_body.splitlines(), start=v_line or 1):
+            line_str = line.strip()
+            if line_str.startswith("- V-"):
+                v_id, kv = _parse_record_kv(line_str)
+                prov_list = [pr.strip() for pr in kv.get("proves", "").split(",") if pr.strip()]
+                assessment.verifications.append(
+                    VerificationRecord(
+                        id=v_id,
+                        proves=prov_list,
+                        method=kv.get("method", ""),
+                        expected=kv.get("expected", ""),
+                        line_number=idx,
+                    )
+                )
+            elif line_str.startswith("- R-"):
+                r_id, kv = _parse_record_kv(line_str)
+                assessment.residual_risks.append(
+                    ResidualRiskRecord(
+                        id=r_id,
+                        severity=kv.get("severity", "low"),
+                        scenario=kv.get("scenario", ""),
+                        consequence=kv.get("consequence", ""),
+                        owner=kv.get("owner", ""),
+                        follow_up=kv.get("follow-up", ""),
+                        line_number=idx,
+                    )
+                )
+
+    # 10. Parse Migration and Rollback (M-n)
+    m_body, m_line = _section(text, "Migration and Rollback")
+    if m_body:
+        for idx, line in enumerate(m_body.splitlines(), start=m_line or 1):
+            line_str = line.strip()
+            if line_str.startswith("- M-"):
+                m_id, kv = _parse_record_kv(line_str)
+                pres_list = [pr.strip() for pr in kv.get("preserved", "").split(",") if pr.strip()]
+                proof_list = [pr.strip() for pr in kv.get("proof", "").split(",") if pr.strip()]
+                assessment.migrations.append(
+                    MigrationRecord(
+                        id=m_id,
+                        prerequisite=kv.get("prerequisite", ""),
+                        changed_boundary=kv.get("changed boundary", kv.get("changed-boundary", "")),
+                        preserved=pres_list,
+                        proof=proof_list,
+                        rollback_trigger=kv.get("rollback trigger", kv.get("rollback-trigger", "")),
+                        rollback_action=kv.get("rollback action", kv.get("rollback-action", "")),
+                        cleanup=kv.get("cleanup", ""),
+                        line_number=idx,
+                    )
+                )
+
+    return assessment, diagnostics
 
 
-def _validate_facts(text: str, repo_root: Path) -> list[Diagnostic]:
-    diagnostics: list[Diagnostic] = []
-    matches = list(FACT_RE.finditer(text))
-    if not matches:
-        return [Diagnostic("fact.format", "At least one canonical F-n citation is required.")]
+def validate(
+    assessment_or_text: Assessment | str,
+    declared_level: str | None = None,
+    repo_root: Path = Path("."),
+    *,
+    require_finalized: bool = False,
+) -> list[Diagnostic]:
+    if isinstance(assessment_or_text, str):
+        assessment, diagnostics = parse_assessment(assessment_or_text)
+        text = assessment_or_text
+    else:
+        assessment = assessment_or_text
+        diagnostics = list(assessment.diagnostics)
+        text = assessment.raw_text
+
+    effective_level = declared_level or assessment.level
+
+    if require_finalized:
+        diagnostics.extend(validate_receipt(text, required=True, expected_level_or_mode=effective_level))
+
+    if effective_level != assessment.level:
+        diagnostics.append(Diagnostic("level.declared.mismatch", f"Declared level {effective_level} != assessment level {assessment.level}"))
+
+    mode = assessment.mode
+    is_discovery_only = (mode == "discovery-only" or effective_level == "discovery-only")
+
+    # Mode 1: Targeted Mode Rules
+    if mode == "targeted":
+        if not assessment.facts and not assessment.external_facts:
+            diagnostics.append(Diagnostic("fact.format", "Targeted assessment requires at least one F-n or E-n fact."))
+        if not assessment.contracts:
+            diagnostics.append(Diagnostic("contract.record.missing", "Targeted assessment requires at least one C-n contract."))
+        if not assessment.pressures:
+            diagnostics.append(Diagnostic("pressure.record.missing", "Targeted assessment requires at least one P-n pressure."))
+        if not assessment.decision:
+            diagnostics.append(Diagnostic("decision.record.missing", "Targeted assessment requires exactly one D-n decision record."))
+        if not assessment.verifications:
+            diagnostics.append(Diagnostic("verification.record.missing", "Targeted assessment requires at least one V-n verification record."))
+        if not assessment.handoff:
+            diagnostics.append(Diagnostic("handoff.record.missing", "Targeted assessment requires exactly one H-n handoff record."))
+        if assessment.discovery_candidates:
+            for tc in assessment.discovery_candidates:
+                if tc.status == "selected":
+                    diagnostics.append(Diagnostic("discovery.targeted.selected_prohibited", "Targeted mode prohibits selected T-n candidates.", tc.line_number))
+
+    # Mode 2: Autonomous Discovery Mode Rules
+    elif mode == "autonomous-discovery":
+        if not (1 <= len(assessment.discovery_candidates) <= 5):
+            diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Autonomous discovery mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
+        
+        selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
+        if len(selected_candidates) != 1:
+            diagnostics.append(Diagnostic("discovery.autonomous.selected_count_invalid", f"Autonomous discovery mode requires exactly one selected candidate, found {len(selected_candidates)}."))
+        else:
+            sel = selected_candidates[0]
+            if sel.confidence not in {"high", "medium"}:
+                diagnostics.append(Diagnostic("discovery.autonomous.low_confidence", f"Selected candidate {sel.id} must be high or medium confidence, got {sel.confidence}.", sel.line_number))
+            if sel.product_intent_required:
+                diagnostics.append(Diagnostic("discovery.autonomous.product_intent_required", f"Selected candidate {sel.id} requires product intent alignment; must trigger discovery-only mode.", sel.line_number))
+            if not sel.evidence:
+                diagnostics.append(Diagnostic("discovery.autonomous.evidence_missing", f"Selected candidate {sel.id} must cite valid evidence.", sel.line_number))
+            if not sel.affected:
+                diagnostics.append(Diagnostic("discovery.autonomous.affected_missing", f"Selected candidate {sel.id} must cite affected contracts.", sel.line_number))
+            if sel.rank != 1:
+                diagnostics.append(Diagnostic("discovery.autonomous.rank_invalid", f"Selected candidate {sel.id} must have rank 1.", sel.line_number))
+
+            if assessment.decision_summary and assessment.decision_summary.target != sel.target:
+                diagnostics.append(Diagnostic("summary.target.mismatch", f"Decision Summary target '{assessment.decision_summary.target}' != selected candidate target '{sel.target}'"))
+            if assessment.decision and assessment.decision.selected and sel.target not in assessment.decision.selected and assessment.decision.selected not in sel.target:
+                diagnostics.append(Diagnostic("decision.target.mismatch", f"Decision selected '{assessment.decision.selected}' does not match candidate target '{sel.target}'", assessment.decision.line_number))
+
+        ranks = [tc.rank for tc in assessment.discovery_candidates]
+        if len(ranks) != len(set(ranks)):
+            diagnostics.append(Diagnostic("discovery.candidates.duplicate_ranks", "T-n candidates must have unique ranks."))
+
+    # Mode 3: Discovery-Only Mode Rules
+    elif is_discovery_only:
+        if not (1 <= len(assessment.discovery_candidates) <= 5):
+            diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Discovery-only mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
+        selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
+        if selected_candidates:
+            diagnostics.append(Diagnostic("discovery.only.selected_prohibited", f"Discovery-only mode prohibits selected candidates, found {len(selected_candidates)}.", selected_candidates[0].line_number))
+        for tc in assessment.discovery_candidates:
+            if not tc.reason:
+                diagnostics.append(Diagnostic("discovery.only.reason_missing", f"Candidate {tc.id} in discovery-only mode must state a refusal reason.", tc.line_number))
+        
+        if assessment.decision:
+            diagnostics.append(Diagnostic("discovery.only.decision_prohibited", "Discovery-only mode prohibits D-n decision records."))
+        for alt in assessment.alternatives:
+            if alt.selected:
+                diagnostics.append(Diagnostic("discovery.only.selected_alt_prohibited", "Discovery-only mode prohibits selected O-n alternatives.", alt.line_number))
+        if assessment.pattern_gates:
+            diagnostics.append(Diagnostic("discovery.only.pattern_prohibited", "Discovery-only mode prohibits G-n pattern gate records."))
+        if assessment.migrations:
+            diagnostics.append(Diagnostic("discovery.only.migration_prohibited", "Discovery-only mode prohibits M-n migration records."))
+
+        if assessment.handoff:
+            if assessment.handoff.next != "codebase-issue-auditor":
+                diagnostics.append(Diagnostic("discovery.only.handoff_invalid", f"Discovery-only mode handoff must be codebase-issue-auditor, got '{assessment.handoff.next}'", assessment.handoff.line_number))
+
+    # General Fact & Evidence Validation
+    valid_fact_ids = {f.id for f in assessment.facts} | {e.id for e in assessment.external_facts}
     root = repo_root.resolve()
 
-    categories = set()
+    for f in assessment.facts:
+        if f.source not in VALID_SOURCES:
+            diagnostics.append(Diagnostic("fact.source.invalid", f"Fact {f.id} has invalid source '{f.source}'", f.line_number))
+        if f.strength not in VALID_STRENGTHS:
+            diagnostics.append(Diagnostic("fact.strength.invalid", f"Fact {f.id} has invalid strength '{f.strength}'", f.line_number))
+        if f.freshness not in VALID_FRESHNESS:
+            diagnostics.append(Diagnostic("fact.freshness.invalid", f"Fact {f.id} has invalid freshness '{f.freshness}'", f.line_number))
 
-    for match in matches:
-        path = (root / match.group("path")).resolve()
-        source_cat = (match.group("source") or "code").strip().casefold()
-        categories.add(source_cat)
+        if f.source not in {"repository-history", "fixture"} and not f.path.startswith("git-history:"):
+            fact_path = root / f.path.split(":")[0]
+            if not fact_path.is_file():
+                diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
 
-        try:
-            path.relative_to(root)
-        except ValueError:
-            diagnostics.append(Diagnostic("fact.path.outside_repo", f"Citation path escapes repository: {match.group('path')}.", _line(text, match.start())))
-            continue
-        if not path.is_file():
-            diagnostics.append(Diagnostic("fact.path.missing", f"Cited file does not exist: {match.group('path')}.", _line(text, match.start())))
-            continue
-        lines = path.read_text(encoding="utf-8").splitlines()
-        line_number = int(match.group("line"))
-        if line_number < 1 or line_number > len(lines):
-            diagnostics.append(Diagnostic("fact.line.missing", f"Cited line {line_number} does not exist in {match.group('path')}.", _line(text, match.start())))
-            continue
-        if match.group("anchor") not in lines[line_number - 1]:
-            diagnostics.append(Diagnostic("fact.anchor.missing", f"Anchor {match.group('anchor')!r} is not on {match.group('path')}:{line_number}.", _line(text, match.start())))
+    for ef in assessment.external_facts:
+        if ef.freshness not in VALID_FRESHNESS:
+            diagnostics.append(Diagnostic("fact.freshness.invalid", f"External fact {ef.id} has invalid freshness '{ef.freshness}'", ef.line_number))
+
+    # L3 Evidence Diversity Check
+    if effective_level == "L3" and not is_discovery_only:
+        sources_used = {f.source for f in assessment.facts}
+        if len(sources_used) < 3:
+            diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", f"L3 assessment requires at least 3 distinct evidence categories, found {len(sources_used)} ({sources_used})"))
+
+        strengths_used = {f.strength for f in assessment.facts}
+        if strengths_used == {"inferred"}:
+            diagnostics.append(Diagnostic("evidence.l2_l3.inferred_only", "L2/L3 design cannot be approved solely by inferred evidence"))
+
+    # Pressure Validation
+    for p in assessment.pressures:
+        if not p.evidence:
+            diagnostics.append(Diagnostic("pressure.evidence.missing", f"Pressure {p.id} must cite at least one F-n or E-n fact", p.line_number))
+        else:
+            for ev_id in p.evidence:
+                if ev_id not in valid_fact_ids:
+                    diagnostics.append(Diagnostic("pressure.evidence.invalid", f"Pressure {p.id} cites unknown evidence '{ev_id}'", p.line_number))
+
+    p_ranks = [p.rank for p in assessment.pressures]
+    if len(p_ranks) != len(set(p_ranks)):
+        diagnostics.append(Diagnostic("pressure.rank.duplicate", "P-n pressures must have unique ranks."))
+
+    # Contract Validation
+    for c in assessment.contracts:
+        if c.status == "authorized-change" and (not c.authorization or c.authorization == "none"):
+            diagnostics.append(Diagnostic("contract.authorization.missing", f"Contract {c.id} with authorized-change must name explicit authorization", c.line_number))
+        elif c.status == "at-risk":
+            if not c.owner or not c.resolution:
+                diagnostics.append(Diagnostic("contract.at_risk.incomplete", f"Contract {c.id} at-risk must specify owner and resolution", c.line_number))
+            if c.blocking:
+                diagnostics.append(Diagnostic("contract.at_risk.unresolved", f"Contract {c.id} remains unresolved blocking contract", c.line_number))
+
+    # Decision & Alternatives Validation
+    if assessment.decision and not is_discovery_only:
+        d = assessment.decision
+        if d.level != effective_level:
+            diagnostics.append(Diagnostic("decision.level.mismatch", f"Decision level {d.level} != declared level {effective_level}", d.line_number))
+        if not d.because:
+            diagnostics.append(Diagnostic("decision.because.missing", f"Decision {d.id} must cite facts/pressures in because", d.line_number))
+        if not d.rejected:
+            diagnostics.append(Diagnostic("decision.rejected.missing", f"Decision {d.id} must explain why lower level was rejected", d.line_number))
+
+        selected_alts = [a for a in assessment.alternatives if a.selected]
+        if len(selected_alts) != 1:
+            diagnostics.append(Diagnostic("alternatives.selected.count_invalid", f"Exactly one selected O-n alternative required, found {len(selected_alts)}."))
+        else:
+            sel_alt = selected_alts[0]
+            if sel_alt.level != d.level:
+                diagnostics.append(Diagnostic("alternatives.selected.level_mismatch", f"Selected alternative O-n level {sel_alt.level} != D-n level {d.level}", sel_alt.line_number))
+
+        if effective_level in {"L2", "L3"}:
+            has_lower = any(a.level in {"L0", "L1"} for a in assessment.alternatives)
+            if not has_lower:
+                diagnostics.append(Diagnostic("alternatives.l2_l3.lower_level_missing", f"{effective_level} assessment must include L0 or L1 alternative"))
+
+    # Pattern Gate Validation
+    for g in assessment.pattern_gates:
+        if g.result in {"admit", "admit-narrowed"}:
+            for hard_q in HARD_PATTERN_QUESTIONS:
+                if hard_q in g.questions:
+                    qa = g.questions[hard_q]
+                    if qa.answer != "yes":
+                        diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Pattern gate {g.id} result '{g.result}' requires Q{hard_q}=yes, got '{qa.answer}'", g.line_number))
+        if g.scope == "removed" and not g.removed_destination:
+            diagnostics.append(Diagnostic("pattern.removal.destination_missing", f"Pattern removal {g.id} must state removed-destination", g.line_number))
+        if g.result == "defer" and not g.revisit_trigger:
+            diagnostics.append(Diagnostic("pattern.defer.revisit_missing", f"Pattern deferral {g.id} must specify revisit-trigger", g.line_number))
+
+    # Technical Debt Validation
+    for td in assessment.tech_debts:
+        if td.type not in VALID_DEBT_TYPES:
+            diagnostics.append(Diagnostic("tech_debt.type.invalid", f"Technical debt {td.id} invalid type '{td.type}'", td.line_number))
+        if td.disposition not in VALID_DEBT_DISPOSITIONS:
+            diagnostics.append(Diagnostic("tech_debt.disposition.invalid", f"Technical debt {td.id} invalid disposition '{td.disposition}'", td.line_number))
+        if td.disposition in {"repay", "retire"} and (not td.recurrence_guard or td.recurrence_guard.lower() in {"none", "n/a"}):
+            diagnostics.append(Diagnostic("tech_debt.recurrence_guard.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires recurrence-guard", td.line_number))
+        if td.disposition in {"accept", "monitor", "contain"} and (not td.revisit_trigger or td.revisit_trigger.lower() in {"none", "n/a"}):
+            diagnostics.append(Diagnostic("tech_debt.revisit_trigger.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires revisit-trigger", td.line_number))
+        if td.disposition == "contain" and not td.containment_boundary:
+            diagnostics.append(Diagnostic("tech_debt.containment_boundary.missing", f"Technical debt {td.id} disposition contain requires containment-boundary", td.line_number))
+
+    # Verification Validation
+    for v in assessment.verifications:
+        if not v.proves:
+            diagnostics.append(Diagnostic("verification.proves.missing", f"Verification {v.id} must state proves", v.line_number))
+        if not v.method or not v.expected:
+            diagnostics.append(Diagnostic("verification.method_expected.missing", f"Verification {v.id} requires concrete method and expected result", v.line_number))
+
+    # Migration Validation
+    for m in assessment.migrations:
+        if not m.rollback_trigger or not m.rollback_action:
+            diagnostics.append(Diagnostic("migration.rollback.missing", f"Migration {m.id} requires rollback trigger and action", m.line_number))
+
+    # Handoff Validation
+    if assessment.handoff:
+        h = assessment.handoff
+        if h.next not in VALID_HANDOFFS:
+            diagnostics.append(Diagnostic("handoff.next.invalid", f"Handoff next '{h.next}' must be one of {sorted(VALID_HANDOFFS)}", h.line_number))
+        if assessment.decision_summary and assessment.decision_summary.next_owner:
+            if assessment.decision_summary.next_owner != h.next:
+                diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{assessment.decision_summary.next_owner}' != Handoff next '{h.next}'", h.line_number))
 
     return diagnostics
 
 
-def _validate_level_obligations(text: str, level: str) -> list[Diagnostic]:
-    contract = load_contract()
-    level_contract = contract["levels"][level]
-    diagnostics: list[Diagnostic] = []
-    patterns = list(PATTERN_RE.finditer(text))
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check a design codebase assessment artifact.")
+    parser.add_argument("assessment_file", help="Path to assessment markdown file.")
+    parser.add_argument("--level", required=False, help="Declared assessment level (L0, L1, L2, L3, discovery-only).")
+    parser.add_argument("--repo-root", default=".", help="Repository root path.")
+    parser.add_argument("--require-finalized", action="store_true", help="Require valid SHA-256 finalization receipt.")
+    parser.add_argument("--json", action="store_true", help="Emit diagnostics in JSON format.")
+    args = parser.parse_args()
 
-    if level_contract["requires_pattern_gate"] and not patterns:
-        diagnostics.append(Diagnostic("pattern.required", f"{level} requires at least one canonical G-n pattern decision."))
+    file_path = Path(args.assessment_file)
+    if not file_path.is_file():
+        err = [Diagnostic("file.missing", f"File not found: {file_path}")]
+        if args.json:
+            print(json.dumps([e.to_dict() for e in err]))
+        else:
+            print(f"Error: {file_path} not found.", file=sys.stderr)
+        return 1
 
-    hard_questions = {int(number) for number in contract["hard_pattern_questions"]}
-    for pattern in patterns:
-        answers = {int(number): answer for number, answer in re.findall(r"Q(\d+)=(yes|no|unknown)", pattern.group("questions"))}
-        if set(answers) != set(range(1, 15)):
-            diagnostics.append(Diagnostic("pattern.questions.incomplete", "G-n must answer Q1-Q14 exactly once.", _line(text, pattern.start())))
-        result = pattern.group("result")
-        if result in {"admit", "admit-narrowed"}:
-            failed = sorted(number for number in hard_questions if answers.get(number) != "yes")
-            if failed:
-                diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Admitted pattern fails or omits hard questions: {failed}.", _line(text, pattern.start())))
+    text = file_path.read_text(encoding="utf-8")
+    diagnostics = validate(text, args.level, Path(args.repo_root), require_finalized=args.require_finalized)
 
-    if level_contract["requires_migration"] and not MIGRATION_RE.search(text):
-        diagnostics.append(Diagnostic("migration.format", f"{level} requires a canonical M-n slice with proof and executable rollback."))
-
-    if level_contract["requires_operational_semantics"]:
-        operational = next((body for name, _, body in _sections(text) if name == "Operational Semantics"), "").casefold()
-        for field in contract["operational_fields"]:
-            if not re.search(rf"^- {re.escape(field)}:", operational, re.MULTILINE):
-                diagnostics.append(Diagnostic("operational.field.missing", f"Operational Semantics must address {field!r}."))
-            elif re.search(rf"^- {re.escape(field)}:\s*not-applicable$", operational, re.MULTILINE):
-                diagnostics.append(Diagnostic("operational.field.generic_na", f"Operational Semantics field {field!r} marked not-applicable must provide a concrete reason."))
-
-    if level == "L3":
-        evolution = next((body for name, _, body in _sections(text) if name == "System Ownership and Evolution"), "").casefold()
-        for field in contract["l3_evolution_fields"]:
-            if not re.search(rf"^- {re.escape(field)}:", evolution, re.MULTILINE):
-                diagnostics.append(Diagnostic("evolution.field.missing", f"System Ownership and Evolution must address {field!r}."))
-            elif re.search(rf"^- {re.escape(field)}:\s*(?:not-applicable|n/a)$", evolution, re.MULTILINE):
-                diagnostics.append(Diagnostic("evolution.field.na_prohibited", f"L3 System Ownership field {field!r} cannot be satisfied with generic not-applicable."))
-
-        # L3 evidence check: requires multi-category evidence
-        facts = list(FACT_RE.finditer(text))
-        categories = {match.group("source").strip().casefold() for match in facts if match.group("source")}
-        if len(categories) < 3 and len(facts) < 4:
-            diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", "L3 classification requires evidence across at least 3 independent categories (code, test, deployment, schema, history, etc.)."))
-
-    return diagnostics
-
-
-def validate(text: str, level: str, repo_root: Path, *, require_finalized: bool = False) -> list[Diagnostic]:
-    diagnostics = [
-        *_validate_shape(text, level),
-        *_validate_decision_summary(text, level),
-        *_validate_records(text, level),
-        *_validate_facts(text, repo_root),
-        *_validate_level_obligations(text, level),
-    ]
-
-    receipt_diags = validate_receipt(text, required=require_finalized)
-    diagnostics.extend(receipt_diags)
-    return diagnostics
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    diagnostics = validate(
-        read_assessment(args.path),
-        args.level,
-        args.repo_root,
-        require_finalized=args.require_finalized,
-    )
-    if args.format == "json":
-        print(json.dumps({"valid": not diagnostics, "diagnostics": [item.to_dict() for item in diagnostics]}, indent=2))
-    elif diagnostics:
-        print("Assessment check findings:")
-        for item in diagnostics:
-            print(f"- {item}")
+    errors = [d for d in diagnostics if not d.is_warning]
+    if args.json:
+        print(json.dumps([d.to_dict() for d in diagnostics], indent=2))
     else:
-        print("Assessment check passed.")
-    return 1 if diagnostics else 0
+        for d in diagnostics:
+            print(str(d), file=sys.stderr if not d.is_warning else sys.stdout)
+
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

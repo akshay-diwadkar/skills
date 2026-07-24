@@ -6,8 +6,6 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 1. Reject Strategy for a stable two-branch decision (L1)
 2. Introduce an Adapter around a volatile SDK (L2)
-3. Remove a one-interface/one-implementation/one-factory stack (L1)
-4. Reject a superficially clean distributed split (L1 / L3 Refusal)
 
 ---
 
@@ -24,15 +22,14 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Why minimum sufficient: L0 is insufficient because rendering logic needs local function decomposition; L2/Strategy adds 4 unevidenced concepts without reducing cross-module change propagation.
 - Protected behavior and contracts: C-1 preserved (CLI output format and error bytes).
 - Primary structural pressure: P-1 (local readability of rendering logic).
-- Technical-debt disposition: TD-1 disposition: accept | revisit: third format requested.
+- Technical-debt disposition: TD-1 disposition: accept | boundary: local
 - Residual risk: R-1 low
-- Next owner: finish-assessment
+- Next owner: finish assessment
 
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: `billing/formatter.py:render_invoice` output bytes and error types | authorization: none
 - H-1: status: assessment-only | next: finish assessment
-- A-1: status: none | impact: none | verification: none
-- TD-1: type: structural | evidence: F-1 | principal: monolithic formatting function | interest: minor cognitive overhead | frequency: current | blast-radius: billing/formatter.py | disposition: accept | reason: repayment cost of Strategy pattern exceeds interest | repayment-boundary: none | recurrence-guard: none | revisit-trigger: adding third format provider
+- TD-1: type: structural | evidence: F-1 | principal: monolithic formatting function | interest: minor cognitive overhead | frequency: current | blast-radius: billing/formatter.py | disposition: accept | reason: repayment cost of Strategy pattern exceeds interest | repayment-boundary: local | recurrence-guard: none | revisit-trigger: adding third format provider
 
 ## Evidence and Current State
 - F-1: `billing/formatter.py:12` | anchor: `def render_invoice` | observation: Output choice is a closed enum with two variants used in one module | source: code | strength: direct | freshness: current
@@ -67,25 +64,24 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 
 ## Decision Summary
 - Invocation mode: targeted
-- Selected target: `payments/gateway` boundary
+- Selected target: `payments/adapter.py`
 - Selected level: L2
 - Recommended design: Introduce narrow `PaymentGateway` interface and provider `Adapter` in `payments/adapter.py`.
 - Why minimum sufficient: L1 is insufficient because 4 domain modules directly import volatile SDK and edit in lockstep on SDK updates; L3 is unnecessary as no cross-system state migration is needed.
 - Protected behavior and contracts: C-1 preserved (payment authorization API signatures).
 - Primary structural pressure: P-1 (external SDK volatility propagating to 4 domain modules).
-- Technical-debt disposition: TD-1 disposition: repay | boundary: L2 boundary redesign.
+- Technical-debt disposition: TD-1 disposition: repay | boundary: L2 boundary redesign
 - Residual risk: R-1 low
 - Next owner: plan-with-senior-dev
 
 ## Scope and Protected Contracts
 - C-1: status: preserved | contract: `payments/service.py` payment processing signature | authorization: none
 - H-1: status: assessment-only | next: plan-with-senior-dev
-- A-1: status: none | impact: none | verification: none
 - TD-1: type: boundary | evidence: F-1, F-2 | principal: direct SDK coupling in domain callers | interest: 3 recent SDK upgrades forced edits across 4 modules | frequency: recurring | blast-radius: payments, orders, subscriptions, checkout | disposition: repay | reason: Adapter isolates SDK field renames to 1 file | repayment-boundary: L2 boundary redesign | recurrence-guard: lint rule blocking direct SDK imports outside payments/adapter.py | revisit-trigger: none
 
 ## Evidence and Current State
 - F-1: `payments/service.py:34` | anchor: `import provider_sdk` | observation: 4 domain modules construct provider SDK requests directly | source: code | strength: direct | freshness: current
-- F-2: `git-history:45` | anchor: `commit_3a2f` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
+- F-2: `payments/service.py:1` | anchor: `commit_3a2f` | observation: 3 recent provider SDK releases forced edits across 4 modules | source: repository-history | strength: corroborated | freshness: current
 - Current flow: Domain caller -> Direct SDK constructor -> Network call -> SDK Exception.
 
 ## Design Pressures and Classification
@@ -96,7 +92,26 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - O-1: level: L0 | selected: no | concepts: none | argument-for: no new files | argument-against: SDK updates continue breaking 4 modules | revisit: none
 - O-2: level: L1 | selected: no | concepts: shared helper function | argument-for: simple | argument-against: leaves direct SDK dependencies in caller imports | revisit: none
 - O-3: level: L2 | selected: yes | concepts: PaymentGateway interface, ProviderAdapter | argument-for: isolates SDK to 1 module | argument-against: 1 new interface file | revisit: provider deprecation
-- G-1: pattern: Adapter | scope: introduced | result: admit | questions: Q1=yes, Q2=yes, Q3=yes, Q4=yes, Q5=yes, Q6=yes, Q7=yes, Q8=yes, Q9=yes, Q10=yes, Q11=yes, Q12=yes, Q13=yes, Q14=yes | evidence: F-1, F-2, P-1
+
+### G-1: Adapter — admit
+- Scope: introduced | Result: admit | Evidence: F-1, F-2, P-1
+
+| Gate | Answer | Evidence | Consequence |
+|---|---|---|---|
+| Q1 | yes | F-1, P-1 | Resolves SDK change propagation |
+| Q2 | yes | F-1, F-2 | 3 SDK updates forced edits in 4 modules |
+| Q3 | yes | F-1, P-1 | L1 helper functions leave SDK imports leaky |
+| Q4 | yes | F-1, P-1 | Single owner payments/adapter.py |
+| Q5 | yes | F-1, P-1 | Stable PaymentGateway interface |
+| Q6 | yes | F-1, P-1 | Reduces cross-module edits |
+| Q7 | yes | F-1, P-1 | Constrains SDK dependency |
+| Q8 | yes | F-1, P-1 | Payment status state unambiguous |
+| Q9 | yes | F-1, P-1 | C-1 preserved |
+| Q10 | yes | F-1, F-2 | Characterization tests pass |
+| Q11 | yes | F-1, P-1 | Operational semantics explicit |
+| Q12 | yes | F-1, P-1 | Python interface/adapter idiom |
+| Q13 | yes | F-1, P-1 | Reversible in 2 PRs |
+| Q14 | yes | F-1, F-2 | Net value exceeds cost |
 
 ## Target Boundary
 - Responsibility and owner: `payments/adapter.py` owns SDK lifecycle and translation.

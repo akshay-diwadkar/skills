@@ -55,11 +55,23 @@ def _section(text: str, name: str) -> str:
 
 def score(assessment: str, case: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     level = str(case["level"])
-    diagnostics = validate(assessment, level, repo_root)
+    if "mode: discovery-only" in assessment.lower() or "invocation mode: discovery-only" in assessment.lower():
+        level = "discovery-only"
+    diagnostics = validate(assessment, level, repo_root, require_finalized=True)
     hard_failures = [f"validator:{item.code}" for item in diagnostics if not item.is_warning]
     sources = {
-        "grounding": _section(assessment, "Evidence and Current State"),
-        "classification": _section(assessment, "Design Pressures and Classification"),
+        "grounding": "\n".join(
+            (
+                _section(assessment, "Evidence and Current State"),
+                _section(assessment, "Target Discovery Candidates"),
+            )
+        ),
+        "classification": "\n".join(
+            (
+                _section(assessment, "Design Pressures and Classification"),
+                _section(assessment, "Decision Summary"),
+            )
+        ),
         "preservation": _section(assessment, "Scope and Protected Contracts"),
         "alternatives": _section(assessment, "Alternatives and Pattern Decisions"),
         "migration": "\n".join(
@@ -69,6 +81,7 @@ def score(assessment: str, case: dict[str, Any], repo_root: Path) -> dict[str, A
         "handoff": "\n".join(
             (
                 _section(assessment, "Scope and Protected Contracts"),
+                _section(assessment, "Decision Summary"),
                 _section(assessment, "Verification and Residual Risk"),
             )
         ),
