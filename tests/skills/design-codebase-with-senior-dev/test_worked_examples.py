@@ -44,11 +44,19 @@ def test_worked_examples_pass_validation(tmp_path: Path):
 
     # Create dummy files referenced in examples for file checks
     (tmp_path / "billing").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "billing" / "formatter.py").write_text("def render_invoice(): pass\n", encoding="utf-8")
+    b_lines = ["\n"] * 50
+    b_lines[11] = "def render_invoice(): pass\n"
+    (tmp_path / "billing" / "formatter.py").write_text("".join(b_lines), encoding="utf-8")
+
     (tmp_path / "tests").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "tests" / "test_formatter.py").write_text("def test_compact_and_detailed(): pass\n", encoding="utf-8")
+    t_lines = ["\n"] * 50
+    t_lines[44] = "def test_compact_and_detailed(): pass\n"
+    (tmp_path / "tests" / "test_formatter.py").write_text("".join(t_lines), encoding="utf-8")
+
     (tmp_path / "payments").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "payments" / "service.py").write_text("import provider_sdk\n", encoding="utf-8")
+    p_lines = ["\n"] * 50
+    p_lines[33] = "import provider_sdk\n"
+    (tmp_path / "payments" / "service.py").write_text("".join(p_lines), encoding="utf-8")
 
     for title, level, example_text in examples:
         assessment, parse_diags = parse_assessment(example_text)

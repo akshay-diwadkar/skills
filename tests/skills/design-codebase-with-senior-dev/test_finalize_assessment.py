@@ -10,6 +10,7 @@ from assessment_contract import (  # noqa: E402
     assessment_digest,
     canonical_assessment_body,
     finalize_assessment_text,
+    render_scaffold,
     validate_receipt,
 )
 from check_assessment import validate  # noqa: E402
@@ -109,3 +110,77 @@ def test_finalizer_cli_file_and_stdin_input(tmp_path: Path) -> None:
         text=True,
     )
     assert "<!-- assessment-validation: 2; level: L0; sha256:" in res_stdin.stdout
+
+
+def test_finalizer_cli_discovery_only_file_and_stdin(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): return 'stable'\n", encoding="utf-8")
+
+    disc_draft = render_scaffold("L0", mode="discovery-only")
+    draft_file = tmp_path / "discovery_draft.md"
+    draft_file.write_text(disc_draft, encoding="utf-8")
+
+    # 1. File input with --mode discovery-only
+    res_file = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "finalize_assessment.py"),
+            str(draft_file),
+            "--mode",
+            "discovery-only",
+            "--repo-root",
+            str(tmp_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "<!-- assessment-validation: 2; mode: discovery-only; sha256:" in res_file.stdout
+    assert validate(res_file.stdout, "discovery-only", tmp_path, require_finalized=True) == []
+
+    # 2. Stdin input with --level discovery-only
+    res_stdin = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "finalize_assessment.py"),
+            "--level",
+            "discovery-only",
+            "--repo-root",
+            str(tmp_path),
+        ],
+        input=disc_draft,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "<!-- assessment-validation: 2; mode: discovery-only; sha256:" in res_stdin.stdout
+    assert validate(res_stdin.stdout, "discovery-only", tmp_path, require_finalized=True) == []
+
+
+def test_finalizer_cli_invalid_discovery_only_fails(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    (source / "system.py").write_text("def current(): return 'stable'\n", encoding="utf-8")
+
+    # Invalid discovery-only draft with prohibited decision record
+    bad_disc = render_scaffold("L0", mode="discovery-only") + "\n- D-1: level: L0 | selected: foo | because: F-1 | rejected: bar\n"
+    draft_file = tmp_path / "bad_discovery.md"
+    draft_file.write_text(bad_disc, encoding="utf-8")
+
+    res = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "finalize_assessment.py"),
+            str(draft_file),
+            "--mode",
+            "discovery-only",
+            "--repo-root",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 1
+    assert "Cannot finalize invalid assessment draft" in res.stderr
+    assert "discovery.only.decision_prohibited" in res.stderr

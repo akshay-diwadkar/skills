@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,8 +41,12 @@ from assessment_contract import (  # noqa: E402
     TargetCandidateRecord,
     TechDebtRecord,
     VerificationRecord,
+    load_contract,
+    section_names,
     validate_receipt,
 )
+
+GENERIC_PLACEHOLDERS = {"replace", "explicitly defined", "not-applicable", "n/a", "none", "tbd", "todo"}
 
 
 def _section(text: str, name: str) -> tuple[str, int | None]:
@@ -74,6 +79,10 @@ def _parse_record_kv(line: str) -> tuple[str, dict[str, str]]:
 def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
     diagnostics: list[Diagnostic] = []
     assessment = Assessment(raw_text=text)
+
+    all_record_ids: list[tuple[str, int]] = []
+    all_handoffs: list[HandoffRecord] = []
+    all_decisions: list[DecisionRecord] = []
 
     # 1. Parse Title
     title_match = re.search(r"^# (?P<title>.+)$", text, re.MULTILINE)
@@ -130,23 +139,26 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
     elif assessment.mode != "discovery-only":
         diagnostics.append(Diagnostic("summary.section.missing", "Section ## Decision Summary is required", summary_line))
 
-    # 4. Parse Evidence and Current State (F-n and E-n)
-    ev_body, ev_line = _section(text, "Evidence and Current State")
-    if ev_body:
-        for idx, line in enumerate(ev_body.splitlines(), start=ev_line or 1):
-            line_str = line.strip()
-            if not line_str.startswith("- "):
-                continue
+    # 4. Line by line record scanning across entire document
+    lines = text.splitlines()
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        line_number = idx + 1
+        line_str = line.strip()
 
-            # F-n parsing: - F-1: `path:1` | anchor: `foo` | observation: bar | source: code | strength: direct | freshness: current
+        # F-n fact parsing
+        if line_str.startswith("- F-"):
             f_match = re.match(
-                r"^-\s*(?P<id>F-\d+):\s*`(?P<path>[^:]+)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
+                r"^-\s*(?P<id>F-\d+):\s*`(?P<path>git-history:[^`]+|[^`]+?)(?::(?P<line>\d+))?`\s*\|\s*anchor:\s*`(?P<anchor>[^`]*)`\s*\|\s*observation:\s*(?P<obs>.*?)(?:\s*\|\s*source:\s*(?P<source>[^|]+))?(?:\s*\|\s*strength:\s*(?P<strength>[^|]+))?(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?$",
                 line_str,
             )
             if f_match:
+                rec_id = f_match.group("id")
+                all_record_ids.append((rec_id, line_number))
                 assessment.facts.append(
                     FactRecord(
-                        id=f_match.group("id"),
+                        id=rec_id,
                         path=f_match.group("path"),
                         line=int(f_match.group("line")) if f_match.group("line") else 1,
                         anchor=f_match.group("anchor"),
@@ -154,39 +166,37 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
                         source=(f_match.group("source") or "code").strip(),
                         strength=(f_match.group("strength") or "direct").strip(),
                         freshness=(f_match.group("freshness") or "current").strip().rstrip("."),
-                        line_number=idx,
+                        line_number=line_number,
                     )
                 )
-                continue
 
-            # E-n parsing: - E-1: source: `https://...` | version: `3.11` | claim: foo | freshness: current | relationship: supports | authoritative: true
+        # E-n external fact parsing
+        elif line_str.startswith("- E-"):
             e_match = re.match(
                 r"^-\s*(?P<id>E-\d+):\s*source:\s*`(?P<source>[^`]*)`\s*\|\s*version:\s*`(?P<ver>[^`]*)`\s*\|\s*claim:\s*(?P<claim>.*?)(?:\s*\|\s*freshness:\s*(?P<freshness>[^|]+))?(?:\s*\|\s*relationship:\s*(?P<rel>[^|]+))?(?:\s*\|\s*authoritative:\s*(?P<auth>[^|]+))?$",
                 line_str,
             )
             if e_match:
+                rec_id = e_match.group("id")
+                all_record_ids.append((rec_id, line_number))
                 assessment.external_facts.append(
                     ExternalFactRecord(
-                        id=e_match.group("id"),
+                        id=rec_id,
                         source_id=e_match.group("source"),
                         version=e_match.group("ver"),
                         claim=e_match.group("claim").strip(),
                         freshness=(e_match.group("freshness") or "current").strip(),
                         relationship=(e_match.group("rel") or "supports").strip(),
                         authoritative=(e_match.group("auth") or "true").strip().lower() == "true",
-                        line_number=idx,
+                        line_number=line_number,
                     )
                 )
 
-    # 5. Parse Target Discovery Candidates (T-n)
-    tdis_body, tdis_line = _section(text, "Target Discovery Candidates")
-    if tdis_body:
-        for idx, line in enumerate(tdis_body.splitlines(), start=tdis_line or 1):
-            line_str = line.strip()
-            if not line_str.startswith("- T-"):
-                continue
+        # T-n candidate parsing
+        elif line_str.startswith("- T-"):
             t_id, kv = _parse_record_kv(line_str)
             if t_id:
+                all_record_ids.append((t_id, line_number))
                 ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
                 aff_list = [a.strip() for a in kv.get("affected", "").split(",") if a.strip()]
                 rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
@@ -213,247 +223,267 @@ def parse_assessment(text: str) -> tuple[Assessment, list[Diagnostic]]:
                         scope_boundedness=kv.get("scope-boundedness"),
                         reversibility=kv.get("reversibility"),
                         structural_confidence=kv.get("structural-confidence"),
-                        line_number=idx,
+                        line_number=line_number,
                     )
                 )
 
-    # 6. Parse Scope and Protected Contracts (C-n, H-n, A-n, TD-n)
-    scope_body, scope_line = _section(text, "Scope and Protected Contracts")
-    if scope_body:
-        for idx, line in enumerate(scope_body.splitlines(), start=scope_line or 1):
-            line_str = line.strip()
-            if line_str.startswith("- C-"):
-                c_id, kv = _parse_record_kv(line_str)
-                assessment.contracts.append(
-                    ContractRecord(
-                        id=c_id,
-                        status=kv.get("status", "preserved"),
-                        contract=kv.get("contract", ""),
-                        authorization=kv.get("authorization", "none"),
-                        owner=kv.get("owner"),
-                        resolution=kv.get("resolution"),
-                        blocking=kv.get("blocking", "false").lower() == "true",
-                        line_number=idx,
-                    )
+        # C-n contract parsing
+        elif line_str.startswith("- C-"):
+            c_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((c_id, line_number))
+            assessment.contracts.append(
+                ContractRecord(
+                    id=c_id,
+                    status=kv.get("status", "preserved"),
+                    contract=kv.get("contract", ""),
+                    authorization=kv.get("authorization", "none"),
+                    owner=kv.get("owner"),
+                    resolution=kv.get("resolution"),
+                    blocking=kv.get("blocking", "false").lower() == "true",
+                    line_number=line_number,
                 )
-            elif line_str.startswith("- H-"):
-                h_id, kv = _parse_record_kv(line_str)
-                assessment.handoff = HandoffRecord(
-                    id=h_id,
-                    status=kv.get("status", "assessment-only"),
-                    next=kv.get("next", ""),
-                    line_number=idx,
-                )
-            elif line_str.startswith("- A-"):
-                a_id, kv = _parse_record_kv(line_str)
-                assessment.assumptions.append(
-                    AssumptionRecord(
-                        id=a_id,
-                        status=kv.get("status", "unconfirmed"),
-                        impact=kv.get("impact", ""),
-                        verification=kv.get("verification", ""),
-                        line_number=idx,
-                    )
-                )
-            elif line_str.startswith("- TD-"):
-                td_id, kv = _parse_record_kv(line_str)
-                ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
-                assessment.tech_debts.append(
-                    TechDebtRecord(
-                        id=td_id,
-                        type=kv.get("type", "structural"),
-                        evidence=ev_list,
-                        principal=kv.get("principal", ""),
-                        interest=kv.get("interest", ""),
-                        frequency=kv.get("frequency", "current"),
-                        blast_radius=kv.get("blast-radius", ""),
-                        disposition=kv.get("disposition", "repay"),
-                        reason=kv.get("reason", ""),
-                        repayment_boundary=kv.get("repayment-boundary", kv.get("boundary", "")),
-                        recurrence_guard=kv.get("recurrence-guard", ""),
-                        revisit_trigger=kv.get("revisit-trigger", kv.get("revisit", "")),
-                        containment_boundary=kv.get("containment-boundary"),
-                        line_number=idx,
-                    )
-                )
+            )
 
-    # 7. Parse Design Pressures and Classification (P-n and D-n)
-    dp_body, dp_line = _section(text, "Design Pressures and Classification")
-    if dp_body:
-        for idx, line in enumerate(dp_body.splitlines(), start=dp_line or 1):
-            line_str = line.strip()
-            if line_str.startswith("- P-"):
-                p_id, kv = _parse_record_kv(line_str)
-                ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
-                rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
-                assessment.pressures.append(
-                    PressureRecord(
-                        id=p_id,
-                        rank=rank_val,
-                        evidence=ev_list,
-                        pressure=kv.get("pressure", ""),
-                        line_number=idx,
-                    )
+        # H-n handoff parsing
+        elif line_str.startswith("- H-"):
+            h_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((h_id, line_number))
+            rec_h = HandoffRecord(
+                id=h_id,
+                status=kv.get("status", "assessment-only"),
+                next=kv.get("next", ""),
+                line_number=line_number,
+            )
+            all_handoffs.append(rec_h)
+            assessment.handoff = rec_h
+
+        # A-n assumption parsing
+        elif line_str.startswith("- A-"):
+            a_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((a_id, line_number))
+            assessment.assumptions.append(
+                AssumptionRecord(
+                    id=a_id,
+                    status=kv.get("status", "unconfirmed"),
+                    impact=kv.get("impact", ""),
+                    verification=kv.get("verification", ""),
+                    line_number=line_number,
                 )
-            elif line_str.startswith("- D-"):
-                d_id, kv = _parse_record_kv(line_str)
-                bec_list = [b.strip() for b in kv.get("because", "").split(",") if b.strip()]
-                assessment.decision = DecisionRecord(
-                    id=d_id,
+            )
+
+        # TD-n tech debt parsing
+        elif line_str.startswith("- TD-"):
+            td_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((td_id, line_number))
+            ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+            assessment.tech_debts.append(
+                TechDebtRecord(
+                    id=td_id,
+                    type=kv.get("type", "structural"),
+                    evidence=ev_list,
+                    principal=kv.get("principal", ""),
+                    interest=kv.get("interest", ""),
+                    frequency=kv.get("frequency", "current"),
+                    blast_radius=kv.get("blast-radius", ""),
+                    disposition=kv.get("disposition", "repay"),
+                    reason=kv.get("reason", ""),
+                    repayment_boundary=kv.get("repayment-boundary", kv.get("boundary", "")),
+                    recurrence_guard=kv.get("recurrence-guard", ""),
+                    revisit_trigger=kv.get("revisit-trigger", kv.get("revisit", "")),
+                    containment_boundary=kv.get("containment-boundary"),
+                    line_number=line_number,
+                )
+            )
+
+        # P-n pressure parsing
+        elif line_str.startswith("- P-"):
+            p_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((p_id, line_number))
+            ev_list = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+            rank_val = int(kv.get("rank", "1")) if kv.get("rank", "").isdigit() else 1
+            assessment.pressures.append(
+                PressureRecord(
+                    id=p_id,
+                    rank=rank_val,
+                    evidence=ev_list,
+                    pressure=kv.get("pressure", ""),
+                    line_number=line_number,
+                )
+            )
+
+        # D-n decision parsing
+        elif line_str.startswith("- D-"):
+            d_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((d_id, line_number))
+            bec_list = [b.strip() for b in kv.get("because", "").split(",") if b.strip()]
+            rec_d = DecisionRecord(
+                id=d_id,
+                level=kv.get("level", "L0"),
+                selected=kv.get("selected", ""),
+                because=bec_list,
+                rejected=kv.get("rejected", ""),
+                line_number=line_number,
+            )
+            all_decisions.append(rec_d)
+            assessment.decision = rec_d
+
+        # O-n alternative parsing
+        elif line_str.startswith("- O-"):
+            o_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((o_id, line_number))
+            assessment.alternatives.append(
+                AlternativeRecord(
+                    id=o_id,
                     level=kv.get("level", "L0"),
-                    selected=kv.get("selected", ""),
-                    because=bec_list,
-                    rejected=kv.get("rejected", ""),
-                    line_number=idx,
+                    selected=kv.get("selected", "no").lower() in {"yes", "true"},
+                    concepts=kv.get("concepts", ""),
+                    arg_for=kv.get("argument-for", ""),
+                    arg_against=kv.get("argument-against", ""),
+                    revisit=kv.get("revisit", ""),
+                    line_number=line_number,
                 )
+            )
 
-    # 8. Parse Alternatives and Pattern Decisions (O-n and G-n)
-    alt_body, alt_line = _section(text, "Alternatives and Pattern Decisions")
-    if alt_body:
-        lines = alt_body.splitlines()
-        idx = 0
-        while idx < len(lines):
-            line_str = lines[idx].strip()
-            curr_line_num = (alt_line or 1) + idx
-            if line_str.startswith("- O-"):
-                o_id, kv = _parse_record_kv(line_str)
-                assessment.alternatives.append(
-                    AlternativeRecord(
-                        id=o_id,
-                        level=kv.get("level", "L0"),
-                        selected=kv.get("selected", "no").lower() in {"yes", "true"},
-                        concepts=kv.get("concepts", ""),
-                        arg_for=kv.get("argument-for", ""),
-                        arg_against=kv.get("argument-against", ""),
-                        revisit=kv.get("revisit", ""),
-                        line_number=curr_line_num,
-                    )
+        # G-n pattern gate parsing
+        elif line_str.startswith("### G-") or line_str.startswith("- G-"):
+            g_id = ""
+            pattern_name = ""
+            result_val = "admit"
+            scope_val = "introduced"
+            evidence_val: list[str] = []
+
+            if line_str.startswith("### G-"):
+                g_header = line_str.lstrip("#").strip()
+                g_parts = g_header.split(":", 1)
+                g_id = g_parts[0].strip()
+                if len(g_parts) > 1:
+                    p_res = g_parts[1].split("—", 1) if "—" in g_parts[1] else g_parts[1].split("-", 1)
+                    pattern_name = p_res[0].strip()
+                    if len(p_res) > 1:
+                        result_val = p_res[1].strip()
+            else:
+                g_id, kv = _parse_record_kv(line_str)
+                pattern_name = kv.get("pattern", "")
+                scope_val = kv.get("scope", "introduced")
+                result_val = kv.get("result", "admit")
+                evidence_val = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
+
+            all_record_ids.append((g_id, line_number))
+            questions_dict: dict[int, QuestionAnswer] = {}
+            removed_dest = None
+            revisit_trig = None
+
+            sub_idx = idx + 1
+            while sub_idx < len(lines):
+                sub_line = lines[sub_idx].strip()
+                if sub_line.startswith("### G-") or sub_line.startswith("- G-") or sub_line.startswith("- O-") or sub_line.startswith("## "):
+                    break
+                if sub_line.startswith("- Scope:"):
+                    _, kv = _parse_record_kv(sub_line)
+                    scope_val = kv.get("Scope", scope_val)
+                    result_val = kv.get("Result", result_val)
+                    if "Evidence" in kv:
+                        evidence_val = [e.strip() for e in kv["Evidence"].split(",") if e.strip()]
+                    removed_dest = kv.get("removed-destination")
+                    revisit_trig = kv.get("revisit-trigger")
+                elif sub_line.startswith("| Q") or (sub_line.startswith("|") and "Gate" not in sub_line and "---" not in sub_line):
+                    cols = [c.strip() for c in sub_line.split("|")[1:-1]]
+                    if len(cols) >= 3 and cols[0].startswith("Q"):
+                        q_num_str = cols[0].lstrip("Q")
+                        if q_num_str.isdigit():
+                            q_num = int(q_num_str)
+                            q_ans = cols[1].lower()
+                            q_ev = [e.strip() for e in cols[2].split(",") if e.strip()]
+                            q_cons = cols[3] if len(cols) > 3 else ""
+                            questions_dict[q_num] = QuestionAnswer(
+                                number=q_num,
+                                answer=q_ans,
+                                evidence=q_ev,
+                                consequence=q_cons,
+                            )
+                sub_idx += 1
+
+            assessment.pattern_gates.append(
+                PatternGateRecord(
+                    id=g_id,
+                    pattern=pattern_name,
+                    scope=scope_val,
+                    result=result_val,
+                    questions=questions_dict,
+                    evidence=evidence_val,
+                    removed_destination=removed_dest,
+                    revisit_trigger=revisit_trig,
+                    line_number=line_number,
                 )
-            elif line_str.startswith("### G-") or line_str.startswith("- G-"):
-                g_id = ""
-                pattern_name = ""
-                result_val = "admit"
-                scope_val = "introduced"
-                evidence_val: list[str] = []
+            )
+            idx = sub_idx - 1
 
-                if line_str.startswith("### G-"):
-                    g_header = line_str.lstrip("#").strip()
-                    g_parts = g_header.split(":", 1)
-                    g_id = g_parts[0].strip()
-                    if len(g_parts) > 1:
-                        p_res = g_parts[1].split("—", 1) if "—" in g_parts[1] else g_parts[1].split("-", 1)
-                        pattern_name = p_res[0].strip()
-                        if len(p_res) > 1:
-                            result_val = p_res[1].strip()
-                else:
-                    g_id, kv = _parse_record_kv(line_str)
-                    pattern_name = kv.get("pattern", "")
-                    scope_val = kv.get("scope", "introduced")
-                    result_val = kv.get("result", "admit")
-                    evidence_val = [e.strip() for e in kv.get("evidence", "").split(",") if e.strip()]
-
-                questions_dict: dict[int, QuestionAnswer] = {}
-                removed_dest = None
-                revisit_trig = None
-
-                sub_idx = idx + 1
-                while sub_idx < len(lines):
-                    sub_line = lines[sub_idx].strip()
-                    if sub_line.startswith("### G-") or sub_line.startswith("- G-") or sub_line.startswith("- O-") or sub_line.startswith("## "):
-                        break
-                    if sub_line.startswith("- Scope:"):
-                        _, kv = _parse_record_kv(sub_line)
-                        scope_val = kv.get("Scope", scope_val)
-                        result_val = kv.get("Result", result_val)
-                        if "Evidence" in kv:
-                            evidence_val = [e.strip() for e in kv["Evidence"].split(",") if e.strip()]
-                        removed_dest = kv.get("removed-destination")
-                        revisit_trig = kv.get("revisit-trigger")
-                    elif sub_line.startswith("| Q") or (sub_line.startswith("|") and "Gate" not in sub_line and "---" not in sub_line):
-                        cols = [c.strip() for c in sub_line.split("|")[1:-1]]
-                        if len(cols) >= 3 and cols[0].startswith("Q"):
-                            q_num_str = cols[0].lstrip("Q")
-                            if q_num_str.isdigit():
-                                q_num = int(q_num_str)
-                                q_ans = cols[1].lower()
-                                q_ev = [e.strip() for e in cols[2].split(",") if e.strip()]
-                                q_cons = cols[3] if len(cols) > 3 else ""
-                                questions_dict[q_num] = QuestionAnswer(
-                                    number=q_num,
-                                    answer=q_ans,
-                                    evidence=q_ev,
-                                    consequence=q_cons,
-                                )
-                    sub_idx += 1
-
-                assessment.pattern_gates.append(
-                    PatternGateRecord(
-                        id=g_id,
-                        pattern=pattern_name,
-                        scope=scope_val,
-                        result=result_val,
-                        questions=questions_dict,
-                        evidence=evidence_val,
-                        removed_destination=removed_dest,
-                        revisit_trigger=revisit_trig,
-                        line_number=curr_line_num,
-                    )
+        # V-n verification parsing
+        elif line_str.startswith("- V-"):
+            v_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((v_id, line_number))
+            prov_list = [pr.strip() for pr in kv.get("proves", "").split(",") if pr.strip()]
+            assessment.verifications.append(
+                VerificationRecord(
+                    id=v_id,
+                    proves=prov_list,
+                    method=kv.get("method", ""),
+                    expected=kv.get("expected", ""),
+                    line_number=line_number,
                 )
-            idx += 1
+            )
 
-    # 9. Parse Verification and Residual Risk (V-n and R-n)
-    v_body, v_line = _section(text, "Verification and Residual Risk")
-    if v_body:
-        for idx, line in enumerate(v_body.splitlines(), start=v_line or 1):
-            line_str = line.strip()
-            if line_str.startswith("- V-"):
-                v_id, kv = _parse_record_kv(line_str)
-                prov_list = [pr.strip() for pr in kv.get("proves", "").split(",") if pr.strip()]
-                assessment.verifications.append(
-                    VerificationRecord(
-                        id=v_id,
-                        proves=prov_list,
-                        method=kv.get("method", ""),
-                        expected=kv.get("expected", ""),
-                        line_number=idx,
-                    )
+        # R-n residual risk parsing
+        elif line_str.startswith("- R-"):
+            r_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((r_id, line_number))
+            assessment.residual_risks.append(
+                ResidualRiskRecord(
+                    id=r_id,
+                    severity=kv.get("severity", "low"),
+                    scenario=kv.get("scenario", ""),
+                    consequence=kv.get("consequence", ""),
+                    owner=kv.get("owner", ""),
+                    follow_up=kv.get("follow-up", ""),
+                    line_number=line_number,
                 )
-            elif line_str.startswith("- R-"):
-                r_id, kv = _parse_record_kv(line_str)
-                assessment.residual_risks.append(
-                    ResidualRiskRecord(
-                        id=r_id,
-                        severity=kv.get("severity", "low"),
-                        scenario=kv.get("scenario", ""),
-                        consequence=kv.get("consequence", ""),
-                        owner=kv.get("owner", ""),
-                        follow_up=kv.get("follow-up", ""),
-                        line_number=idx,
-                    )
-                )
+            )
 
-    # 10. Parse Migration and Rollback (M-n)
-    m_body, m_line = _section(text, "Migration and Rollback")
-    if m_body:
-        for idx, line in enumerate(m_body.splitlines(), start=m_line or 1):
-            line_str = line.strip()
-            if line_str.startswith("- M-"):
-                m_id, kv = _parse_record_kv(line_str)
-                pres_list = [pr.strip() for pr in kv.get("preserved", "").split(",") if pr.strip()]
-                proof_list = [pr.strip() for pr in kv.get("proof", "").split(",") if pr.strip()]
-                assessment.migrations.append(
-                    MigrationRecord(
-                        id=m_id,
-                        prerequisite=kv.get("prerequisite", ""),
-                        changed_boundary=kv.get("changed boundary", kv.get("changed-boundary", "")),
-                        preserved=pres_list,
-                        proof=proof_list,
-                        rollback_trigger=kv.get("rollback trigger", kv.get("rollback-trigger", "")),
-                        rollback_action=kv.get("rollback action", kv.get("rollback-action", "")),
-                        cleanup=kv.get("cleanup", ""),
-                        line_number=idx,
-                    )
+        # M-n migration parsing
+        elif line_str.startswith("- M-"):
+            m_id, kv = _parse_record_kv(line_str)
+            all_record_ids.append((m_id, line_number))
+            pres_list = [pr.strip() for pr in kv.get("preserved", "").split(",") if pr.strip()]
+            proof_list = [pr.strip() for pr in kv.get("proof", "").split(",") if pr.strip()]
+            assessment.migrations.append(
+                MigrationRecord(
+                    id=m_id,
+                    prerequisite=kv.get("prerequisite", ""),
+                    changed_boundary=kv.get("changed boundary", kv.get("changed-boundary", "")),
+                    preserved=pres_list,
+                    proof=proof_list,
+                    rollback_trigger=kv.get("rollback trigger", kv.get("rollback-trigger", "")),
+                    rollback_action=kv.get("rollback action", kv.get("rollback-action", "")),
+                    cleanup=kv.get("cleanup", ""),
+                    line_number=line_number,
                 )
+            )
+
+        idx += 1
+
+    # Duplicate Record ID Detection
+    seen_ids: set[str] = set()
+    for rec_id, line_num in all_record_ids:
+        if rec_id in seen_ids:
+            diagnostics.append(Diagnostic("record.id.duplicate", f"Duplicate record ID '{rec_id}' found", line_num))
+        else:
+            seen_ids.add(rec_id)
+
+    if len(all_handoffs) > 1:
+        diagnostics.append(Diagnostic("handoff.count.invalid", f"Assessment contains {len(all_handoffs)} H-n handoff records; exactly one required.", all_handoffs[1].line_number))
+
+    if len(all_decisions) > 1:
+        diagnostics.append(Diagnostic("decision.count.invalid", f"Assessment contains {len(all_decisions)} D-n decision records; exactly one allowed.", all_decisions[1].line_number))
 
     return assessment, diagnostics
 
@@ -484,9 +514,9 @@ def validate(
     mode = assessment.mode
     is_discovery_only = (mode == "discovery-only" or effective_level == "discovery-only")
 
+    valid_fact_ids = {f.id for f in assessment.facts} | {e.id for e in assessment.external_facts}
     valid_record_ids = (
-        {f.id for f in assessment.facts}
-        | {e.id for e in assessment.external_facts}
+        valid_fact_ids
         | {c.id for c in assessment.contracts}
         | {p.id for p in assessment.pressures}
         | ({assessment.decision.id} if assessment.decision else set())
@@ -498,26 +528,47 @@ def validate(
         | {v.id for v in assessment.verifications}
     )
 
-    # Mode 1: Targeted Mode Rules
+    # 1. Section Presence, Order, and Body Validation
+    expected_secs = section_names(effective_level, mode)
+    found_headers = [(m.group(1).strip(), text[: m.start()].count("\n") + 1) for m in re.finditer(r"^## ([^\n]+)", text, re.MULTILINE)]
+    found_sec_names = [h[0] for h in found_headers]
+
+    for sec in expected_secs:
+        if sec not in found_sec_names:
+            diagnostics.append(Diagnostic("section.required.missing", f"Section ## {sec} is required for level {effective_level}"))
+        else:
+            body, line_num = _section(text, sec)
+            if not body or not body.strip() or re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL).strip() == "":
+                diagnostics.append(Diagnostic("section.body.empty", f"Section ## {sec} body cannot be empty", line_num))
+
+    # Check section relative order
+    filtered_found = [s for s in found_sec_names if s in expected_secs]
+    expected_order_filtered = [s for s in expected_secs if s in filtered_found]
+    if filtered_found != expected_order_filtered:
+        diagnostics.append(Diagnostic("section.order.invalid", f"Sections are out of order for level {effective_level}. Expected {expected_secs}, got {filtered_found}"))
+
+    # 2. Mode-Specific Rules
+    selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
+
     if mode == "targeted":
         if not assessment.facts and not assessment.external_facts:
-            diagnostics.append(Diagnostic("fact.format", "Targeted assessment requires at least one F-n or E-n fact."))
+            diagnostics.append(Diagnostic("fact.format", "Assessment requires at least one F-n or E-n fact."))
         if not assessment.contracts:
-            diagnostics.append(Diagnostic("contract.record.missing", "Targeted assessment requires at least one C-n contract."))
+            diagnostics.append(Diagnostic("contract.record.missing", "Assessment requires at least one C-n contract."))
         if not assessment.pressures:
-            diagnostics.append(Diagnostic("pressure.record.missing", "Targeted assessment requires at least one P-n pressure."))
+            diagnostics.append(Diagnostic("pressure.record.missing", "Assessment requires at least one P-n pressure."))
         if not assessment.decision:
-            diagnostics.append(Diagnostic("decision.record.missing", "Targeted assessment requires exactly one D-n decision record."))
+            diagnostics.append(Diagnostic("decision.record.missing", "Assessment requires exactly one D-n decision record."))
         if not assessment.verifications:
-            diagnostics.append(Diagnostic("verification.record.missing", "Targeted assessment requires at least one V-n verification record."))
+            diagnostics.append(Diagnostic("verification.record.missing", "Assessment requires at least one V-n verification record."))
         if not assessment.handoff:
-            diagnostics.append(Diagnostic("handoff.record.missing", "Targeted assessment requires exactly one H-n handoff record."))
+            diagnostics.append(Diagnostic("handoff.record.missing", "Assessment requires exactly one H-n handoff record."))
+
         if assessment.discovery_candidates:
             for tc in assessment.discovery_candidates:
                 if tc.status == "selected":
                     diagnostics.append(Diagnostic("discovery.targeted.selected_prohibited", "Targeted mode prohibits selected T-n candidates.", tc.line_number))
 
-    # Mode 2: Autonomous Discovery Mode Rules
     elif mode == "autonomous-discovery":
         if not (1 <= len(assessment.discovery_candidates) <= 5):
             diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Autonomous discovery mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
@@ -526,7 +577,6 @@ def validate(
         if len(ranks) != len(set(ranks)):
             diagnostics.append(Diagnostic("discovery.candidates.duplicate_ranks", "T-n candidates must have unique ranks."))
 
-        selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
         if len(selected_candidates) != 1:
             diagnostics.append(Diagnostic("discovery.autonomous.selected_count_invalid", f"Autonomous discovery mode requires exactly one selected candidate, found {len(selected_candidates)}."))
         else:
@@ -542,16 +592,52 @@ def validate(
             if sel.rank != 1:
                 diagnostics.append(Diagnostic("discovery.autonomous.rank_invalid", f"Selected candidate {sel.id} must have rank 1.", sel.line_number))
 
+            # Candidate ranking fields check
+            req_ranking_fields = [
+                "correctness_risk", "operational_risk", "debt_interest",
+                "change_propagation", "state_ambiguity", "scope_boundedness",
+                "reversibility", "structural_confidence"
+            ]
+            for rfield in req_ranking_fields:
+                if not getattr(sel, rfield):
+                    diagnostics.append(Diagnostic("discovery.candidate.ranking_fields_missing", f"Candidate {sel.id} missing ranking field '{rfield}'", sel.line_number))
+
             if assessment.decision_summary and assessment.decision_summary.target and assessment.decision_summary.target != sel.target:
                 diagnostics.append(Diagnostic("summary.target.mismatch", f"Decision Summary target '{assessment.decision_summary.target}' != selected candidate target '{sel.target}'"))
             if assessment.decision and assessment.decision.selected and sel.target.casefold() not in assessment.decision.selected.casefold() and assessment.decision.selected.casefold() not in sel.target.casefold():
                 diagnostics.append(Diagnostic("decision.target.mismatch", f"Decision selected '{assessment.decision.selected}' does not match candidate target '{sel.target}'", assessment.decision.line_number))
 
-    # Mode 3: Discovery-Only Mode Rules
+        # Candidate citation validation
+        valid_contract_ids = {c.id for c in assessment.contracts}
+        valid_pressure_ids = {p.id for p in assessment.pressures}
+        for tc in assessment.discovery_candidates:
+            for ev_id in tc.evidence:
+                if ev_id not in valid_fact_ids:
+                    diagnostics.append(Diagnostic("discovery.candidate.evidence_invalid", f"Candidate {tc.id} cites unknown evidence '{ev_id}'", tc.line_number))
+            for aff_id in tc.affected:
+                if aff_id not in valid_contract_ids:
+                    diagnostics.append(Diagnostic("discovery.candidate.affected_invalid", f"Candidate {tc.id} cites unknown affected contract '{aff_id}'", tc.line_number))
+            if tc.pressure and tc.pressure not in valid_pressure_ids:
+                diagnostics.append(Diagnostic("discovery.candidate.pressure_invalid", f"Candidate {tc.id} cites unknown pressure '{tc.pressure}'", tc.line_number))
+
+        # Autonomous mode with selected target must ALSO satisfy post-selection design assessment rules
+        if len(selected_candidates) == 1:
+            if not assessment.facts and not assessment.external_facts:
+                diagnostics.append(Diagnostic("fact.format", "Autonomous assessment requires at least one F-n or E-n fact."))
+            if not assessment.contracts:
+                diagnostics.append(Diagnostic("contract.record.missing", "Autonomous assessment requires at least one C-n contract."))
+            if not assessment.pressures:
+                diagnostics.append(Diagnostic("pressure.record.missing", "Autonomous assessment requires at least one P-n pressure."))
+            if not assessment.decision:
+                diagnostics.append(Diagnostic("decision.record.missing", "Autonomous assessment requires exactly one D-n decision record."))
+            if not assessment.verifications:
+                diagnostics.append(Diagnostic("verification.record.missing", "Autonomous assessment requires at least one V-n verification record."))
+            if not assessment.handoff:
+                diagnostics.append(Diagnostic("handoff.record.missing", "Autonomous assessment requires exactly one H-n handoff record."))
+
     elif is_discovery_only:
         if not (1 <= len(assessment.discovery_candidates) <= 5):
             diagnostics.append(Diagnostic("discovery.candidates.count_invalid", f"Discovery-only mode requires 1 to 5 T-n candidates, found {len(assessment.discovery_candidates)}."))
-        selected_candidates = [tc for tc in assessment.discovery_candidates if tc.status == "selected"]
         if selected_candidates:
             diagnostics.append(Diagnostic("discovery.only.selected_prohibited", f"Discovery-only mode prohibits selected candidates, found {len(selected_candidates)}.", selected_candidates[0].line_number))
         for tc in assessment.discovery_candidates:
@@ -572,7 +658,52 @@ def validate(
             if assessment.handoff.next != "codebase-issue-auditor":
                 diagnostics.append(Diagnostic("discovery.only.handoff_invalid", f"Discovery-only mode handoff must be codebase-issue-auditor, got '{assessment.handoff.next}'", assessment.handoff.line_number))
 
-    # Decision Summary Consistency Validation
+    # 3. Level-Specific Field Requirements & Placeholders
+    if effective_level == "L1" and not is_discovery_only:
+        l1_body, _ = _section(text, "Local Simplification and Preservation")
+        if l1_body:
+            for field_name in ("Responsibility:", "Concepts removed:", "Concepts retained:", "Preservation proof:"):
+                if field_name not in l1_body:
+                    diagnostics.append(Diagnostic("l1.preservation.incomplete", f"Local Simplification section missing required field '{field_name}'"))
+
+    elif effective_level in {"L2", "L3"} and not is_discovery_only:
+        tb_body, _ = _section(text, "Target Boundary")
+        if tb_body:
+            for field_name in ("Responsibility and owner:", "Dependency direction:", "State and contract ownership:", "Allowed calls and failures:"):
+                if field_name not in tb_body:
+                    diagnostics.append(Diagnostic("l2.boundary.incomplete", f"Target Boundary section missing required field '{field_name}'"))
+
+        if not assessment.migrations:
+            diagnostics.append(Diagnostic("l2.migration.missing", f"Level {effective_level} assessment requires at least one M-n migration record"))
+
+        op_body, _ = _section(text, "Operational Semantics")
+        if op_body:
+            contract_ops = load_contract()["operational_fields"]
+            for op_field in contract_ops:
+                pattern = rf"^-\s*{re.escape(op_field.title())}:\s*(?P<val>.*)$"
+                match = re.search(pattern, op_body, re.MULTILINE | re.IGNORECASE)
+                if not match:
+                    diagnostics.append(Diagnostic("operational.field.missing", f"Operational Semantics missing required field '{op_field.title()}'"))
+                else:
+                    val = match.group("val").strip().casefold()
+                    if val in GENERIC_PLACEHOLDERS or val.startswith("replace"):
+                        diagnostics.append(Diagnostic("operational.placeholder.invalid", f"Operational field '{op_field.title()}' cannot use unevidenced placeholder '{val}'"))
+
+        if effective_level == "L3":
+            evo_body, _ = _section(text, "System Ownership and Evolution")
+            if evo_body:
+                contract_evo = load_contract()["l3_evolution_fields"]
+                for evo_field in contract_evo:
+                    pattern = rf"^-\s*{re.escape(evo_field.title())}:\s*(?P<val>.*)$"
+                    match = re.search(pattern, evo_body, re.MULTILINE | re.IGNORECASE)
+                    if not match:
+                        diagnostics.append(Diagnostic("l3.evolution_field.missing", f"System Evolution missing required field '{evo_field.title()}'"))
+                    else:
+                        val = match.group("val").strip().casefold()
+                        if val in GENERIC_PLACEHOLDERS or val.startswith("replace"):
+                            diagnostics.append(Diagnostic("l3.evolution_placeholder.invalid", f"System Evolution field '{evo_field.title()}' cannot use unevidenced placeholder '{val}'"))
+
+    # 4. Decision Summary Consistency Validation
     if assessment.decision_summary:
         ds = assessment.decision_summary
         if ds.mode and ds.mode != mode:
@@ -582,9 +713,9 @@ def validate(
         if ds.next_owner and assessment.handoff and ds.next_owner != assessment.handoff.next:
             diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{ds.next_owner}' != Handoff next '{assessment.handoff.next}'"))
 
-    # General Fact & Evidence Validation
-    valid_fact_ids = {f.id for f in assessment.facts} | {e.id for e in assessment.external_facts}
+    # 5. Fact Verification (Path bounds, line count, anchor, git history)
     root = repo_root.resolve()
+    has_git = (root / ".git").is_dir()
 
     for f in assessment.facts:
         if f.source not in VALID_SOURCES:
@@ -597,16 +728,47 @@ def validate(
         if f.path.startswith("git-history:"):
             if not GIT_HISTORY_LOCATOR_RE.match(f.path):
                 diagnostics.append(Diagnostic("fact.git_history.malformed", f"Fact {f.id} has malformed git-history locator '{f.path}'", f.line_number))
+            elif not has_git:
+                diagnostics.append(Diagnostic("fact.git_history.git_unavailable", f"Repository is not a Git checkout; cannot verify historical fact {f.id}", f.line_number))
+            else:
+                parts = f.path.split(":")
+                commit_sha = parts[1] if len(parts) > 1 else ""
+                rel_path = parts[2] if len(parts) > 2 else ""
+
+                if not commit_sha or not rel_path:
+                    diagnostics.append(Diagnostic("fact.git_history.malformed", f"Fact {f.id} git-history requires commit-sha and path", f.line_number))
+                else:
+                    c_check = subprocess.run(["git", "rev-parse", "--verify", f"{commit_sha}^{{commit}}"], cwd=root, capture_output=True)
+                    if c_check.returncode != 0:
+                        diagnostics.append(Diagnostic("fact.git_history.commit_missing", f"Fact {f.id} git commit '{commit_sha}' does not exist in repository", f.line_number))
+                    else:
+                        f_check = subprocess.run(["git", "cat-file", "-e", f"{commit_sha}:{rel_path}"], cwd=root, capture_output=True)
+                        if f_check.returncode != 0:
+                            diagnostics.append(Diagnostic("fact.git_history.file_missing", f"Fact {f.id} file '{rel_path}' does not exist at commit '{commit_sha}'", f.line_number))
+
         elif f.source not in {"repository-history", "fixture"}:
-            fact_path = root / f.path.split(":")[0]
-            if not fact_path.is_file():
-                diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
+            if f.path.startswith("/") or f.path.startswith("\\") or ".." in Path(f.path).parts:
+                diagnostics.append(Diagnostic("fact.path.traversal", f"Fact {f.id} path '{f.path}' escapes repository root", f.line_number))
+            else:
+                fact_file = root / f.path.split(":")[0]
+                if not fact_file.is_file():
+                    diagnostics.append(Diagnostic("fact.path.missing", f"Fact {f.id} path '{f.path}' does not exist on disk", f.line_number))
+                else:
+                    file_lines = fact_file.read_text(encoding="utf-8", errors="replace").splitlines()
+                    if f.line < 1 or f.line > len(file_lines):
+                        diagnostics.append(Diagnostic("fact.line.out_of_bounds", f"Fact {f.id} line {f.line} exceeds file bounds ({len(file_lines)})", f.line_number))
+                    elif f.anchor and f.anchor.strip() not in {"", "none", "existing_anchor", "current", "foo", "N/A", "n/a"}:
+                        start_l = max(0, f.line - 11)
+                        end_l = min(len(file_lines), f.line + 10)
+                        window_text = "\n".join(file_lines[start_l:end_l])
+                        if f.anchor not in window_text:
+                            diagnostics.append(Diagnostic("fact.anchor.missing", f"Fact {f.id} anchor '{f.anchor}' not found near line {f.line} in {f.path}", f.line_number))
 
     for ef in assessment.external_facts:
         if ef.freshness not in VALID_FRESHNESS:
             diagnostics.append(Diagnostic("fact.freshness.invalid", f"External fact {ef.id} has invalid freshness '{ef.freshness}'", ef.line_number))
 
-    # L2/L3 Evidence Checks
+    # 6. L2/L3 Evidence Checks
     if effective_level in {"L2", "L3"} and not is_discovery_only:
         valid_facts = [f for f in assessment.facts if f.source in VALID_SOURCES]
         sources_used = {f.source for f in valid_facts}
@@ -615,7 +777,6 @@ def validate(
             if len(sources_used) < 3:
                 diagnostics.append(Diagnostic("evidence.l3.categories_insufficient", f"L3 assessment requires at least 3 distinct evidence categories, found {len(sources_used)} ({sources_used})"))
 
-            # Require representation across pillars
             code_pillar = {"code", "test", "runtime"} & sources_used
             state_pillar = {"schema", "configuration", "ownership", "production"} & sources_used
             ops_pillar = {"deployment", "production", "ownership", "repository-history"} & sources_used
@@ -630,7 +791,7 @@ def validate(
         if freshness_used.issubset({"potentially-stale", "historical"}):
             diagnostics.append(Diagnostic("evidence.stale_only", "Stale evidence alone cannot override or establish current local behavior"))
 
-    # Pressure Validation
+    # 7. Pressure Validation
     for p in assessment.pressures:
         if not p.evidence:
             diagnostics.append(Diagnostic("pressure.evidence.missing", f"Pressure {p.id} must cite at least one F-n or E-n fact", p.line_number))
@@ -643,7 +804,7 @@ def validate(
     if len(p_ranks) != len(set(p_ranks)):
         diagnostics.append(Diagnostic("pressure.rank.duplicate", "P-n pressures must have unique ranks."))
 
-    # Contract Validation
+    # 8. Contract Validation
     for c in assessment.contracts:
         if c.status == "authorized-change" and (not c.authorization or c.authorization == "none"):
             diagnostics.append(Diagnostic("contract.authorization.missing", f"Contract {c.id} with authorized-change must name explicit authorization", c.line_number))
@@ -653,7 +814,7 @@ def validate(
             if c.blocking:
                 diagnostics.append(Diagnostic("contract.at_risk.unresolved", f"Contract {c.id} remains unresolved blocking contract", c.line_number))
 
-    # Decision & Alternatives Validation
+    # 9. Decision & Alternatives Validation
     if assessment.decision and not is_discovery_only:
         d = assessment.decision
         if d.level != effective_level:
@@ -676,28 +837,42 @@ def validate(
             if not has_lower:
                 diagnostics.append(Diagnostic("alternatives.l2_l3.lower_level_missing", f"{effective_level} assessment must include L0 or L1 alternative"))
 
-    # Pattern Gate Validation
+    # 10. Pattern Gate Validation (Require Q1-Q14 structured table)
     for g in assessment.pattern_gates:
-        if g.questions and g.result in {"admit", "admit-narrowed"}:
-            for hard_q in HARD_PATTERN_QUESTIONS:
-                if hard_q in g.questions:
-                    qa = g.questions[hard_q]
-                    if qa.answer != "yes":
-                        diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Pattern gate {g.id} result '{g.result}' requires Q{hard_q}=yes, got '{qa.answer}'", g.line_number))
+        if not g.questions or len(g.questions) < 14:
+            diagnostics.append(Diagnostic("pattern.questions.missing", f"Pattern gate {g.id} must include all structured Q1-Q14 gate questions", g.line_number))
+        else:
+            for q_num in range(1, 15):
+                if q_num not in g.questions:
+                    diagnostics.append(Diagnostic("pattern.hard_gate.missing", f"Pattern gate {g.id} requires question Q{q_num}", g.line_number))
                 else:
-                    diagnostics.append(Diagnostic("pattern.hard_gate.missing", f"Pattern gate {g.id} requires question Q{hard_q}", g.line_number))
+                    qa = g.questions[q_num]
+                    if qa.answer not in {"yes", "no", "unknown"}:
+                        diagnostics.append(Diagnostic("pattern.answer.invalid", f"Pattern gate {g.id} Q{q_num} invalid answer '{qa.answer}'", g.line_number))
+                    if qa.answer in {"yes", "no"} and not qa.evidence:
+                        diagnostics.append(Diagnostic("pattern.evidence.missing", f"Pattern gate {g.id} Q{q_num} answer '{qa.answer}' requires evidence", g.line_number))
+
+            if g.result in {"admit", "admit-narrowed"}:
+                for hard_q in HARD_PATTERN_QUESTIONS:
+                    if hard_q in g.questions and g.questions[hard_q].answer != "yes":
+                        diagnostics.append(Diagnostic("pattern.hard_gate.failed", f"Pattern gate {g.id} result '{g.result}' requires Q{hard_q}=yes, got '{g.questions[hard_q].answer}'", g.line_number))
+
         if g.scope == "removed" or g.result == "remove":
             if not g.removed_destination or g.removed_destination.strip() == "":
                 diagnostics.append(Diagnostic("pattern.removal.destination_missing", f"Pattern removal {g.id} must state removed-destination", g.line_number))
         if g.result == "defer" and not g.revisit_trigger:
             diagnostics.append(Diagnostic("pattern.defer.revisit_missing", f"Pattern deferral {g.id} must specify revisit-trigger", g.line_number))
 
-    # Technical Debt Validation
+    # 11. Technical Debt Validation
     for td in assessment.tech_debts:
         if td.type not in VALID_DEBT_TYPES:
             diagnostics.append(Diagnostic("tech_debt.type.invalid", f"Technical debt {td.id} invalid type '{td.type}'", td.line_number))
         if td.disposition not in VALID_DEBT_DISPOSITIONS:
             diagnostics.append(Diagnostic("tech_debt.disposition.invalid", f"Technical debt {td.id} invalid disposition '{td.disposition}'", td.line_number))
+        if td.evidence:
+            for ev_id in td.evidence:
+                if ev_id not in valid_fact_ids:
+                    diagnostics.append(Diagnostic("tech_debt.evidence.invalid", f"Technical debt {td.id} cites unknown evidence '{ev_id}'", td.line_number))
         if td.disposition in {"repay", "retire"} and (not td.recurrence_guard or td.recurrence_guard.lower() in {"none", "n/a"}):
             diagnostics.append(Diagnostic("tech_debt.recurrence_guard.missing", f"Technical debt {td.id} disposition '{td.disposition}' requires recurrence-guard", td.line_number))
         if td.disposition in {"accept", "monitor", "contain"} and (not td.revisit_trigger or td.revisit_trigger.lower() in {"none", "n/a"}):
@@ -705,7 +880,7 @@ def validate(
         if td.disposition == "contain" and not td.containment_boundary:
             diagnostics.append(Diagnostic("tech_debt.containment_boundary.missing", f"Technical debt {td.id} disposition contain requires containment-boundary", td.line_number))
 
-    # Verification Validation
+    # 12. Verification Validation
     for v in assessment.verifications:
         if not v.proves:
             diagnostics.append(Diagnostic("verification.proves.missing", f"Verification {v.id} must state proves", v.line_number))
@@ -716,12 +891,20 @@ def validate(
         if not v.method or not v.expected:
             diagnostics.append(Diagnostic("verification.method_expected.missing", f"Verification {v.id} requires concrete method and expected result", v.line_number))
 
-    # Migration Validation
+    # 13. Migration Validation
     for m in assessment.migrations:
+        if m.preserved:
+            for p_id in m.preserved:
+                if p_id not in valid_record_ids:
+                    diagnostics.append(Diagnostic("migration.preserved.invalid", f"Migration {m.id} cites unknown preserved contract '{p_id}'", m.line_number))
+        if m.proof:
+            for pr_id in m.proof:
+                if pr_id not in valid_record_ids:
+                    diagnostics.append(Diagnostic("migration.proof.invalid", f"Migration {m.id} cites unknown proof verification '{pr_id}'", m.line_number))
         if not m.rollback_trigger or not m.rollback_action:
             diagnostics.append(Diagnostic("migration.rollback.missing", f"Migration {m.id} requires rollback trigger and action", m.line_number))
 
-    # Handoff Validation
+    # 14. Handoff Validation
     if assessment.handoff:
         h = assessment.handoff
         if h.next not in VALID_HANDOFFS:
@@ -730,7 +913,6 @@ def validate(
             if assessment.decision_summary.next_owner != h.next:
                 diagnostics.append(Diagnostic("summary.next_owner.mismatch", f"Decision Summary next_owner '{assessment.decision_summary.next_owner}' != Handoff next '{h.next}'", h.line_number))
         if h.next == "implement-with-senior-dev":
-            # Must explicitly evidence an approved plan
             plan_ev = [f for f in assessment.facts if "plan" in f.observation.casefold() or "plan" in f.path.casefold()]
             if not plan_ev:
                 diagnostics.append(Diagnostic("handoff.implement.unplanned", "Handoff to implement-with-senior-dev requires an approved, decision-complete plan in evidence", h.line_number))

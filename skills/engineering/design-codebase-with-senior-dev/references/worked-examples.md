@@ -113,6 +113,10 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 | Q13 | yes | F-1, P-1 | Reversible in 2 PRs |
 | Q14 | yes | F-1, F-2 | Net value exceeds cost |
 
+## Verification and Residual Risk
+- V-1: proves: D-1 | method: `pytest tests/test_payments.py` | expected: Adapter correctly translates success and error payloads.
+- R-1: severity: low | scenario: SDK adds new error code | consequence: update adapter mapping | owner: payments team | follow-up: monitor error logs
+
 ## Target Boundary
 - Responsibility and owner: `payments/adapter.py` owns SDK lifecycle and translation.
 - Dependency direction: domain policy -> `PaymentGateway` port -> `ProviderAdapter` -> SDK.
@@ -128,11 +132,7 @@ Use these examples as calibration, not templates to copy. Each shows how evidenc
 - Timeouts: 5000ms deadline passed to SDK.
 - Retries: 2 retries with exponential backoff on 5xx errors.
 - Idempotency: idempotency key generated per request ID.
-- Ordering: not-applicable: single payment requests are stateless.
-- Transactions: not-applicable: no local database transaction involved.
+- Ordering: single payment requests are stateless.
+- Transactions: single payment requests have no local database transaction.
 - Observability: log provider request ID and status code.
 - Resource limits: max 50 concurrent HTTP connections.
-
-## Verification and Residual Risk
-- V-1: proves: D-1 | method: `pytest tests/test_payments.py` | expected: Adapter correctly translates success and error payloads.
-- R-1: severity: low | scenario: SDK adds new error code | consequence: update adapter mapping | owner: payments team | follow-up: monitor error logs

@@ -57,7 +57,7 @@ def main() -> int:
         effective_level = "discovery-only"
 
     # Validate draft before finalization
-    draft_diagnostics = validate(text, effective_level if effective_level != "discovery-only" else "L0", Path(args.repo_root))
+    draft_diagnostics = validate(text, effective_level, Path(args.repo_root))
     draft_errors = [d for d in draft_diagnostics if not d.is_warning]
     if draft_errors:
         print("Error: Cannot finalize invalid assessment draft:", file=sys.stderr)
@@ -66,12 +66,12 @@ def main() -> int:
         return 1
 
     # Produce finalized text with stamped validation receipt
-    finalized_text = finalize_assessment_text(text, effective_level if effective_level != "discovery-only" else "L0", mode=effective_mode)
+    finalized_text = finalize_assessment_text(text, effective_level, mode=effective_mode)
 
     # Re-validate finalized text with --require-finalized
     final_diagnostics = validate(
         finalized_text,
-        effective_level if effective_level != "discovery-only" else "L0",
+        effective_level,
         Path(args.repo_root),
         require_finalized=True,
     )

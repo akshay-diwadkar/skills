@@ -26,14 +26,31 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
 
     pattern = ""
     if contract["levels"][level]["requires_pattern_gate"]:
-        questions = ", ".join(f"Q{number}=yes" for number in range(1, 15))
-        pattern = f"\n- G-1: pattern: Adapter | scope: introduced | result: admit | questions: {questions} | evidence: F-1, P-1"
+        pattern = """### G-1: Adapter — admit
+- Scope: introduced | Result: admit | Evidence: F-1, P-1
+
+| Gate | Answer | Evidence | Consequence |
+|---|---|---|---|
+| Q1 | yes | F-1, P-1 | Resolves current pressure |
+| Q2 | yes | F-1, P-1 | Evidenced recurrence |
+| Q3 | yes | F-1, P-1 | Lower levels insufficient |
+| Q4 | yes | F-1, P-1 | Single owner |
+| Q5 | yes | F-1, P-1 | Stable contract |
+| Q6 | yes | F-1, P-1 | Reduces propagation |
+| Q7 | yes | F-1, P-1 | Constrains coupling |
+| Q8 | yes | F-1, P-1 | Unambiguous state |
+| Q9 | yes | F-1, P-1 | Contracts preserved |
+| Q10 | yes | F-1, P-1 | Observable proof |
+| Q11 | yes | F-1, P-1 | Operational semantics explicit |
+| Q12 | yes | F-1, P-1 | Repository idiom |
+| Q13 | yes | F-1, P-1 | Reversible slices |
+| Q14 | yes | F-1, P-1 | Net value positive |"""
 
     target_discovery = ""
     if mode == "autonomous-discovery":
-        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | status: selected | reason: Dominant candidate.\n"
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high\n"
     elif mode == "discovery-only":
-        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: {level} | blast-radius: local | product-intent-required: false | status: deferred | reason: Unsafe candidate.\n"
+        target_discovery = f"\n## Target Discovery Candidates\n- T-1: target: src/system.py | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Unsafe candidate. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: low\n"
 
     selected_level_summary = level
 
@@ -71,7 +88,6 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         "## Scope and Protected Contracts",
         "- C-1: status: preserved | contract: public command output | authorization: none",
         f"- H-1: status: assessment-only | next: {next_owner}",
-        "- A-1: status: none | impact: none | verification: none",
         "- TD-1: type: structural | evidence: F-1 | principal: legacy shortcut | interest: minor maintainability cost | frequency: current | blast-radius: src/system.py | disposition: repay | reason: removes debt | repayment-boundary: local | recurrence-guard: unit test | revisit-trigger: none",
         "",
         "## Evidence and Current State",
@@ -86,7 +102,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         *alternatives,
     ]
     if pattern:
-        sections.append(pattern.lstrip("\n"))
+        sections.append(pattern)
     sections.extend([
         "",
         "## Verification and Residual Risk",
@@ -97,7 +113,7 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
         sections.extend([
             "",
             "## Local Simplification and Preservation",
-            "- Responsibility: current module.",
+            "- Responsibility: current module owns execution.",
             "- Concepts removed: redundant factory.",
             "- Concepts retained: public command.",
             "- Preservation proof: C-1 and V-1.",
@@ -115,14 +131,26 @@ def valid_v2_assessment(level: str, mode: str = "targeted") -> str:
             "- M-1: prerequisite: characterize current calls | changed boundary: payment gateway | preserved: C-1 | proof: V-1 | rollback trigger: payload mismatch | rollback action: restore direct caller | cleanup: remove shim after all callers migrate",
             "",
             "## Operational Semantics",
+            "- Source Of Truth: primary database table.",
+            "- Failures: handled gracefully via domain exception.",
+            "- Timeouts: 5000ms deadline passed to adapter.",
+            "- Retries: 2 retries on 5xx errors.",
+            "- Idempotency: idempotency key per request.",
+            "- Ordering: single requests are stateless.",
+            "- Transactions: local database transaction.",
+            "- Observability: log provider status code.",
+            "- Resource Limits: max 50 concurrent connections.",
         ])
-        sections.extend(
-            f"- {field.title()}: not-applicable: verified local-only assessment."
-            for field in contract["operational_fields"]
-        )
     if level == "L3":
-        sections.extend(["", "## System Ownership and Evolution"])
-        sections.extend(f"- {field.title()}: explicitly defined." for field in contract["l3_evolution_fields"])
+        sections.extend([
+            "",
+            "## System Ownership and Evolution",
+            "- System Invariant: domain entities maintain internal consistency.",
+            "- Deployment Compatibility: backward compatible release.",
+            "- Durable State Evolution: schema migration script v1 to v2.",
+            "- Reconciliation: async event bus retry queue.",
+            "- Rollback Compatibility: double writing supported for 1 release.",
+        ])
 
     text = "\n".join(s for s in sections if s is not None) + "\n"
     return text.replace("\n\n\n", "\n\n")

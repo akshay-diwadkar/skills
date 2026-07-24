@@ -315,11 +315,11 @@ def section_names(level: str, mode: str = "targeted") -> list[str]:
     level_contract = contract["levels"].get(level)
     if level_contract is None:
         raise ValueError(f"unsupported level: {level}")
-    names = [*contract["base_sections"], *level_contract["extra_sections"]]
-    if mode == "autonomous-discovery" and "Target Discovery Candidates" not in names:
-        # Insert Target Discovery Candidates after Evidence and Current State
-        idx = names.index("Evidence and Current State") + 1 if "Evidence and Current State" in names else 2
+    names = [*contract["base_sections"]]
+    if mode == "autonomous-discovery":
+        idx = names.index("Evidence and Current State") + 1 if "Evidence and Current State" in names else len(names)
         names.insert(idx, "Target Discovery Candidates")
+    names.extend(level_contract["extra_sections"])
     return names
 
 
@@ -438,8 +438,8 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             "- F-1: `src/system.py:1` | anchor: `current` | observation: Verified current behavior | source: code | strength: direct | freshness: current",
             "",
             "## Target Discovery Candidates",
-            "- T-1: target: `src/module_a.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: medium | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Requires product intent alignment before structural change.",
-            "- T-2: target: `src/module_b.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: L1 | blast-radius: local | product-intent-required: true | rank: 2 | status: rejected | reason: Product intent required.",
+            "- T-1: target: `src/module_a.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: medium | likely-level: L1 | blast-radius: local | product-intent-required: false | rank: 1 | status: deferred | reason: Requires product intent alignment before structural change. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: medium",
+            "- T-2: target: `src/module_b.py` | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: low | likely-level: L1 | blast-radius: local | product-intent-required: true | rank: 2 | status: rejected | reason: Product intent required. | correctness-risk: high | operational-risk: medium | debt-interest: recurring | change-propagation: wide | state-ambiguity: high | scope-boundedness: medium | reversibility: low | structural-confidence: low",
             "",
             "## Verification and Residual Risk",
             "- V-1: proves: T-1 | method: Inspect candidate evidence | expected: Confirms candidate bounds.",
@@ -448,6 +448,8 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
 
     if level not in contract["levels"]:
         raise ValueError(f"unsupported level: {level}")
+
+    default_next_owner = "finish assessment" if level == "L0" else "plan-with-senior-dev"
 
     lines = [
         "# Replace With a Concrete Design Decision",
@@ -461,11 +463,11 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
         "- Why minimum sufficient: Replace with explanation of why lower level fails and higher level is unnecessary",
         "- Protected behavior and contracts: C-1 preserved",
         "- Primary structural pressure: P-1",
-        "- Next owner: plan-with-senior-dev",
+        f"- Next owner: {default_next_owner}",
         "",
         "## Scope and Protected Contracts",
         "- C-1: status: preserved | contract: Replace with API, schema, event, or operational promise | authorization: none",
-        "- H-1: status: assessment-only | next: finish assessment, plan-with-senior-dev, codebase-issue-auditor, optimize-codebase-with-senior-dev, or implement-with-senior-dev",
+        f"- H-1: status: assessment-only | next: {default_next_owner}",
         "",
         "## Evidence and Current State",
         "- F-1: `path:1` | anchor: `existing_anchor` | observation: Replace with verified current behavior | source: code | strength: direct | freshness: current",
@@ -476,7 +478,7 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
         lines.extend([
             "",
             "## Target Discovery Candidates",
-            f"- T-1: target: Replace module/boundary | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate with strong repository evidence.",
+            f"- T-1: target: Replace module/boundary | evidence: F-1 | pressure: P-1 | affected: C-1 | confidence: high | likely-level: {level} | blast-radius: local | product-intent-required: false | rank: 1 | status: selected | reason: Dominant candidate with strong repository evidence. | correctness-risk: low | operational-risk: low | debt-interest: recurring | change-propagation: local | state-ambiguity: low | scope-boundedness: high | reversibility: high | structural-confidence: high",
         ])
 
     lines.extend([
@@ -491,7 +493,7 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
     ])
 
     if contract["levels"][level]["minimum_alternatives"] >= 3:
-        lines.append("- O-3: level: L2 | selected: " + ("yes" if level in ("L2", "L3") else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace")
+        lines.append("- O-3: level: L2 | selected: " + ("yes" if level == "L2" else "no") + " | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace")
     if level == "L3":
         lines.append("- O-4: level: L3 | selected: yes | concepts: Replace | argument-for: Replace | argument-against: Replace | revisit: Replace")
 
@@ -518,12 +520,6 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
             "| Q13 | yes | F-1, P-1 | Reversible slices |",
             "| Q14 | yes | F-1, P-1 | Net value positive |",
         ])
-
-    lines.extend([
-        "",
-        "## Verification and Residual Risk",
-        "- V-1: proves: D-1 | method: Replace with exact command or test | expected: Replace with observable result.",
-    ])
 
     if level == "L1":
         lines.extend([
@@ -554,5 +550,11 @@ def render_scaffold(level: str, mode: str = "targeted") -> str:
     if level == "L3":
         lines.extend(["", "## System Ownership and Evolution"])
         lines.extend(f"- {field.title()}: Replace." for field in contract["l3_evolution_fields"])
+
+    lines.extend([
+        "",
+        "## Verification and Residual Risk",
+        "- V-1: proves: D-1 | method: Replace with exact command or test | expected: Replace with observable result.",
+    ])
 
     return "\n".join(lines).rstrip() + "\n"
