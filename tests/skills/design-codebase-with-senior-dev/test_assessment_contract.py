@@ -2,13 +2,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from assessment_contract import load_contract, marker, render_scaffold, section_names  # noqa: E402
-
 
 LEVELS = ("L0", "L1", "L2", "L3")
 

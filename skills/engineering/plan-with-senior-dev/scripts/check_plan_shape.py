@@ -11,7 +11,6 @@ from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 from plan_contract import load_contract, section_names
 from plan_model import parse_markdown
 
-
 DEFERRED_PATTERNS = (
     r"\b(?:TBD|TODO|FIXME)\b",
     r"\b(?:decide later|during implementation|as needed|where appropriate|if applicable)\b",

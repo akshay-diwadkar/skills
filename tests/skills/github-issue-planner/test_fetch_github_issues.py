@@ -14,7 +14,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = REPO_ROOT / "skills" / "engineering" / "github-issue-planner" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))

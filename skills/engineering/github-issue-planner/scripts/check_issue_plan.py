@@ -14,7 +14,6 @@ from typing import Any
 
 from github_common import ConfigError, normalize_github_repo_target
 
-
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = SKILL_ROOT / "references" / "issue-plan-contract.json"
 METADATA_RE = re.compile(r"<!-- issue-plan-metadata -->\s*```json\s*(?P<json>\{.*?\})\s*```", re.DOTALL)

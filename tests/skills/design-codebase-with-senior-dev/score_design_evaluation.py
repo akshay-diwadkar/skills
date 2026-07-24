@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "design-codebase-with-senior-dev" / "scripts"
@@ -18,7 +17,6 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from check_assessment import validate  # noqa: E402
-
 
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
 WEIGHTS = {

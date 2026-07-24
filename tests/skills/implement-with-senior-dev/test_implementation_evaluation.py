@@ -2,7 +2,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "implement-with-senior-dev"
 sys.path.insert(0, str(DEV_DIR))

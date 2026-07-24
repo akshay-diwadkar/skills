@@ -13,7 +13,6 @@ from pathlib import Path
 
 from optimization_contract import Diagnostic, load_contract, marker, section_names
 
-
 RECORD_RE = re.compile(r"^- (?P<id>(?:CV|F|B|R|C|V|X|H|E)-\d+): (?P<body>.+)$", re.MULTILINE)
 FACT_RE = re.compile(
     r"^- (?P<id>F-\d+): `(?P<path>[^`:]+):(?P<line>\d+)` \| anchor: `(?P<anchor>[^`]+)` \| observation: (?P<observation>.+)$",

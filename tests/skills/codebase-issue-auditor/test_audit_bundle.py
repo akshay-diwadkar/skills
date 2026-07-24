@@ -13,7 +13,6 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 RUNTIME_SCRIPTS = REPO_ROOT / "skills" / "engineering" / "codebase-issue-auditor" / "scripts"
@@ -24,7 +23,6 @@ for import_path in (RUNTIME_SCRIPTS, DEV_DIR):
 import audit_bundle  # noqa: E402
 import score_audit_evaluation  # noqa: E402
 import validate_audit_bundle  # noqa: E402
-
 
 FIXTURE_DIR = DEV_DIR / "fixtures"
 VALID_BUNDLE_PATH = FIXTURE_DIR / "valid_bundle.json"

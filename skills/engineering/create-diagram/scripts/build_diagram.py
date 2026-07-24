@@ -20,7 +20,6 @@ from pathlib import Path
 
 from _diagram_utils import replace_agent_metadata, replace_js_assignment, script_safe_json
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
 STYLE_PATH = SCRIPT_DIR.parent / "assets" / "css" / "style.css"

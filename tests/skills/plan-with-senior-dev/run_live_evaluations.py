@@ -14,7 +14,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 SKILL_PATH = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev"

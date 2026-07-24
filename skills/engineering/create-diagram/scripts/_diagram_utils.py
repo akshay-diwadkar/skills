@@ -7,7 +7,6 @@ import math
 import re
 from pathlib import Path
 
-
 CANONICAL_TYPES = frozenset({
     "service", "external-system", "database", "queue", "file", "document",
     "object-store", "actor", "process", "decision", "event", "concept",

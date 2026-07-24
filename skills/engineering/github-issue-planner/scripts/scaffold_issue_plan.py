@@ -12,7 +12,6 @@ from typing import Any
 
 from github_common import ConfigError, normalize_github_repo_target
 
-
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "issue-plan-contract.json"
 
 

@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 SCHEMA_VERSION = 1
 CATEGORIES = {
     "bug",

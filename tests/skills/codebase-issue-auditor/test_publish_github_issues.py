@@ -14,7 +14,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 SCRIPT_PATH = REPO_ROOT / "skills" / "engineering" / "codebase-issue-auditor" / "scripts" / "publish_github_issues.py"

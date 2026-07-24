@@ -2,7 +2,6 @@ import json
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "implement-with-senior-dev" / "scripts"
 if str(SCRIPTS) not in sys.path:

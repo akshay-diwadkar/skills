@@ -17,7 +17,6 @@ if str(RUNTIME_SCRIPTS) not in sys.path:
 
 from audit_bundle import AuditBundleError, read_json, validate_audit_bundle  # noqa: E402
 
-
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
 
 

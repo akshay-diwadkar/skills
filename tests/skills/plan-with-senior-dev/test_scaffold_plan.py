@@ -1,8 +1,7 @@
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCAFFOLD = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "scripts" / "scaffold_plan.py"

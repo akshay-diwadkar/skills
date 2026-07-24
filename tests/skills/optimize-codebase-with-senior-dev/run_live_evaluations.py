@@ -15,7 +15,6 @@ from typing import Any
 
 import score_optimization_evaluation
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 SKILL_PATH = REPO_ROOT / "skills" / "engineering" / "optimize-codebase-with-senior-dev"

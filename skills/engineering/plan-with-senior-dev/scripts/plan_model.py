@@ -10,7 +10,6 @@ from pathlib import Path
 from _plan_utils import Diagnostic, strip_fenced_code_blocks, validate_receipt
 from plan_contract import load_contract
 
-
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})([A-Za-z0-9_-]*)\s*$")
 CITATION_RE = re.compile(r"`(?P<path>(?:[A-Za-z]:[\\/])?[^`\r\n]+):(?P<line>\d+)`")

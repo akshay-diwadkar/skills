@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "optimize-codebase-with-senior-dev"
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "optimize-codebase-with-senior-dev" / "scripts"

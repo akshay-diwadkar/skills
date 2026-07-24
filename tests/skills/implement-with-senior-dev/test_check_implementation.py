@@ -3,19 +3,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "implement-with-senior-dev" / "scripts"
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "implement-with-senior-dev"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(DEV_DIR))
 
+from _plan_utils import bundle_digest  # noqa: E402
 from check_implementation import validate_bundle  # noqa: E402
 from implementation_contract import scaffold_bundle, sha256_file  # noqa: E402
 from test_implementation_contract import init_repo, v3_plan  # noqa: E402
-
-
-from _plan_utils import bundle_digest  # noqa: E402
 
 
 def completed_run(tmp_path: Path) -> tuple[Path, Path, Path, dict]:

@@ -34,7 +34,6 @@ from _diagram_utils import (
     resolve_type,
 )
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATE_PATH = SCRIPT_DIR.parent / "assets" / "html-diagram-template.html"
 INLINE_STYLE_RE = re.compile(

@@ -13,7 +13,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL_ROOT = REPO_ROOT / "skills" / "engineering" / "github-issue-planner"
 SCRIPTS_DIR = SKILL_ROOT / "scripts"

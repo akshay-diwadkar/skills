@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "design-codebase-with-senior-dev"
 sys.path.insert(0, str(DEV_DIR))

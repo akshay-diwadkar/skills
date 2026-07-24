@@ -9,7 +9,6 @@ import time
 import unittest
 from pathlib import Path
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 ROOT = REPO_ROOT / "skills" / "engineering" / "create-diagram"

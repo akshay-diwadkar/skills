@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "optimization-contract.json"
 
 

@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHECKER = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "scripts" / "check_plan.py"
 EXAMPLES = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "references" / "worked-examples.md"

@@ -11,7 +11,6 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-
 REQUIRED_KEYS: tuple[str, ...] = ()
 OPTIONAL_KEYS: tuple[str, ...] = ("GITHUB_DEFAULT_LABELS", "GITHUB_SKIP_DUPLICATES")
 OWNER_REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?$")

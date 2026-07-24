@@ -10,7 +10,6 @@ from _plan_utils import Diagnostic, read_plan, strip_fenced_code_blocks
 from plan_contract import load_contract
 from plan_model import CHANGE_RE, FACT_RE, definitions, parse_markdown
 
-
 DECISION_RE = re.compile(
     r"^- D-[1-9]\d*:\s+selected:\s+.+\|\s+because:\s+.+\|\s+rejected:\s+.+$",
     re.MULTILINE | re.IGNORECASE,

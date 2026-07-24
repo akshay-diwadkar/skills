@@ -18,7 +18,6 @@ from github_common import (
     validate_github_api_url,
 )
 
-
 MARKER_TEMPLATE = "github-issue-planner:issue={issue_number}:pr={pr_number}"
 
 

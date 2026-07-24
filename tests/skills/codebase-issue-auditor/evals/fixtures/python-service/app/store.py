@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 ACCOUNTS: dict[str, str] = {"a-1": "active"}
 
 

@@ -2,12 +2,16 @@ import re
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-from plan_model import CITATION_RE, coverage_summary, execution_blueprints, parse_markdown, validate_semantics  # noqa: E402
-
+from plan_model import (  # noqa: E402
+    CITATION_RE,
+    coverage_summary,
+    execution_blueprints,
+    parse_markdown,
+    validate_semantics,
+)
 
 EXAMPLES = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "references" / "worked-examples.md"
 

@@ -6,14 +6,12 @@ from typing import Any
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "optimize-codebase-with-senior-dev"
 sys.path.insert(0, str(DEV_DIR))
 
 import score_optimization_evaluation  # noqa: E402
 from report_factory import valid_report  # noqa: E402
-
 
 SPEC = importlib.util.spec_from_file_location(
     "optimize_run_live_evaluations",

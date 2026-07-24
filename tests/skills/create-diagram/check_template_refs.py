@@ -11,7 +11,6 @@ import re
 import sys
 from pathlib import Path
 
-
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parents[2]
 DEFAULT_TEMPLATE = REPO_ROOT / "skills" / "engineering" / "create-diagram" / "assets" / "html-diagram-template.html"

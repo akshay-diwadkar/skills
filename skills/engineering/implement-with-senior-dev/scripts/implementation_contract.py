@@ -13,7 +13,6 @@ from typing import Any
 
 from _plan_utils import Diagnostic, plan_digest, strip_fenced_code_blocks, validate_receipt
 
-
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "implementation-contract.json"
 PLAN_MARKER_RE = re.compile(r"<!--\s*plan-contract:\s*(?P<version>\d+)\s*-->")
 TIER_RE = re.compile(r"<!--\s*tier:\s*(?P<tier>tiny|standard|high-risk);\s*task-type:\s*(?P<task>[^;]+?)\s*-->")

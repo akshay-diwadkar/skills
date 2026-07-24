@@ -10,9 +10,9 @@ from pathlib import Path
 
 # Add parent directory to path so we can import _plan_utils, check_plan_shape, check_plan_rubric
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _plan_utils import Diagnostic, read_plan, validate_receipt
-import check_plan_shape
 import check_plan_rubric
+import check_plan_shape
+from _plan_utils import Diagnostic, read_plan, validate_receipt
 from plan_model import coverage_summary, validate_semantics
 
 

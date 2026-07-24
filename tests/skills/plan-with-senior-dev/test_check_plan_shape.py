@@ -2,13 +2,11 @@ import re
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from check_plan_shape import validate  # noqa: E402
 from plan_contract import load_contract, section_names  # noqa: E402
-
 
 EXAMPLES = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev" / "references" / "worked-examples.md"
 TIERS = ("tiny", "standard", "high-risk")
