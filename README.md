@@ -1,6 +1,6 @@
 # Engineering Skills
 
-[![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg)](https://github.com/akshay-diwadkar/skills/actions)
+[![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml)
 [![Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills)](https://github.com/akshay-diwadkar/skills/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
