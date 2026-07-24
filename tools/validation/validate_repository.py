@@ -245,6 +245,47 @@ def validate_agent_discovery(agents_catalog: dict[str, Any] | None = None) -> li
 ALLOWED_SKILL_SUBDIRS = {"scripts", "references", "assets", "templates", "agents"}
 ALLOWED_SKILL_EXTENSIONS = {".py", ".md", ".json", ".html", ".css", ".js", ".yaml", ".yml", ".png", ".jpg", ".svg", ".txt", ".example"}
 ALLOWED_SKILL_ROOT_FILES = {"SKILL.md", ".env.example"}
+ALLOWED_SKILL_SCRIPTS = {
+    # codebase-issue-auditor
+    "audit_bundle.py",
+    "check_github_env.py",
+    "publish_github_issues.py",
+    "validate_audit_bundle.py",
+    # create-diagram",
+    "_diagram_utils.py",
+    "build_diagram.py",
+    "validate_diagram.py",
+    # design-codebase-with-senior-dev
+    "assessment_contract.py",
+    "check_assessment.py",
+    "scaffold_assessment.py",
+    # github-issue-planner
+    "check_github_env.py",
+    "check_issue_plan.py",
+    "fetch_github_issues.py",
+    "github_common.py",
+    "post_merge_issue_followup.py",
+    "scaffold_issue_plan.py",
+    # implement-with-senior-dev
+    "_plan_utils.py",
+    "check_implementation.py",
+    "finalize_implementation.py",
+    "implementation_contract.py",
+    "scaffold_implementation.py",
+    # optimize-codebase-with-senior-dev
+    "check_optimization.py",
+    "optimization_contract.py",
+    "scaffold_optimization.py",
+    # plan-with-senior-dev
+    "_plan_utils.py",
+    "check_plan.py",
+    "check_plan_rubric.py",
+    "check_plan_shape.py",
+    "finalize_plan.py",
+    "plan_contract.py",
+    "plan_model.py",
+    "scaffold_plan.py",
+}
 
 
 def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any]) -> list[str]:
@@ -275,6 +316,8 @@ def validate_package_boundaries(tracked_files: list[str], catalog: dict[str, Any
                 top_dir = rel_parts[0].lower()
                 if top_dir not in ALLOWED_SKILL_SUBDIRS:
                     errors.append(f"Unrecognized runtime directory inside skill package '{skill_name}': {path}")
+                if top_dir == "scripts" and rel_parts[1] not in ALLOWED_SKILL_SCRIPTS:
+                    errors.append(f"Unrecognized runtime script inside skill package '{skill_name}': {path}")
                 ext = Path(rel_parts[-1]).suffix.lower()
                 if ext not in ALLOWED_SKILL_EXTENSIONS:
                     errors.append(f"Unrecognized runtime file extension inside skill package '{skill_name}': {path}")

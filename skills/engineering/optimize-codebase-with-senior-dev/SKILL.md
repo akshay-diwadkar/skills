@@ -34,8 +34,12 @@ Planning is mandatory. Implementation remains available only after the planning 
 ## Skill Directory Resolution
 
 Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
-- On other platforms: execute commands relative to the active skill directory.
+- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
+- On other platforms: execute commands with process `cwd` set to the active skill directory.
+- Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
+- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
+- Fail closed if `skill-root` or `repo-root` cannot be resolved.
+- Never write output or state files relative to the installed skill package directory.
 
 ## Contract and Reference Routing
 
@@ -50,7 +54,7 @@ Execute bundled runtime commands with the active skill directory (the directory 
 6. Read only the applicable pass in `references/optimization-patterns.md`. Read only the matching example in `references/worked-examples.md`.
 7. Validate from the active skill directory before finalizing:
    ```bash
-   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root <repo> <report>
+   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root /absolute/path/to/repository /absolute/path/to/report.md
    ```
 
 ## Eight Gates

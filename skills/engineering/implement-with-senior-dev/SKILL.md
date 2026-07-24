@@ -38,8 +38,12 @@ Read these files completely before editing:
 ## Skill Directory Resolution
 
 Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
-- On other platforms: execute commands relative to the active skill directory.
+- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
+- On other platforms: execute commands with process `cwd` set to the active skill directory.
+- Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
+- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
+- Fail closed if `skill-root` or `repo-root` cannot be resolved.
+- Never write output or state files relative to the installed skill package directory.
 
 ## Execution Gates
 
@@ -58,9 +62,9 @@ Create the run bundle from the active skill directory:
 
 ```bash
 python scripts/scaffold_implementation.py \
-  --repo-root <repo> \
-  --plan <run-dir>/plan.md \
-  --output <run-dir>/implementation.json
+  --repo-root /absolute/path/to/repository \
+  --plan /absolute/path/to/run-dir/plan.md \
+  --output /absolute/path/to/run-dir/implementation.json
 ```
 
 Use `.scratch/implement-with-senior-dev/<run-id>/` only when `git check-ignore` confirms it is ignored; otherwise use an OS temporary directory.
@@ -107,9 +111,9 @@ Finalize `status`, unresolved `CH/T` records, final changed paths, deviations, r
 
 ```bash
 python scripts/finalize_implementation.py \
-  --repo-root <repo> \
-  --plan <run-dir>/plan.md \
-  <run-dir>/implementation.json
+  --repo-root /absolute/path/to/repository \
+  --plan /absolute/path/to/run-dir/plan.md \
+  /absolute/path/to/run-dir/implementation.json
 ```
 
 The finalizer runs all bundle and workspace validation checks in-process. On success, it stamps a SHA-256 validation receipt (`validation_receipt`) into the bundle JSON. Submit only the finalized output. A failed or unfinalized bundle blocks implementation completion.

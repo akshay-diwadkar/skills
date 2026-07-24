@@ -10,8 +10,12 @@ Grill to a shared model, plan the diagram, then build through the bundled templa
 ## Skill Directory Resolution
 
 Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
-- On other platforms: execute commands relative to the active skill directory.
+- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
+- On other platforms: execute commands with process `cwd` set to the active skill directory.
+- Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
+- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
+- Fail closed if `skill-root` or `repo-root` cannot be resolved.
+- Never write output or state files relative to the installed skill package directory.
 
 ## Workflow
 
@@ -40,17 +44,15 @@ Execute bundled runtime commands with the active skill directory (the directory 
    - Prefer auto-layout by omitting node `x`/`y`; if manual positions are used, every node must include both `x` and `y`.
    - Run the bundled builder from the active skill directory:
      ```bash
-     python scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
+     python scripts/build_diagram.py --data /absolute/path/to/payload.json --output /absolute/path/to/diagram.html --create-dirs --overwrite
      ```
-     PowerShell example: `python scripts\build_diagram.py --data payload.json --output diagram.html`
-     Bash example: `python scripts/build_diagram.py --data payload.json --output diagram.html`
    - The generated HTML is self-contained: the builder embeds the local stylesheet and RoughJS runtime, so the output can be opened or served from any directory without copying sibling assets.
    - Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement.
 
 5. **Validate**
    - Validate HTML before opening it:
      ```bash
-     python scripts/validate_diagram.py <path-to-output.html>
+     python scripts/validate_diagram.py /absolute/path/to/diagram.html
      ```
    - Fix all reported errors (exit code 1) before proceeding. Warnings should be reviewed but do not block verification.
 

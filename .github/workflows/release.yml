@@ -60,6 +60,17 @@ jobs:
       - name: Version and Tag alignment check
         run: python tools/release/check_version.py --tag "${{ steps.prep_tag.outputs.target_tag }}"
 
+      - name: Verify Tag Commit Binding
+        run: |
+          TAG="${{ steps.prep_tag.outputs.target_tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_SHA=$(git rev-list -n 1 "$TAG")
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Error: Release tag $TAG points to commit $TAG_SHA, but workflow is running on $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+
       - name: Changelog validation
         run: python tools/release/build_changelog.py
 
@@ -120,6 +131,17 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
+      - name: Verify Tag SHA Before Publication
+        run: |
+          TAG="${{ steps.prep.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_SHA=$(git rev-list -n 1 "$TAG")
+            if [ "$TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Error: Existing tag $TAG points to commit $TAG_SHA instead of validated commit $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+
       - name: Build Distribution Bundle
         run: |
           VERSION="${{ steps.prep.outputs.version }}"
@@ -131,6 +153,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.prep.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: Release ${{ steps.prep.outputs.tag }}
           body_path: CHANGELOG.md
           files: |

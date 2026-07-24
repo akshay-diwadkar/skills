@@ -70,12 +70,22 @@ def build_distribution(output_dir: Path) -> Path:
     if docs_src.is_dir():
         dest_docs = output_dir / "docs"
         dest_docs.mkdir(parents=True, exist_ok=True)
+        allowed_root_docs = {"getting-started.md", "installation.md", "compatibility.md", "agents.md", "workflow.md", "safety.md"}
+        allowed_subdirs = {"skills", "agents"}
         for p in docs_src.rglob("*"):
             rel = p.relative_to(docs_src)
+            first_part = rel.parts[0]
+            if len(rel.parts) == 1:
+                if first_part not in allowed_root_docs:
+                    continue
+            elif len(rel.parts) > 1:
+                if first_part not in allowed_subdirs:
+                    continue
             dest = dest_docs / rel
             if p.is_dir():
                 dest.mkdir(parents=True, exist_ok=True)
             elif p.is_file():
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
 
     # Copy Codex installer script
@@ -86,7 +96,7 @@ def build_distribution(output_dir: Path) -> Path:
         shutil.copy2(installer_src, dest_tools_agents / "install_codex_agents.py")
 
     # Copy root documentation and metadata files
-    for root_file in ("README.md", "VERSION", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "pyproject.toml"):
+    for root_file in ("README.md", "VERSION", "LICENSE", "SECURITY.md", "CHANGELOG.md", "pyproject.toml"):
         src_f = ROOT / root_file
         if src_f.is_file():
             shutil.copy2(src_f, output_dir / root_file)

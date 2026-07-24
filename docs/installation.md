@@ -52,6 +52,7 @@ Cursor supports custom agent configurations and skill discovery via `.cursor-plu
 ```bash
 # Linux / macOS
 git clone https://github.com/akshay-diwadkar/skills.git
+cd skills
 mkdir -p ~/.cursor/plugins/local
 ln -s "$(pwd)" ~/.cursor/plugins/local/engineering-skills
 ```
@@ -59,6 +60,7 @@ ln -s "$(pwd)" ~/.cursor/plugins/local/engineering-skills
 ```powershell
 # Windows PowerShell (Directory Junction)
 git clone https://github.com/akshay-diwadkar/skills.git
+Set-Location skills
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cursor\plugins\local"
 cmd /c mklink /J "$env:USERPROFILE\.cursor\plugins\local\engineering-skills" "$PWD"
 ```

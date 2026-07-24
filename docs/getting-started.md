@@ -13,7 +13,7 @@ This monorepo supports two primary interaction styles:
 
 - **Claude Code Marketplace**: `/plugin install engineering-skills@engineering-skills-marketplace`
 - **Cursor Local Plugin**: Symlink or copy to `~/.cursor/plugins/local/engineering-skills`
-- **Codex Project Installer**: Run `python tools/agents/install_codex_agents.py --repo <target-project>`
+- **Codex Project Installer**: Run `python tools/agents/install_codex_agents.py --target <target-project> --write`
 
 For complete platform installation options, see [Installation Guide](installation.md).
 

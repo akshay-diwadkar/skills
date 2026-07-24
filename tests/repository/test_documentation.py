@@ -102,6 +102,24 @@ def test_cursor_plugin_location_documentation() -> None:
             f"{rel_name} contains unsupported workspace-level plugin installation claim"
         )
 
+        if "git clone https://github.com/akshay-diwadkar/skills.git" in text:
+            assert "cd skills" in text or "Set-Location skills" in text, (
+                f"{rel_name} contains git clone example without entering skills directory before linking"
+            )
+
+
+def test_reject_invalid_codex_installer_flags_in_docs() -> None:
+    """Verify documentation rejects invalid --repo flag for install_codex_agents.py and uses valid --target and --write."""
+    for md_file in REPO_ROOT.rglob("*.md"):
+        if ".scratch" in md_file.parts or ".git" in md_file.parts:
+            continue
+        text = md_file.read_text(encoding="utf-8")
+        rel_name = md_file.relative_to(REPO_ROOT)
+        
+        assert "install_codex_agents.py --repo" not in text, (
+            f"{rel_name} contains invalid flag '--repo' for install_codex_agents.py"
+        )
+
 
 def test_codex_matrix_consistency() -> None:
     """Verify key documentation files present a consistent Codex support matrix."""
@@ -126,3 +144,4 @@ def test_validation_scope_documentation() -> None:
         assert "guarantees compatibility across every platform" not in text, (
             f"{md_file.relative_to(REPO_ROOT)} overclaims platform compatibility guarantee"
         )
+

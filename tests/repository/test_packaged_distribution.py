@@ -37,3 +37,24 @@ def test_build_and_verify_clean_distribution() -> None:
     finally:
         if temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_verify_distribution_rejects_missing_command_target() -> None:
+    """Verify distribution validator rejects Markdown files referencing non-existent script targets."""
+    temp_dir = Path(tempfile.mkdtemp(prefix="test-dist-err-"))
+    try:
+        dist_path = build_distribution.build_distribution(temp_dir)
+        
+        # Inject invalid command reference into a bundled doc
+        doc_file = dist_path / "docs" / "getting-started.md"
+        assert doc_file.is_file()
+        current_text = doc_file.read_text(encoding="utf-8")
+        doc_file.write_text(current_text + "\nRun `python tools/nonexistent_script.py`\n", encoding="utf-8")
+
+        errors = verify_distribution.verify_distribution_tree(dist_path)
+        assert any("references missing command target file: tools/nonexistent_script.py" in err for err in errors), (
+            f"Expected verification error for missing command target, got: {errors}"
+        )
+    finally:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)

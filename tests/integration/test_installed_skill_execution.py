@@ -13,18 +13,28 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def get_skill_snapshot(skill_dir: Path) -> set[tuple[str, int]]:
+    """Record relative path and size of every file inside a skill directory."""
+    snapshot = set()
+    for p in skill_dir.rglob("*"):
+        if p.is_file() and "__pycache__" not in p.parts:
+            snapshot.add((p.relative_to(skill_dir).as_posix(), p.stat().st_size))
+    return snapshot
+
+
 @pytest.fixture
 def installed_skills_env(tmp_path: Path):
-    """Copy skills to an isolated external location and setup a separate target workspace with spaces."""
+    """Copy skills to an isolated external location with spaces and setup a separate target workspace with spaces."""
     installed_dir = tmp_path / "installed skills folder with spaces"
     target_repo = tmp_path / "target user project with spaces"
     installed_dir.mkdir(parents=True, exist_ok=True)
     target_repo.mkdir(parents=True, exist_ok=True)
 
-    # Initialize a minimal git repository in target_repo
+    # Initialize a minimal git repository in target_repo with origin remote
     subprocess.run(["git", "init"], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "eval@example.com"], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Eval"], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(["git", "remote", "add", "origin", "https://github.com/owner/repo.git"], cwd=target_repo, capture_output=True, check=True)
     (target_repo / "README.md").write_text("# Target Project\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=target_repo, capture_output=True, check=True)
@@ -41,17 +51,15 @@ def installed_skills_env(tmp_path: Path):
 def test_installed_plan_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     plan_skill = installed_dir / "plan-with-senior-dev"
-    scaffold_script = plan_skill / "scripts" / "scaffold_plan.py"
-    finalize_script = plan_skill / "scripts" / "finalize_plan.py"
-
-    assert scaffold_script.is_file()
-    assert finalize_script.is_file()
-
-    # 1. Run scaffold_plan from target_repo CWD (target repo has no scripts/ directory)
+    assert (plan_skill / "SKILL.md").is_file()
     assert not (target_repo / "scripts").exists()
+
+    before_snapshot = get_skill_snapshot(plan_skill)
+
+    # 1. Run scaffold_plan from plan_skill CWD with relative script path
     scaffold_res = subprocess.run(
-        [sys.executable, str(scaffold_script), "--tier", "tiny", "--task-type", "bug-fix"],
-        cwd=target_repo,
+        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--task-type", "bug-fix"],
+        cwd=plan_skill,
         capture_output=True,
         text=True,
     )
@@ -71,29 +79,152 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
     (target_repo / "src").mkdir(parents=True, exist_ok=True)
     (target_repo / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8")
 
-    # 2. Run finalize_plan from target_repo CWD
+    # 2. Run finalize_plan from plan_skill CWD with absolute target repo and draft arguments
     finalize_res = subprocess.run(
         [
             sys.executable,
-            str(finalize_script),
+            "scripts/finalize_plan.py",
             "--tier",
             "tiny",
             "--repo-root",
             str(target_repo),
             str(draft_file),
         ],
-        cwd=target_repo,
+        cwd=plan_skill,
         capture_output=True,
         text=True,
     )
     assert finalize_res.returncode == 0, f"Finalizer stderr: {finalize_res.stderr}"
     assert "plan-validation: 3" in finalize_res.stdout
 
+    after_snapshot = get_skill_snapshot(plan_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
+
+def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp_path: Path):
+    installed_dir, target_repo = installed_skills_env
+    implement_skill = installed_dir / "implement-with-senior-dev"
+    plan_skill = installed_dir / "plan-with-senior-dev"
+    assert (implement_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(implement_skill)
+
+    # Load valid tiny plan with receipt from plan-with-senior-dev worked-examples
+    worked_examples_path = plan_skill / "references" / "worked-examples.md"
+    examples_text = worked_examples_path.read_text(encoding="utf-8")
+    tiny_block = re.findall(r"```plan\n(.*?)\n```", examples_text, re.DOTALL)[0]
+
+    plan_file = target_repo / "plan.md"
+    plan_file.write_text(tiny_block, encoding="utf-8")
+    output_dir = tmp_path / "external_run_dir"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = output_dir / "implementation.json"
+
+    # Create dummy files referenced by tiny plan in target_repo and commit them
+    (target_repo / "src").mkdir(parents=True, exist_ok=True)
+    (target_repo / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "add src/names.py"], cwd=target_repo, capture_output=True, check=True)
+
+    # 1. Run scaffold_implementation from implement_skill CWD
+    scaffold_res = subprocess.run(
+        [
+            sys.executable,
+            "scripts/scaffold_implementation.py",
+            "--repo-root",
+            str(target_repo),
+            "--plan",
+            str(plan_file),
+            "--output",
+            str(output_file),
+        ],
+        cwd=implement_skill,
+        capture_output=True,
+        text=True,
+    )
+    assert scaffold_res.returncode == 0, f"Scaffold stderr: {scaffold_res.stderr}"
+    assert output_file.is_file()
+
+    # 2. Run finalize_implementation from implement_skill CWD
+    finalize_res = subprocess.run(
+        [
+            sys.executable,
+            "scripts/finalize_implementation.py",
+            "--repo-root",
+            str(target_repo),
+            "--plan",
+            str(plan_file),
+            str(output_file),
+        ],
+        cwd=implement_skill,
+        capture_output=True,
+        text=True,
+    )
+    assert finalize_res.returncode == 0, f"Finalize stderr: {finalize_res.stderr}"
+
+    after_snapshot = get_skill_snapshot(implement_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
+
+def test_installed_github_issue_planner_execution(installed_skills_env):
+    installed_dir, target_repo = installed_skills_env
+    github_skill = installed_dir / "github-issue-planner"
+    assert (github_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(github_skill)
+
+    issue_json = target_repo / "issue-1.json"
+    issue_payload = {
+        "repo": "owner/repo",
+        "fetched_at": "2026-07-24T00:00:00Z",
+        "issues": [
+            {
+                "number": 1,
+                "title": "Fix bug",
+                "body": "Details",
+                "url": "https://github.com/owner/repo/issues/1",
+                "author": "user",
+                "created_at": "2026-07-24T00:00:00Z",
+                "updated_at": "2026-07-24T00:00:00Z",
+                "labels": [],
+                "comments": [],
+            }
+        ],
+    }
+    issue_json.write_text(json.dumps(issue_payload), encoding="utf-8")
+    output_md = target_repo / "issue-1.md"
+
+    # Run scaffold_issue_plan from github_skill CWD
+    scaffold_res = subprocess.run(
+        [
+            sys.executable,
+            "scripts/scaffold_issue_plan.py",
+            "--repo-root",
+            str(target_repo),
+            "--issue-json",
+            str(issue_json),
+            "--issue-number",
+            "1",
+            "--output",
+            str(output_md),
+        ],
+        cwd=github_skill,
+        capture_output=True,
+        text=True,
+    )
+    assert scaffold_res.returncode == 0, f"Scaffold stderr: {scaffold_res.stderr}"
+    assert output_md.is_file()
+
+    after_snapshot = get_skill_snapshot(github_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
 
 def test_installed_codebase_issue_auditor_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     auditor_skill = installed_dir / "codebase-issue-auditor"
-    validate_script = auditor_skill / "scripts" / "validate_audit_bundle.py"
+    assert (auditor_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(auditor_skill)
 
     valid_bundle_fixture = REPO_ROOT / "tests" / "skills" / "codebase-issue-auditor" / "fixtures" / "valid_bundle.json"
     bundle_data = json.loads(valid_bundle_fixture.read_text(encoding="utf-8"))
@@ -101,20 +232,25 @@ def test_installed_codebase_issue_auditor_execution(installed_skills_env):
     bundle_file = target_repo / "audit-bundle.json"
     bundle_file.write_text(json.dumps(bundle_data), encoding="utf-8")
 
+    # Run validate_audit_bundle from auditor_skill CWD
     res = subprocess.run(
-        [sys.executable, str(validate_script), str(bundle_file)],
-        cwd=target_repo,
+        [sys.executable, "scripts/validate_audit_bundle.py", str(bundle_file)],
+        cwd=auditor_skill,
         capture_output=True,
         text=True,
     )
     assert res.returncode == 0, f"Validator stderr: {res.stderr}"
 
+    after_snapshot = get_skill_snapshot(auditor_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
 
 def test_installed_create_diagram_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     diagram_skill = installed_dir / "create-diagram"
-    build_script = diagram_skill / "scripts" / "build_diagram.py"
-    validate_script = diagram_skill / "scripts" / "validate_diagram.py"
+    assert (diagram_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(diagram_skill)
 
     payload = {
         "diagram": {
@@ -166,73 +302,120 @@ def test_installed_create_diagram_execution(installed_skills_env):
     output_file = target_repo / "diagram.html"
     payload_file.write_text(json.dumps(payload), encoding="utf-8")
 
-    # Build diagram
+    # Build diagram from diagram_skill CWD
     build_res = subprocess.run(
         [
             sys.executable,
-            str(build_script),
+            "scripts/build_diagram.py",
             "--data",
             str(payload_file),
             "--output",
             str(output_file),
             "--overwrite",
         ],
-        cwd=target_repo,
+        cwd=diagram_skill,
         capture_output=True,
         text=True,
     )
     assert build_res.returncode == 0, f"Build stderr: {build_res.stderr}"
+    assert output_file.is_file()
 
-    # Validate diagram
+    # Validate diagram from diagram_skill CWD
     val_res = subprocess.run(
-        [sys.executable, str(validate_script), str(output_file)],
-        cwd=target_repo,
+        [sys.executable, "scripts/validate_diagram.py", str(output_file)],
+        cwd=diagram_skill,
         capture_output=True,
         text=True,
     )
     assert val_res.returncode == 0, f"Validate stderr: {val_res.stderr}"
 
+    after_snapshot = get_skill_snapshot(diagram_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
 
 def test_installed_design_codebase_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     design_skill = installed_dir / "design-codebase-with-senior-dev"
-    scaffold_script = design_skill / "scripts" / "scaffold_assessment.py"
-    check_script = design_skill / "scripts" / "check_assessment.py"
+    assert (design_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(design_skill)
 
     scaffold_res = subprocess.run(
-        [sys.executable, str(scaffold_script), "--level", "L0"],
-        cwd=target_repo,
+        [sys.executable, "scripts/scaffold_assessment.py", "--level", "L0"],
+        cwd=design_skill,
         capture_output=True,
         text=True,
     )
     assert scaffold_res.returncode == 0
     assert "design-assessment-contract: 1" in scaffold_res.stdout
 
-    # Test check_script on scaffolded draft
     draft = target_repo / "assessment.md"
     draft.write_text(scaffold_res.stdout, encoding="utf-8")
+
     check_res = subprocess.run(
-        [sys.executable, str(check_script), "--level", "L0", "--repo-root", str(target_repo), str(draft)],
-        cwd=target_repo,
+        [sys.executable, "scripts/check_assessment.py", "--level", "L0", "--repo-root", str(target_repo), str(draft)],
+        cwd=design_skill,
         capture_output=True,
         text=True,
     )
-    assert check_res.returncode in (0, 1)  # scaffold has placeholders so validator runs and returns diagnostic
+    assert check_res.returncode in (0, 1)
+
+    after_snapshot = get_skill_snapshot(design_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
 
 
 def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     optimize_skill = installed_dir / "optimize-codebase-with-senior-dev"
-    scaffold_script = optimize_skill / "scripts" / "scaffold_optimization.py"
+    assert (optimize_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(optimize_skill)
 
     res = subprocess.run(
-        [sys.executable, str(scaffold_script), "--scope", "targeted", "--stage", "plan"],
-        cwd=target_repo,
+        [sys.executable, "scripts/scaffold_optimization.py", "--scope", "targeted", "--stage", "plan"],
+        cwd=optimize_skill,
         capture_output=True,
         text=True,
     )
     assert res.returncode == 0
     assert "optimization-contract: 1" in res.stdout
+
+    after_snapshot = get_skill_snapshot(optimize_skill)
+    assert before_snapshot == after_snapshot, "Skill directory mutated during execution"
+
+
+def test_installed_missing_script_or_root_failures(installed_skills_env):
+    installed_dir, target_repo = installed_skills_env
+    plan_skill = installed_dir / "plan-with-senior-dev"
+
+    # Missing script failure
+    res_missing_script = subprocess.run(
+        [sys.executable, "scripts/nonexistent_script.py"],
+        cwd=plan_skill,
+        capture_output=True,
+        text=True,
+    )
+    assert res_missing_script.returncode != 0
+
+    # Missing/invalid repo root failure
+    non_existent_repo = target_repo / "does_not_exist"
+    draft_file = target_repo / "draft.md"
+    draft_file.write_text("# Draft\n", encoding="utf-8")
+    res_missing_root = subprocess.run(
+        [
+            sys.executable,
+            "scripts/finalize_plan.py",
+            "--tier",
+            "tiny",
+            "--repo-root",
+            str(non_existent_repo),
+            str(draft_file),
+        ],
+        cwd=plan_skill,
+        capture_output=True,
+        text=True,
+    )
+    assert res_missing_root.returncode != 0
 
 
 def test_installed_skill_execution_via_symlink(tmp_path: Path):
@@ -247,18 +430,14 @@ def test_installed_skill_execution_via_symlink(tmp_path: Path):
     except (OSError, NotImplementedError):
         pytest.skip("Symlink creation not supported on host OS or permissions missing")
 
-    target_repo = tmp_path / "target_repo"
-    target_repo.mkdir(parents=True, exist_ok=True)
-
-    scaffold_script = symlinked_skill / "scripts" / "scaffold_plan.py"
-    res = subprocess.run(
-        [sys.executable, str(scaffold_script), "--tier", "tiny", "--task-type", "bug-fix"],
-        cwd=target_repo,
+    scaffold_res = subprocess.run(
+        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--task-type", "bug-fix"],
+        cwd=symlinked_skill,
         capture_output=True,
         text=True,
     )
-    assert res.returncode == 0
-    assert "plan-contract: 3" in res.stdout
+    assert scaffold_res.returncode == 0
+    assert "plan-contract: 3" in scaffold_res.stdout
 
 
 def test_every_skill_command_references_existing_bundled_file():

@@ -88,6 +88,8 @@ def test_release_workflow_permissions_and_tag_validation() -> None:
     steps = validate_job.get("steps", [])
     commands = " ".join(step.get("run", "") for step in steps)
     assert "tools/release/check_version.py --tag" in commands, "validate-release-gates must run check_version.py --tag"
+    assert "GITHUB_SHA" in text, "release workflow must reference GITHUB_SHA for commit binding"
+    assert "target_commitish: ${{ github.sha }}" in text, "publish-release action must set target_commitish to github.sha"
 
 
 def test_check_version_tag_mismatch_rejection() -> None:

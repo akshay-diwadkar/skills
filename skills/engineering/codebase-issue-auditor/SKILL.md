@@ -10,8 +10,12 @@ Audit broadly, promote strictly, and publish only with explicit approval. Defaul
 ## Skill Directory Resolution
 
 Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: use `"${CLAUDE_SKILL_DIR}"` if running from an external working directory.
-- On other platforms: execute commands relative to the active skill directory.
+- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
+- On other platforms: execute commands with process `cwd` set to the active skill directory.
+- Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
+- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
+- Fail closed if `skill-root` or `repo-root` cannot be resolved.
+- Never write output or state files relative to the installed skill package directory.
 
 ## Workflow
 
@@ -41,7 +45,7 @@ Execute bundled runtime commands with the active skill directory (the directory 
 5. **Validate and review drafts**
    - Link one structured issue draft to each accepted root cause. Validate the bundle before presenting it:
      ```bash
-     python scripts/validate_audit_bundle.py audit-bundle.json
+     python scripts/validate_audit_bundle.py /absolute/path/to/audit-bundle.json
      ```
    - Present accepted issues with severity, category, confidence, evidence, verification, and relevant rejected near-misses. Report deferred surfaces and other coverage limitations even when no issues survive promotion.
    - Ask the user to approve, reject, merge, split, or reprioritize drafts.
@@ -50,12 +54,12 @@ Execute bundled runtime commands with the active skill directory (the directory 
 6. **Publish approved issues**
    - Require explicit publication approval and a GitHub destination. Check `gh` authentication, then dry-run the exact final bodies and labels:
      ```bash
-     python scripts/check_github_env.py --github-repo-url owner/repo
-     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo
+     python scripts/check_github_env.py --env /absolute/path/to/repository/.env --github-repo-url owner/repo
+     python scripts/publish_github_issues.py --input /absolute/path/to/audit-bundle.json --github-repo-url owner/repo
      ```
    - Publish only after the dry run is reviewed:
      ```bash
-     python scripts/publish_github_issues.py --input audit-bundle.json --github-repo-url owner/repo --publish
+     python scripts/publish_github_issues.py --input /absolute/path/to/audit-bundle.json --github-repo-url owner/repo --publish
      ```
    - Never publish or close issues implicitly. Exact-title duplicate protection remains enabled by default.
 

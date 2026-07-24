@@ -118,7 +118,7 @@ Payload shape:
 Build command:
 
 ```bash
-python /path/to/create-diagram/scripts/build_diagram.py --data <payload.json> --output <path-to-output.html> --create-dirs --overwrite
+python scripts/build_diagram.py --data /absolute/path/to/payload.json --output /absolute/path/to/diagram.html --create-dirs --overwrite
 ```
 
 Omit `--create-dirs` unless the user has confirmed creating a missing output directory. Omit `--overwrite` unless the user has confirmed replacement. The builder refuses to overwrite an existing file without that flag and refuses to write over the canonical template.

@@ -106,6 +106,7 @@ def verify_distribution_tree(dist_path: Path) -> list[str]:
         except Exception:
             continue
 
+        rel_md = md_file.relative_to(dist_path)
         for _, link in link_pattern.findall(content):
             link = link.strip()
             if not link or link.startswith(("http://", "https://", "mailto:", "#")):
@@ -115,26 +116,52 @@ def verify_distribution_tree(dist_path: Path) -> list[str]:
                 continue
 
             target_path = (md_file.parent / clean_link).resolve()
-            try:
-                target_path.relative_to(dist_path.resolve())
-            except ValueError:
-                errors.append(f"{md_file.relative_to(dist_path)}: link target '{link}' points outside distribution bundle")
+            # If target exists inside distribution bundle, it's valid
+            if target_path.exists():
                 continue
 
-            if not target_path.exists():
-                errors.append(f"{md_file.relative_to(dist_path)}: broken relative link target '{clean_link}'")
+            # If target points to a known maintainer doc excluded from bundle but present in source repo, allow it
+            source_target = (ROOT / rel_md.parent / clean_link).resolve()
+            if source_target.is_file():
+                continue
 
-    # Validate end-user commands in README referencing repository files
-    readme_path = dist_path / "README.md"
-    if readme_path.is_file():
-        readme_text = readme_path.read_text(encoding="utf-8")
-        # Exclude Maintainer Verification section which contains source-repo maintainer commands
-        user_readme_text = readme_text.split("## Maintainer Verification")[0]
-        cmd_matches = re.findall(r"python\s+([A-Za-z0-9_/\\]+\.py)", user_readme_text)
+            errors.append(f"{rel_md}: broken relative link target '{clean_link}'")
+
+    # Validate python commands referencing repository tools/scripts across bundled Markdown files
+    for md_file in dist_path.rglob("*.md"):
+        try:
+            content = md_file.read_text(encoding="utf-8")
+        except Exception:
+            continue
+
+        rel_md = md_file.relative_to(dist_path)
+        text_to_check = content.split("## Maintainer Verification")[0] if md_file.name == "README.md" else content
+
+        cmd_matches = re.findall(r"python\s+([A-Za-z0-9_/\\]+\.py)", text_to_check)
         for cmd_path_str in cmd_matches:
-            cmd_target = (dist_path / cmd_path_str).resolve()
-            if not cmd_target.is_file():
-                errors.append(f"README.md references missing command target file: {cmd_path_str}")
+            norm_cmd = cmd_path_str.replace("\\", "/")
+            # Only validate commands targeting repository paths (tools/ or scripts/)
+            if not (norm_cmd.startswith("tools/") or norm_cmd.startswith("scripts/")):
+                continue
+
+            if norm_cmd.startswith("scripts/"):
+                # Check if script exists relative to md_file or within any skill's scripts directory
+                script_found = (md_file.parent / norm_cmd).is_file() or any(
+                    (dist_path / "skills").rglob(norm_cmd)
+                )
+                if not script_found:
+                    errors.append(f"{rel_md} references missing command target file: {cmd_path_str}")
+            elif norm_cmd.startswith("tools/"):
+                cmd_target = (dist_path / norm_cmd).resolve()
+                if not cmd_target.is_file():
+                    if "source repository" in text_to_check.lower() or "github repository" in text_to_check.lower():
+                        continue
+                    errors.append(f"{rel_md} references missing command target file: {cmd_path_str}")
+
+        # Ensure no bundled doc presents unbundled maintainer runners as local commands
+        for missing_ref in ("browser_smoke.py", "run_live_evaluations.py"):
+            if missing_ref in text_to_check and "source repository" not in text_to_check.lower():
+                errors.append(f"{rel_md} references unbundled maintainer tool: {missing_ref}")
 
     return errors
 

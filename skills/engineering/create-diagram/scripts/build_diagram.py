@@ -1,7 +1,7 @@
 """Build a create-diagram HTML file from a JSON payload.
 
 Usage:
-    python build_diagram.py --data payload.json --output diagram.html [--create-dirs] [--overwrite]
+    python scripts/build_diagram.py --data /absolute/path/to/payload.json --output /absolute/path/to/diagram.html [--create-dirs] [--overwrite]
 
 Payload shape:
     {

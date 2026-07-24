@@ -10,7 +10,7 @@ This document provides platform-by-platform details regarding discovery mechanis
 | --- | --- | --- | --- | --- | --- |
 | **Claude Code** | Yes (`skills/engineering/`) | Yes (`agents/claude/*.md`) | `.claude-plugin/plugin.json`<br>`.claude-plugin/marketplace.json` | Native plugin / Marketplace (`engineering-skills`) | **Supported** (Plugin) |
 | **Cursor** | Yes (`skills/engineering/`) | Yes (`agents/cursor/*.md`) | `.cursor-plugin/plugin.json`<br>`.cursor-plugin/marketplace.json` | Native plugin / Explicit `./skills/engineering/...` paths | **Supported** (Plugin) |
-| **Codex / OpenAI** | Yes (`skills/engineering/`) | Yes (`.codex/agents/*.toml`) | `.codex/config.toml`<br>`tools/agents/install_codex_agents.py` | Canonical skills / Project-scoped installer script | **Supported** (Project / Installer) |
+| **Codex (Project / Repository)** | Yes (`skills/engineering/`) | Yes (`.codex/agents/*.toml`) | `.codex/config.toml`<br>`tools/agents/install_codex_agents.py` | Canonical skills / Project-scoped installer script | **Supported** (Project / Installer) |
 | **skills.sh** | Yes (`skills/engineering/`) | No (Skills only) | Canonical `skills/*/*/SKILL.md` | `npx skills add akshay-diwadkar/skills` | **Supported** (Skills CLI) |
 
 ---
@@ -63,7 +63,7 @@ Automated CI checks prove repository contract compliance, valid manifest schemas
 
 ---
 
-## 3. Breaking Changes Policy
+## 4. Breaking Changes Policy
 
 The following changes require a major version bump in `VERSION`:
 - Renaming or removing a stable skill or agent.
