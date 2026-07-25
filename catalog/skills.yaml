@@ -159,7 +159,7 @@ skills:
     status: stable
     kind: utility
     invocation: both
-    summary: Generate and maintain a compact repository-intelligence layer and task resolver to minimize broad exploration, token consumption, and context usage.
+    summary: Generate compact repository-navigation artifacts and resolve coding tasks into bounded, evidence-backed read phases.
     platforms:
       skills_sh: true
       claude_plugin: true
@@ -175,4 +175,3 @@ skills:
       supersedes: []
     documentation: docs/skills/build-codebase-knowledge.md
     tests: tests/skills/build-codebase-knowledge
-

@@ -23,4 +23,4 @@ This directory contains all canonical engineering skills.
 
 | Skill | Status | Invocation | Summary |
 | --- | --- | --- | --- |
-| [build-codebase-knowledge](./build-codebase-knowledge/SKILL.md) | `stable` | `both` | Generate and maintain a compact repository-intelligence layer and task resolver to minimize broad exploration, token consumption, and context usage. |
+| [build-codebase-knowledge](./build-codebase-knowledge/SKILL.md) | `stable` | `both` | Generate compact repository-navigation artifacts and resolve coding tasks into bounded, evidence-backed read phases. |

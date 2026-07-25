@@ -39,8 +39,8 @@ def test_link_agent_docs_only_agents_exists(tmp_path: Path):
     res = link_agent_docs(tmp_path)
     assert res["status"] == "success"
     assert "AGENTS.md" in res["modified"]
-    assert "CLAUDE.md" in res["created"]
-    assert "BEGIN BUILD-CODEBASE-KNOWLEDGE" in (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
+    assert res["created"] == []
+    assert not (tmp_path / "CLAUDE.md").exists()
 
 
 def test_link_agent_docs_only_claude_exists(tmp_path: Path):
@@ -50,24 +50,23 @@ def test_link_agent_docs_only_claude_exists(tmp_path: Path):
     res = link_agent_docs(tmp_path)
     assert res["status"] == "success"
     assert "CLAUDE.md" in res["modified"]
-    assert "AGENTS.md" in res["created"]
-    assert "BEGIN BUILD-CODEBASE-KNOWLEDGE" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert res["created"] == []
+    assert not (tmp_path / "AGENTS.md").exists()
 
 
 def test_link_agent_docs_neither_exists(tmp_path: Path):
     res = link_agent_docs(tmp_path)
     assert res["status"] == "success"
-    assert "AGENTS.md" in res["created"]
-    assert "CLAUDE.md" in res["created"]
+    assert res["created"] == []
+    res = link_agent_docs(tmp_path, create_missing=True)
+    assert res["created"] == ["AGENTS.md"]
+    assert not (tmp_path / "CLAUDE.md").exists()
 
     agents_file = tmp_path / "AGENTS.md"
     claude_file = tmp_path / "CLAUDE.md"
     assert agents_file.is_file()
-    assert claude_file.is_file()
+    assert not claude_file.exists()
 
     agents_content = agents_file.read_text(encoding="utf-8")
-    claude_content = claude_file.read_text(encoding="utf-8")
-    assert "context.md" in agents_content
-    assert "architecture.md" in agents_content
-    assert "context.md" in claude_content
-    assert "architecture.md" in claude_content
+    assert "check freshness" in agents_content
+    assert "phase 1" in agents_content
