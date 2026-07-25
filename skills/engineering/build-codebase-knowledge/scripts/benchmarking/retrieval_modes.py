@@ -7,7 +7,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from benchmarking.metrics import compute_mrr, compute_ndcg_at_k, compute_precision_at_k, compute_recall_at_k, estimate_tokens
+from benchmarking.metrics import (
+    compute_mrr,
+    compute_ndcg_at_k,
+    compute_precision_at_k,
+    compute_recall_at_k,
+    estimate_tokens,
+)
 from resolve_task import resolve_task
 
 

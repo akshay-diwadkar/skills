@@ -14,6 +14,8 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from knowledge.freshness import check_freshness, refresh_knowledge
 
+__all__ = ["check_freshness", "refresh_knowledge"]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Refresh codebase knowledge incrementally.")
