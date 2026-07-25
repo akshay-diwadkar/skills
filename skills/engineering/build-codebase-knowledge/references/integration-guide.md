@@ -2,10 +2,9 @@
 
 ## 1. Read-Only Skills Integration (Planning / Auditing / Design)
 1. Check knowledge freshness via `build-codebase-knowledge status`.
-2. Read `context.md` for high-level repository map.
-3. Run resolver: `python scripts/resolve_task.py --repo-root . --task "<task>" --format json`.
-4. Read only the top-ranked candidates specified in `candidates` and `read_order`.
-5. Verify details directly in target source files.
+2. Run the resolver: `python scripts/cli.py resolve "<task>" --repo-root . --phase 1 --format json`.
+3. Read only the returned targets and selected symbol shards.
+4. Verify details directly in target source files.
 
 ## 2. Write Skills Integration (Implementation / Refactoring)
 1. Pre-execution: Run resolver to obtain read slice.

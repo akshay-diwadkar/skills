@@ -20,10 +20,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "max_summary_words": 12,
     "max_file_size_bytes": 1048576,  # 1MB
     "full_refresh_change_ratio": 0.20,
-    "workflow_branch": "main",
-    "workflow_runtime_repository": "https://github.com/akshay-diwadkar/skills.git",
-    "workflow_runtime_revision": "09a44216123f4621a59ef965ccaa5aa96d3a2e5a",
-    "workflow_runtime_directory": ".codebase-knowledge-runtime",
     # An empty include list means every safe, tracked repository file.  Projects
     # should not disappear from the index merely because they use an unfamiliar
     # top-level directory name.
@@ -65,22 +61,63 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
 }
 
+REQUIRED_WEIGHTS = frozenset(DEFAULT_CONFIG["weights"])
+PENALTY_WEIGHTS = frozenset(key for key in REQUIRED_WEIGHTS if key.endswith("_penalty"))
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    result = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def _validate(config: dict[str, Any]) -> None:
+    output = config.get("output_dir")
+    if not isinstance(output, str) or not output.strip() or Path(output).is_absolute() or ".." in Path(output).parts:
+        raise ValueError("output_dir must be a non-empty, repository-relative safe path")
+    for key in ("max_context_lines", "max_architecture_lines", "max_file_size_bytes"):
+        if not isinstance(config.get(key), int) or config[key] <= 0:
+            raise ValueError(f"{key} must be a positive integer")
+    ratio = config.get("full_refresh_change_ratio")
+    if not isinstance(ratio, (int, float)) or not 0 < ratio <= 1:
+        raise ValueError("full_refresh_change_ratio must be greater than 0 and at most 1")
+    for key in ("include", "exclude", "generated"):
+        if not isinstance(config.get(key), list) or any(not isinstance(item, str) for item in config[key]):
+            raise ValueError(f"{key} must be a list of strings")
+    weights = config.get("weights")
+    if not isinstance(weights, dict):
+        raise ValueError("weights must be a mapping of numeric values")
+    missing = REQUIRED_WEIGHTS - set(weights)
+    if missing:
+        raise ValueError(f"weights is missing required values: {', '.join(sorted(missing))}")
+    for key, value in weights.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ValueError(f"weights.{key} must be numeric")
+        if key in PENALTY_WEIGHTS and value > 0:
+            raise ValueError(f"weights.{key} must be non-positive")
+        if key not in PENALTY_WEIGHTS and value < 0:
+            raise ValueError(f"weights.{key} must be non-negative")
+
 
 def load_config(repo_root: Path | str) -> dict[str, Any]:
     """Load configuration from .codebase-knowledge.toml or return default config."""
     root = Path(repo_root).resolve()
     config_path = root / ".codebase-knowledge.toml"
-    config = dict(DEFAULT_CONFIG)
+    config = _deep_merge(DEFAULT_CONFIG, {})
 
     if config_path.is_file() and tomllib:
         try:
             with config_path.open("rb") as f:
                 data = tomllib.load(f)
-                config.update(data)
+                if not isinstance(data, dict):
+                    raise ValueError("configuration root must be a table")
+                config = _deep_merge(config, data)
         except Exception as exc:
             raise ValueError(f"Failed to parse configuration file {config_path}: {exc}") from exc
 
-    weights = config.get("weights")
-    if not isinstance(weights, dict) or any(not isinstance(value, (int, float)) for value in weights.values()):
-        raise ValueError("weights must be a mapping of numeric values")
+    _validate(config)
     return config

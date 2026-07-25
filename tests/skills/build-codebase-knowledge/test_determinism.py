@@ -24,7 +24,7 @@ def test_artifact_byte_determinism(tmp_path: Path):
     build_knowledge(repo1, out_dir1)
     build_knowledge(repo2, out_dir2)
 
-    for fname in ["repo-map.json", "symbols.json", "relationships.json", "manifest.json", "context.md", "architecture.md"]:
+    for fname in ["repo-map.json", "symbols.json", "relationships.json", "manifest.json"]:
         b1 = (out_dir1 / fname).read_bytes()
         b2 = (out_dir2 / fname).read_bytes()
         assert b1 == b2, f"Determinism mismatch in {fname}"

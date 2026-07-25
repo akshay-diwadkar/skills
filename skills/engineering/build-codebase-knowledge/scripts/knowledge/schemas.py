@@ -17,8 +17,8 @@ def validate_schema_json(data: dict[str, Any], schema_name: str) -> list[str]:
     try:
         if jsonschema:
             jsonschema.validate(data, json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8")))
-        elif data.get("schema_version") != "2.0":
-            return [f"{schema_name}: schema_version must be 2.0"]
+        elif data.get("schema_version") != "3.0":
+            return [f"{schema_name}: schema_version must be 3.0"]
     except Exception as exc:
         return [f"{schema_name}: {exc}"]
     return []
@@ -43,4 +43,10 @@ def validate_semantic_graph(
     for edge in relationships.get("imports", []):
         if edge["source"] not in paths or edge["target"] not in paths:
             errors.append("Invalid import relationship")
+    for edge in relationships.get("test_links", []):
+        if edge["source"] not in paths or edge["target"] not in paths:
+            errors.append("Invalid test relationship")
+    for target, sources in relationships.get("reverse_imports", {}).items():
+        if target not in paths or any(source not in paths for source in sources):
+            errors.append("Invalid reverse import relationship")
     return errors

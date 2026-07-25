@@ -1,53 +1,51 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 SKILL_SCRIPTS = Path(__file__).resolve().parents[3] / "skills" / "engineering" / "build-codebase-knowledge" / "scripts"
 if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
-from scaffold_github_workflow import scaffold_github_workflow
+from scaffold_github_workflow import BEGIN, scaffold_github_workflow
+
+SHA = "a" * 40
 
 
-def test_scaffold_github_workflow_default(tmp_path: Path):
-    res = scaffold_github_workflow(tmp_path)
-    assert res["status"] == "success"
-    assert "refresh-codebase-knowledge.yml" in res["path"]
-
-    wf_file = tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
-    assert wf_file.is_file()
-
-    content = wf_file.read_text(encoding="utf-8")
-    assert "branches: [main]" in content
-    assert "paths-ignore: ['.agent/knowledge/**', 'AGENTS.md', 'CLAUDE.md']" in content
-    assert "commit_message: \"docs(knowledge): auto-refresh codebase knowledge [skip ci]\"" in content
-
-
-def test_scaffold_github_workflow_custom_branch(tmp_path: Path):
-    res = scaffold_github_workflow(tmp_path, branch="release/v1.0")
-    assert res["status"] == "success"
-    assert "release/v1.0" in (tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml").read_text(encoding="utf-8")
-
-    wf_file = tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
-    content = wf_file.read_text(encoding="utf-8")
-    assert "branches: [release/v1.0]" in content
+def test_explicit_workflow_uses_requested_runtime_and_direct_commands(tmp_path: Path):
+    result = scaffold_github_workflow(
+        tmp_path,
+        revision=SHA,
+        repository="example/knowledge-runtime",
+        runtime_dir=".runtime",
+        branch="release",
+    )
+    content = Path(result["path"]).read_text(encoding="utf-8")
+    assert result["status"] == "created"
+    assert 'repository: "example/knowledge-runtime"' in content
+    assert f'ref: "{SHA}"' in content
+    assert 'python ".runtime/skills/engineering/build-codebase-knowledge/scripts/cli.py" status' in content
+    assert 'python ".runtime/skills/engineering/build-codebase-knowledge/scripts/cli.py" refresh' in content
+    assert "TOOL=" not in content
 
 
-def test_scaffold_github_workflow_overwrite_protection(tmp_path: Path):
-    res1 = scaffold_github_workflow(tmp_path)
-    assert res1["status"] == "success"
-
-    # Second call is idempotent.
-    res2 = scaffold_github_workflow(tmp_path)
-    assert res2["status"] == "success"
-    assert res2["mode"] == "cli"
-
-    # Call with force=True should succeed
-    res3 = scaffold_github_workflow(tmp_path, force=True)
-    assert res3["status"] == "success"
+def test_workflow_protects_user_owned_file_unless_forced(tmp_path: Path):
+    path = tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text("name: User workflow\n", encoding="utf-8")
+    warning = scaffold_github_workflow(tmp_path, revision=SHA)
+    assert warning["status"] == "warning"
+    assert path.read_text(encoding="utf-8") == "name: User workflow\n"
+    forced = scaffold_github_workflow(tmp_path, revision=SHA, force=True)
+    assert forced["status"] == "updated"
+    assert BEGIN in path.read_text(encoding="utf-8")
 
 
-def test_scaffold_github_workflow_custom_output(tmp_path: Path):
-    custom_output = tmp_path / "custom-ci.yml"
-    res = scaffold_github_workflow(tmp_path, workflow_file=custom_output)
-    assert res["status"] == "success"
-    assert custom_output.is_file()
+def test_workflow_updates_managed_block_and_rejects_invalid_sha(tmp_path: Path):
+    first = scaffold_github_workflow(tmp_path, revision=SHA)
+    updated = scaffold_github_workflow(tmp_path, revision="b" * 40, branch="next")
+    assert first["status"] == "created"
+    assert updated["status"] == "updated"
+    assert "next" in Path(updated["path"]).read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="revision"):
+        scaffold_github_workflow(tmp_path, revision="not-a-sha")

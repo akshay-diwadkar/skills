@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -28,9 +29,17 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         return {"status": "invalid", "errors": [str(exc)], "warnings": []}
     errors = []
     symbols = []
+    expected_files = {"manifest.json", "repo-map.json", "relationships.json", "symbols.json", "symbols"}
     for shard in catalog.get("shards", []):
         try:
-            symbols.extend(json.loads((out / shard["path"]).read_text(encoding="utf-8"))["symbols"])
+            shard_path = out / shard["path"]
+            payload = shard_path.read_text(encoding="utf-8")
+            if hashlib.sha256(payload.encode()).hexdigest() != shard.get("hash"):
+                errors.append(f"Shard hash mismatch: {shard['path']}")
+            data = json.loads(payload)
+            if data.get("schema_version") != manifest.get("schema_version") or data.get("shard") != shard["id"]:
+                errors.append(f"Invalid shard schema: {shard['path']}")
+            symbols.extend(data["symbols"])
         except Exception as exc:
             errors.append(str(exc))
     for data, schema in [
@@ -41,6 +50,15 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
     ]:
         errors.extend(validate_schema_json(data, schema))
     errors.extend(validate_semantic_graph(root, repo, rel, symbols, manifest))
+    if len(symbols) != catalog.get("symbol_count"):
+        errors.append("Symbol catalog count does not match shards")
+    for name, payload in [("repo-map.json", repo), ("relationships.json", rel), ("symbols.json", catalog)]:
+        digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if manifest.get("artifact_hashes", {}).get(name) != digest:
+            errors.append(f"Artifact hash mismatch: {name}")
+    actual = {item.name for item in out.iterdir()} if out.is_dir() else set()
+    if actual - expected_files:
+        errors.append(f"Unexpected knowledge artifacts: {', '.join(sorted(actual - expected_files))}")
     fresh = check_freshness(root, out)
     return {
         "status": "invalid"
