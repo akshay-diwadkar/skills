@@ -17,6 +17,10 @@ Use compact repository knowledge to minimize exploration and reserve the model's
 
 Use `--phase all` only for explicit debugging or human inspection. Do not preload maps, shards, or human-readable artifacts. Source remains authoritative.
 
+## Skill Directory Resolution
+
+Resolve this skill directory before invoking bundled scripts. Use the resolved directory as the command base; do not assume the current working directory is the skill directory.
+
 ## Commands
 
 ```bash
