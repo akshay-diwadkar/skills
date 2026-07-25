@@ -71,7 +71,7 @@ def test_failure_in_one_skill_does_not_prevent_later_skills() -> None:
         ]
     }
 
-    def mock_run_group(label: str, targets: list[str]) -> bool:
+    def mock_run_group(label: str, targets: list[str], *args: Any, **kwargs: Any) -> bool:
         if "failing-skill" in label:
             return False
         return True

@@ -111,7 +111,7 @@ def main() -> int:
         targets = [str(skill_path), str(test_path)]
         extra_paths = [str(ROOT / skill_path / "scripts")] if (ROOT / skill_path / "scripts").is_dir() else None
 
-        if not run_mypy_group(label, targets, extra_paths):
+        if not run_mypy_group(label, targets, extra_mypy_paths=extra_paths):
             failed_scopes.append(label)
 
     tooling_targets = [
