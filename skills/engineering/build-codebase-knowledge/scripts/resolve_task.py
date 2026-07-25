@@ -154,7 +154,7 @@ def _rerank(
 
 
 def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[str, list[dict[str, Any]]]:
-    answer = {x: [] for x in paths}
+    answer: dict[str, list[dict[str, Any]]] = {x: [] for x in paths}
     wanted = {shard_id(x) for x in paths}
     for shard in catalog["shards"]:
         if shard["id"] in wanted:
@@ -181,7 +181,7 @@ def _target(candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: d
 
 
 def _dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    output = {}
+    output: dict[str, dict[str, Any]] = {}
     for item in items:
         old = output.get(item["path"])
         if not old:

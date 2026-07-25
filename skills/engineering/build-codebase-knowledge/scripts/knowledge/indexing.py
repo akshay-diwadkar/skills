@@ -142,9 +142,9 @@ def project(
     files = sorted(files, key=lambda item: item["path"])
     paths = {f["path"] for f in files}
     by_path = {f["path"]: f for f in files}
-    imports = []
-    unresolved = []
-    reverse = {path: [] for path in paths}
+    imports: list[dict[str, Any]] = []
+    unresolved: list[dict[str, str]] = []
+    reverse: dict[str, list[str]] = {path: [] for path in paths}
     for file in files:
         for raw in file["raw_imports"]:
             target = resolve_import_to_path(raw, paths, file["path"])
@@ -161,7 +161,7 @@ def project(
                 reverse[target].append(file["path"])
             else:
                 unresolved.append({"source": file["path"], "import": raw, "reason": "external-or-unresolved"})
-    tests = []
+    tests: list[dict[str, str]] = []
     for file in files:
         if file["role"] != "test":
             continue

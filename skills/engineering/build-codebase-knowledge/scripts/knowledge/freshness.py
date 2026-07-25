@@ -11,7 +11,7 @@ from typing import Any
 from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, _config_hash, _digest, get_git_info
 from knowledge.config import load_config
 from knowledge.discovery import discover_files
-from knowledge.indexing import classify_and_extract, is_repository_wide_config, project, shard_id
+from knowledge.indexing import IndexedFile, classify_and_extract, is_repository_wide_config, project, shard_id
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
 REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
@@ -23,7 +23,7 @@ def _git(root: Path, *args: str) -> str | None:
 
 
 def _changed(text: str) -> set[str]:
-    result = set()
+    result: set[str] = set()
     for line in text.splitlines():
         fields = line.split("\t")
         result.update(field.replace("\\", "/") for field in fields[1:] if field)
@@ -85,42 +85,46 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     if state is None:
         included, _, _ = discover_files(root, config)
         old = manifest.get("file_hashes", {})
-        current = {}
+        current_hashes: dict[str, str] = {}
         for path in included:
-            item, _, _ = classify_and_extract(root, path, config)
-            if item:
-                current[path] = item.record["hash"]
-        changes = sorted(path for path in set(old) | set(current) if old.get(path) != current.get(path))
+            extracted, _, _ = classify_and_extract(root, path, config)
+            if extracted:
+                current_hashes[path] = extracted.record["hash"]
+        fallback_changes = sorted(
+            path for path in set(old) | set(current_hashes) if old.get(path) != current_hashes.get(path)
+        )
         return {
-            "status": "fresh" if not changes else "partially-stale",
+            "status": "fresh" if not fallback_changes else "partially-stale",
             "reason": "Git unavailable; used inventory fallback.",
-            "changed_files": changes,
+            "changed_files": fallback_changes,
             "requires_full_rebuild": False,
         }
-    candidates, current = state
+    candidates, _current_revision = state
     output_rel = out.relative_to(root).as_posix()
     old = manifest.get("file_hashes", {})
-    changes = set()
+    detected_paths: set[str] = set()
     for path in candidates:
         if path == output_rel or path.startswith(output_rel + "/"):
             continue
-        item, normalised, _ = classify_and_extract(root, path, config)
-        if item is None:
+        extracted, normalised, _ = classify_and_extract(root, path, config)
+        if extracted is None:
             if normalised in old:
-                changes.add(normalised)
-        elif item.record["hash"] != old.get(normalised):
-            changes.add(normalised)
+                detected_paths.add(normalised)
+        elif extracted.record["hash"] != old.get(normalised):
+            detected_paths.add(normalised)
     # Keep excluded/secret paths in the delta so refresh can remove old records safely.
     return {
-        "status": "fresh" if not changes else "partially-stale",
-        "reason": "No relevant repository changes" if not changes else f"{len(changes)} repository changes.",
-        "changed_files": sorted(changes),
+        "status": "fresh" if not detected_paths else "partially-stale",
+        "reason": "No relevant repository changes"
+        if not detected_paths
+        else f"{len(detected_paths)} repository changes.",
+        "changed_files": sorted(detected_paths),
         "requires_full_rebuild": False,
     }
 
 
 def _normalise(root: Path, paths: list[str]) -> list[str]:
-    result = []
+    result: list[str] = []
     for raw in paths:
         full = Path(raw).resolve() if Path(raw).is_absolute() else (root / raw).resolve()
         try:
@@ -138,7 +142,8 @@ def refresh_knowledge(
     out = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
     explicit = _normalise(root, changed_files or [])
     state = check_freshness(root, out)
-    changes = sorted(set(explicit) | set(state.get("changed_files", [])))
+    detected_changes = [path for path in state.get("changed_files", []) if isinstance(path, str)]
+    changes = sorted(set(explicit) | set(detected_changes))
     if state.get("requires_full_rebuild") or any(is_repository_wide_config(p) for p in changes):
         from build_knowledge import build_knowledge
 
@@ -179,46 +184,47 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     manifest = json.loads((out / "manifest.json").read_text())
     old_repo = json.loads((out / "repo-map.json").read_text())
     catalog = json.loads((out / "symbols.json").read_text())
-    files = {x["path"]: x for x in old_repo["files"]}
-    configs = {x["path"]: x for x in old_repo.get("configurations", [])}
-    old_shards = {x["id"]: x for x in catalog["shards"]}
+    files: dict[str, dict[str, Any]] = {x["path"]: x for x in old_repo["files"]}
+    configs: dict[str, dict[str, Any]] = {x["path"]: x for x in old_repo.get("configurations", [])}
+    old_shards: dict[str, dict[str, Any]] = {x["id"]: x for x in catalog["shards"]}
     affected = {shard_id(path) for path in changes}
-    shard_symbols = {}
+    shard_symbols: dict[str, list[dict[str, Any]]] = {}
     for key in affected:
-        item = old_shards.get(key)
-        shard_symbols[key] = json.loads((out / item["path"]).read_text())["symbols"] if item else []
-    unknowns = []
-    commands = []
+        shard_metadata = old_shards.get(key)
+        shard_symbols[key] = json.loads((out / shard_metadata["path"]).read_text())["symbols"] if shard_metadata else []
+    unknowns: list[str] = []
+    commands: list[dict[str, str]] = []
     for path in changes:
         files.pop(path, None)
         configs.pop(path, None)
         key = shard_id(path)
         shard_symbols[key] = [x for x in shard_symbols[key] if x["path"] != path]
-        item, normalised, reason = classify_and_extract(root, path, config)
-        if item is None:
+        extracted: IndexedFile | None
+        extracted, normalised, reason = classify_and_extract(root, path, config)
+        if extracted is None:
             if reason:
                 unknowns.append(f"Skipped {normalised}: {reason}")
             continue
-        files[item.record["path"]] = item.record
-        shard_symbols[key].extend(item.symbols)
-        unknowns.extend(item.unknowns)
-        if item.configuration:
-            configs[item.record["path"]] = item.configuration
+        files[extracted.record["path"]] = extracted.record
+        shard_symbols[key].extend(extracted.symbols)
+        unknowns.extend(extracted.unknowns)
+        if extracted.configuration:
+            configs[extracted.record["path"]] = extracted.configuration
     # Commands must be recomputed from current configuration records to avoid stale values.
     for path in sorted(configs):
-        item, _, _ = classify_and_extract(root, path, config)
-        if item:
-            commands.extend(item.commands)
+        configuration_extract, _, _ = classify_and_extract(root, path, config)
+        if configuration_extract:
+            commands.extend(configuration_extract.commands)
     repo, relationships = project(
         list(files.values()), list(configs.values()), commands, list(old_repo.get("unknowns", [])) + unknowns
     )
     repo["ignored_paths"] = sorted(set(old_repo.get("ignored_paths", [])) | {p for p in changes if p not in files})
     for key in affected:
         entries = sorted(shard_symbols[key], key=lambda x: (x["path"], x["line_start"], x["name"]))
-        path = out / f"symbols/{key}.json"
+        shard_path = out / f"symbols/{key}.json"
         if entries:
             encoded = serialize_json_deterministic({"schema_version": SCHEMA_VERSION, "shard": key, "symbols": entries})
-            write_file_deterministic(path, encoded)
+            write_file_deterministic(shard_path, encoded)
             old_shards[key] = {
                 "id": key,
                 "path": f"symbols/{key}.json",
@@ -226,8 +232,8 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
                 "hash": hashlib.sha256(encoded.encode()).hexdigest(),
             }
         else:
-            if path.exists():
-                path.unlink()
+            if shard_path.exists():
+                shard_path.unlink()
             old_shards.pop(key, None)
     catalog = {
         "schema_version": SCHEMA_VERSION,
