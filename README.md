@@ -8,14 +8,14 @@ Reusable engineering skills for coding agents and human engineers. Each skill is
 
 ## Skills
 
-- `build-codebase-knowledge`
-- `codebase-issue-auditor`
-- `create-diagram`
-- `design-codebase-with-senior-dev`
-- `github-issue-planner`
-- `implement-with-senior-dev`
-- `optimize-codebase-with-senior-dev`
-- `plan-with-senior-dev`
+- `map-codebase`
+- `audit-codebase`
+- `diagram-codebase`
+- `design-codebase`
+- `scope-issue`
+- `implement-plan`
+- `optimize-codebase`
+- `plan-change`
 
 ## Use locally
 

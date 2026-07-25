@@ -1,1 +1,0 @@
-Use $github-issue-planner to evaluate execution readiness for issue #27 using an artifact whose source issue timestamp and checkout commit are older than the supplied fresh issue JSON and current HEAD. Do not create a branch.

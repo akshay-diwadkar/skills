@@ -66,7 +66,7 @@ def installed_skills_env(tmp_path: Path):
 
 def test_installed_plan_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    plan_skill = installed_dir / "plan-with-senior-dev"
+    plan_skill = installed_dir / "plan-change"
     assert (plan_skill / "SKILL.md").is_file()
     assert not (target_repo / "scripts").exists()
 
@@ -121,13 +121,13 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
 
 def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp_path: Path):
     installed_dir, target_repo = installed_skills_env
-    implement_skill = installed_dir / "implement-with-senior-dev"
-    plan_skill = installed_dir / "plan-with-senior-dev"
+    implement_skill = installed_dir / "implement-plan"
+    plan_skill = installed_dir / "plan-change"
     assert (implement_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(implement_skill)
 
-    # Load valid tiny plan with receipt from plan-with-senior-dev worked-examples
+    # Load valid tiny plan with receipt from plan-change worked-examples
     worked_examples_path = plan_skill / "references" / "worked-examples.md"
     examples_text = worked_examples_path.read_text(encoding="utf-8")
     tiny_block = re.findall(r"```plan\n(.*?)\n```", examples_text, re.DOTALL)[0]
@@ -188,7 +188,7 @@ def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp
 
 def test_installed_github_issue_planner_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    github_skill = installed_dir / "github-issue-planner"
+    github_skill = installed_dir / "scope-issue"
     assert (github_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(github_skill)
@@ -242,12 +242,12 @@ def test_installed_github_issue_planner_execution(installed_skills_env):
 
 def test_installed_codebase_issue_auditor_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    auditor_skill = installed_dir / "codebase-issue-auditor"
+    auditor_skill = installed_dir / "audit-codebase"
     assert (auditor_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(auditor_skill)
 
-    valid_bundle_fixture = REPO_ROOT / "tests" / "skills" / "codebase-issue-auditor" / "fixtures" / "valid_bundle.json"
+    valid_bundle_fixture = REPO_ROOT / "tests" / "skills" / "audit-codebase" / "fixtures" / "valid_bundle.json"
     bundle_data = json.loads(valid_bundle_fixture.read_text(encoding="utf-8"))
 
     bundle_file = target_repo / "audit-bundle.json"
@@ -269,7 +269,7 @@ def test_installed_codebase_issue_auditor_execution(installed_skills_env):
 
 def test_installed_create_diagram_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    diagram_skill = installed_dir / "create-diagram"
+    diagram_skill = installed_dir / "diagram-codebase"
     assert (diagram_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(diagram_skill)
@@ -312,7 +312,7 @@ def test_installed_create_diagram_execution(installed_skills_env):
             ]
         },
         "metadata": {
-            "tool": "create-diagram",
+            "tool": "diagram-codebase",
             "timestamp": "2026-07-23T00:00:00Z",
             "entities": [
                 {"id": "a", "kind": "service", "name": "Source"},
@@ -359,7 +359,7 @@ def test_installed_create_diagram_execution(installed_skills_env):
 
 def test_installed_design_codebase_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    design_skill = installed_dir / "design-codebase-with-senior-dev"
+    design_skill = installed_dir / "design-codebase"
     assert (design_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(design_skill)
@@ -392,7 +392,7 @@ def test_installed_design_codebase_with_senior_dev_execution(installed_skills_en
 
 def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    optimize_skill = installed_dir / "optimize-codebase-with-senior-dev"
+    optimize_skill = installed_dir / "optimize-codebase"
     assert (optimize_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(optimize_skill)
@@ -413,7 +413,7 @@ def test_installed_optimize_codebase_with_senior_dev_execution(installed_skills_
 
 def test_installed_missing_script_or_root_failures(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
-    plan_skill = installed_dir / "plan-with-senior-dev"
+    plan_skill = installed_dir / "plan-change"
 
     # Missing script failure
     res_missing_script = subprocess.run(
@@ -449,10 +449,10 @@ def test_installed_missing_script_or_root_failures(installed_skills_env):
 
 def test_installed_skill_execution_via_symlink(tmp_path: Path):
     """Test skill execution when installed via symlink if OS permits."""
-    source_skill = REPO_ROOT / "skills" / "engineering" / "plan-with-senior-dev"
+    source_skill = REPO_ROOT / "skills" / "engineering" / "plan-change"
     symlink_dir = tmp_path / "symlinked_skills"
     symlink_dir.mkdir(parents=True, exist_ok=True)
-    symlinked_skill = symlink_dir / "plan-with-senior-dev"
+    symlinked_skill = symlink_dir / "plan-change"
 
     try:
         os.symlink(source_skill, symlinked_skill, target_is_directory=True)
@@ -514,7 +514,7 @@ def test_skill_directory_resolution_instructions_present():
 def test_installed_skill_mutation_detection(installed_skills_env):
     """Verify that unexpected file creation inside an installed skill triggers mutation detection failure."""
     installed_dir, _ = installed_skills_env
-    plan_skill = installed_dir / "plan-with-senior-dev"
+    plan_skill = installed_dir / "plan-change"
     before_snapshot = get_skill_snapshot(plan_skill)
 
     # Inject unexpected file (including bytecode simulation)
