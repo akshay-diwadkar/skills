@@ -16,6 +16,10 @@ scratch/
 
 .kiro/
 
+.agent/
+AGENTS.md
+CLAUDE.md
+
 # OS generated files
 .DS_Store
 Thumbs.db
