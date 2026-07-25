@@ -18,7 +18,7 @@ def test_scaffold_github_workflow_default(tmp_path: Path):
 
     content = wf_file.read_text(encoding="utf-8")
     assert "branches: [main]" in content
-    assert "paths-ignore:\n      - '.agent/knowledge/**'" in content
+    assert "paths-ignore: ['.agent/knowledge/**', 'AGENTS.md', 'CLAUDE.md']" in content
     assert "commit_message: \"docs(knowledge): auto-refresh codebase knowledge [skip ci]\"" in content
 
 
