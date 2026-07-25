@@ -42,22 +42,28 @@ jobs:
 '''
 
 def ensure_github_workflow(repo_root: Path | str, branch: str = "main", repository: str = "https://github.com/akshay-diwadkar/skills.git", revision: str = "09a44216123f4621a59ef965ccaa5aa96d3a2e5a", runtime_dir: str = ".codebase-knowledge-runtime") -> dict[str, Any]:
-    root = Path(repo_root).resolve(); path = root / ".github" / "workflows" / "refresh-codebase-knowledge.yml"; block = _block(branch, repository, revision, runtime_dir)
+    root = Path(repo_root).resolve()
+    path = root / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
+    block = _block(branch, repository, revision, runtime_dir)
     if path.exists():
         text = path.read_text(encoding="utf-8")
         if BEGIN not in text or END not in text:
             return {"status": "warning", "path": str(path), "message": "User-owned workflow was not overwritten."}
         start, end = text.index(BEGIN), text.index(END) + len(END)
         updated = text[:start] + block.rstrip() + text[end:]
-        if updated == text: return {"status": "unchanged", "path": str(path)}
-        path.write_text(updated, encoding="utf-8"); return {"status": "updated", "path": str(path)}
-    path.parent.mkdir(parents=True, exist_ok=True); path.write_text(block, encoding="utf-8")
+        if updated == text:
+            return {"status": "unchanged", "path": str(path)}
+        path.write_text(updated, encoding="utf-8")
+        return {"status": "updated", "path": str(path)}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(block, encoding="utf-8")
     return {"status": "created", "path": str(path)}
 
 def scaffold_github_workflow(repo_root: Path | str, branch: str = "main", workflow_file: Path | str | None = None, mode: str = "cli", force: bool = False) -> dict[str, Any]:
     result = ensure_github_workflow(repo_root, branch)
     if workflow_file and result["status"] != "warning":
-        target = Path(workflow_file).resolve(); target.parent.mkdir(parents=True, exist_ok=True)
+        target = Path(workflow_file).resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(_block(branch, "https://github.com/akshay-diwadkar/skills.git", "09a44216123f4621a59ef965ccaa5aa96d3a2e5a", ".codebase-knowledge-runtime"), encoding="utf-8")
         result["path"] = str(target)
     if result["status"] != "warning":
@@ -66,5 +72,8 @@ def scaffold_github_workflow(repo_root: Path | str, branch: str = "main", workfl
     return result
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(); parser.add_argument("--repo-root", default="."); parser.add_argument("--branch", default="main"); args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--branch", default="main")
+    args = parser.parse_args()
     print(ensure_github_workflow(args.repo_root, args.branch))

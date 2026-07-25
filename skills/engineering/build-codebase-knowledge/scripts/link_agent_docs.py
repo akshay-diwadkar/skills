@@ -65,9 +65,6 @@ def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None)
     agents_file = root / "AGENTS.md"
     claude_file = root / "CLAUDE.md"
 
-    agents_exists = agents_file.is_file()
-    claude_exists = claude_file.is_file()
-
     modified: list[str] = []
     created: list[str] = []
 
