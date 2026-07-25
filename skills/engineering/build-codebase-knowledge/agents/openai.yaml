@@ -1,0 +1,3 @@
+display_name: Build Codebase Knowledge
+short_description: Create compact repository intelligence and task read plans.
+default_prompt: Build or refresh repository knowledge, then resolve my task using the smallest verified source slice.

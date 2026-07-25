@@ -11,7 +11,7 @@ from scaffold_github_workflow import scaffold_github_workflow
 def test_scaffold_github_workflow_default(tmp_path: Path):
     res = scaffold_github_workflow(tmp_path)
     assert res["status"] == "success"
-    assert res["branch"] == "main"
+    assert "refresh-codebase-knowledge.yml" in res["path"]
 
     wf_file = tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
     assert wf_file.is_file()
@@ -25,7 +25,7 @@ def test_scaffold_github_workflow_default(tmp_path: Path):
 def test_scaffold_github_workflow_custom_branch(tmp_path: Path):
     res = scaffold_github_workflow(tmp_path, branch="release/v1.0")
     assert res["status"] == "success"
-    assert res["branch"] == "release/v1.0"
+    assert "release/v1.0" in (tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml").read_text(encoding="utf-8")
 
     wf_file = tmp_path / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
     content = wf_file.read_text(encoding="utf-8")
@@ -36,9 +36,9 @@ def test_scaffold_github_workflow_overwrite_protection(tmp_path: Path):
     res1 = scaffold_github_workflow(tmp_path)
     assert res1["status"] == "success"
 
-    # Second call without force should fail
+    # Second call is idempotent.
     res2 = scaffold_github_workflow(tmp_path)
-    assert res2["status"] == "error"
+    assert res2["status"] == "success"
     assert "already exists" in res2["message"]
 
     # Call with force=True should succeed

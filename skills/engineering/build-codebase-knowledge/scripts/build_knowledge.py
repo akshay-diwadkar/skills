@@ -27,6 +27,7 @@ from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 from knowledge.summaries import format_architecture_md, format_context_md
 from link_agent_docs import link_agent_docs
+from scaffold_github_workflow import ensure_github_workflow
 
 
 def get_git_info(repo_root: Path) -> tuple[str, str, bool]:
@@ -298,6 +299,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
 
     # Link AGENTS.md / CLAUDE.md managed blocks
     link_agent_docs(root, out_dir)
+    workflow = ensure_github_workflow(root, config["workflow_branch"], config["workflow_runtime_repository"], config["workflow_runtime_revision"], config["workflow_runtime_directory"])
 
     return {
         "status": "success",
@@ -305,6 +307,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
         "files_indexed": len(files_list),
         "symbols_indexed": len(symbols_list),
         "source_fingerprint": source_fp,
+        "workflow": workflow,
     }
 
 

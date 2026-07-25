@@ -39,7 +39,8 @@ def test_link_agent_docs_only_agents_exists(tmp_path: Path):
     res = link_agent_docs(tmp_path)
     assert res["status"] == "success"
     assert "AGENTS.md" in res["modified"]
-    assert not (tmp_path / "CLAUDE.md").exists()
+    assert "CLAUDE.md" in res["created"]
+    assert "BEGIN BUILD-CODEBASE-KNOWLEDGE" in (tmp_path / "CLAUDE.md").read_text(encoding="utf-8")
 
 
 def test_link_agent_docs_only_claude_exists(tmp_path: Path):
@@ -49,7 +50,8 @@ def test_link_agent_docs_only_claude_exists(tmp_path: Path):
     res = link_agent_docs(tmp_path)
     assert res["status"] == "success"
     assert "CLAUDE.md" in res["modified"]
-    assert not (tmp_path / "AGENTS.md").exists()
+    assert "AGENTS.md" in res["created"]
+    assert "BEGIN BUILD-CODEBASE-KNOWLEDGE" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
 
 
 def test_link_agent_docs_neither_exists(tmp_path: Path):

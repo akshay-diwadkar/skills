@@ -95,7 +95,18 @@ class BenchmarkEvaluator:
         summary["E_index_resolver_expansion"] = summary["index_resolver_progressive"]
         summary["A_no_knowledge"] = summary["baseline_targeted_search"]
 
-        return {"summary": summary, "task_details": details}
+        progressive = summary["index_resolver_progressive"]
+        baseline = summary["baseline_targeted_search"]
+        reduction = 1 - progressive["total_tokens_est"] / max(baseline["total_tokens_est"], 1)
+        coverage = sum(1 for detail in details if detail["mode_5_recall"] >= 1.0) / max(len(details), 1)
+        gate = {
+            "required_file_coverage_at_10": round(coverage, 4),
+            "planned_context_reduction": round(reduction, 4),
+            "required_coverage": 0.90,
+            "required_reduction": 0.60,
+            "passed": coverage >= 0.90 and reduction >= 0.60,
+        }
+        return {"summary": summary, "task_details": details, "gate": gate}
 
     def run_benchmark(self) -> dict[str, Any]:
         """Backwards compatibility runner method."""
