@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from link_agent_docs import link_agent_docs
+
 try:
     import tomllib  # Python 3.11+
 except ImportError:
@@ -478,6 +480,9 @@ def build_knowledge(repo_root: Path, output_dir: Path | None = None) -> dict[str
     (out_dir / "context.md").write_text(context_content, encoding="utf-8")
     (out_dir / "architecture.md").write_text(architecture_content, encoding="utf-8")
     (out_dir / "manifest.json").write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
+
+    # Link knowledge docs in AGENTS.md / CLAUDE.md
+    link_agent_docs(repo_root, out_dir)
 
     return {
         "status": "success",

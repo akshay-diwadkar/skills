@@ -10,6 +10,7 @@ from pathlib import Path
 
 from benchmark_knowledge import BenchmarkRunner, format_human_report
 from build_knowledge import build_knowledge
+from link_agent_docs import link_agent_docs
 from refresh_knowledge import check_freshness, refresh_knowledge
 from resolve_task import format_human, resolve_task
 from validate_knowledge import validate_knowledge
@@ -54,6 +55,11 @@ def main() -> int:
     p_benchmark.add_argument("--repo-root", default=".", help="Target repository root")
     p_benchmark.add_argument("--tasks", required=True, help="Path to benchmark tasks JSON file")
     p_benchmark.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+
+    # link-docs
+    p_link = subparsers.add_parser("link-docs", help="Link knowledge docs in AGENTS.md / CLAUDE.md.")
+    p_link.add_argument("--repo-root", default=".", help="Target repository root")
+    p_link.add_argument("--output", help="Knowledge output directory")
 
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -113,6 +119,17 @@ def main() -> int:
             print(json.dumps(res, indent=2))
         else:
             print(format_human_report(res))
+        return 0
+
+    elif args.command == "link-docs":
+        out = Path(args.output).resolve() if args.output else None
+        res = link_agent_docs(repo_root, out)
+        if res["created"]:
+            print(f"Created agent doc files referencing '{res['knowledge_path']}': {', '.join(res['created'])}")
+        elif res["modified"]:
+            print(f"Updated agent doc files referencing '{res['knowledge_path']}': {', '.join(res['modified'])}")
+        else:
+            print(f"Agent doc files already reference '{res['knowledge_path']}'. No changes made.")
         return 0
 
     return 0

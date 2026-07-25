@@ -37,6 +37,13 @@ Outputs in `.agent/knowledge/`:
 - `index.json`: Schema-validated index of subsystems, files, symbols, entry points, tests, configs.
 - `manifest.json`: Revision metadata, git status, file hashes, freshness state.
 
+Also links knowledge docs in `AGENTS.md` and/or `CLAUDE.md` (or creates them if missing):
+```bash
+python scripts/link_agent_docs.py --repo-root /absolute/path/to/repo
+# or via CLI:
+python scripts/cli.py link-docs --repo-root /absolute/path/to/repo
+```
+
 ### 2. Task Resolution Pipeline
 When assigned an engineering task, query the resolver:
 ```bash

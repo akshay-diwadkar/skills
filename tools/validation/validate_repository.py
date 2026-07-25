@@ -251,6 +251,7 @@ ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
         "benchmark_knowledge.py",
         "build_knowledge.py",
         "cli.py",
+        "link_agent_docs.py",
         "refresh_knowledge.py",
         "resolve_task.py",
         "validate_knowledge.py",
