@@ -5,18 +5,16 @@ description: Build and maintain a compact, deterministic repository-intelligence
 
 # Build Codebase Knowledge
 
-Maintain a compact, evidence-backed repository-intelligence layer (`context.md`, `architecture.md`, `index.json`, `manifest.json`) and run a deterministic multi-stage task resolver to locate target code with minimum token and context overhead.
+Use committed repository knowledge as a navigation aid; source remains authoritative.
 
-Source code remains authoritative. Generated knowledge is an index and navigation aid, never a substitute for verifying implementation details.
+1. Run `python scripts/cli.py status --repo-root <repo>`.
+2. Build only when artifacts are missing, stale, or schema-invalid.
+3. Run `python scripts/cli.py resolve "<task>" --repo-root <repo> --format json` before broad searches.
+4. Read only phase 1 first. Advance a phase only when its stop condition is not met.
+5. Verify all behavioral claims in source before planning or editing.
+6. After one coherent change set, run `refresh` with every changed path, then `validate`. Do not refresh after each edit.
 
-## Execution Rules
-
-1. **Check Freshness First**: Run `python scripts/cli.py status` before initial exploration.
-2. **Run Resolver for Tasks**: Execute `python scripts/cli.py resolve "<task>"` before conducting broad repository searches.
-3. **Read Minimum Source Slice**: Follow the resolver's ordered read plan. Read only high-confidence candidates first.
-4. **Verify Implementation**: Verify behavior and dynamic details in primary source files before making implementation decisions.
-5. **Incremental Refresh After Writes**: Call `python scripts/cli.py refresh --changed-file <file>` immediately after finishing edits.
-6. **No-Op Protection**: Do not regenerate fresh artifacts. Do not read every file listed in `index.json`.
+Prefer resolver line/symbol slices and targeted `rg` fallbacks over opening entire files. Never treat a fresh index as proof of runtime behavior, and never regenerate an already-fresh index without a reason.
 
 ## Skill Directory Resolution
 

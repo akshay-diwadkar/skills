@@ -56,6 +56,7 @@ def main() -> int:
     parser.add_argument("--repo-root", default=".", help="Target repository root")
     parser.add_argument("--tasks", required=True, help="Path to benchmark tasks JSON file")
     parser.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    parser.add_argument("--report-only", action="store_true", help="Report gate failures without a non-zero exit code")
 
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -69,7 +70,7 @@ def main() -> int:
     else:
         print(format_human_report(res))
 
-    return 0
+    return 0 if args.report_only or res.get("gate", {}).get("passed", False) else 2
 
 
 if __name__ == "__main__":

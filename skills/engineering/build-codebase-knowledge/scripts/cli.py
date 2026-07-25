@@ -68,6 +68,7 @@ def main() -> int:
     p_benchmark.add_argument("--repo-root", default=".", help="Target repository root")
     p_benchmark.add_argument("--tasks", required=True, help="Path to benchmark tasks JSON file")
     p_benchmark.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    p_benchmark.add_argument("--report-only", action="store_true", help="Report gate failures without failing")
 
     # link-docs
     p_link = subparsers.add_parser("link-docs", help="Link knowledge docs in AGENTS.md / CLAUDE.md.")
@@ -94,7 +95,7 @@ def main() -> int:
             print(json.dumps(res, indent=2))
         elif not getattr(args, "quiet", False):
             print(f"Build completed: {res['files_indexed']} files, {res['symbols_indexed']} symbols indexed.")
-        return 0
+        return 0 if args.report_only or res.get("gate", {}).get("passed", False) else 2
 
     elif args.command == "status":
         out = Path(args.output).resolve() if args.output else None

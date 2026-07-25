@@ -20,6 +20,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "max_summary_words": 12,
     "max_file_size_bytes": 1048576,  # 1MB
     "full_refresh_change_ratio": 0.20,
+    "workflow_branch": "main",
+    "workflow_runtime_repository": "https://github.com/akshay-diwadkar/skills.git",
+    "workflow_runtime_revision": "09a44216123f4621a59ef965ccaa5aa96d3a2e5a",
+    "workflow_runtime_directory": ".codebase-knowledge-runtime",
     "include": ["src/**", "lib/**", "app/**", "pkg/**", "tests/**", "config/**", "tools/**", "skills/**", "agents/**", "catalog/**"],
     "exclude": [
         "**/node_modules/**",

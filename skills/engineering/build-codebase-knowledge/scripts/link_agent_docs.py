@@ -65,26 +65,19 @@ def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None)
     agents_file = root / "AGENTS.md"
     claude_file = root / "CLAUDE.md"
 
-    agents_exists = agents_file.is_file()
-    claude_exists = claude_file.is_file()
-
     modified: list[str] = []
     created: list[str] = []
 
     def starter_template(title: str) -> str:
         return f"# {title}\n\n{generate_managed_block(rel_k_path)}\n"
 
-    if agents_exists or claude_exists:
-        for fpath, name in [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]:
-            if fpath.is_file():
-                if update_file_with_managed_block(fpath, rel_k_path):
-                    modified.append(name)
-    else:
-        agents_file.write_text(starter_template("AGENTS.md"), encoding="utf-8")
-        created.append("AGENTS.md")
-
-        claude_file.write_text(starter_template("CLAUDE.md"), encoding="utf-8")
-        created.append("CLAUDE.md")
+    for fpath, name in [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]:
+        if fpath.is_file():
+            if update_file_with_managed_block(fpath, rel_k_path):
+                modified.append(name)
+        else:
+            fpath.write_text(starter_template(name), encoding="utf-8")
+            created.append(name)
 
     return {
         "status": "success",
