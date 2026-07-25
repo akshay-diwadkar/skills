@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generator_version",
+    "repository",
+    "generation_mode",
+    "config_hash",
+    "indexed_paths",
+    "ignored_paths",
+    "changed_files",
+    "file_hashes",
+    "freshness_state"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "generator_version": { "type": "string" },
+    "repository": {
+      "type": "object",
+      "required": ["root", "revision", "branch", "dirty"],
+      "properties": {
+        "root": { "type": "string" },
+        "revision": { "type": "string" },
+        "branch": { "type": "string" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "generation_mode": { "type": "string" },
+    "config_hash": { "type": "string" },
+    "indexed_paths": { "type": "array", "items": { "type": "string" } },
+    "ignored_paths": { "type": "array", "items": { "type": "string" } },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "file_hashes": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "freshness_state": {
+      "type": "string",
+      "enum": ["missing", "fresh", "partially-stale", "stale", "invalid"]
+    }
+  }
+}

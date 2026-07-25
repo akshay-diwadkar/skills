@@ -18,3 +18,9 @@ This directory contains all canonical engineering skills.
 | --- | --- | --- | --- |
 | [design-codebase-with-senior-dev](./design-codebase-with-senior-dev/SKILL.md) | `stable` | `both` | Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. |
 | [optimize-codebase-with-senior-dev](./optimize-codebase-with-senior-dev/SKILL.md) | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
+
+## Utilities
+
+| Skill | Status | Invocation | Summary |
+| --- | --- | --- | --- |
+| [build-codebase-knowledge](./build-codebase-knowledge/SKILL.md) | `stable` | `both` | Generate and maintain a compact repository-intelligence layer and task resolver to minimize broad exploration, token consumption, and context usage. |

@@ -12,7 +12,8 @@
     "./skills/engineering/codebase-issue-auditor",
     "./skills/engineering/create-diagram",
     "./skills/engineering/design-codebase-with-senior-dev",
-    "./skills/engineering/optimize-codebase-with-senior-dev"
+    "./skills/engineering/optimize-codebase-with-senior-dev",
+    "./skills/engineering/build-codebase-knowledge"
   ],
   "agents": "./agents/cursor/"
 }

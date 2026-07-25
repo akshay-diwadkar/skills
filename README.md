@@ -198,6 +198,7 @@ The plugin's role agents are powered by canonical engineering skills:
 | [create-diagram](docs/skills/create-diagram.md) | `engineering` | `workflow` | `stable` | `both` | Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. |
 | [design-codebase-with-senior-dev](docs/skills/design-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. |
 | [optimize-codebase-with-senior-dev](docs/skills/optimize-codebase-with-senior-dev.md) | `engineering` | `discipline` | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
+| [build-codebase-knowledge](docs/skills/build-codebase-knowledge.md) | `engineering` | `utility` | `stable` | `both` | Generate and maintain a compact repository-intelligence layer and task resolver to minimize broad exploration, token consumption, and context usage. |
 <!-- END GENERATED SKILL CATALOG -->
 
 ### Skill Lifecycle Roles

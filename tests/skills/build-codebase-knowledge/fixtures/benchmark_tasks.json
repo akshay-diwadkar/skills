@@ -1,0 +1,16 @@
+[
+  {
+    "task": "Add rate limiting to password reset in auth service",
+    "target_files": [
+      "src/auth/service.py",
+      "config/rate_limits.yaml",
+      "tests/auth/test_service.py"
+    ]
+  },
+  {
+    "task": "Fix API application initialization in main",
+    "target_files": [
+      "src/api/main.py"
+    ]
+  }
+]

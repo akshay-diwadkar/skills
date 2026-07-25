@@ -242,10 +242,19 @@ def validate_agent_discovery(agents_catalog: dict[str, Any] | None = None) -> li
     return errors
 
 
-ALLOWED_SKILL_SUBDIRS = {"scripts", "references", "assets", "templates", "agents"}
+ALLOWED_SKILL_SUBDIRS = {"scripts", "references", "assets", "templates", "agents", "schemas"}
 ALLOWED_SKILL_EXTENSIONS = {".py", ".md", ".json", ".html", ".css", ".js", ".yaml", ".yml", ".png", ".jpg", ".svg", ".txt", ".example"}
 ALLOWED_SKILL_ROOT_FILES = {"SKILL.md", ".env.example"}
 ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
+    "build-codebase-knowledge": {
+        "__init__.py",
+        "benchmark_knowledge.py",
+        "build_knowledge.py",
+        "cli.py",
+        "refresh_knowledge.py",
+        "resolve_task.py",
+        "validate_knowledge.py",
+    },
     "codebase-issue-auditor": {
         "audit_bundle.py",
         "check_github_env.py",
@@ -469,6 +478,8 @@ FILESYSTEM_FLAGS = {
     "--file",
     "--draft",
     "--report",
+    "--changed-file",
+    "--tasks",
 }
 
 

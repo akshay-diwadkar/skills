@@ -152,3 +152,27 @@ skills:
       supersedes: []
     documentation: docs/skills/optimize-codebase-with-senior-dev.md
     tests: tests/skills/optimize-codebase-with-senior-dev
+
+  - name: build-codebase-knowledge
+    path: skills/engineering/build-codebase-knowledge
+    domain: engineering
+    status: stable
+    kind: utility
+    invocation: both
+    summary: Generate and maintain a compact repository-intelligence layer and task resolver to minimize broad exploration, token consumption, and context usage.
+    platforms:
+      skills_sh: true
+      claude_plugin: true
+      cursor_plugin: true
+      codex: true
+    relationships:
+      invokes: []
+      complements:
+        - plan-with-senior-dev
+        - implement-with-senior-dev
+        - codebase-issue-auditor
+        - design-codebase-with-senior-dev
+      supersedes: []
+    documentation: docs/skills/build-codebase-knowledge.md
+    tests: tests/skills/build-codebase-knowledge
+
