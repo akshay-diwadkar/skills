@@ -26,7 +26,7 @@ def compute_source_fingerprint(
     config: dict[str, Any],
 ) -> str:
     """Compute a deterministic SHA-256 fingerprint for the indexed source tree.
-    
+
     Excludes .agent/knowledge/** and generated agent doc blocks so commits of generated docs
     do not invalidate freshness.
     """

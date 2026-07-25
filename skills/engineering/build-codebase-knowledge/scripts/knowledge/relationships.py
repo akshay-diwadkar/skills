@@ -12,18 +12,18 @@ def resolve_import_to_path(
     current_file: str,
 ) -> str | None:
     """Attempt to resolve an import string to an indexed internal repository file path.
-    
+
     Returns:
         rel_path if resolved to an internal file, or None if external/unresolved.
     """
     cleaned = import_str.strip("./").replace(".", "/")
-    
+
     # Try exact match or suffix match
     for ext in [".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".rs"]:
         candidate = f"{cleaned}{ext}"
         if candidate in indexed_files:
             return candidate
-        
+
         # Try relative to current file's directory
         curr_dir = str(Path(current_file).parent).replace("\\", "/")
         if curr_dir and curr_dir != ".":
@@ -44,7 +44,7 @@ def build_relationship_graph(
     tests: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Build bidirectional relationship graph across all indexed files.
-    
+
     Returns:
         (updated_files, updated_dependencies, updated_tests)
     """
@@ -64,13 +64,15 @@ def build_relationship_graph(
             if resolved and resolved != path:
                 resolved_internal.add(resolved)
                 reverse_import_map[resolved].add(path)
-                dependencies.append({
-                    "from": path,
-                    "to": resolved,
-                    "source": path,
-                    "target": resolved,
-                    "kind": "import",
-                })
+                dependencies.append(
+                    {
+                        "from": path,
+                        "to": resolved,
+                        "source": path,
+                        "target": resolved,
+                        "kind": "import",
+                    }
+                )
 
         import_map[path] = resolved_internal
         f["imports"] = sorted(list(resolved_internal))

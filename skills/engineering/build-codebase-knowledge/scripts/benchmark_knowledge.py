@@ -36,16 +36,20 @@ def format_human_report(res: dict[str, Any]) -> str:
                 f"{data['mean_mrr']} | {data['mean_recall']} | {data['mean_precision']} | {data['mean_ndcg']} | {data['mean_latency_ms']} |"
             )
 
-    lines.extend([
-        "",
-        "## Task Resolution Metrics",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Task Resolution Metrics",
+            "",
+        ]
+    )
 
     for d in res["task_details"]:
         lines.append(f"- Task: `{d['task']}`")
         lines.append(f"  - Target Files: {', '.join(f'`{f}`' for f in d['target_files'])}")
-        lines.append(f"  - Mode 5 Confidence: `{d['mode_5_confidence']}` | MRR: {d['mode_5_mrr']} | Recall: {d['mode_5_recall']}")
+        lines.append(
+            f"  - Mode 5 Confidence: `{d['mode_5_confidence']}` | MRR: {d['mode_5_mrr']} | Recall: {d['mode_5_recall']}"
+        )
         lines.append(f"  - Token Reduction vs Baseline: **{d['token_savings_percent']}%**")
 
     return "\n".join(lines)

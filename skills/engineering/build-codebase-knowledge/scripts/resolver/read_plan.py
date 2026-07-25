@@ -25,14 +25,20 @@ def generate_read_plan(
         {"phase": 1, "title": "Read primary implementation source modules", "files": primary_files[:3]},
         {"phase": 2, "title": "Verify contracts and direct test suites", "files": test_files[:2]},
         {"phase": 3, "title": "Check environment configuration manifests", "files": config_files[:2]},
-        {"phase": 4, "title": "Source verification (verify actual logic in source before editing)", "files": primary_files},
+        {
+            "phase": 4,
+            "title": "Source verification (verify actual logic in source before editing)",
+            "files": primary_files,
+        },
     ]
 
     # Dynamic skip list derived from repository ignored and generated paths
     ignored_paths = index_data.get("ignored_paths", [])
     generated_paths = index_data.get("generated_paths", [])
 
-    dynamic_skip_list = sorted(list(set(ignored_paths[:10] + generated_paths[:5] + ["vendor/", "node_modules/", "dist/", ".git/"])))
+    dynamic_skip_list = sorted(
+        list(set(ignored_paths[:10] + generated_paths[:5] + ["vendor/", "node_modules/", "dist/", ".git/"]))
+    )
 
     return {
         "read_sequence": read_sequence,

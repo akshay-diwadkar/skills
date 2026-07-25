@@ -64,7 +64,7 @@ def is_secret_file_or_content(path: Path, content: str) -> bool:
 
 def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
     """Discover files under repo_root.
-    
+
     Returns:
         (included_files, generated_files, ignored_files)
     """
@@ -110,7 +110,11 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
                 ignored.append(rel_str)
                 continue
 
-            if includes and not matches_glob(rel_str, includes) and rel_str not in ["AGENTS.md", "CLAUDE.md", "README.md", "pyproject.toml", "package.json"]:
+            if (
+                includes
+                and not matches_glob(rel_str, includes)
+                and rel_str not in ["AGENTS.md", "CLAUDE.md", "README.md", "pyproject.toml", "package.json"]
+            ):
                 ignored.append(rel_str)
                 continue
 

@@ -33,13 +33,15 @@ def progressive_expand(
             if test_path not in selected_set and len(expanded_candidates) < max_files_budget:
                 selected_set.add(test_path)
                 if test_path in file_map:
-                    expanded_candidates.append({
-                        "path": test_path,
-                        "role": "test",
-                        "subsystem": file_map[test_path].get("subsystem", "root"),
-                        "score": 0.8,
-                        "reasons": [f"direct test for {cand['path']}"],
-                    })
+                    expanded_candidates.append(
+                        {
+                            "path": test_path,
+                            "role": "test",
+                            "subsystem": file_map[test_path].get("subsystem", "root"),
+                            "score": 0.8,
+                            "reasons": [f"direct test for {cand['path']}"],
+                        }
+                    )
 
     if confidence == "high":
         return expanded_candidates, "High confidence target slice satisfied."
@@ -51,26 +53,30 @@ def progressive_expand(
             if imp not in selected_set and len(expanded_candidates) < max_files_budget:
                 selected_set.add(imp)
                 if imp in file_map:
-                    expanded_candidates.append({
-                        "path": imp,
-                        "role": file_map[imp].get("role", "source"),
-                        "subsystem": file_map[imp].get("subsystem", "root"),
-                        "score": 0.6,
-                        "reasons": [f"1st-order import of {cand['path']}"],
-                    })
+                    expanded_candidates.append(
+                        {
+                            "path": imp,
+                            "role": file_map[imp].get("role", "source"),
+                            "subsystem": file_map[imp].get("subsystem", "root"),
+                            "score": 0.6,
+                            "reasons": [f"1st-order import of {cand['path']}"],
+                        }
+                    )
 
         # Reverse imports (imported_by)
         for rev_imp in cand.get("imported_by", []):
             if rev_imp not in selected_set and len(expanded_candidates) < max_files_budget:
                 selected_set.add(rev_imp)
                 if rev_imp in file_map:
-                    expanded_candidates.append({
-                        "path": rev_imp,
-                        "role": file_map[rev_imp].get("role", "source"),
-                        "subsystem": file_map[rev_imp].get("subsystem", "root"),
-                        "score": 0.6,
-                        "reasons": [f"1st-order reverse dependency of {cand['path']}"],
-                    })
+                    expanded_candidates.append(
+                        {
+                            "path": rev_imp,
+                            "role": file_map[rev_imp].get("role", "source"),
+                            "subsystem": file_map[rev_imp].get("subsystem", "root"),
+                            "score": 0.6,
+                            "reasons": [f"1st-order reverse dependency of {cand['path']}"],
+                        }
+                    )
 
     if confidence == "medium":
         return expanded_candidates, "Medium confidence 1st-order graph expansion complete."
@@ -82,12 +88,14 @@ def progressive_expand(
             if f.get("subsystem") == sub and f["path"] not in selected_set:
                 if len(expanded_candidates) < max_files_budget:
                     selected_set.add(f["path"])
-                    expanded_candidates.append({
-                        "path": f["path"],
-                        "role": f.get("role", "source"),
-                        "subsystem": sub,
-                        "score": 0.4,
-                        "reasons": [f"subsystem neighbor in {sub}"],
-                    })
+                    expanded_candidates.append(
+                        {
+                            "path": f["path"],
+                            "role": f.get("role", "source"),
+                            "subsystem": sub,
+                            "score": 0.4,
+                            "reasons": [f"subsystem neighbor in {sub}"],
+                        }
+                    )
 
     return expanded_candidates, "Low confidence subsystem expansion complete."

@@ -179,7 +179,9 @@ def main() -> int:
             if res["status"] == "error":
                 print(f"Error: {res['message']}", file=sys.stderr)
                 return 1
-            print(f"Successfully generated GitHub Action workflow ({res['mode']} mode) at '{res['path']}' for branch '{res['branch']}'.")
+            print(
+                f"Successfully generated GitHub Action workflow ({res['mode']} mode) at '{res['path']}' for branch '{res['branch']}'."
+            )
         return 0 if res["status"] == "success" else 1
 
     return 0

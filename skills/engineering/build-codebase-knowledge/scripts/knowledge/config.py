@@ -24,7 +24,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "workflow_runtime_repository": "https://github.com/akshay-diwadkar/skills.git",
     "workflow_runtime_revision": "09a44216123f4621a59ef965ccaa5aa96d3a2e5a",
     "workflow_runtime_directory": ".codebase-knowledge-runtime",
-    "include": ["src/**", "lib/**", "app/**", "pkg/**", "tests/**", "config/**", "tools/**", "skills/**", "agents/**", "catalog/**"],
+    "include": [
+        "src/**",
+        "lib/**",
+        "app/**",
+        "pkg/**",
+        "tests/**",
+        "config/**",
+        "tools/**",
+        "skills/**",
+        "agents/**",
+        "catalog/**",
+    ],
     "exclude": [
         "**/node_modules/**",
         "**/vendor/**",
@@ -56,6 +67,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "vendor_penalty": -10.0,
     },
 }
+
 
 def load_config(repo_root: Path | str) -> dict[str, Any]:
     """Load configuration from .codebase-knowledge.toml or return default config."""

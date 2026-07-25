@@ -90,20 +90,22 @@ def score_candidates(
             exact_count = sum(1 for r in reasons if "exact" in r)
             norm_score = min(round(raw_score / 25.0, 2), 1.0)
 
-            candidates.append({
-                "path": path,
-                "role": f.get("role", "source"),
-                "subsystem": f.get("subsystem", "root"),
-                "score": norm_score,
-                "raw_score": raw_score,
-                "exact_count": exact_count,
-                "depth": path.count("/"),
-                "reasons": sorted(list(set(reasons))),
-                "symbols": sorted(list(matched_symbols)),
-                "imports": f.get("imports", []),
-                "imported_by": f.get("imported_by", []),
-                "tests": f.get("tests", []),
-            })
+            candidates.append(
+                {
+                    "path": path,
+                    "role": f.get("role", "source"),
+                    "subsystem": f.get("subsystem", "root"),
+                    "score": norm_score,
+                    "raw_score": raw_score,
+                    "exact_count": exact_count,
+                    "depth": path.count("/"),
+                    "reasons": sorted(list(set(reasons))),
+                    "symbols": sorted(list(matched_symbols)),
+                    "imports": f.get("imports", []),
+                    "imported_by": f.get("imported_by", []),
+                    "tests": f.get("tests", []),
+                }
+            )
 
     # Deterministic multi-key tie-breaking
     # 1. raw_score (desc)

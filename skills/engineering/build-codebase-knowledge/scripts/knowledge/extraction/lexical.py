@@ -15,7 +15,7 @@ def extract_lexical_file(
     subsystem: str,
 ) -> tuple[list[ExtractedSymbol], list[str], str, list[str]]:
     """Extract Go/Rust/Java/C/C++ symbols and imports line-by-line.
-    
+
     Returns:
         (symbols, imports, confidence, unknowns)
     """
