@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link generated knowledge docs inside AGENTS.md and CLAUDE.md using managed HTML comment blocks."""
+"""Maintain managed repository-knowledge references in agent instruction files."""
 
 from __future__ import annotations
 
@@ -8,112 +8,140 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from knowledge.config import load_config, resolve_knowledge_directory
+
 MANAGED_BEGIN = "<!-- BEGIN MAP-CODEBASE -->"
 MANAGED_END = "<!-- END MAP-CODEBASE -->"
 LEGACY_MANAGED_BEGIN = "<!-- BEGIN BUILD-CODEBASE-KNOWLEDGE -->"
 LEGACY_MANAGED_END = "<!-- END BUILD-CODEBASE-KNOWLEDGE -->"
+OPT_OUT = "<!-- OPT-OUT MAP-CODEBASE -->"
+
+
+class AgentDocumentError(ValueError):
+    """A supported instruction file has an unsafe managed-block state."""
 
 
 def generate_managed_block(rel_k_path: str) -> str:
-    """Generate HTML comment managed block content for agent documentation."""
+    """Generate the canonical repository-knowledge managed block."""
     return f"""{MANAGED_BEGIN}
 ## Repository Knowledge
 Repository knowledge is available under `{rel_k_path}/`. Before broad exploration: check freshness, resolve the current task, read phase 1 only, and expand only when its stop condition is unmet. Source remains authoritative; load the repository map and only selected symbol shards.
 {MANAGED_END}"""
 
 
-def _find_managed_block(content: str) -> tuple[int, int] | None:
-    """Return one complete canonical or legacy managed documentation block."""
-    for begin, end in ((MANAGED_BEGIN, MANAGED_END), (LEGACY_MANAGED_BEGIN, LEGACY_MANAGED_END)):
-        if begin in content and end in content:
-            start = content.find(begin)
-            end_index = content.find(end, start) + len(end)
-            return start, end_index
-    return None
+def _marker_positions(content: str, marker: str) -> list[int]:
+    positions: list[int] = []
+    start = 0
+    while (index := content.find(marker, start)) != -1:
+        positions.append(index)
+        start = index + len(marker)
+    return positions
 
 
-def update_file_with_managed_block(fpath: Path, rel_k_path: str) -> bool:
-    """Update or append managed block in fpath. Returns True if file was modified."""
-    content = fpath.read_text(encoding="utf-8")
+def _find_block(content: str, filename: str, begin: str, end: str, label: str) -> tuple[int, int] | None:
+    begins = _marker_positions(content, begin)
+    ends = _marker_positions(content, end)
+    if not begins and not ends:
+        return None
+    if len(begins) != 1 or len(ends) != 1 or begins[0] > ends[0]:
+        raise AgentDocumentError(f"malformed {label} block in {filename}")
+    return begins[0], ends[0] + len(end)
 
-    # Check opt-out marker
-    if "<!-- OPT-OUT MAP-CODEBASE -->" in content:
-        return False
 
-    new_block = generate_managed_block(rel_k_path)
+def _find_managed_block(content: str, filename: str) -> tuple[int, int] | None:
+    """Return one valid canonical block, or a valid legacy block for migration."""
+    canonical = _find_block(content, filename, MANAGED_BEGIN, MANAGED_END, "MAP-CODEBASE")
+    legacy = _find_block(content, filename, LEGACY_MANAGED_BEGIN, LEGACY_MANAGED_END, "legacy MAP-CODEBASE")
+    if canonical is not None and legacy is not None:
+        raise AgentDocumentError(f"ambiguous MAP-CODEBASE blocks in {filename}")
+    return canonical or legacy
 
-    managed_block = _find_managed_block(content)
-    if managed_block is not None:
-        start_idx, end_idx = managed_block
-        existing_block = content[start_idx:end_idx]
 
-        if existing_block.strip() == new_block.strip():
-            return False  # Already up to date
+def _newline_style(content: str) -> str:
+    return "\r\n" if "\r\n" in content else "\n"
 
-        new_content = content[:start_idx] + new_block + content[end_idx:]
+
+def _append_block(content: str, block: str, newline: str) -> str:
+    if not content:
+        return f"{block}{newline}"
+    separator = newline if content.endswith(("\n", "\r")) else newline * 2
+    return f"{content}{separator}{block}{newline}"
+
+
+def _planned_content(path: Path, title: str, managed_block: str) -> tuple[str, str]:
+    """Return the action and complete replacement text without writing the file."""
+    if not path.exists():
+        return "created", f"# {title}\n\n{managed_block}\n"
+    if not path.is_file():
+        raise AgentDocumentError(f"instruction path is not a file: {path.name}")
+
+    content = path.read_bytes().decode("utf-8")
+    if OPT_OUT in content:
+        return "skipped", content
+
+    newline = _newline_style(content)
+    block = managed_block.replace("\n", newline)
+    located = _find_managed_block(content, path.name)
+    if located is None:
+        final = _append_block(content, block, newline)
     else:
-        # Append managed block at end of file
-        new_content = content.rstrip() + "\n\n" + new_block + "\n"
-
-    fpath.write_text(new_content, encoding="utf-8")
-    return True
+        start, end = located
+        final = f"{content[:start]}{block}{content[end:]}"
+    return ("unchanged" if final == content else "modified"), final
 
 
-def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None, create_missing: bool = False) -> dict[str, Any]:
-    """Link repository knowledge documentation in AGENTS.md / CLAUDE.md using managed blocks."""
+def _write_if_changed(path: Path, content: str) -> None:
+    path.write_bytes(content.encode("utf-8"))
+
+
+def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
+    """Ensure both supported instruction files contain one current managed block."""
     root = Path(repo_root).resolve()
-    if output_dir:
-        k_dir = Path(output_dir).resolve()
-    else:
-        k_dir = root / ".agent" / "knowledge"
+    config = load_config(root)
+    knowledge_dir = resolve_knowledge_directory(root, output_dir, config)
+    rel_k_path = knowledge_dir.relative_to(root).as_posix()
+    block = generate_managed_block(rel_k_path)
+    targets = ((root / "AGENTS.md", "AGENTS.md"), (root / "CLAUDE.md", "CLAUDE.md"))
 
-    try:
-        rel_k_path = k_dir.relative_to(root).as_posix()
-    except ValueError:
-        rel_k_path = k_dir.as_posix()
-
-    agents_file = root / "AGENTS.md"
-    claude_file = root / "CLAUDE.md"
-
-    modified: list[str] = []
-    created: list[str] = []
-
-    def starter_template(title: str) -> str:
-        return f"# {title}\n\n{generate_managed_block(rel_k_path)}\n"
-
-    existing = [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]
-    for fpath, name in existing:
-        if fpath.is_file():
-            if update_file_with_managed_block(fpath, rel_k_path):
-                modified.append(name)
-    if not modified and not any(path.is_file() for path, _ in existing) and create_missing:
-        agents_file.write_text(starter_template("AGENTS.md"), encoding="utf-8")
-        created.append("AGENTS.md")
-
-    return {
+    # Plan and validate both targets before changing either one.
+    planned = [(path, name, *_planned_content(path, name, block)) for path, name in targets]
+    result: dict[str, Any] = {
         "status": "success",
-        "modified": modified,
-        "created": created,
+        "created": [],
+        "modified": [],
+        "unchanged": [],
+        "skipped": [],
         "knowledge_path": rel_k_path,
     }
+    for path, name, action, content in planned:
+        if action in {"created", "modified"}:
+            _write_if_changed(path, content)
+        result[action].append(name)
+    return result
+
+
+def link_agent_docs(
+    repo_root: Path | str,
+    output_dir: Path | str | None = None,
+    create_missing: bool = False,
+) -> dict[str, Any]:
+    """Compatibility wrapper; missing supported instruction files are always created."""
+    del create_missing
+    return ensure_agent_docs(repo_root, output_dir)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Link repository knowledge docs in AGENTS.md / CLAUDE.md.")
+    parser = argparse.ArgumentParser(description="Ensure repository knowledge references in AGENTS.md and CLAUDE.md.")
     parser.add_argument("--repo-root", default=".", help="Target repository root")
     parser.add_argument("--output", help="Knowledge output directory")
-    parser.add_argument("--create-missing", action="store_true", help="Create AGENTS.md only when no supported instruction file exists")
-
+    parser.add_argument("--create-missing", action="store_true", help="Deprecated; missing files are always created")
     args = parser.parse_args()
-    res = link_agent_docs(args.repo_root, args.output, args.create_missing)
-
-    if res["created"]:
-        print(f"Created agent doc files referencing '{res['knowledge_path']}': {', '.join(res['created'])}")
-    elif res["modified"]:
-        print(f"Updated agent doc files referencing '{res['knowledge_path']}': {', '.join(res['modified'])}")
-    else:
-        print("Agent doc files already up to date. No changes made.")
-
+    try:
+        result = link_agent_docs(args.repo_root, args.output, args.create_missing)
+    except (AgentDocumentError, OSError, UnicodeDecodeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    print(result)
     return 0
 
 

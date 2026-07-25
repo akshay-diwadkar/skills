@@ -45,6 +45,7 @@ def test_legacy_managed_block_migrates_in_place(tmp_path: Path):
     result = link_agent_docs(tmp_path)
     content = agents_file.read_text(encoding="utf-8")
     assert result["modified"] == ["AGENTS.md"]
+    assert result["created"] == ["CLAUDE.md"]
     assert MANAGED_BEGIN in content
     assert MANAGED_END in content
     assert LEGACY_MANAGED_BEGIN not in content

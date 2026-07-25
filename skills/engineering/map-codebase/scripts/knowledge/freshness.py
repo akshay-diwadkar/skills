@@ -14,7 +14,7 @@ from knowledge.discovery import (
     filter_internal_paths,
     git_tracked_paths,
     git_untracked_paths,
-    is_knowledge_path,
+    is_internal_runtime_path,
     is_tracked_path,
     run_git,
 )
@@ -150,7 +150,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     old = manifest.get("file_hashes", {})
     changes: set[str] = set()
     for path in candidates:
-        if is_knowledge_path(root, out, path):
+        if is_internal_runtime_path(root, out, path):
             continue
         tracked_path = is_tracked_path(root, path, tracked)
         if not config["include_untracked"] and not tracked_path:

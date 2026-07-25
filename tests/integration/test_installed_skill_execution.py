@@ -307,6 +307,12 @@ def test_installed_map_codebase_lifecycle_execution(installed_skills_env):
     knowledge_dir = target_repo / ".agent" / "knowledge"
     for artifact in ("manifest.json", "repo-map.json", "symbols.json", "relationships.json"):
         assert (knowledge_dir / artifact).is_file()
+    for instruction_file in ("AGENTS.md", "CLAUDE.md"):
+        target = target_repo / instruction_file
+        assert target.is_file()
+        assert target.read_text(encoding="utf-8").count("<!-- BEGIN MAP-CODEBASE -->") == 1
+        assert target.read_text(encoding="utf-8").count("<!-- END MAP-CODEBASE -->") == 1
+        assert not (map_skill / instruction_file).exists()
 
     status = run_cli("status")
     assert status["status"] == "fresh"
@@ -320,9 +326,12 @@ def test_installed_map_codebase_lifecycle_execution(installed_skills_env):
         "def retry_request() -> bool:\n    return False\n",
         encoding="utf-8",
     )
+    (target_repo / "CLAUDE.md").unlink()
     refreshed = run_cli("refresh", "--changed-file", str(service_file))
     assert refreshed["mode"] in {"incremental", "full"}
     assert refreshed["status"] == "fresh"
+    assert (target_repo / "CLAUDE.md").is_file()
+    assert (target_repo / "CLAUDE.md").read_text(encoding="utf-8").count("<!-- BEGIN MAP-CODEBASE -->") == 1
     assert run_cli("status")["status"] == "fresh"
 
     validated = run_cli("validate")

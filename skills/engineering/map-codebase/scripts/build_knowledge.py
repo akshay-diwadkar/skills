@@ -13,7 +13,13 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
-from knowledge.discovery import discover_files, filter_internal_paths, git_untracked_paths, is_knowledge_path, run_git
+from knowledge.discovery import (
+    discover_files,
+    filter_internal_paths,
+    git_untracked_paths,
+    is_internal_runtime_path,
+    run_git,
+)
 from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
@@ -42,7 +48,7 @@ def get_git_info(root: Path, config: dict[str, Any] | None, output_dir: Path) ->
     dirty_lines = [
         line
         for line in git(*status_args).splitlines()
-        if len(line) < 4 or not is_knowledge_path(root, output, line[3:])
+        if len(line) < 4 or not is_internal_runtime_path(root, output, line[3:])
     ]
     # Metadata records Git-visible untracked paths when enabled, including paths
     # excluded from indexing.  This lets a manifest reflect repository state

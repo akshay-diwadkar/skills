@@ -33,7 +33,7 @@ python scripts/cli.py refresh --repo-root /absolute/path/to/repo --changed-file 
 python scripts/cli.py validate --repo-root /absolute/path/to/repo
 ```
 
-`link-docs` is explicit opt-in and updates existing instruction files only; add `--create-missing` to create one `AGENTS.md` when neither supported file exists.
+Successful `build` and `refresh` automatically ensure `AGENTS.md` and `CLAUDE.md` contain one current managed repository-knowledge reference. Missing files are created, user content outside the managed block is preserved, and custom `--output` paths are reflected in the reference. Add `<!-- OPT-OUT MAP-CODEBASE -->` to either existing file to skip only that file. `link-docs` remains available to explicitly repair or reapply the references; it always creates missing supported files and accepts `--create-missing` as a compatibility no-op.
 
 To explicitly add a managed GitHub refresh workflow, provide an immutable runtime revision:
 
