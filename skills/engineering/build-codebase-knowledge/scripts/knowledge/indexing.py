@@ -137,7 +137,7 @@ def project(
     files: list[dict[str, Any]],
     configurations: list[dict[str, Any]],
     commands: list[dict[str, str]],
-    unknowns: list[str],
+    unknowns: list[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     files = sorted(files, key=lambda item: item["path"])
     paths = {f["path"] for f in files}
@@ -177,7 +177,7 @@ def project(
     for file in files:
         subsystems.setdefault(file["subsystem"], []).append(file["path"])
     repo = {
-        "schema_version": "3.0",
+        "schema_version": "4.0",
         "repository": {"root": ".", "languages": sorted({f["language"] for f in files if f["language"]})},
         "subsystems": [{"name": key, "paths": sorted(value)} for key, value in sorted(subsystems.items())],
         "directories": [{"path": key, "file_count": len(value)} for key, value in sorted(subsystems.items())],
@@ -194,10 +194,10 @@ def project(
         "configurations": sorted(configurations, key=lambda x: x["path"]),
         "generated_paths": sorted(f["path"] for f in files if f["generated"]),
         "ignored_paths": [],
-        "unknowns": sorted(set(unknowns))[:20],
+        "unknowns": sorted({f"{file['path']}: {item}" for file in files for item in file.get("unknowns", [])})[:20],
     }
     relationships = {
-        "schema_version": "3.0",
+        "schema_version": "4.0",
         "imports": sorted(imports, key=lambda x: (x["source"], x["target"])),
         "calls": [],
         "test_links": sorted(tests, key=lambda x: (x["source"], x["target"])),

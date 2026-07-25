@@ -17,8 +17,8 @@ def validate_schema_json(data: dict[str, Any], schema_name: str) -> list[str]:
     try:
         if jsonschema:
             jsonschema.validate(data, json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8")))
-        elif data.get("schema_version") != "3.0":
-            return [f"{schema_name}: schema_version must be 3.0"]
+        elif data.get("schema_version") != "4.0":
+            return [f"{schema_name}: schema_version must be 4.0"]
     except Exception as exc:
         return [f"{schema_name}: {exc}"]
     return []
@@ -35,6 +35,9 @@ def validate_semantic_graph(
     errors: list[str] = []
     if len(paths) != len(repo_map.get("files", [])):
         errors.append("Duplicate file paths detected")
+    symbol_keys = {(symbol.get("path"), symbol.get("name"), symbol.get("line_start")) for symbol in symbols}
+    if len(symbol_keys) != len(symbols):
+        errors.append("Duplicate symbols detected")
     if paths != set(manifest.get("indexed_paths", [])):
         errors.append("manifest indexed_paths does not match repo map")
     for symbol in symbols:

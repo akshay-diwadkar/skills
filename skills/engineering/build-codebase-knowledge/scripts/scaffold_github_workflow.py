@@ -17,15 +17,23 @@ DEFAULT_BRANCH = "main"
 
 def _safe_relative_path(value: str, field: str) -> str:
     path = Path(value)
-    if not value or path.is_absolute() or ".." in path.parts:
+    if not value or any(ord(char) < 32 for char in value) or path.is_absolute() or ".." in path.parts:
         raise ValueError(f"{field} must be a non-empty safe relative path")
     return path.as_posix()
 
 
-def _workflow_block(branch: str, repository: str, revision: str, runtime_dir: str) -> str:
+def _validate_inputs(branch: str, repository: str, revision: str, runtime_dir: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+        raise ValueError("repository must be owner/name without whitespace, URLs, shell syntax, or traversal")
+    if not branch or any(ord(char) < 32 for char in branch):
+        raise ValueError("branch must be non-empty and contain no control characters")
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("revision must be a 40-character lowercase commit SHA")
-    runtime_dir = _safe_relative_path(runtime_dir, "runtime_dir")
+    return _safe_relative_path(runtime_dir, "runtime_dir")
+
+
+def _workflow_block(branch: str, repository: str, revision: str, runtime_dir: str) -> str:
+    runtime_dir = _validate_inputs(branch, repository, revision, runtime_dir)
     branch_yaml = json.dumps(branch)
     repository_yaml = json.dumps(repository)
     revision_yaml = json.dumps(revision)
@@ -75,11 +83,8 @@ def scaffold_github_workflow(
 ) -> dict[str, Any]:
     """Create or update only an explicitly requested managed workflow."""
     root = Path(repo_root).resolve()
-    target = (
-        Path(workflow_file).resolve()
-        if workflow_file
-        else root / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
-    )
+    raw_target = Path(workflow_file) if workflow_file else Path(".github/workflows/refresh-codebase-knowledge.yml")
+    target = raw_target.resolve() if raw_target.is_absolute() else (root / raw_target).resolve()
     try:
         target.relative_to(root)
     except ValueError as exc:

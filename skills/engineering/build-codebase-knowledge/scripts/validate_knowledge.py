@@ -21,6 +21,10 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
     root = Path(repo_root).resolve()
     out = Path(knowledge_dir).resolve() if knowledge_dir else root / load_config(root)["output_dir"]
     try:
+        out.relative_to(root)
+    except ValueError:
+        return {"status": "invalid", "errors": ["knowledge output must be inside repository"], "warnings": []}
+    try:
         manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
         repo = json.loads((out / "repo-map.json").read_text(encoding="utf-8"))
         rel = json.loads((out / "relationships.json").read_text(encoding="utf-8"))
@@ -59,6 +63,11 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
     actual = {item.name for item in out.iterdir()} if out.is_dir() else set()
     if actual - expected_files:
         errors.append(f"Unexpected knowledge artifacts: {', '.join(sorted(actual - expected_files))}")
+    shard_dir = out / "symbols"
+    expected_shards = {item["path"] for item in catalog.get("shards", [])}
+    actual_shards = {item.relative_to(out).as_posix() for item in shard_dir.glob("*.json")} if shard_dir.is_dir() else set()
+    if actual_shards - expected_shards:
+        errors.append(f"Orphan symbol shards: {', '.join(sorted(actual_shards - expected_shards))}")
     fresh = check_freshness(root, out)
     return {
         "status": "invalid"

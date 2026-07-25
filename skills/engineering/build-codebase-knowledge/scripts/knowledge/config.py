@@ -20,6 +20,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "max_summary_words": 12,
     "max_file_size_bytes": 1048576,  # 1MB
     "full_refresh_change_ratio": 0.20,
+    "include_untracked": True,
+    "confidence_margin": 2.0,
     # An empty include list means every safe, tracked repository file.  Projects
     # should not disappear from the index merely because they use an unfamiliar
     # top-level directory name.
@@ -85,6 +87,11 @@ def _validate(config: dict[str, Any]) -> None:
     ratio = config.get("full_refresh_change_ratio")
     if not isinstance(ratio, (int, float)) or not 0 < ratio <= 1:
         raise ValueError("full_refresh_change_ratio must be greater than 0 and at most 1")
+    if not isinstance(config.get("include_untracked"), bool):
+        raise ValueError("include_untracked must be boolean")
+    margin = config.get("confidence_margin")
+    if not isinstance(margin, (int, float)) or isinstance(margin, bool) or margin < 0:
+        raise ValueError("confidence_margin must be a non-negative number")
     for key in ("include", "exclude", "generated"):
         if not isinstance(config.get(key), list) or any(not isinstance(item, str) for item in config[key]):
             raise ValueError(f"{key} must be a list of strings")
