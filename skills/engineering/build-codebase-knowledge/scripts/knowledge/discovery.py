@@ -80,7 +80,11 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
     max_size = config.get("max_file_size_bytes", 1048576)
 
     tracked = _git_files(root)
-    candidates = tracked if tracked else _walk_files(root)
+    if tracked is None:
+        candidates = _walk_files(root)
+    else:
+        untracked = _git_untracked_files(root) if config.get("include_untracked", True) else []
+        candidates = sorted(set(tracked) | set(untracked))
     for rel_str in candidates:
         full_path = root / rel_str
         if not full_path.exists() or full_path.is_symlink() or not _safe_path(root, full_path):
@@ -114,6 +118,15 @@ def _git_files(root: Path) -> list[str] | None:
     result = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False)
     if result.returncode:
         return None
+    return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
+
+
+def _git_untracked_files(root: Path) -> list[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=root, capture_output=True, check=False
+    )
+    if result.returncode:
+        return []
     return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
 
 

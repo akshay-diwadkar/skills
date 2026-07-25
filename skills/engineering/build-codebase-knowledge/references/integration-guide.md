@@ -1,16 +1,10 @@
-# Integration Guide for AI Agents & Workflow Skills
+# Integration Guide
 
-## 1. Read-Only Skills Integration (Planning / Auditing / Design)
-1. Check knowledge freshness via `build-codebase-knowledge status`.
-2. Run the resolver: `python scripts/cli.py resolve "<task>" --repo-root . --phase 1 --format json`.
-3. Read only the returned targets and selected symbol shards.
-4. Verify details directly in target source files.
+1. Resolve absolute paths and run `status`.
+2. Build only when artifacts are missing, invalid, or request a full rebuild.
+3. Otherwise run `refresh`: it applies a safe delta, or a metadata-only revision refresh when indexed content is unchanged.
+4. Resolve phase 1 and read only returned targets. The resolver loads the selected symbol shards internally; agents must not preload shards.
+5. Verify authoritative source, stop when the phase question is answered, and expand only on an explicit trigger.
+6. After one coherent change set, refresh and run `validate`.
 
-## 2. Write Skills Integration (Implementation / Refactoring)
-1. Pre-execution: Run resolver to obtain read slice.
-2. Implementation: Modify files as required by task.
-3. Post-execution: Call incremental refresh:
-   ```bash
-   python scripts/refresh_knowledge.py --repo-root . --changed-file path/to/file1.py --changed-file path/to/file2.py
-   ```
-4. Verify refresh state reports `fresh`.
+`include_untracked` is enabled by default for safe, non-ignored working-tree files. The changed-path ratio selects full versus incremental refresh; it is not a freshness state. Workflow generation is explicit opt-in only.

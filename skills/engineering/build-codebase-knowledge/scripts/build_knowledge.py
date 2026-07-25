@@ -19,8 +19,8 @@ from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
-SCHEMA_VERSION = "3.0"
-EXTRACTOR_VERSION = "4.0.0"
+SCHEMA_VERSION = "4.0"
+EXTRACTOR_VERSION = "4.1.0"
 
 
 def _digest(value: Any) -> str:
@@ -42,7 +42,10 @@ def get_git_info(root: Path) -> tuple[str, str, bool, list[str]]:
 
 def _config_hash(config: dict[str, Any]) -> str:
     return _digest(
-        {key: config.get(key) for key in ("include", "exclude", "generated", "max_file_size_bytes", "weights")}
+        {
+            key: config.get(key)
+            for key in ("include", "exclude", "generated", "max_file_size_bytes", "include_untracked", "confidence_margin", "weights")
+        }
     )
 
 
@@ -64,6 +67,11 @@ def _write_shards(out: Path, symbols: list[dict[str, Any]]) -> dict[str, Any]:
         shards.append(
             {"id": key, "path": relative, "count": len(entries), "hash": hashlib.sha256(encoded.encode()).hexdigest()}
         )
+    expected = {item["path"] for item in shards}
+    shard_dir = out / "symbols"
+    for candidate in shard_dir.glob("*.json"):
+        if candidate.relative_to(out).as_posix() not in expected:
+            candidate.unlink()
     return {"schema_version": SCHEMA_VERSION, "symbol_count": len(symbols), "shards": shards}
 
 
@@ -78,24 +86,23 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     out.mkdir(parents=True, exist_ok=True)
     (out / "symbols").mkdir(exist_ok=True)
     included, _, ignored = discover_files(root, config)
+    output_prefix = out.relative_to(root).as_posix()
+    ignored = [path for path in ignored if path != output_prefix and not path.startswith(output_prefix + "/")]
     files = []
     symbols = []
     configs = []
     commands = []
-    unknowns = []
     for path in included:
         item, _, reason = classify_and_extract(root, path, config)
         if item is None:
             ignored.append(path)
-            unknowns.append(f"Skipped {path}: {reason}")
             continue
         files.append(item.record)
         symbols.extend(item.symbols)
-        unknowns.extend(item.unknowns)
         if item.configuration:
             configs.append(item.configuration)
         commands.extend(item.commands)
-    repo, relationships = project(files, configs, commands, unknowns)
+    repo, relationships = project(files, configs, commands)
     repo["ignored_paths"] = sorted(set(ignored))
     catalog = _write_shards(out, symbols)
     revision, branch, dirty, untracked = get_git_info(root)

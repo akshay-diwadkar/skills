@@ -39,6 +39,8 @@ STOPWORDS = {
     "error",
     "issue",
 }
+CONFIG_TERMS = {"config", "configuration", "setting", "settings", "ruff", "mypy", "pytest", "line", "length", "toml", "yaml", "yml", "ini"}
+TEST_TERMS = {"test", "tests", "testing", "failing", "failure", "assert", "fixture", "regression"}
 
 
 def _split(value: str) -> set[str]:
@@ -60,6 +62,23 @@ def _signals(task: str) -> dict[str, set[str]]:
         "symbols": {x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x},
         "terms": set().union(*(_split(x) for x in raw)) if raw else set(),
     }
+
+
+def _task_roles(task: str, signals: dict[str, set[str]], files: list[dict[str, Any]]) -> set[str]:
+    explicit = signals["paths"]
+    matched_roles = {
+        file["role"]
+        for file in files
+        if any(file["path"] == path or file["path"].endswith("/" + path) for path in explicit)
+    }
+    terms = signals["terms"]
+    if terms & CONFIG_TERMS or any(Path(path).suffix in {".toml", ".yaml", ".yml", ".ini"} for path in explicit):
+        matched_roles.add("configuration")
+    if terms & TEST_TERMS or any("test" in path.lower() for path in explicit):
+        matched_roles.add("test")
+    if {"configuration", "test"} <= matched_roles:
+        matched_roles.add("source")
+    return matched_roles or {"source"}
 
 
 def _load(root: Path, out: Path | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -113,6 +132,8 @@ def _lexical(
         matched = signals["terms"] & _split(path)
         if matched:
             _add(evidence, f"text_match: {sorted(matched)[0]}", weights["text_match"], "path")
+        if file["role"] == "configuration" and (signals["terms"] & CONFIG_TERMS or file["path"] in signals["paths"]):
+            _add(evidence, f"configuration: {path}", weights["configuration"], "configuration")
         if file.get("generated"):
             _add(evidence, "generated_penalty", weights["generated_penalty"], "generated")
         if "vendor" in path.lower() or "node_modules" in path.lower():
@@ -138,17 +159,20 @@ def _rerank(
             other = edge["target"] if edge["source"] in seed else edge["source"]
             if other in by_path and other not in selected:
                 selected[other] = {"file": by_path[other], "score": 0.0, "evidence": {}}
-    tests_by_target = {x["target"] for x in relationships.get("test_links", [])}
+    tests_by_target: dict[str, list[str]] = {}
+    for edge in relationships.get("test_links", []):
+        tests_by_target.setdefault(edge["target"], []).append(edge["source"])
     for path, item in selected.items():
         ev = item["evidence"]
-        if path in tests_by_target:
-            _add(ev, "direct_test", weights["related_test"], "test")
-        if path in relationships.get("reverse_imports", {}):
-            _add(ev, "reverse_import", weights["reverse_import_relationship"], "reverse_import")
-        if any(x["source"] == path or x["target"] == path for x in relationships.get("imports", [])):
-            _add(ev, "direct_import", weights["import_relationship"], "import")
+        for test in sorted(tests_by_target.get(path, [])):
+            _add(ev, f"tested_by: {test}", weights["related_test"], "test")
+        for importer in sorted(relationships.get("reverse_imports", {}).get(path, [])):
+            _add(ev, f"imported_by: {importer}", weights["reverse_import_relationship"], "import")
+        for edge in relationships.get("imports", []):
+            if edge["source"] == path:
+                _add(ev, f"imports: {edge['target']}", weights["import_relationship"], "import")
         if Path(path).name.lower() in {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}:
-            _add(ev, "entry_point", weights["entry_point"], "entry_point")
+            _add(ev, f"entry_point: {path}", weights["entry_point"], "entry_point")
         item["score"] = sum(x[0] for x in ev.values())
     return sorted((x for x in selected.values() if x["score"] > 0), key=lambda x: (-x["score"], x["file"]["path"]))
 
@@ -204,7 +228,9 @@ def resolve_task(
     by_path = {x["path"]: x for x in repo["files"]}
     lexical = _lexical(repo["files"], signals, config["weights"], freshness)[:8]
     ranked = _rerank(lexical, relationships, by_path, config["weights"])
-    primaries = [x for x in ranked if x["file"]["role"] == "source"][:3]
+    requested_roles = _task_roles(task, signals, repo["files"])
+    role_order = ["source", "configuration", "test"] if requested_roles == {"source", "configuration", "test"} else [role for role in ("source", "configuration", "test") if role in requested_roles]
+    primaries = [item for role in role_order for item in ranked if item["file"]["role"] == role][:3]
     symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
     primary = [_target(x, symbol_map[x["file"]["path"]], signals) for x in primaries]
     primary_paths = {x["path"] for x in primary}
@@ -213,7 +239,7 @@ def resolve_task(
             _target(
                 {
                     "file": by_path[x["source"]],
-                    "evidence": {f"direct_test: {x['source']}": (config["weights"]["related_test"], "test")},
+                    "evidence": {f"tested_by: {x['source']}": (config["weights"]["related_test"], "test")},
                 },
                 [],
                 signals,
@@ -227,7 +253,7 @@ def resolve_task(
             _target(
                 {
                     "file": by_path[x["target"] if x["source"] in primary_paths else x["source"]],
-                    "evidence": {"direct_import": (config["weights"]["import_relationship"], "import")},
+                    "evidence": {f"imports: {x['target'] if x['source'] in primary_paths else x['source']}": (config["weights"]["import_relationship"], "import")},
                 },
                 [],
                 signals,
@@ -238,9 +264,9 @@ def resolve_task(
     )
     score = primaries[0]["score"] if primaries else 0
     margin = score - (primaries[1]["score"] if len(primaries) > 1 else 0)
-    families = {family for _, family in primaries[0]["evidence"].values()} if primaries else set()
+    families = {family for weight, family in primaries[0]["evidence"].values() if weight > 0} if primaries else set()
     focused = bool(primary and primary[0]["start_line"])
-    high = freshness == "fresh" and focused and margin >= config["weights"]["text_match"] and len(families) >= 2
+    high = freshness == "fresh" and focused and margin >= config["confidence_margin"] and len(families) >= 2
     level = "high" if high else "medium" if primary else "low"
     terms = sorted(signals["terms"])
     fallback = (
@@ -276,13 +302,13 @@ def resolve_task(
     phases = {
         1: {
             "targets": primary,
-            "question": "Which implementation owns the requested behavior?",
+            "question": "Which likely task owner owns the requested behavior or constraint?",
             "stop_condition": "Stop when ownership and the source contract are verified.",
             "expansion_triggers": ["ownership remains ambiguous", "source contradicts the index"],
         },
         2: {
-            "targets": tests[:3],
-            "question": "Which direct tests constrain the change?",
+            "targets": _dedupe(tests + [_target(item, [], signals) for item in ranked if item["file"]["role"] == "configuration" and item["file"]["path"] not in primary_paths])[:3],
+            "question": "Which direct tests, configuration, or represented constraints constrain the change?",
             "stop_condition": "Stop when direct constraints are understood.",
             "expansion_triggers": ["a compatibility constraint is unresolved"],
         },

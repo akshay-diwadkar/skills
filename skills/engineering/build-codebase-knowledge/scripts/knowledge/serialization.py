@@ -16,4 +16,5 @@ def write_file_deterministic(path: Path, content: str) -> None:
     """Write string content with normalized LF newlines to path."""
     normalized = content.replace("\r\n", "\n")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(normalized, encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(normalized)

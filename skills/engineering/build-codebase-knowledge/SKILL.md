@@ -5,17 +5,17 @@ description: Build and use compact repository knowledge for resolver-first code 
 
 # Build Codebase Knowledge
 
-Use compact repository knowledge to minimize exploration and reserve the model's context and reasoning budget for implementation and verification.
+Use compact machine-only repository knowledge to reduce exploration overhead while preserving source as authoritative.
 
 1. Resolve absolute skill and repository paths.
 2. Run `python scripts/cli.py status --repo-root /absolute/path/to/repo --format json`.
-3. Build only when artifacts are missing, invalid, or require a full rebuild; otherwise refresh a safe delta.
-4. Resolve phase 1 and read only its returned source slices.
+3. Build only when artifacts are missing, invalid, or require a full rebuild. Otherwise refresh a safe delta or metadata-only revision.
+4. Resolve phase 1 and read only its returned targets; the resolver loads selected symbol shards internally.
 5. Verify behavior in authoritative source, then stop when the phase question is answered.
-6. Request phase 2 or 3 only for its stated expansion trigger.
+6. Request phase 2 or 3 only for an explicit expansion trigger.
 7. Perform the coding task. After one coherent change set, refresh and validate.
 
-Use `--phase all` only for explicit debugging or human inspection. Do not preload maps, shards, or human-readable artifacts. Source remains authoritative.
+Use `--phase all` only for explicit debugging or human inspection. Do not preload maps or shards. Source remains authoritative.
 
 ## Skill Directory Resolution
 
