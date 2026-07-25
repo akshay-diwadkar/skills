@@ -21,7 +21,7 @@ def extract_config_and_commands(
     content: str,
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
     """Extract configuration metadata and evidence-backed repository commands.
-    
+
     Returns:
         (config_entry, detected_commands)
     """

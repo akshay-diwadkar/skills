@@ -32,8 +32,10 @@ python scripts/build_knowledge.py --repo-root /absolute/path/to/repo
 Outputs in `.agent/knowledge/`:
 - `context.md`: High-density orientation (stack, entry points, commands, boundaries). Target <= 120 lines.
 - `architecture.md`: Component matrix, dependency rules, runtime flow, risk points. Target <= 220 lines.
-- `index.json`: Schema-validated index of subsystems, files, symbols, entry points, tests, configs.
-- `manifest.json`: Revision metadata, git status, file hashes, freshness state.
+- `repo-map.json`: Schema-validated compact map of subsystems, files, entry points, commands, and configuration.
+- `symbols.json` plus `symbols/*.json`: Shard catalog and on-demand symbol definitions.
+- `relationships.json`: Imports, tests, configuration links, and unresolved edges.
+- `manifest.json`: Revision, dirty/untracked state, inventory, hashes, and freshness state.
 
 Also links knowledge docs in `AGENTS.md` and/or `CLAUDE.md` (or creates them if missing):
 ```bash

@@ -15,7 +15,7 @@ def extract_python_file(
     subsystem: str,
 ) -> tuple[list[ExtractedSymbol], list[str], str, list[str]]:
     """Extract Python symbols and imports using Python's builtin ast module.
-    
+
     Returns:
         (symbols, imports, confidence, unknowns)
     """

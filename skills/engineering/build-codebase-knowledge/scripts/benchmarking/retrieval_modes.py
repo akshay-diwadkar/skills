@@ -22,7 +22,11 @@ def run_mode_baseline_targeted_search(repo_root: Path, targets: list[str]) -> di
     t0 = time.time()
     all_files = [str(f.relative_to(repo_root)).replace("\\", "/") for f in repo_root.glob("src/**/*.*") if f.is_file()]
     if not all_files:
-        all_files = [str(f.relative_to(repo_root)).replace("\\", "/") for f in repo_root.rglob("*.*") if f.is_file() and not f.name.startswith(".")]
+        all_files = [
+            str(f.relative_to(repo_root)).replace("\\", "/")
+            for f in repo_root.rglob("*.*")
+            if f.is_file() and not f.name.startswith(".")
+        ]
 
     total_lines = 0
     total_text = ""
@@ -88,7 +92,7 @@ def run_mode_index_only(repo_root: Path, targets: list[str]) -> dict[str, Any]:
     """Mode 3: Index only (reads raw index.json)."""
     t0 = time.time()
     k_dir = repo_root / ".agent" / "knowledge"
-    idx_p = k_dir / "index.json"
+    idx_p = k_dir / "repo-map.json"
 
     idx_txt = idx_p.read_text(encoding="utf-8") if idx_p.is_file() else "{}"
     total_lines = len(idx_txt.splitlines())
@@ -118,7 +122,10 @@ def run_mode_index_and_resolver(repo_root: Path, task: str, targets: list[str]) 
     res = resolve_task(repo_root, task)
     t_ms = (time.time() - t0) * 1000
 
-    retrieved = [c["path"] for c in res.get("candidates", [])]
+    retrieved = [
+        c["path"]
+        for c in res.get("primary_targets", []) + res.get("related_tests", []) + res.get("related_configuration", [])
+    ]
     total_lines = 0
     total_text = ""
     for rel_p in retrieved[:4]:
@@ -151,8 +158,14 @@ def run_mode_index_resolver_progressive(repo_root: Path, task: str, targets: lis
     res = resolve_task(repo_root, task)
     t_ms = (time.time() - t0) * 1000
 
-    retrieved = [c["path"] for c in res.get("candidates", [])]
-    confidence = res.get("confidence", "medium")
+    retrieved = [
+        c["path"]
+        for c in res.get("primary_targets", [])
+        + res.get("related_tests", [])
+        + res.get("related_configuration", [])
+        + res.get("interfaces_and_dependencies", [])
+    ]
+    confidence = res.get("confidence", {}).get("level", "medium")
 
     # Select files based on progressive confidence level
     limit = 3 if confidence == "high" else (6 if confidence == "medium" else 10)

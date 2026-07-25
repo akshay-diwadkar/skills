@@ -30,8 +30,8 @@ def test_semantic_refresh_symbol_addition(tmp_path: Path):
     assert ref_res["mode"] == "incremental"
     assert ref_res["status"] == "fresh"
 
-    index_data = json.loads((out_dir / "index.json").read_text(encoding="utf-8"))
-    indexed_symbol_names = [s["name"] for s in index_data["symbols"]]
+    catalog = json.loads((out_dir / "symbols.json").read_text(encoding="utf-8"))
+    indexed_symbol_names = [s["name"] for shard in catalog["shards"] for s in json.loads((out_dir / shard["path"]).read_text(encoding="utf-8"))["symbols"]]
     assert "AddedService" in indexed_symbol_names
     assert "OriginalService" in indexed_symbol_names
 
@@ -53,6 +53,6 @@ def test_semantic_refresh_file_deletion(tmp_path: Path):
     ref_res = refresh_knowledge(tmp_path, ["src/m2.py"], out_dir)
     assert ref_res["status"] == "fresh"
 
-    index_data = json.loads((out_dir / "index.json").read_text(encoding="utf-8"))
+    index_data = json.loads((out_dir / "repo-map.json").read_text(encoding="utf-8"))
     indexed_paths = [f["path"] for f in index_data["files"]]
     assert "src/m2.py" not in indexed_paths

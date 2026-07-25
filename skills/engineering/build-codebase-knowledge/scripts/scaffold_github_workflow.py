@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Provision the managed knowledge-refresh GitHub Actions workflow."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,10 +11,11 @@ from typing import Any
 BEGIN = "# BEGIN BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
 END = "# END BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
 
+
 def _block(branch: str, repository: str, revision: str, runtime_dir: str) -> str:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("workflow runtime revision must be a 40-character lowercase commit SHA")
-    return f'''{BEGIN}
+    return f"""{BEGIN}
 name: Refresh Codebase Knowledge
 on:
   push:
@@ -39,9 +41,16 @@ jobs:
           commit_message: "docs(knowledge): auto-refresh codebase knowledge [skip ci]"
           file_pattern: ".agent/knowledge/** AGENTS.md CLAUDE.md"
 {END}
-'''
+"""
 
-def ensure_github_workflow(repo_root: Path | str, branch: str = "main", repository: str = "https://github.com/akshay-diwadkar/skills.git", revision: str = "09a44216123f4621a59ef965ccaa5aa96d3a2e5a", runtime_dir: str = ".codebase-knowledge-runtime") -> dict[str, Any]:
+
+def ensure_github_workflow(
+    repo_root: Path | str,
+    branch: str = "main",
+    repository: str = "https://github.com/akshay-diwadkar/skills.git",
+    revision: str = "09a44216123f4621a59ef965ccaa5aa96d3a2e5a",
+    runtime_dir: str = ".codebase-knowledge-runtime",
+) -> dict[str, Any]:
     root = Path(repo_root).resolve()
     path = root / ".github" / "workflows" / "refresh-codebase-knowledge.yml"
     block = _block(branch, repository, revision, runtime_dir)
@@ -59,17 +68,33 @@ def ensure_github_workflow(repo_root: Path | str, branch: str = "main", reposito
     path.write_text(block, encoding="utf-8")
     return {"status": "created", "path": str(path)}
 
-def scaffold_github_workflow(repo_root: Path | str, branch: str = "main", workflow_file: Path | str | None = None, mode: str = "cli", force: bool = False) -> dict[str, Any]:
+
+def scaffold_github_workflow(
+    repo_root: Path | str,
+    branch: str = "main",
+    workflow_file: Path | str | None = None,
+    mode: str = "cli",
+    force: bool = False,
+) -> dict[str, Any]:
     result = ensure_github_workflow(repo_root, branch)
     if workflow_file and result["status"] != "warning":
         target = Path(workflow_file).resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(_block(branch, "https://github.com/akshay-diwadkar/skills.git", "09a44216123f4621a59ef965ccaa5aa96d3a2e5a", ".codebase-knowledge-runtime"), encoding="utf-8")
+        target.write_text(
+            _block(
+                branch,
+                "https://github.com/akshay-diwadkar/skills.git",
+                "09a44216123f4621a59ef965ccaa5aa96d3a2e5a",
+                ".codebase-knowledge-runtime",
+            ),
+            encoding="utf-8",
+        )
         result["path"] = str(target)
     if result["status"] != "warning":
         result["status"] = "success"
         result["mode"] = mode
     return result
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

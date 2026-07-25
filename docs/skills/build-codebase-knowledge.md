@@ -4,7 +4,7 @@ Generate and maintain a compact, deterministic repository-intelligence layer and
 
 ## Overview
 
-The `build-codebase-knowledge` skill equips AI coding agents with a structured, versioned index of a repository (`context.md`, `architecture.md`, `index.json`, and `manifest.json`) and a deterministic multi-stage task resolver.
+The `build-codebase-knowledge` skill equips AI coding agents with a structured, versioned knowledge layer (`context.md`, `architecture.md`, `repo-map.json`, sharded `symbols`, `relationships.json`, and `manifest.json`) and a deterministic bounded task resolver.
 
 Key capabilities:
 1. **Compact orientation**: `context.md` (60–120 lines) & `architecture.md` (100–220 lines).
@@ -36,5 +36,7 @@ python skills/engineering/build-codebase-knowledge/scripts/cli.py benchmark --ta
 Artifacts default to `.agent/knowledge/`:
 - `context.md`: High-density repository map & commands.
 - `architecture.md`: Boundary matrix, runtime flows, and risk points.
-- `index.json`: Schema-validated machine index of subsystems, files, symbols, entry points, and test mappings.
+- `repo-map.json`: Schema-validated map of subsystems, files, entry points, commands, and configuration.
+- `symbols.json`: Shard catalog; load only the selected `symbols/*.json` payload.
+- `relationships.json`: Imports and direct test/configuration links.
 - `manifest.json`: Freshness metadata, file hashes, and delta tracking.

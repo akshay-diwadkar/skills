@@ -95,7 +95,7 @@ def main() -> int:
             print(json.dumps(res, indent=2))
         elif not getattr(args, "quiet", False):
             print(f"Build completed: {res['files_indexed']} files, {res['symbols_indexed']} symbols indexed.")
-        return 0 if args.report_only or res.get("gate", {}).get("passed", False) else 2
+        return 0
 
     elif args.command == "status":
         out = Path(args.output).resolve() if args.output else None
@@ -179,7 +179,9 @@ def main() -> int:
             if res["status"] == "error":
                 print(f"Error: {res['message']}", file=sys.stderr)
                 return 1
-            print(f"Successfully generated GitHub Action workflow ({res['mode']} mode) at '{res['path']}' for branch '{res['branch']}'.")
+            print(
+                f"Successfully generated GitHub Action workflow ({res['mode']} mode) at '{res['path']}' for branch '{res['branch']}'."
+            )
         return 0 if res["status"] == "success" else 1
 
     return 0

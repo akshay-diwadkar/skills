@@ -1,166 +1,235 @@
 #!/usr/bin/env python3
-"""Deterministic Task Resolver entry point."""
+"""Bounded, evidence-backed task resolver for codebase knowledge v2."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
-# Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
-
 from knowledge.config import load_config
-from resolver.confidence import estimate_confidence
-from resolver.expansion import progressive_expand
-from resolver.intent import classify_intent
-from resolver.read_plan import generate_read_plan
-from resolver.scoring import score_candidates
-from resolver.signals import extract_signals
+from knowledge.schemas import validate_schema_json
+from refresh_knowledge import check_freshness
 
 
-def load_knowledge_index(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
-    """Load index.json and manifest.json from knowledge directory."""
-    root = Path(repo_root).resolve()
-    config = load_config(root)
-    k_dir = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
+def _load(
+    root: Path, output: Path | None
+) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    directory = output or root / load_config(root)["output_dir"]
+    required = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
+    if any(not (directory / name).is_file() for name in required):
+        raise FileNotFoundError("Knowledge v2 artifacts missing; run build first.")
+    manifest, repo, catalog, relationships = [
+        json.loads((directory / name).read_text(encoding="utf-8")) for name in required
+    ]
+    errors = (
+        validate_schema_json(manifest, "manifest.schema.json")
+        + validate_schema_json(repo, "repo-map.schema.json")
+        + validate_schema_json(catalog, "symbols.schema.json")
+        + validate_schema_json(relationships, "relationships.schema.json")
+    )
+    if errors:
+        raise ValueError(f"Invalid knowledge artifacts: {errors}")
+    symbols: list[dict[str, Any]] = []
+    for shard in catalog["shards"]:
+        symbols.extend(json.loads((directory / shard["path"]).read_text(encoding="utf-8"))["symbols"])
+    return directory, manifest, repo, relationships, symbols
 
-    index_file = k_dir / "index.json"
-    manifest_file = k_dir / "manifest.json"
 
-    if not index_file.is_file():
-        raise FileNotFoundError(f"Knowledge index not found at {index_file}. Run build-codebase-knowledge build first.")
-
-    index_data = json.loads(index_file.read_text(encoding="utf-8"))
-    manifest_data = json.loads(manifest_file.read_text(encoding="utf-8")) if manifest_file.is_file() else {}
-    return {"index": index_data, "manifest": manifest_data, "dir": k_dir, "config": config}
+def _terms(task: str) -> list[str]:
+    return sorted({x.lower() for x in re.findall(r"[A-Za-z_][A-Za-z0-9_./-]*", task) if len(x) > 2})
 
 
-class ConfidenceString(str):
-    def __getitem__(self, key: Any) -> Any:
-        if key == "level":
-            return str(self)
-        return super().__getitem__(key)
+def _intent(task: str) -> list[str]:
+    lower = task.lower()
+    pairs = {
+        "bug": ["fix", "bug", "error"],
+        "feature": ["add", "implement", "create"],
+        "test": ["test", "assert"],
+        "configuration": ["config", "toml", "yaml", "setting"],
+        "security": ["security", "auth", "password", "token"],
+        "performance": ["performance", "optimize", "slow"],
+        "refactor": ["refactor", "restructure"],
+    }
+    return [name for name, words in pairs.items() if any(word in lower for word in words)] or ["feature"]
 
 
-def resolve_task(
-    repo_root: Path | str,
-    task: str,
-    knowledge_dir: Path | str | None = None,
+def _target(
+    file: dict[str, Any], symbol: dict[str, Any] | None, score: float, breakdown: dict[str, float], freshness: str
 ) -> dict[str, Any]:
-    """Execute 7-stage deterministic task resolution pipeline."""
-    root = Path(repo_root).resolve()
-    knowledge = load_knowledge_index(root, knowledge_dir)
-    config = knowledge["config"]
-    index_data = knowledge["index"]
-    manifest_data = knowledge["manifest"]
-    freshness_state = manifest_data.get("freshness_state", "fresh")
-
-    # Stage A: Signal Extraction
-    signals = extract_signals(task, index_data)
-
-    # Stage B: Intent Classification
-    intents = classify_intent(task)
-
-    # Stage C & D: Candidate Generation & Weighted Scoring
-    scored_candidates = score_candidates(signals, intents, index_data, config)
-
-    # Stage E: Confidence Estimation
-    confidence_str, confidence_reasons = estimate_confidence(scored_candidates, signals, freshness_state)
-    confidence = ConfidenceString(confidence_str)
-
-    # Stage F: Progressive Expansion
-    expanded_candidates, expansion_stop_reason = progressive_expand(scored_candidates, confidence_str, index_data)
-
-    # Stage G: Read Plan Generation
-    plan = generate_read_plan(expanded_candidates, index_data)
-
+    evidence = [f"{key}={value}" for key, value in sorted(breakdown.items()) if value]
     return {
-        "status": "success",
-        "task": task,
-        "signals": signals,
-        "intents": intents,
-        "confidence": confidence,
-        "confidence_reasons": confidence_reasons,
-        "expansion_stop_reason": expansion_stop_reason,
-        "candidates": plan["read_sequence"],
-        "phases": plan["phases"],
-        "skip_list": plan["skip_list"],
-        "source_verification_required": True,
-        "source_validation_required": True,
+        "path": file["path"],
+        "symbol": symbol["name"] if symbol else None,
+        "start_line": symbol["line_start"] if symbol else 1,
+        "end_line": symbol["line_end"] if symbol else min(max(file["line_count"], 1), 120),
+        "role": file["role"],
+        "score": round(min(score, 1.0), 3),
+        "score_breakdown": breakdown,
+        "evidence": evidence,
+        "reasons": evidence,
+        "question_to_answer": "Verify this source contract before editing.",
+        "read_reason": "Highest task-vocabulary and repository-relationship match.",
+        "freshness": freshness,
     }
 
 
+def resolve_task(repo_root: Path | str, task: str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
+    root = Path(repo_root).resolve()
+    directory, manifest, repo, relationships, symbols = _load(
+        root, Path(knowledge_dir).resolve() if knowledge_dir else None
+    )
+    freshness = check_freshness(root, directory)["status"]
+    terms = _terms(task)
+    intents = _intent(task)
+    files = repo["files"]
+    by_path = {f["path"]: f for f in files}
+    symbols_by_path: dict[str, list[dict[str, Any]]] = {}
+    for symbol in symbols:
+        symbols_by_path.setdefault(symbol["path"], []).append(symbol)
+    ranked: list[tuple[float, dict[str, Any], dict[str, Any] | None, dict[str, float]]] = []
+    for file in files:
+        path_lower = file["path"].lower()
+        breakdown = {
+            "exact_path": 1.0 if any(t in path_lower and "/" in t for t in terms) else 0.0,
+            "filename": min(0.35, 0.12 * sum(t in Path(path_lower).stem for t in terms)),
+            "vocabulary": min(0.25, 0.05 * sum(t in path_lower for t in terms)),
+            "role": 0.1
+            if ("test" in intents and file["role"] == "test")
+            or ("configuration" in intents and file["role"] == "configuration")
+            else 0.0,
+        }
+        matched = next((s for s in symbols_by_path.get(file["path"], []) if s["name"].lower() in terms), None)
+        breakdown["exact_symbol"] = 0.7 if matched else 0.0
+        breakdown["symbol_vocabulary"] = min(
+            0.35,
+            0.12
+            * sum(term in symbol["name"].lower() for symbol in symbols_by_path.get(file["path"], []) for term in terms),
+        )
+        score = sum(breakdown.values())
+        if score:
+            ranked.append((score, file, matched, breakdown))
+    ranked.sort(key=lambda item: (-item[0], item[1]["path"]))
+    primaries = [_target(f, s, score, b, freshness) for score, f, s, b in ranked if f["role"] == "source"][:3]
+    primary_paths = {p["path"] for p in primaries}
+    tests = []
+    for link in relationships["test_links"]:
+        if link["target"] in primary_paths:
+            tests.append(_target(by_path[link["source"]], None, 0.75, {"test_link": 0.75}, freshness))
+    if not tests:
+        tests = [_target(f, s, score, b, freshness) for score, f, s, b in ranked if f["role"] == "test"][:3]
+    configs = [_target(f, s, score, b, freshness) for score, f, s, b in ranked if f["role"] == "configuration"][:2]
+    dependencies = []
+    for edge in relationships["imports"]:
+        if edge["source"] in primary_paths or edge["target"] in primary_paths:
+            other = edge["target"] if edge["source"] in primary_paths else edge["source"]
+            if other not in primary_paths:
+                dependencies.append(_target(by_path[other], None, 0.55, {"first_order_dependency": 0.55}, freshness))
+    dependencies = dependencies[:3]
+    score = ranked[0][0] if ranked else 0.0
+    margin = score - (ranked[1][0] if len(ranked) > 1 else 0.0)
+    level = (
+        "high"
+        if score >= 0.7 and margin >= 0.1 and freshness == "fresh"
+        else "medium"
+        if score >= 0.1 and freshness == "fresh"
+        else "low"
+    )
+    uncertainties = ([] if level == "high" else ["Verify ownership and runtime behavior in source before editing."]) + (
+        [] if freshness == "fresh" else [f"Knowledge is {freshness}; refresh or verify changed paths."]
+    )
+    selected = primaries + tests + configs + dependencies
+    lines = sum(t["end_line"] - t["start_line"] + 1 for t in selected)
+    result = {
+        "task": task,
+        "knowledge_freshness": freshness,
+        "intent": intents,
+        "task_terms": terms,
+        "confidence": {
+            "level": level,
+            "score": round(min(score, 1.0), 3),
+            "reasons": ["Exact repository signals and role links were scored deterministically."],
+            "uncertainties": uncertainties,
+        },
+        "primary_targets": primaries,
+        "related_tests": tests[:3],
+        "related_configuration": configs[:2],
+        "interfaces_and_dependencies": dependencies,
+        "read_phases": [
+            {
+                "phase": 1,
+                "targets": primaries,
+                "why": "Establish implementation ownership.",
+                "question": "Which contract changes?",
+                "stop_when": "A target symbol and direct behavior are verified.",
+                "expand_when": "Ownership or behavior remains ambiguous.",
+            },
+            {
+                "phase": 2,
+                "targets": tests[:3] + configs[:2],
+                "why": "Verify assertions and external constraints.",
+                "question": "What must remain compatible?",
+                "stop_when": "Direct assertions/config are understood.",
+                "expand_when": "Tests conflict or configuration is re-exported.",
+            },
+            {
+                "phase": 3,
+                "targets": dependencies,
+                "why": "Read only essential first-order contracts.",
+                "question": "Which interfaces are affected?",
+                "stop_when": "Interfaces are explicit.",
+                "expand_when": "Cross-subsystem behavior is observed.",
+            },
+        ],
+        "fallback_searches": (
+            [] if level == "high" else [f"rg -n --glob '!{directory.name}/**' '{term}'" for term in terms[:3]]
+        ),
+        "skip_targets": repo.get("generated_paths", [])[:5] + ["vendor/", "node_modules/", "dist/"],
+        "source_validation_required": True,
+        "estimated_exploration_cost": {
+            "files_recommended": len(selected),
+            "unique_files": len({t["path"] for t in selected}),
+            "lines_recommended": lines,
+            "estimated_source_tokens": max(1, lines * 8),
+            "estimated_resolver_tokens": max(1, len(task) // 4),
+            "estimated_searches": 0 if level == "high" else min(3, len(terms)),
+            "estimated_tool_calls": 1 + len(selected),
+            "estimated_coverage_reduction": "estimate only; compare against benchmark baseline",
+        },
+    }
+    errors = validate_schema_json(result, "resolver-result.schema.json")
+    if errors:
+        raise ValueError(f"Invalid resolver result: {errors}")
+    return result
+
+
 def format_human(res: dict[str, Any]) -> str:
-    """Format human-readable task resolution report."""
-    lines = [
-        f"# Task Resolution Plan: `{res['task']}`",
-        "",
-        f"- **Confidence**: `{res['confidence'].upper()}` ({', '.join(res['confidence_reasons'])})",
-        f"- **Intents Classified**: {', '.join(res['intents'])}",
-        f"- **Expansion Status**: {res['expansion_stop_reason']}",
-        f"- **Source Verification Required**: {res['source_verification_required']}",
-        "",
-        "## Recommended Read Sequence",
-        "",
-        "| Order | Score | Role | Subsystem | Path | Evidence Reasons |",
-        "|---|---|---|---|---|---|",
-    ]
-
-    for cand in res["candidates"]:
-        reasons_str = "; ".join(cand.get("reasons", []))
-        lines.append(f"| {cand['read_order']} | {cand['score']} | {cand['role']} | {cand['subsystem']} | `{cand['path']}` | {reasons_str} |")
-
-    lines.extend([
-        "",
-        "## Phased Execution Plan",
-    ])
-    for phase in res["phases"]:
-        files_str = ", ".join(f"`{f}`" for f in phase["files"]) if phase["files"] else "None"
-        lines.append(f"{phase['phase']}. **{phase['title']}**: {files_str}")
-
-    lines.extend([
-        "",
-        "## Explicit Skip List",
-    ])
-    for skip in res["skip_list"]:
-        lines.append(f"- `{skip}`")
-
-    return "\n".join(lines)
+    return "\n".join(
+        [
+            f"# Task Resolution: {res['task']}",
+            f"Confidence: {res['confidence']['level']} ({res['confidence']['score']})",
+            *[f"- `{t['path']}:{t['start_line']}-{t['end_line']}` {t['symbol'] or ''}" for t in res["primary_targets"]],
+        ]
+    )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Resolve natural language task.")
-    parser.add_argument("task", nargs="?", help="Task description string")
-    parser.add_argument("--task-file", help="File containing task description")
-    parser.add_argument("--repo-root", default=".", help="Target repository root")
-    parser.add_argument("--output", help="Knowledge directory")
-    parser.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
-
-    args = parser.parse_args()
-    t_str = args.task
-    if args.task_file:
-        t_str = Path(args.task_file).read_text(encoding="utf-8").strip()
-
-    if not t_str:
-        print("Error: task string or --task-file required", file=sys.stderr)
-        return 1
-
-    repo_root = Path(args.repo_root).resolve()
-    k_dir = Path(args.output).resolve() if args.output else None
-
-    res = resolve_task(repo_root, t_str, k_dir)
-    if args.format == "json":
-        print(json.dumps(res, indent=2))
-    else:
-        print(format_human(res))
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("task")
+    parser.add_argument("--repo-root", default=".")
+    parser.add_argument("--output")
+    parser.add_argument("--format", choices=["json", "human"], default="human")
+    a = parser.parse_args()
+    r = resolve_task(a.repo_root, a.task, a.output)
+    print(json.dumps(r, indent=2) if a.format == "json" else format_human(r))
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

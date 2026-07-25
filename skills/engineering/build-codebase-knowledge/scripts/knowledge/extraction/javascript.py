@@ -15,7 +15,7 @@ def extract_javascript_file(
     subsystem: str,
 ) -> tuple[list[ExtractedSymbol], list[str], str, list[str]]:
     """Extract JS/TS symbols and imports line-by-line.
-    
+
     Returns:
         (symbols, imports, confidence, unknowns)
     """
@@ -29,7 +29,7 @@ def extract_javascript_file(
 
     # Pattern for imports: import ... from 'path' or require('path')
     import_pat = re.compile(r"(?:import\s+.*?from\s+['\"]([^'\"]+)['\"]|require\(['\"]([^'\"]+)['\"]\))")
-    
+
     # Pattern for exported or top-level declarations
     decl_pat = re.compile(
         r"^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var)\s+([a-zA-Z0-9_]+)"

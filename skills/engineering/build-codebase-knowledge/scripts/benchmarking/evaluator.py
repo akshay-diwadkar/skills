@@ -72,16 +72,18 @@ class BenchmarkEvaluator:
 
             token_reduction = round((1.0 - (m5["tokens_est"] / max(m1["tokens_est"], 1))) * 100.0, 2)
 
-            details.append({
-                "task": t_name,
-                "target_files": target_files,
-                "mode_1_baseline_tokens": m1["tokens_est"],
-                "mode_5_progressive_tokens": m5["tokens_est"],
-                "token_savings_percent": token_reduction,
-                "mode_5_mrr": m5["mrr"],
-                "mode_5_recall": m5["recall_at_k"],
-                "mode_5_confidence": m5.get("confidence", "medium"),
-            })
+            details.append(
+                {
+                    "task": t_name,
+                    "target_files": target_files,
+                    "mode_1_baseline_tokens": m1["tokens_est"],
+                    "mode_5_progressive_tokens": m5["tokens_est"],
+                    "token_savings_percent": token_reduction,
+                    "mode_5_mrr": m5["mrr"],
+                    "mode_5_recall": m5["recall_at_k"],
+                    "mode_5_confidence": m5.get("confidence", "medium"),
+                }
+            )
 
         for m in modes:
             count = max(summary[m]["tasks_evaluated"], 1)

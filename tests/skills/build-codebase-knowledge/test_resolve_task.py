@@ -16,9 +16,9 @@ def test_resolve_task_exact_symbol(sample_repo: Path):
     res = resolve_task(sample_repo, "Fix AuthService reset_password method in auth service", out_dir)
 
     assert res["confidence"]["level"] in ["high", "medium"]
-    assert len(res["candidates"]) > 0
+    assert len(res["primary_targets"]) > 0
 
-    top_candidate = res["candidates"][0]
+    top_candidate = res["primary_targets"][0]
     assert "src/auth/service.py" in top_candidate["path"]
     assert top_candidate["score"] > 0.0
     assert any("exact" in r or "symbol" in r or "filename" in r for r in top_candidate["reasons"])
@@ -29,5 +29,5 @@ def test_resolve_task_progressive_expansion(sample_repo: Path):
     build_knowledge(sample_repo, out_dir)
 
     res = resolve_task(sample_repo, "Add rate limiting to password reset", out_dir)
-    paths = [c["path"] for c in res["candidates"]]
+    paths = [c["path"] for c in res["primary_targets"]]
     assert any("service.py" in p for p in paths)

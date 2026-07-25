@@ -14,13 +14,16 @@ def test_build_knowledge_artifacts(sample_repo: Path):
     res = build_knowledge(sample_repo, out_dir)
 
     assert res["status"] == "success"
-    assert (out_dir / "index.json").is_file()
+    assert not (out_dir / "index.json").exists()
+    assert (out_dir / "repo-map.json").is_file()
+    assert (out_dir / "symbols.json").is_file()
+    assert (out_dir / "relationships.json").is_file()
     assert (out_dir / "context.md").is_file()
     assert (out_dir / "architecture.md").is_file()
     assert (out_dir / "manifest.json").is_file()
 
-    index_data = json.loads((out_dir / "index.json").read_text(encoding="utf-8"))
-    assert index_data["schema_version"] == "1.0"
+    index_data = json.loads((out_dir / "repo-map.json").read_text(encoding="utf-8"))
+    assert index_data["schema_version"] == "2.0"
     assert len(index_data["files"]) > 0
 
     # Verify vendor code is excluded
