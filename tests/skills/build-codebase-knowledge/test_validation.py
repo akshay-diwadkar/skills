@@ -8,6 +8,7 @@ if str(SKILL_SCRIPTS) not in sys.path:
 from build_knowledge import build_knowledge
 from validate_knowledge import validate_knowledge
 
+
 def test_validate_knowledge_fresh(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
     build_knowledge(sample_repo, out_dir)

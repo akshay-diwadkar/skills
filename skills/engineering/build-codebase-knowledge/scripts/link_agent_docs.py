@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link generated knowledge docs inside AGENTS.md and CLAUDE.md."""
+"""Link generated knowledge docs inside AGENTS.md and CLAUDE.md using managed HTML comment blocks."""
 
 from __future__ import annotations
 
@@ -8,14 +8,49 @@ import sys
 from pathlib import Path
 from typing import Any
 
+MANAGED_BEGIN = "<!-- BEGIN BUILD-CODEBASE-KNOWLEDGE -->"
+MANAGED_END = "<!-- END BUILD-CODEBASE-KNOWLEDGE -->"
+
+
+def generate_managed_block(rel_k_path: str) -> str:
+    """Generate HTML comment managed block content for agent documentation."""
+    return f"""{MANAGED_BEGIN}
+## Repository Knowledge
+- Codebase orientation & entry points: [{rel_k_path}/context.md]({rel_k_path}/context.md)
+- Architecture & dependencies: [{rel_k_path}/architecture.md]({rel_k_path}/architecture.md)
+- Machine index: [{rel_k_path}/index.json]({rel_k_path}/index.json)
+{MANAGED_END}"""
+
+
+def update_file_with_managed_block(fpath: Path, rel_k_path: str) -> bool:
+    """Update or append managed block in fpath. Returns True if file was modified."""
+    content = fpath.read_text(encoding="utf-8")
+
+    # Check opt-out marker
+    if "<!-- OPT-OUT BUILD-CODEBASE-KNOWLEDGE -->" in content:
+        return False
+
+    new_block = generate_managed_block(rel_k_path)
+
+    if MANAGED_BEGIN in content and MANAGED_END in content:
+        start_idx = content.find(MANAGED_BEGIN)
+        end_idx = content.find(MANAGED_END) + len(MANAGED_END)
+        existing_block = content[start_idx:end_idx]
+
+        if existing_block.strip() == new_block.strip():
+            return False  # Already up to date
+
+        new_content = content[:start_idx] + new_block + content[end_idx:]
+    else:
+        # Append managed block at end of file
+        new_content = content.rstrip() + "\n\n" + new_block + "\n"
+
+    fpath.write_text(new_content, encoding="utf-8")
+    return True
+
 
 def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
-    """Link repository knowledge documentation in AGENTS.md / CLAUDE.md.
-    
-    Rules:
-    1. If AGENTS.md or CLAUDE.md exists, adds a reference line to the knowledge docs folder (if not already present).
-    2. If neither AGENTS.md nor CLAUDE.md exists, creates both with reference to the knowledge docs folder.
-    """
+    """Link repository knowledge documentation in AGENTS.md / CLAUDE.md using managed blocks."""
     root = Path(repo_root).resolve()
     if output_dir:
         k_dir = Path(output_dir).resolve()
@@ -36,26 +71,13 @@ def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None)
     modified: list[str] = []
     created: list[str] = []
 
-    ref_line_section = (
-        f"\n\n## Repository Knowledge\n"
-        f"- See [{rel_k_path}/]({rel_k_path}/) for codebase orientation and architecture overview.\n"
-    )
-
-    starter_template = lambda title: (
-        f"# {title}\n\n"
-        f"## Repository Knowledge\n"
-        f"- Codebase orientation, component matrix, and entry points: [{rel_k_path}/context.md]({rel_k_path}/context.md)\n"
-        f"- Architecture, dependencies, and risk points: [{rel_k_path}/architecture.md]({rel_k_path}/architecture.md)\n"
-    )
+    def starter_template(title: str) -> str:
+        return f"# {title}\n\n{generate_managed_block(rel_k_path)}\n"
 
     if agents_exists or claude_exists:
         for fpath, name in [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]:
             if fpath.is_file():
-                content = fpath.read_text(encoding="utf-8")
-                # Idempotency check: avoid adding duplicate references
-                if rel_k_path not in content and "context.md" not in content and "knowledge" not in content.lower():
-                    new_content = content.rstrip() + ref_line_section
-                    fpath.write_text(new_content, encoding="utf-8")
+                if update_file_with_managed_block(fpath, rel_k_path):
                     modified.append(name)
     else:
         agents_file.write_text(starter_template("AGENTS.md"), encoding="utf-8")
@@ -85,7 +107,7 @@ def main() -> int:
     elif res["modified"]:
         print(f"Updated agent doc files referencing '{res['knowledge_path']}': {', '.join(res['modified'])}")
     else:
-        print(f"Agent doc files already reference '{res['knowledge_path']}'. No changes made.")
+        print("Agent doc files already up to date. No changes made.")
 
     return 0
 

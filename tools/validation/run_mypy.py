@@ -38,7 +38,7 @@ def has_python_files(p: Path) -> bool:
     return False
 
 
-def run_mypy_group(label: str, targets: list[str]) -> bool:
+def run_mypy_group(label: str, targets: list[str], extra_mypy_paths: list[str] | None = None) -> bool:
     valid_targets: list[str] = []
     for t in targets:
         p = ROOT / t
@@ -54,7 +54,15 @@ def run_mypy_group(label: str, targets: list[str]) -> bool:
         return True
 
     cmd = [sys.executable, "-m", "mypy", "--no-incremental"] + valid_targets
-    result = subprocess.run(cmd, cwd=ROOT)
+
+    import os
+    env = dict(os.environ)
+    if extra_mypy_paths:
+        existing_mypy_path = env.get("MYPYPATH", "")
+        paths = extra_mypy_paths + ([existing_mypy_path] if existing_mypy_path else [])
+        env["MYPYPATH"] = os.pathsep.join(paths)
+
+    result = subprocess.run(cmd, cwd=ROOT, env=env)
     if result.returncode != 0:
         print(f"Mypy check failed for group: {label}", file=sys.stderr)
         return False
@@ -101,8 +109,9 @@ def main() -> int:
 
         label = f"skill: {name}"
         targets = [str(skill_path), str(test_path)]
+        extra_paths = [str(ROOT / skill_path / "scripts")] if (ROOT / skill_path / "scripts").is_dir() else None
 
-        if not run_mypy_group(label, targets):
+        if not run_mypy_group(label, targets, extra_paths):
             failed_scopes.append(label)
 
     tooling_targets = [

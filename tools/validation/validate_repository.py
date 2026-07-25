@@ -248,12 +248,15 @@ ALLOWED_SKILL_ROOT_FILES = {"SKILL.md", ".env.example"}
 ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
     "build-codebase-knowledge": {
         "__init__.py",
+        "benchmarking",
         "benchmark_knowledge.py",
         "build_knowledge.py",
         "cli.py",
+        "knowledge",
         "link_agent_docs.py",
         "refresh_knowledge.py",
         "resolve_task.py",
+        "resolver",
         "scaffold_github_workflow.py",
         "validate_knowledge.py",
     },

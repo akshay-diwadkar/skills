@@ -1,9 +1,10 @@
 """Pytest fixtures for build-codebase-knowledge unit tests."""
 
-import pytest
-import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
+
 
 @pytest.fixture
 def sample_repo(tmp_path: Path) -> Path:

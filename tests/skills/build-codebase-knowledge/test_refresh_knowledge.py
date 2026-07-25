@@ -8,6 +8,7 @@ if str(SKILL_SCRIPTS) not in sys.path:
 from build_knowledge import build_knowledge
 from refresh_knowledge import check_freshness, refresh_knowledge
 
+
 def test_refresh_knowledge_incremental(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
     build_knowledge(sample_repo, out_dir)

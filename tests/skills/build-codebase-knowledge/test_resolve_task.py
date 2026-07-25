@@ -8,6 +8,7 @@ if str(SKILL_SCRIPTS) not in sys.path:
 from build_knowledge import build_knowledge
 from resolve_task import resolve_task
 
+
 def test_resolve_task_exact_symbol(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
     build_knowledge(sample_repo, out_dir)

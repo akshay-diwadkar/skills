@@ -8,6 +8,7 @@ if str(SKILL_SCRIPTS) not in sys.path:
 
 from build_knowledge import build_knowledge
 
+
 def test_build_knowledge_artifacts(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
     res = build_knowledge(sample_repo, out_dir)

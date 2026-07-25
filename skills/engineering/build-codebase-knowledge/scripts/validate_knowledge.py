@@ -9,15 +9,24 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from build_knowledge import load_config
-from refresh_knowledge import check_freshness
+# Ensure skill scripts directory is on sys.path
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
-def validate_knowledge(repo_root: Path, knowledge_dir: Path | None = None) -> dict[str, Any]:
-    k_dir = knowledge_dir if knowledge_dir else repo_root / ".agent" / "knowledge"
-    config = load_config(repo_root)
+from knowledge.config import load_config
+from knowledge.freshness import check_freshness
+from knowledge.schemas import validate_schema_json, validate_semantic_graph
 
-    errors = []
-    warnings = []
+
+def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
+    """Validate knowledge artifacts, JSON schemas, semantic graph consistency, and line budgets."""
+    root = Path(repo_root).resolve()
+    config = load_config(root)
+    k_dir = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
+
+    errors: list[str] = []
+    warnings: list[str] = []
 
     index_path = k_dir / "index.json"
     manifest_path = k_dir / "manifest.json"
@@ -39,10 +48,20 @@ def validate_knowledge(repo_root: Path, knowledge_dir: Path | None = None) -> di
     except Exception as e:
         return {"status": "invalid", "errors": [f"JSON syntax error: {e}"], "warnings": warnings}
 
-    # Verify paths exist on disk
+    # Execute JSON Schema validation
+    m_schema_errs = validate_schema_json(manifest_data, "manifest.schema.json")
+    i_schema_errs = validate_schema_json(index_data, "index.schema.json")
+    errors.extend(m_schema_errs)
+    errors.extend(i_schema_errs)
+
+    # Execute Semantic Graph validation
+    sem_errs = validate_semantic_graph(root, index_data, manifest_data)
+    errors.extend(sem_errs)
+
+    # Verify indexed paths exist on disk
     indexed_files = [f["path"] for f in index_data.get("files", [])]
     for rel_str in indexed_files:
-        full_p = repo_root / rel_str
+        full_p = root / rel_str
         if not full_p.is_file():
             errors.append(f"Indexed path does not exist on disk: {rel_str}")
 
@@ -65,7 +84,7 @@ def validate_knowledge(repo_root: Path, knowledge_dir: Path | None = None) -> di
             errors.append(f"Possible secret detected in artifact: {p.name}")
 
     # Check freshness status
-    fresh_res = check_freshness(repo_root, k_dir)
+    fresh_res = check_freshness(root, k_dir)
     fresh_status = fresh_res.get("status", "fresh")
 
     if errors:
@@ -87,6 +106,7 @@ def validate_knowledge(repo_root: Path, knowledge_dir: Path | None = None) -> di
         "architecture_lines": len(arch_lines),
     }
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate codebase knowledge status.")
     parser.add_argument("--repo-root", default=".", help="Target repository root")
@@ -106,6 +126,7 @@ def main() -> int:
             print(f"  Error: {e}")
         return 1
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

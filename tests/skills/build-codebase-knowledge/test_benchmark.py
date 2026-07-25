@@ -8,6 +8,7 @@ if str(SKILL_SCRIPTS) not in sys.path:
 from benchmark_knowledge import BenchmarkRunner
 from build_knowledge import build_knowledge
 
+
 def test_benchmark_runner(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
     build_knowledge(sample_repo, out_dir)
