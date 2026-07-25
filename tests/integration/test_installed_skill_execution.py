@@ -267,6 +267,72 @@ def test_installed_codebase_issue_auditor_execution(installed_skills_env):
     assert_no_skill_mutation(before_snapshot, after_snapshot)
 
 
+def test_installed_map_codebase_lifecycle_execution(installed_skills_env):
+    installed_dir, target_repo = installed_skills_env
+    map_skill = installed_dir / "map-codebase"
+    assert (map_skill / "SKILL.md").is_file()
+
+    before_snapshot = get_skill_snapshot(map_skill)
+
+    (target_repo / "src").mkdir(parents=True)
+    (target_repo / "tests").mkdir(parents=True)
+    (target_repo / "src" / "service.py").write_text(
+        "def retry_request() -> bool:\n    return True\n",
+        encoding="utf-8",
+    )
+    (target_repo / "tests" / "test_service.py").write_text(
+        "from src.service import retry_request\n\n\ndef test_retry_request() -> None:\n    assert retry_request()\n",
+        encoding="utf-8",
+    )
+    (target_repo / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\naddopts = \"-q\"\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "add service"], cwd=target_repo, capture_output=True, check=True)
+
+    def run_cli(*args: str) -> dict:
+        result = subprocess.run(
+            [sys.executable, "scripts/cli.py", *args, "--repo-root", str(target_repo), "--format", "json"],
+            cwd=map_skill,
+            capture_output=True,
+            text=True,
+            env=SUBPROCESS_ENV,
+        )
+        assert result.returncode == 0, result.stderr
+        return json.loads(result.stdout)
+
+    build = run_cli("build")
+    assert build["status"] == "success"
+    knowledge_dir = target_repo / ".agent" / "knowledge"
+    for artifact in ("manifest.json", "repo-map.json", "symbols.json", "relationships.json"):
+        assert (knowledge_dir / artifact).is_file()
+
+    status = run_cli("status")
+    assert status["status"] == "fresh"
+
+    resolved = run_cli("resolve", "Change retry_request behavior", "--phase", "1")
+    assert resolved["targets"]
+    assert any(target["path"] == "src/service.py" and target.get("evidence") for target in resolved["targets"])
+
+    service_file = target_repo / "src" / "service.py"
+    service_file.write_text(
+        "def retry_request() -> bool:\n    return False\n",
+        encoding="utf-8",
+    )
+    refreshed = run_cli("refresh", "--changed-file", str(service_file))
+    assert refreshed["mode"] in {"incremental", "full"}
+    assert refreshed["status"] == "fresh"
+    assert run_cli("status")["status"] == "fresh"
+
+    validated = run_cli("validate")
+    assert validated["status"] == "valid-fresh"
+    assert validated["errors"] == []
+
+    after_snapshot = get_skill_snapshot(map_skill)
+    assert_no_skill_mutation(before_snapshot, after_snapshot)
+
+
 def test_installed_create_diagram_execution(installed_skills_env):
     installed_dir, target_repo = installed_skills_env
     diagram_skill = installed_dir / "diagram-codebase"

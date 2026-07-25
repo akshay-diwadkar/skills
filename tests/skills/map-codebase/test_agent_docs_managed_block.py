@@ -5,7 +5,7 @@ SKILL_SCRIPTS = Path(__file__).resolve().parents[3] / "skills" / "engineering" /
 if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
-from link_agent_docs import MANAGED_BEGIN, MANAGED_END, link_agent_docs
+from link_agent_docs import LEGACY_MANAGED_BEGIN, LEGACY_MANAGED_END, MANAGED_BEGIN, MANAGED_END, link_agent_docs
 
 
 def test_managed_block_creation_and_update(tmp_path: Path):
@@ -28,8 +28,27 @@ def test_managed_block_creation_and_update(tmp_path: Path):
 
 def test_managed_block_opt_out(tmp_path: Path):
     agents_file = tmp_path / "AGENTS.md"
-    agents_file.write_text("<!-- OPT-OUT BUILD-CODEBASE-KNOWLEDGE -->\n# Custom Rules\n", encoding="utf-8")
+    agents_file.write_text("<!-- OPT-OUT MAP-CODEBASE -->\n# Custom Rules\n", encoding="utf-8")
 
     res = link_agent_docs(tmp_path)
     assert len(res["modified"]) == 0
     assert MANAGED_BEGIN not in agents_file.read_text(encoding="utf-8")
+
+
+def test_legacy_managed_block_migrates_in_place(tmp_path: Path):
+    agents_file = tmp_path / "AGENTS.md"
+    agents_file.write_text(
+        f"# Custom Rules\n\n{LEGACY_MANAGED_BEGIN}\nold content\n{LEGACY_MANAGED_END}\n\n# Footer\n",
+        encoding="utf-8",
+    )
+
+    result = link_agent_docs(tmp_path)
+    content = agents_file.read_text(encoding="utf-8")
+    assert result["modified"] == ["AGENTS.md"]
+    assert MANAGED_BEGIN in content
+    assert MANAGED_END in content
+    assert LEGACY_MANAGED_BEGIN not in content
+    assert LEGACY_MANAGED_END not in content
+    assert "old content" not in content
+    assert "# Custom Rules" in content
+    assert "# Footer" in content
