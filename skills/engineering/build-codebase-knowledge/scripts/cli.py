@@ -17,7 +17,12 @@ from build_knowledge import build_knowledge
 from link_agent_docs import link_agent_docs
 from refresh_knowledge import check_freshness, refresh_knowledge
 from resolve_task import format_human, resolve_task
-from scaffold_github_workflow import scaffold_github_workflow
+from scaffold_github_workflow import (
+    DEFAULT_BRANCH,
+    DEFAULT_REPOSITORY,
+    DEFAULT_RUNTIME_DIR,
+    scaffold_github_workflow,
+)
 from validate_knowledge import validate_knowledge
 
 
@@ -48,7 +53,9 @@ def main() -> int:
     p_resolve.add_argument("--repo-root", default=".", help="Target repository root")
     p_resolve.add_argument("--output", "--knowledge-dir", help="Output knowledge directory")
     p_resolve.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
-    p_resolve.add_argument("--phase", choices=["1", "2", "3", "all"], default="1", help="Return only the requested read phase")
+    p_resolve.add_argument(
+        "--phase", choices=["1", "2", "3", "all"], default="1", help="Return only the requested read phase"
+    )
 
     # refresh
     p_refresh = subparsers.add_parser("refresh", help="Refresh knowledge artifacts incrementally.")
@@ -68,16 +75,22 @@ def main() -> int:
     p_link.add_argument("--repo-root", default=".", help="Target repository root")
     p_link.add_argument("--output", "--knowledge-dir", help="Knowledge output directory")
     p_link.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
-    p_link.add_argument("--create-missing", action="store_true", help="Create AGENTS.md only when neither supported instruction file exists")
+    p_link.add_argument(
+        "--create-missing",
+        action="store_true",
+        help="Create AGENTS.md only when neither supported instruction file exists",
+    )
 
-    # generate-workflow
-    p_gen = subparsers.add_parser("generate-workflow", help="Generate GitHub Action workflow file.")
-    p_gen.add_argument("--repo-root", default=".", help="Target repository root")
-    p_gen.add_argument("--branch", default="main", help="Target git branch")
-    p_gen.add_argument("--mode", choices=["cli", "vendored", "plugin"], default="cli", help="Build execution mode")
-    p_gen.add_argument("--output", help="Custom output workflow file path")
-    p_gen.add_argument("--force", action="store_true", help="Overwrite existing workflow file")
-    p_gen.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    # generate-workflow is deliberately opt-in; no default knowledge command writes workflows.
+    p_workflow = subparsers.add_parser("generate-workflow", help="Explicitly create a managed GitHub refresh workflow.")
+    p_workflow.add_argument("--repo-root", default=".", help="Target repository root")
+    p_workflow.add_argument("--revision", required=True, help="Required immutable 40-character runtime commit SHA")
+    p_workflow.add_argument("--repository", default=DEFAULT_REPOSITORY, help="Runtime repository owner/name")
+    p_workflow.add_argument("--runtime-dir", default=DEFAULT_RUNTIME_DIR, help="Relative runtime checkout directory")
+    p_workflow.add_argument("--branch", default=DEFAULT_BRANCH, help="Branch that triggers refreshes")
+    p_workflow.add_argument("--output", help="Repository-relative workflow output path")
+    p_workflow.add_argument("--force", action="store_true", help="Replace a user-owned workflow")
+    p_workflow.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
 
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -157,17 +170,26 @@ def main() -> int:
         return 0
 
     elif args.command == "generate-workflow":
-        res = scaffold_github_workflow(repo_root, args.branch, args.output, args.mode, args.force)
-        if getattr(args, "format", "human") == "json":
-            print(json.dumps(res, indent=2))
-        else:
-            if res["status"] == "error":
-                print(f"Error: {res['message']}", file=sys.stderr)
-                return 1
-            print(
-                f"Successfully generated GitHub Action workflow ({res['mode']} mode) at '{res['path']}' for branch '{res['branch']}'."
+        try:
+            res = scaffold_github_workflow(
+                repo_root,
+                revision=args.revision,
+                branch=args.branch,
+                repository=args.repository,
+                runtime_dir=args.runtime_dir,
+                workflow_file=args.output,
+                force=args.force,
             )
-        return 0 if res["status"] == "success" else 1
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        if args.format == "json":
+            print(json.dumps(res, indent=2))
+        elif res["status"] == "warning":
+            print(f"Warning: {res['message']}")
+        else:
+            print(f"Workflow {res['status']}: {res['path']}")
+        return 0 if res["status"] != "warning" else 1
 
     return 0
 

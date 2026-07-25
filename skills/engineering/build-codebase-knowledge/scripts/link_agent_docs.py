@@ -16,7 +16,7 @@ def generate_managed_block(rel_k_path: str) -> str:
     """Generate HTML comment managed block content for agent documentation."""
     return f"""{MANAGED_BEGIN}
 ## Repository Knowledge
-Repository knowledge is available under `{rel_k_path}/`. Before broad exploration: check freshness, resolve the current task, read phase 1 only, and expand only when its stop condition is unmet. Source remains authoritative; load maps and symbol shards selectively.
+Repository knowledge is available under `{rel_k_path}/`. Before broad exploration: check freshness, resolve the current task, read phase 1 only, and expand only when its stop condition is unmet. Source remains authoritative; load the repository map and only selected symbol shards.
 {MANAGED_END}"""
 
 
