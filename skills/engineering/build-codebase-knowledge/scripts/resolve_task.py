@@ -515,6 +515,16 @@ def resolve_task(
         item for item in ranked
         if item["file"]["path"] in lexical_paths and item["file"]["role"] == intent.primary_role
     ][:3]
+    if not primaries:
+        primaries = [
+            {
+                "file": file,
+                "score": 0.0,
+                "evidence": {"role_fallback": (0.0, "ownership")},
+            }
+            for file in sorted(repo["files"], key=lambda item: item["path"])
+            if file["role"] == intent.primary_role
+        ][:3]
     symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
     primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}
