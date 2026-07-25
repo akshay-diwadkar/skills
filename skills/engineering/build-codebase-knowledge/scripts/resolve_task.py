@@ -220,9 +220,9 @@ def has_positive_evidence(candidate: dict[str, Any]) -> bool:
     return candidate.get("score", 0) > 0 and any(weight > 0 for weight, _ in candidate.get("evidence", {}).values())
 
 
-def _fallback_search(output_prefix: str, term: str) -> str:
-    """Build one shell-safe, whole-token fallback search."""
-    pattern = rf"\b{re.escape(term)}\b"
+def _fallback_search(output_prefix: str, value: str, *, is_regex: bool = False) -> str:
+    """Build one shell-safe fallback search from a literal value or regex pattern."""
+    pattern = value if is_regex else rf"\b{re.escape(value)}\b"
     return f"rg -n --glob {shlex.quote('!' + output_prefix + '/**')} -- {shlex.quote(pattern)}"
 
 
@@ -316,6 +316,30 @@ def _configuration_key_candidates(task: str) -> list[str]:
     phrases = [phrase for phrase in CONFIG_PHRASES if phrase in task.lower().replace("-", " ")]
     strong = sorted(term for term in _split(task) if len(term) > 3 and term not in STOPWORDS)
     return list(dict.fromkeys(quoted + dotted + hyphenated + phrases + strong))
+
+
+def _configuration_fallback_pattern(key: str) -> str:
+    """Return a regex that searches for one configuration assignment key."""
+    return rf"{re.escape(key)}\s*[:=]"
+
+
+def _configuration_fallback_candidates(task: str, signals: dict[str, set[str]]) -> list[str]:
+    """Return ordered, task-derived configuration keys without filename fragments."""
+    configuration_paths = {
+        path for path in signals["paths"]
+        if "/" in path or Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES
+    }
+    path_values = {path.lower() for path in configuration_paths}
+    path_terms = set().union(*(_split(path) for path in configuration_paths)) if configuration_paths else set()
+    ignored = {"config", "configuration", "project"}
+    candidates = []
+    for candidate in _configuration_key_candidates(task):
+        normalized = candidate.lower().replace("\\", "/")
+        candidate_terms = _split(candidate)
+        if normalized in path_values or (candidate_terms and candidate_terms <= path_terms) or normalized in ignored:
+            continue
+        candidates.append(candidate)
+    return list(dict.fromkeys(candidates))
 
 
 def _configuration_match_score(line: str, candidate: str) -> int:
@@ -560,15 +584,21 @@ def resolve_task(
         {value for value in signals["symbols"] | signals["terms"] if value.lower() not in STOPWORDS},
         key=lambda value: (-len(value), value),
     )
-    if primary and primary[0]["role"] == "configuration" and not focused:
-        strongest = [rf"{re.escape(strongest[0])}\s*[:=]"] if strongest else []
+    fallback_values: list[tuple[str, bool]]
+    if intent.primary_role == "configuration" and ((primary and not focused) or not primary):
+        configuration_candidates = _configuration_fallback_candidates(task, signals)
+        fallback_values = [(_configuration_fallback_pattern(configuration_candidates[0]), True)] if configuration_candidates else []
+        if not primary:
+            fallback_values.extend((candidate, False) for candidate in configuration_candidates[1:])
+    else:
+        fallback_values = [(term, False) for term in strongest]
     fallback = []
     if not high:
         limit = 1 if level == "medium" else 3
         fallback = list(
             dict.fromkeys(
-                _fallback_search(output_prefix, term)
-                for term in strongest[:limit]
+                _fallback_search(output_prefix, value, is_regex=is_regex)
+                for value, is_regex in fallback_values[:limit]
             )
         )
     if not primary:
