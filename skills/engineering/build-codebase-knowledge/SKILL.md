@@ -17,7 +17,7 @@ Use compact machine-only repository knowledge to reduce exploration overhead whi
 
 Use `--phase all` only for explicit debugging or human inspection. Do not preload maps or shards. Source remains authoritative.
 
-`include_untracked = false` applies uniformly to build, status, refresh, and explicit `--changed-file` paths. Ambiguous resolver tasks default to source ownership; configuration targets may include deterministic bounded source ranges. Phase-three evidence is directional and one-hop only.
+`include_untracked = false` applies uniformly to build, status, refresh, and explicit `--changed-file` paths. The configured knowledge directory is always excluded from repository metadata, indexing, change detection, and fallback searches, even when it is not ignored. Tasks have one primary owner plus optional secondary constraints: mixed implementation tasks remain source-first, while direct assertion, fixture, rename, and explicit test-file work is test-owned. Configuration targets use ranked active-key ranges. All relationship evidence is directional and one-hop only.
 
 ## Skill Directory Resolution
 

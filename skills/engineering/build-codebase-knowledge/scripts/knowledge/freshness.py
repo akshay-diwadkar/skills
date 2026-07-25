@@ -10,7 +10,14 @@ from typing import Any
 
 from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, _config_hash, _digest, get_git_info
 from knowledge.config import load_config
-from knowledge.discovery import discover_files, git_tracked_paths, git_untracked_paths, is_tracked_path
+from knowledge.discovery import (
+    discover_files,
+    filter_internal_paths,
+    git_tracked_paths,
+    git_untracked_paths,
+    is_knowledge_path,
+    is_tracked_path,
+)
 from knowledge.indexing import classify_and_extract, is_repository_wide_config, project, shard_id
 from knowledge.schemas import validate_schema_json
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
@@ -27,7 +34,12 @@ def _changed(text: str) -> set[str]:
     return {field.replace("\\", "/") for line in text.splitlines() for field in line.split("\t")[1:] if field}
 
 
-def _git_changes(root: Path, revision: str, include_untracked: bool) -> tuple[set[str], str] | None:
+def _git_changes(root: Path, revision: str, include_untracked: bool, output: Path) -> tuple[set[str], str, str] | None:
+    """Return Git changes, current revision, and detection mode.
+
+    ``None`` means Git itself is unavailable.  A failed diff with a usable HEAD
+    is deliberately reported as inventory recovery rather than Git absence.
+    """
     current = _git(root, "rev-parse", "HEAD")
     if current is None:
         return None
@@ -38,18 +50,20 @@ def _git_changes(root: Path, revision: str, include_untracked: bool) -> tuple[se
     ]
     untracked = _git(root, "ls-files", "--others", "--exclude-standard") if include_untracked else ""
     if any(value is None for value in outputs) or untracked is None:
-        return None
+        return set(), current.strip(), "git-inventory-recovery"
     changes = set().union(*(_changed(value or "") for value in outputs))
     changes.update(value.replace("\\", "/") for value in untracked.splitlines() if value)
-    return changes, current.strip()
+    return set(filter_internal_paths(root, output, changes)), current.strip(), "git-diff"
 
 
-def _repository_metadata(root: Path, config: dict[str, Any]) -> dict[str, Any]:
+def _repository_metadata(root: Path, config: dict[str, Any], output: Path) -> dict[str, Any]:
     """Compute metadata with only safely indexable untracked files represented."""
     revision, branch, dirty, _untracked = get_git_info(root, config)
     # Preserve repository-state metadata for all Git-visible untracked paths
     # when opt-in is enabled; this is intentionally separate from eligibility.
-    relevant_untracked = git_untracked_paths(root) if config.get("include_untracked", True) else []
+    relevant_untracked = (
+        filter_internal_paths(root, output, git_untracked_paths(root)) if config.get("include_untracked", True) else []
+    )
     return {
         "root": ".",
         "revision": revision,
@@ -57,6 +71,14 @@ def _repository_metadata(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         "dirty": dirty,
         "untracked_files": sorted(relevant_untracked),
     }
+
+
+def _inventory_changes(root: Path, config: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
+    """Compare eligible content hashes without relying on a diffable revision."""
+    included, _, _ = discover_files(root, config)
+    old = manifest.get("file_hashes", {})
+    current = {path: item.record["hash"] for path in included if (item := classify_and_extract(root, path, config)[0])}
+    return sorted(path for path in set(old) | set(current) if old.get(path) != current.get(path))
 
 
 def _invalid(reason: str) -> dict[str, Any]:
@@ -99,26 +121,36 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     manifest, _repo, _catalog, _relationships = loaded
     if manifest.get("schema_version") != SCHEMA_VERSION or manifest.get("extractor_version") != EXTRACTOR_VERSION or manifest.get("config_hash") != _config_hash(config):
         return {"status": "stale", "reason": "Schema, extractor, or indexing configuration changed.", "changed_files": [], "requires_full_rebuild": True}
-    state = _git_changes(root, manifest["repository"].get("revision", ""), config["include_untracked"])
+    state = _git_changes(root, manifest["repository"].get("revision", ""), config["include_untracked"], out)
     if state is None:
-        included, _, _ = discover_files(root, config)
-        old = manifest.get("file_hashes", {})
-        current = {path: item.record["hash"] for path in included if (item := classify_and_extract(root, path, config)[0])}
-        fallback_changes = sorted(path for path in set(old) | set(current) if old.get(path) != current.get(path))
+        fallback_changes = _inventory_changes(root, config, manifest)
         return {
             "status": "fresh" if not fallback_changes else "partially-stale",
             "reason": "Git unavailable; used inventory fallback.",
             "changed_files": fallback_changes,
             "requires_full_rebuild": False,
             "revision_changed": False,
+            "detection_mode": "filesystem-inventory",
         }
-    candidates, current_revision = state
+    candidates, current_revision, detection_mode = state
+    if detection_mode == "git-inventory-recovery":
+        recovery_changes = _inventory_changes(root, config, manifest)
+        metadata = _repository_metadata(root, config, out)
+        return {
+            "status": "fresh" if not recovery_changes else "partially-stale",
+            "reason": "Recorded revision cannot be diffed; used inventory recovery.",
+            "changed_files": recovery_changes,
+            "requires_full_rebuild": bool(recovery_changes),
+            "revision_changed": current_revision != manifest["repository"].get("revision"),
+            "repository_metadata_changed": metadata != manifest.get("repository", {}),
+            "current_revision": current_revision,
+            "detection_mode": detection_mode,
+        }
     tracked = git_tracked_paths(root)
-    output_rel = out.relative_to(root).as_posix()
     old = manifest.get("file_hashes", {})
     changes: set[str] = set()
     for path in candidates:
-        if path == output_rel or path.startswith(output_rel + "/"):
+        if is_knowledge_path(root, out, path):
             continue
         tracked_path = is_tracked_path(root, path, tracked)
         if not config["include_untracked"] and not tracked_path:
@@ -133,7 +165,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
                 changes.add(normalised)
         elif extracted.record["hash"] != old.get(normalised):
             changes.add(normalised)
-    metadata = _repository_metadata(root, config)
+    metadata = _repository_metadata(root, config, out)
     revision_changed = current_revision != manifest["repository"].get("revision")
     repository_metadata_changed = metadata != manifest.get("repository", {})
     return {
@@ -148,10 +180,11 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
         "revision_changed": revision_changed,
         "repository_metadata_changed": repository_metadata_changed,
         "current_revision": current_revision,
+        "detection_mode": detection_mode,
     }
 
 
-def _normalise(root: Path, paths: list[str]) -> list[str]:
+def _normalise(root: Path, output: Path, paths: list[str]) -> list[str]:
     result = []
     for raw in paths:
         full = Path(raw).resolve() if Path(raw).is_absolute() else (root / raw).resolve()
@@ -159,14 +192,14 @@ def _normalise(root: Path, paths: list[str]) -> list[str]:
             result.append(full.relative_to(root).as_posix())
         except ValueError as exc:
             raise ValueError(f"Changed path is outside repository: {raw}") from exc
-    return sorted(set(result))
+    return filter_internal_paths(root, output, result)
 
 
 def _metadata_only(root: Path, out: Path, manifest: dict[str, Any], config: dict[str, Any]) -> None:
     manifest.update(
         {
             "generation_mode": "metadata-only",
-            "repository": _repository_metadata(root, config),
+            "repository": _repository_metadata(root, config, out),
             "changed_files": [],
             "freshness_state": "fresh",
         }
@@ -181,7 +214,7 @@ def refresh_knowledge(repo_root: Path | str, changed_files: list[str] | None = N
     state = check_freshness(root, out)
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     tracked = git_tracked_paths(root)
-    explicit = _normalise(root, changed_files or [])
+    explicit = _normalise(root, out, changed_files or [])
     explicit = [
         path
         for path in explicit
@@ -240,8 +273,7 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
             commands.extend(extracted.commands)
     repo, relationships = project(list(files.values()), list(configs.values()), commands)
     _included, _generated, current_ignored = discover_files(root, config)
-    output_prefix = out.relative_to(root).as_posix()
-    current_ignored = [path for path in current_ignored if path != output_prefix and not path.startswith(output_prefix + "/")]
+    current_ignored = filter_internal_paths(root, out, current_ignored)
     repo["ignored_paths"] = sorted((set(old_repo.get("ignored_paths", [])) - set(changes)) | set(current_ignored))
     for key in affected:
         entries = sorted(shard_symbols[key], key=lambda item: (item["path"], item["line_start"], item["name"]))
@@ -262,7 +294,7 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     artifacts = {"repo-map.json": repo, "relationships.json": relationships, "symbols.json": catalog}
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))
-    metadata = _repository_metadata(root, config)
+    metadata = _repository_metadata(root, config, out)
     file_hashes = {item["path"]: item["hash"] for item in files.values()}
     hashes = {name: _digest(data) for name, data in artifacts.items()}
     manifest.update({"schema_version": SCHEMA_VERSION, "extractor_version": EXTRACTOR_VERSION, "repository": metadata, "generation_mode": "incremental", "config_hash": _config_hash(config), "index_hash": _digest(hashes), "inventory_hash": _digest(file_hashes), "indexed_paths": sorted(file_hashes), "file_hashes": file_hashes, "artifact_hashes": hashes, "changed_files": changes, "freshness_state": "fresh"})

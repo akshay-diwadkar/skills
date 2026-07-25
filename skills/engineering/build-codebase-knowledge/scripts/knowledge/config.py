@@ -16,8 +16,6 @@ except ImportError:
 DEFAULT_CONFIG: dict[str, Any] = {
     "output_dir": ".agent/knowledge",
     "max_context_lines": 120,
-    "max_architecture_lines": 220,
-    "max_summary_words": 12,
     "max_file_size_bytes": 1048576,  # 1MB
     "full_refresh_change_ratio": 0.20,
     "include_untracked": True,
@@ -49,7 +47,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "filename": 7.0,
         "subsystem": 5.0,
         "entry_point": 5.0,
-        "dependency_neighbor": 3.0,
         "related_test": 4.0,
         "configuration": 4.0,
         "text_match": 2.0,
@@ -81,7 +78,7 @@ def _validate(config: dict[str, Any]) -> None:
     output = config.get("output_dir")
     if not isinstance(output, str) or not output.strip() or Path(output).is_absolute() or ".." in Path(output).parts:
         raise ValueError("output_dir must be a non-empty, repository-relative safe path")
-    for key in ("max_context_lines", "max_architecture_lines", "max_file_size_bytes"):
+    for key in ("max_context_lines", "max_file_size_bytes"):
         if not isinstance(config.get(key), int) or config[key] <= 0:
             raise ValueError(f"{key} must be a positive integer")
     ratio = config.get("full_refresh_change_ratio")
