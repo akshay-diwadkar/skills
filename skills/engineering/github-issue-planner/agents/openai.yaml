@@ -1,4 +1,0 @@
-interface:
-  display_name: "GitHub Issue Planner"
-  short_description: "Issue plans aligned with checkout evidence"
-  default_prompt: "Use $github-issue-planner to reconcile one issue with checkout evidence, close product-intent gaps with recommended options, validate its plan, and keep GitHub read-only unless I explicitly request execution."

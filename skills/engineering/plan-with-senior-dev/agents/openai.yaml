@@ -1,4 +1,0 @@
-interface:
-  display_name: "Plan with Senior Dev"
-  short_description: "Validated implementation blueprints"
-  default_prompt: "Use $plan-with-senior-dev to ground my requested change, resolve material ambiguity, create an intuitive execution blueprint, and return only its validated v3 form."

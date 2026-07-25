@@ -1,139 +1,56 @@
 #!/usr/bin/env python3
-"""Run mypy in isolated skill scopes to avoid standalone-module collisions."""
+"""Run mypy in isolated skill scopes discovered from the filesystem."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
-
-try:
-    import yaml
-except ImportError:
-    print("Error: PyYAML (yaml) is required.", file=sys.stderr)
-    sys.exit(1)
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "catalog" / "skills.yaml"
+SKILLS_ROOT = ROOT / "skills" / "engineering"
 
 
-def load_catalog() -> dict[str, Any]:
-    if not CATALOG_PATH.is_file():
-        raise FileNotFoundError(f"Catalog file not found at {CATALOG_PATH}")
-    with CATALOG_PATH.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    if not isinstance(data, dict):
-        raise ValueError("Catalog file must contain a top-level mapping/dictionary")
-    return data
-
-
-def has_python_files(p: Path) -> bool:
-    if not p.exists():
-        return False
-    if p.is_file():
-        return p.suffix in (".py", ".pyi")
-    if p.is_dir():
-        return any(p.rglob("*.py")) or any(p.rglob("*.pyi"))
-    return False
-
-
-def run_mypy_group(label: str, targets: list[str], extra_mypy_paths: list[str] | None = None) -> bool:
-    valid_targets: list[str] = []
-    for t in targets:
-        p = ROOT / t
-        if not p.exists():
-            print(f"Skipping non-existent target path for {label}: {t}")
-        elif not has_python_files(p):
-            print(f"Skipping target path with no Python files for {label}: {t}")
-        else:
-            valid_targets.append(t)
-
-    if not valid_targets:
-        print(f"No existing target paths with Python files to check for group: {label}")
+def run_mypy_group(label: str, targets: list[Path], extra_paths: list[Path] | None = None) -> bool:
+    existing = [str(path.relative_to(ROOT)) for path in targets if path.exists()]
+    if not existing:
         return True
-
-    cmd = [sys.executable, "-m", "mypy", "--no-incremental"] + valid_targets
-
-    import os
     env = dict(os.environ)
-    if extra_mypy_paths:
-        existing_mypy_path = env.get("MYPYPATH", "")
-        paths = extra_mypy_paths + ([existing_mypy_path] if existing_mypy_path else [])
-        env["MYPYPATH"] = os.pathsep.join(paths)
-
-    result = subprocess.run(cmd, cwd=ROOT, env=env)
-    if result.returncode != 0:
-        print(f"Mypy check failed for group: {label}", file=sys.stderr)
+    if extra_paths:
+        env["MYPYPATH"] = os.pathsep.join(str(path) for path in extra_paths)
+    result = subprocess.run([sys.executable, "-m", "mypy", "--no-incremental", *existing], cwd=ROOT, env=env)
+    if result.returncode:
+        print(f"Mypy check failed for {label}", file=sys.stderr)
         return False
     return True
 
 
-def main() -> int:
-    try:
-        catalog = load_catalog()
-    except Exception as exc:
-        print(f"Failed to load catalog: {exc}", file=sys.stderr)
-        return 1
-
-    if not isinstance(catalog, dict):
-        print("Error: Catalog file must contain a top-level mapping/dictionary.", file=sys.stderr)
-        return 1
-
-    skills = catalog.get("skills")
-    if skills is None or not isinstance(skills, list):
-        print("Error: Catalog does not contain a valid 'skills' list.", file=sys.stderr)
-        return 1
-
-    failed_scopes: list[str] = []
-
-    for skill in skills:
-        if not isinstance(skill, dict):
-            print("Error: Malformed catalog skill entry (not a dictionary).", file=sys.stderr)
-            failed_scopes.append("malformed-catalog-entry")
-            continue
-
-        name = skill.get("name")
-        skill_path = skill.get("path")
-        test_path = skill.get("tests")
-
-        if not name or not isinstance(name, str):
-            print("Error: Catalog skill entry missing or invalid 'name'.", file=sys.stderr)
-            failed_scopes.append("malformed-skill-name")
-            continue
-
-        if not skill_path or not test_path:
-            print(f"Error: Skill '{name}' missing 'path' or 'tests'.", file=sys.stderr)
-            failed_scopes.append(f"skill: {name}")
-            continue
-
-        label = f"skill: {name}"
-        targets = [str(skill_path), str(test_path)]
-        extra_paths = [str(ROOT / skill_path / "scripts")] if (ROOT / skill_path / "scripts").is_dir() else None
-
-        if not run_mypy_group(label, targets, extra_mypy_paths=extra_paths):
-            failed_scopes.append(label)
-
-    tooling_targets = [
-        "tools",
-        "tests/repository",
-        "tests/integration",
-        ".github/scripts",
+def discover_skill_scopes() -> list[tuple[str, list[Path], list[Path]]]:
+    return [
+        (
+            skill_dir.name,
+            [skill_dir, ROOT / "tests" / "skills" / skill_dir.name],
+            [skill_dir / "scripts"],
+        )
+        for skill_dir in sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
     ]
 
-    tooling_label = "repository tooling"
-    if not run_mypy_group(tooling_label, tooling_targets):
-        failed_scopes.append(tooling_label)
 
-    if failed_scopes:
-        print("\nMypy check summary: Failed scopes:", file=sys.stderr)
-        for scope in failed_scopes:
-            print(f"  - {scope}", file=sys.stderr)
+def main() -> int:
+    failures: list[str] = []
+    for name, targets, extra_paths in discover_skill_scopes():
+        if not run_mypy_group(f"skill: {name}", targets, extra_paths):
+            failures.append(name)
+    tooling = [ROOT / "tools" / "validation", ROOT / "tests" / "repository", ROOT / "tests" / "integration"]
+    if not run_mypy_group("repository tooling", tooling):
+        failures.append("repository tooling")
+    if failures:
+        print("Mypy failures: " + ", ".join(failures), file=sys.stderr)
         return 1
-
-    print("All mypy checks passed cleanly across isolated skill and tooling scopes.")
+    print("All mypy checks passed.")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
