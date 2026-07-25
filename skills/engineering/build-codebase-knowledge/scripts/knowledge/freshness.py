@@ -17,6 +17,7 @@ from knowledge.discovery import (
     git_untracked_paths,
     is_knowledge_path,
     is_tracked_path,
+    run_git,
 )
 from knowledge.indexing import classify_and_extract, is_repository_wide_config, project, shard_id
 from knowledge.schemas import validate_schema_json
@@ -26,8 +27,8 @@ REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.jso
 
 
 def _git(root: Path, *args: str) -> str | None:
-    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
-    return result.stdout if result.returncode == 0 else None
+    result = run_git(root, *args, text=True)
+    return result.stdout if result is not None else None
 
 
 def _changed(text: str) -> set[str]:

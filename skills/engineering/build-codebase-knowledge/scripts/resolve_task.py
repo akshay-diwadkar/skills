@@ -50,14 +50,16 @@ CONFIG_PHRASES = {
 STRONG_CONFIG_TOKENS = {"ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow"}
 TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test", "assertion", "fixture", "rename test", "expected output"}
 IMPLEMENTATION_WORDS = {"implement", "add", "fix", "support", "prevent", "handle", "refactor", "caller", "behavior"}
+SecondaryRole = Literal["test", "configuration"]
+PrimaryRole = Literal["source", "test", "configuration"]
 
 
 @dataclass(frozen=True)
 class TaskIntent:
     """Deterministic primary ownership and explicitly requested constraints."""
 
-    primary_role: Literal["source", "test", "configuration"]
-    secondary_roles: tuple[Literal["test", "configuration"], ...]
+    primary_role: PrimaryRole
+    secondary_roles: tuple[SecondaryRole, ...]
     reasons: tuple[str, ...]
 
 
@@ -82,13 +84,16 @@ def _signals(task: str) -> dict[str, set[str]]:
     }
 
 
-def _role_order(roles: list[str]) -> list[Literal["source", "test", "configuration"]]:
+def _role_order(roles: list[str]) -> list[PrimaryRole]:
     """Return deterministic roles with source owning mixed explicit work."""
-    ordered = [role for role in ("source", "test", "configuration") if role in roles]
-    return ordered  # type: ignore[return-value]
+    ordered: list[PrimaryRole] = []
+    for role in ("source", "test", "configuration"):
+        if role in roles:
+            ordered.append(role)
+    return ordered
 
 
-def _explicit_path_roles(signals: dict[str, set[str]], files: list[dict[str, Any]], exact: bool) -> list[Literal["source", "test", "configuration"]]:
+def _explicit_path_roles(signals: dict[str, set[str]], files: list[dict[str, Any]], exact: bool) -> list[PrimaryRole]:
     matches: list[str] = []
     for path in signals["paths"]:
         for file in files:
@@ -98,7 +103,7 @@ def _explicit_path_roles(signals: dict[str, set[str]], files: list[dict[str, Any
     return _role_order(matches)
 
 
-def _explicit_symbol_roles(signals: dict[str, set[str]], files: list[dict[str, Any]]) -> list[Literal["source", "test", "configuration"]]:
+def _explicit_symbol_roles(signals: dict[str, set[str]], files: list[dict[str, Any]]) -> list[PrimaryRole]:
     return _role_order([file["role"] for file in files if set(file.get("symbols", [])) & signals["symbols"]])
 
 
@@ -125,7 +130,7 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
     ):
         if roles:
             primary = roles[0]
-            secondary = tuple(role for role in roles[1:] if role != "source")
+            explicit_secondary = tuple(role for role in roles[1:] if role != "source")
             matched = next(
                 (
                     file["path"]
@@ -135,7 +140,7 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
                 ),
                 primary,
             )
-            return TaskIntent(primary, secondary, (f"{reason} {matched}",))
+            return TaskIntent(primary, explicit_secondary, (f"{reason} {matched}",))
     config_path = any(Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES for path in explicit)
     test_path = any("/test" in f"/{path.lower()}" or Path(path).name.lower().startswith("test_") for path in explicit)
     config_semantic = any(phrase in lowered for phrase in CONFIG_PHRASES)
@@ -155,13 +160,13 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
         return TaskIntent("test", (), ("explicit test filename or test path",))
     if _is_mixed_implementation_task(lowered, implementation, test_evidence, config_evidence):
         reasons.append("strong implementation wording")
-        secondary: list[Literal["test", "configuration"]] = []
+        mixed_secondary: list[SecondaryRole] = []
         if config_evidence:
-            secondary.append("configuration")
+            mixed_secondary.append("configuration")
         if test_evidence:
-            secondary.append("test")
-        reasons.extend(f"{role} work is a secondary constraint" for role in secondary)
-        return TaskIntent("source", tuple(secondary), tuple(reasons))
+            mixed_secondary.append("test")
+        reasons.extend(f"{role} work is a secondary constraint" for role in mixed_secondary)
+        return TaskIntent("source", tuple(mixed_secondary), tuple(reasons))
     if _is_test_creation_task(lowered):
         return TaskIntent("test", (), ("task explicitly requests creation of a regression test",))
     if test_evidence and maintenance:
@@ -173,19 +178,19 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
     if test_evidence:
         reasons.append("strong test-maintenance evidence")
     if implementation:
-        secondary: list[Literal["test", "configuration"]] = []
+        implementation_secondary: list[SecondaryRole] = []
         # Configuration precedes tests so mixed constraints have stable output.
         if config_evidence or "configuration" in lowered:
-            secondary.append("configuration")
+            implementation_secondary.append("configuration")
         if test_evidence:
-            secondary.append("test")
-        return TaskIntent("source", tuple(secondary), tuple(reasons))
+            implementation_secondary.append("test")
+        return TaskIntent("source", tuple(implementation_secondary), tuple(reasons))
     if config_evidence:
         return TaskIntent("configuration", (), tuple(reasons))
     return TaskIntent("source", (), ("ambiguous ownership defaults to source",))
 
 
-def _load(root: Path, out: Path | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+def _load(root: Path, out: Path | str | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
     directory = resolve_knowledge_directory(root, out, load_config(root))
     names = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
     if any(not (directory / x).is_file() for x in names):
@@ -347,29 +352,29 @@ def _structured_configuration_keys(path: str, lines: list[str]) -> dict[int, str
                 result[index] = ".".join(part for part in (section, match.group(1)) if part)
         return result
     if suffix in {".yaml", ".yml"}:
-        ancestors: list[tuple[int, str]] = []
+        yaml_ancestors: list[tuple[int, str]] = []
         for index, line in enumerate(lines):
             match = re.match(r"^(\s*)([A-Za-z0-9_.-]+):", line)
             if not match or line.lstrip().startswith("#"):
                 continue
             indent, key = len(match.group(1).expandtabs(2)), match.group(2)
-            while ancestors and ancestors[-1][0] >= indent:
-                ancestors.pop()
-            result[index] = ".".join([name for _, name in ancestors] + [key])
-            ancestors.append((indent, key))
+            while yaml_ancestors and yaml_ancestors[-1][0] >= indent:
+                yaml_ancestors.pop()
+            result[index] = ".".join([name for _, name in yaml_ancestors] + [key])
+            yaml_ancestors.append((indent, key))
         return result
     if suffix == ".json":
-        ancestors: list[str] = []
+        json_ancestors: list[str] = []
         for index, line in enumerate(lines):
             match = re.match(r'\s*"([^"\\]+)"\s*:', line)
             if match:
                 key = match.group(1)
-                result[index] = ".".join(ancestors + [key])
+                result[index] = ".".join(json_ancestors + [key])
                 if "{" in line[line.find(":") + 1:]:
-                    ancestors.append(key)
+                    json_ancestors.append(key)
             closes = line.count("}")
-            for _ in range(min(closes, len(ancestors))):
-                ancestors.pop()
+            for _ in range(min(closes, len(json_ancestors))):
+                json_ancestors.pop()
         return result
     return result
 

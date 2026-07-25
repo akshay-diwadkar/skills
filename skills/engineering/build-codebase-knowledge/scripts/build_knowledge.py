@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
-from knowledge.discovery import discover_files, filter_internal_paths, git_untracked_paths, is_knowledge_path
+from knowledge.discovery import discover_files, filter_internal_paths, git_untracked_paths, is_knowledge_path, run_git
 from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
@@ -32,8 +31,8 @@ def get_git_info(root: Path, config: dict[str, Any] | None, output_dir: Path) ->
     output = output_dir.resolve()
 
     def git(*args: str) -> str:
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
-        return result.stdout.strip() if result.returncode == 0 else ""
+        result = run_git(root, *args, text=True)
+        return result.stdout.strip() if result is not None else ""
 
     include_untracked = config is None or config.get("include_untracked", True)
     untracked = (

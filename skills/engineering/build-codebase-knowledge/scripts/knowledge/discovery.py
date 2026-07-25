@@ -13,6 +13,26 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY)-----"),
     re.compile(r"AKIA[0-9A-Z]{16}"),  # AWS Access Key
 ]
+GIT_TIMEOUT_SECONDS = 5
+UNAVAILABLE_GIT_ROOTS: set[Path] = set()
+
+
+def run_git(root: Path, *args: str, text: bool = False) -> Any | None:
+    """Run a bounded Git command, returning ``None`` when Git is unavailable."""
+    resolved_root = root.resolve()
+    if resolved_root in UNAVAILABLE_GIT_ROOTS:
+        return None
+    if not (resolved_root / ".git").exists():
+        UNAVAILABLE_GIT_ROOTS.add(resolved_root)
+        return None
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=resolved_root, capture_output=True, text=text, check=False, timeout=GIT_TIMEOUT_SECONDS
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        UNAVAILABLE_GIT_ROOTS.add(resolved_root)
+        return None
+    return result if result.returncode == 0 else None
 
 
 def knowledge_output_prefix(repo_root: Path, output_dir: Path | str) -> str:
@@ -148,8 +168,8 @@ def _safe_path(root: Path, path: Path) -> bool:
 
 def git_tracked_paths(root: Path) -> set[str] | None:
     """Return one deterministic tracked-path inventory, or ``None`` outside Git."""
-    result = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False)
-    if result.returncode:
+    result = run_git(root, "ls-files", "-z")
+    if result is None:
         return None
     return {
         item.decode("utf-8", errors="surrogateescape").replace("\\", "/")
@@ -159,10 +179,8 @@ def git_tracked_paths(root: Path) -> set[str] | None:
 
 
 def git_untracked_paths(root: Path) -> list[str]:
-    result = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=root, capture_output=True, check=False
-    )
-    if result.returncode:
+    result = run_git(root, "ls-files", "--others", "--exclude-standard", "-z")
+    if result is None:
         return []
     return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
 
