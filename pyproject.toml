@@ -13,7 +13,7 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.11"
 explicit_package_bases = true
-mypy_path = ["tools/validation", "tools/packaging", "tools/catalog", "tools/release"]
+mypy_path = ["tools/validation"]
 warn_unused_ignores = true
 strict_optional = true
 no_implicit_optional = true

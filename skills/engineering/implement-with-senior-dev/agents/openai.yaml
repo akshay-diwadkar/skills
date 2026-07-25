@@ -1,4 +1,0 @@
-interface:
-  display_name: "Implement with Senior Dev"
-  short_description: "Approved-plan execution with safe recovery"
-  default_prompt: "Use $implement-with-senior-dev to execute an approved plan without inventing scope, preserve user work, fail closed on semantic gaps, verify the patch, and report exact results."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codebase Issue Auditor"
-  short_description: "Audits with evidence-aligned scope and issues"
-  default_prompt: "Use $codebase-issue-auditor to reconcile my audit request with repository evidence, close material scope gaps with recommended options, and draft validated issues for approval."
