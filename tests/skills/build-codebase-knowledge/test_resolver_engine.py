@@ -18,11 +18,10 @@ def test_resolver_exact_symbol_match(tmp_path: Path):
     build_knowledge(tmp_path, out_dir)
 
     res = resolve_task(tmp_path, "Fix bug in PasswordResetHandler", out_dir)
-    assert res["status"] == "success"
-    assert res["confidence"] == "high"
-    assert len(res["candidates"]) > 0
-    assert res["candidates"][0]["path"] == "src/auth.py"
-    assert "PasswordResetHandler" in res["candidates"][0]["symbols"]
+    assert res["confidence"]["level"] == "high"
+    assert len(res["primary_targets"]) > 0
+    assert res["primary_targets"][0]["path"] == "src/auth.py"
+    assert res["primary_targets"][0]["symbol"] == "PasswordResetHandler"
 
 
 def test_resolver_progressive_expansion_medium_confidence(tmp_path: Path):
@@ -34,7 +33,6 @@ def test_resolver_progressive_expansion_medium_confidence(tmp_path: Path):
     build_knowledge(tmp_path, out_dir)
 
     res = resolve_task(tmp_path, "Refactor order module", out_dir)
-    assert res["status"] == "success"
-    assert res["confidence"] in ["medium", "high"]
-    assert len(res["phases"]) >= 3
-    assert len(res["skip_list"]) > 0
+    assert res["confidence"]["level"] in ["medium", "high"]
+    assert len(res["read_phases"]) >= 3
+    assert len(res["skip_targets"]) > 0

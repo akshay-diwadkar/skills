@@ -30,4 +30,5 @@ ${IGNORE_FIRST}
 
 ## More Detail
 - Architecture: `architecture.md`
-- Machine index: `index.json`
+- Repository map: `repo-map.json`
+- Symbol shard catalog: `symbols.json`

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Build codebase knowledge artifacts: context.md, architecture.md, index.json, manifest.json."""
-
+"""Build deterministic, sharded repository knowledge artifacts (v2)."""
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-# Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -21,311 +20,118 @@ from knowledge.extraction.configuration import extract_config_and_commands
 from knowledge.extraction.javascript import extract_javascript_file
 from knowledge.extraction.lexical import extract_lexical_file
 from knowledge.extraction.python import extract_python_file
-from knowledge.fingerprint import compute_file_hash, compute_source_fingerprint
-from knowledge.relationships import build_relationship_graph
+from knowledge.fingerprint import compute_file_hash
+from knowledge.relationships import resolve_import_to_path
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 from knowledge.summaries import format_architecture_md, format_context_md
 from link_agent_docs import link_agent_docs
 from scaffold_github_workflow import ensure_github_workflow
 
+SCHEMA_VERSION = "2.0"
+EXTRACTOR_VERSION = "3.0.0"
+CONFIG_NAMES = {"pyproject.toml", "package.json", "makefile", "gnumakefile"}
+LANGUAGES = {".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript", ".go": "Go", ".rs": "Rust", ".java": "Java", ".c": "C", ".cpp": "C++"}
 
-def get_git_info(repo_root: Path) -> tuple[str, str, bool]:
-    """Extract git commit revision, branch, and dirty status safely."""
-    import subprocess
-    revision = "unknown"
-    branch = "unknown"
-    dirty = False
 
-    git_dir = repo_root / ".git"
-    if not git_dir.exists():
-        return revision, branch, dirty
+def _digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-    try:
-        rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=False)
-        if rev.returncode == 0:
-            revision = rev.stdout.strip()
 
-        br = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, capture_output=True, text=True, check=False)
-        if br.returncode == 0:
-            branch = br.stdout.strip()
+def get_git_info(root: Path) -> tuple[str, str, bool, list[str]]:
+    """Return the source snapshot that the knowledge artifacts describe."""
+    def git(*args: str) -> str:
+        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
+        return result.stdout.strip() if result.returncode == 0 else ""
+    return (git("rev-parse", "--short", "HEAD") or "unknown", git("rev-parse", "--abbrev-ref", "HEAD") or "unknown", bool(git("status", "--porcelain")), sorted(line[3:] for line in git("ls-files", "--others", "--exclude-standard").splitlines() if line))
 
-        st = subprocess.run(["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True, check=False)
-        if st.returncode == 0 and st.stdout.strip():
-            dirty = True
-    except Exception:
-        pass
-    return revision, branch, dirty
+
+def _role(path: str) -> str:
+    name = Path(path).name.lower()
+    if name in CONFIG_NAMES or Path(path).suffix.lower() in {".toml", ".yaml", ".yml", ".ini"} or path.endswith(".env.example"):
+        return "configuration"
+    if "test" in path.lower() or name.startswith("test_") or name.endswith("_test.py"):
+        return "test"
+    return "source"
+
+
+def _shard_id(path: str) -> str:
+    return (path.split("/", 1)[0] if "/" in path else "root").replace(".", "_")
 
 
 def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
-    """Build complete codebase knowledge artifacts for target repository."""
-    root = Path(repo_root).resolve()
-    config = load_config(root)
-    out_dir = Path(output_dir).resolve() if output_dir else root / config["output_dir"]
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    included_files, generated_files, ignored_files = discover_files(root, config)
-
-    files_list: list[dict[str, Any]] = []
-    symbols_list: list[dict[str, Any]] = []
-    entry_points: list[dict[str, Any]] = []
-    configurations: list[dict[str, Any]] = []
-    detected_commands: list[dict[str, str]] = []
-    tests_list: list[dict[str, Any]] = []
-    subsystems_map: dict[str, list[str]] = {}
-    languages_set: set[str] = set()
-    file_hashes: dict[str, str] = {}
-    unknowns_list: list[str] = []
-
-    for rel_str in included_files:
-        full_path = root / rel_str
-        file_hash = compute_file_hash(full_path)
-        file_hashes[rel_str] = file_hash
-
-        suffix = full_path.suffix.lower()
-        content = ""
-        try:
-            content = full_path.read_text(encoding="utf-8", errors="ignore")
-        except Exception as exc:
-            unknowns_list.append(f"Could not read content of {rel_str}: {exc}")
-            continue
-
-        if is_secret_file_or_content(full_path, content):
-            ignored_files.append(rel_str)
-            file_hashes.pop(rel_str, None)
-            continue
-
-        # Language detection
-        lang_map = {
-            ".py": "Python",
-            ".js": "JavaScript",
-            ".ts": "TypeScript",
-            ".tsx": "TypeScript",
-            ".jsx": "JavaScript",
-            ".go": "Go",
-            ".rs": "Rust",
-            ".java": "Java",
-            ".c": "C",
-            ".cpp": "C++",
-        }
-        lang = lang_map.get(suffix, "")
-        if lang:
-            languages_set.add(lang)
-
-        # Subsystem assignment
-        subsystem = rel_str.split("/")[0] if "/" in rel_str else "root"
-        if subsystem not in subsystems_map:
-            subsystems_map[subsystem] = []
-        subsystems_map[subsystem].append(rel_str)
-
-        # Config & command extraction
-        if suffix in [".toml", ".yaml", ".yml", ".json", ".ini"] or rel_str.endswith(".env.example"):
-            cfg_entry, cmds = extract_config_and_commands(root, rel_str, content)
-            configurations.append(cfg_entry)
-            detected_commands.extend(cmds)
-
-        # Role & symbol extraction
-        role = "source"
-        if "test" in rel_str.lower() or (suffix == ".py" and full_path.name.startswith("test_")):
-            role = "test"
-            target_stem = rel_str.replace("tests/", "src/").replace("test_", "").replace("_test", "")
-            tests_list.append({"path": rel_str, "targets": [target_stem]})
-
-        file_symbols: list[str] = []
-        file_imports: list[str] = []
-
-        if suffix == ".py":
-            ext_syms, raw_imports, _, unks = extract_python_file(full_path, rel_str, content, subsystem)
-            unknowns_list.extend(unks)
-            for s in ext_syms:
-                symbols_list.append({
-                    "name": s.name,
-                    "qualified_name": s.qualified_name,
-                    "kind": s.kind,
-                    "path": s.path,
-                    "line_start": s.line_start,
-                    "line_end": s.line_end,
-                    "subsystem": s.subsystem,
-                    "docstring": s.docstring,
-                })
-                file_symbols.append(s.name)
-            file_imports = raw_imports
-
-        elif suffix in [".js", ".ts", ".jsx", ".tsx"]:
-            ext_syms, raw_imports, _, unks = extract_javascript_file(full_path, rel_str, content, subsystem)
-            unknowns_list.extend(unks)
-            for s in ext_syms:
-                symbols_list.append({
-                    "name": s.name,
-                    "qualified_name": s.qualified_name,
-                    "kind": s.kind,
-                    "path": s.path,
-                    "line_start": s.line_start,
-                    "line_end": s.line_end,
-                    "subsystem": s.subsystem,
-                })
-                file_symbols.append(s.name)
-            file_imports = raw_imports
-
-        elif suffix in [".go", ".rs", ".java", ".c", ".cpp"]:
-            ext_syms, raw_imports, _, unks = extract_lexical_file(full_path, rel_str, content, subsystem)
-            unknowns_list.extend(unks)
-            for s in ext_syms:
-                symbols_list.append({
-                    "name": s.name,
-                    "qualified_name": s.qualified_name,
-                    "kind": s.kind,
-                    "path": s.path,
-                    "line_start": s.line_start,
-                    "line_end": s.line_end,
-                    "subsystem": s.subsystem,
-                })
-                file_symbols.append(s.name)
-            file_imports = raw_imports
-
-        # Entry point detection
-        lower_path = rel_str.lower()
-        if any(ep in lower_path for ep in ["main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py", "main.go", "main.rs"]) or "if __name__ == '__main__':" in content or "def main(" in content:
-            entry_points.append({
-                "name": rel_str,
-                "path": rel_str,
-                "symbol": file_symbols[0] if file_symbols else "main",
-                "kind": "entry-point",
-            })
-
-        keywords = sorted(list(set([subsystem, role, Path(rel_str).stem] + file_symbols[:5])))
-
-        files_list.append({
-            "path": rel_str,
-            "subsystem": subsystem,
-            "role": role,
-            "symbols": file_symbols,
-            "imports": file_imports,
-            "imported_by": [],
-            "tests": [],
-            "keywords": keywords,
-            "hash": file_hash,
-            "role_summary": f"{role.capitalize()} module in {subsystem} subsystem.",
-        })
-
-    # Sort inputs deterministically
-    files_list = sorted(files_list, key=lambda f: f["path"])
-    symbols_list = sorted(symbols_list, key=lambda s: (s["path"], s["line_start"], s["name"]))
-    entry_points = sorted(entry_points, key=lambda ep: ep["path"])
-    configurations = sorted(configurations, key=lambda c: c["path"])
-
-    # Build bidirectional graph
-    files_list, dependencies_list, tests_list = build_relationship_graph(files_list, tests_list)
-
-    revision, branch, dirty = get_git_info(root)
-    source_fp = compute_source_fingerprint(root, [f["path"] for f in files_list], config)
-
-    index_data = {
-        "schema_version": "1.0",
-        "repository": {
-            "root": ".",
-            "revision": revision,
-            "languages": sorted(list(languages_set)),
-            "frameworks": [],
-        },
-        "subsystems": [
-            {"name": k, "paths": sorted(v), "description": f"{k.capitalize()} subsystem."}
-            for k, v in sorted(subsystems_map.items())
-        ],
-        "files": files_list,
-        "symbols": symbols_list,
-        "entry_points": entry_points,
-        "flows": [
-            {"name": "Main Execution Flow", "kind": "entry", "steps": [ep["path"] for ep in entry_points]}
-        ],
-        "dependencies": dependencies_list,
-        "tests": tests_list,
-        "configurations": configurations,
-        "generated_paths": sorted(generated_files),
-        "ignored_paths": sorted(ignored_files),
-    }
-
-    manifest_data = {
-        "schema_version": "1.0",
-        "generator_version": "2.0.0",
-        "repository": {
-            "root": ".",
-            "revision": revision,
-            "branch": branch,
-            "dirty": dirty,
-        },
-        "generation_mode": "full",
-        "config_hash": hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:16],
-        "source_fingerprint": source_fp,
-        "indexed_paths": [f["path"] for f in files_list],
-        "ignored_paths": sorted(ignored_files),
-        "changed_files": [],
-        "file_hashes": file_hashes,
-        "freshness_state": "fresh",
-    }
-
-    # Validate JSON schemas and graph consistency
-    m_errors = validate_schema_json(manifest_data, "manifest.schema.json")
-    i_errors = validate_schema_json(index_data, "index.schema.json")
-    sem_errors = validate_semantic_graph(root, index_data, manifest_data)
-
-    all_errors = m_errors + i_errors + sem_errors
-    if all_errors:
-        raise ValueError(f"Knowledge build validation failed: {all_errors}")
-
-    # Write files deterministically
-    write_file_deterministic(out_dir / "index.json", serialize_json_deterministic(index_data))
-    write_file_deterministic(out_dir / "manifest.json", serialize_json_deterministic(manifest_data))
-
-    context_md = format_context_md(
-        revision=revision,
-        subsystems=subsystems_map,
-        languages=sorted(list(languages_set)),
-        entry_points=entry_points,
-        commands=detected_commands,
-        unknowns=unknowns_list,
-    )
-    arch_md = format_architecture_md(
-        revision=revision,
-        subsystems=subsystems_map,
-        dependencies=dependencies_list,
-        tests=tests_list,
-        configurations=configurations,
-    )
-
-    write_file_deterministic(out_dir / "context.md", context_md)
-    write_file_deterministic(out_dir / "architecture.md", arch_md)
-
-    # Link AGENTS.md / CLAUDE.md managed blocks
-    link_agent_docs(root, out_dir)
+    root = Path(repo_root).resolve(); config = load_config(root)
+    out = Path(output_dir).resolve() if output_dir else root / config["output_dir"]
+    out.mkdir(parents=True, exist_ok=True); (out / "symbols").mkdir(exist_ok=True)
+    # Agent-doc integration is intentionally part of a build; create it before
+    # discovery so the snapshot cannot immediately mark itself stale.
+    link_agent_docs(root, out)
+    included, generated, ignored = discover_files(root, config)
+    files: list[dict[str, Any]] = []; symbols: list[dict[str, Any]] = []; commands: list[dict[str, str]] = []; configs: list[dict[str, Any]] = []; unknowns: list[str] = []
+    languages: set[str] = set(); file_hashes: dict[str, str] = {}; subsystems: dict[str, list[str]] = {}
+    for path in included:
+        full = root / path
+        try: content = full.read_text(encoding="utf-8", errors="ignore")
+        except OSError as exc: unknowns.append(f"Unreadable {path}: {exc}"); continue
+        if is_secret_file_or_content(full, content): ignored.append(path); continue
+        role = _role(path); subsystem = path.split("/", 1)[0] if "/" in path else "root"; suffix = full.suffix.lower()
+        languages.add(LANGUAGES[suffix]) if suffix in LANGUAGES else None; subsystems.setdefault(subsystem, []).append(path)
+        raw_imports: list[str] = []; extracted: list[Any] = []
+        if suffix == ".py": extracted, raw_imports, _, unks = extract_python_file(full, path, content, subsystem); unknowns.extend(unks)
+        elif suffix in {".js", ".jsx", ".ts", ".tsx"}: extracted, raw_imports, _, unks = extract_javascript_file(full, path, content, subsystem); unknowns.extend(unks)
+        elif suffix in {".go", ".rs", ".java", ".c", ".cpp"}: extracted, raw_imports, _, unks = extract_lexical_file(full, path, content, subsystem); unknowns.extend(unks)
+        if role == "configuration":
+            entry, found = extract_config_and_commands(root, path, content); configs.append(entry); commands.extend(found)
+        file_hashes[path] = compute_file_hash(full)
+        names: list[str] = []
+        for item in extracted:
+            names.append(item.name); symbols.append({"name": item.name, "qualified_name": item.qualified_name, "kind": item.kind, "path": path, "line_start": item.line_start, "line_end": item.line_end, "owner": subsystem, "exported": not item.name.startswith("_"), "docstring": item.docstring})
+        files.append({"path": path, "role": role, "subsystem": subsystem, "language": LANGUAGES.get(suffix, ""), "hash": file_hashes[path], "line_count": len(content.splitlines()), "symbols": sorted(names), "raw_imports": sorted(set(raw_imports)), "generated": path in generated})
+    files.sort(key=lambda x: x["path"]); symbols.sort(key=lambda x: (x["path"], x["line_start"], x["name"]))
+    paths = {f["path"] for f in files}; file_by_path = {f["path"]: f for f in files}
+    imports: list[dict[str, Any]] = []; unresolved: list[dict[str, str]] = []; reverse: dict[str, list[str]] = {p: [] for p in paths}
+    for f in files:
+        for raw in f["raw_imports"]:
+            target = resolve_import_to_path(raw, paths, f["path"])
+            if target: imports.append({"source": f["path"], "target": target, "kind": "import", "confidence": "high", "evidence": [raw]}); reverse[target].append(f["path"])
+            else: unresolved.append({"source": f["path"], "import": raw, "reason": "external-or-unresolved"})
+    test_links: list[dict[str, str]] = []
+    for f in files:
+        if f["role"] == "test":
+            candidates = [e["target"] for e in imports if e["source"] == f["path"] and file_by_path[e["target"]]["role"] == "source"]
+            stem = Path(f["path"]).stem.replace("test_", "").replace("_test", "")
+            candidates += [p for p, x in file_by_path.items() if x["role"] == "source" and Path(p).stem == stem]
+            for target in sorted(set(candidates)): test_links.append({"source": f["path"], "target": target, "kind": "test"})
+    config_links = [{"source": cfg["path"], "target": p, "kind": "configuration", "confidence": "low"} for cfg in configs for p in []]
+    entry_points = [{"path": f["path"], "symbol": (f["symbols"][0] if f["symbols"] else "main"), "kind": "entry-point"} for f in files if Path(f["path"]).name.lower() in {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}]
+    repo_map = {"schema_version": SCHEMA_VERSION, "repository": {"root": ".", "languages": sorted(languages)}, "subsystems": [{"name": name, "paths": sorted(value)} for name, value in sorted(subsystems.items())], "directories": [{"path": name, "file_count": len(value)} for name, value in sorted(subsystems.items())], "files": files, "entry_points": sorted(entry_points, key=lambda x: x["path"]), "commands": sorted(commands, key=lambda x: (x["kind"], x["cmd"])), "configurations": sorted(configs, key=lambda x: x["path"]), "generated_paths": sorted(generated), "ignored_paths": sorted(set(ignored)), "unknowns": sorted(unknowns)[:20]}
+    relationships = {"schema_version": SCHEMA_VERSION, "imports": sorted(imports, key=lambda x: (x["source"], x["target"])), "calls": [], "test_links": test_links, "configuration_links": config_links, "unresolved_imports": sorted(unresolved, key=lambda x: (x["source"], x["import"])), "reverse_imports": {p: sorted(v) for p, v in sorted(reverse.items()) if v}}
+    shards: dict[str, list[dict[str, Any]]] = {}
+    for symbol in symbols: shards.setdefault(_shard_id(symbol["path"]), []).append(symbol)
+    catalog = {"schema_version": SCHEMA_VERSION, "symbol_count": len(symbols), "shards": []}
+    for shard, entries in sorted(shards.items()):
+        relative = f"symbols/{shard}.json"; payload = {"schema_version": SCHEMA_VERSION, "shard": shard, "symbols": entries}; encoded = serialize_json_deterministic(payload)
+        write_file_deterministic(out / relative, encoded); catalog["shards"].append({"id": shard, "path": relative, "count": len(entries), "hash": hashlib.sha256(encoded.encode()).hexdigest()})
+    revision, branch, dirty, untracked = get_git_info(root)
+    artifact_payloads = {"repo-map.json": repo_map, "relationships.json": relationships, "symbols.json": catalog}
+    artifact_hashes = {name: _digest(data) for name, data in artifact_payloads.items()}
+    manifest = {"schema_version": SCHEMA_VERSION, "extractor_version": EXTRACTOR_VERSION, "repository": {"root": ".", "revision": revision, "branch": branch, "dirty": dirty, "untracked_files": untracked}, "generation_mode": "full", "ignore_hash": _digest({k: config.get(k) for k in ("include", "exclude", "generated")}), "index_hash": _digest(artifact_hashes), "inventory_hash": _digest(file_hashes), "indexed_paths": sorted(paths), "file_hashes": file_hashes, "artifact_hashes": artifact_hashes, "changed_files": [], "freshness_state": "fresh"}
+    errors = sum((validate_schema_json(manifest, "manifest.schema.json"), validate_schema_json(repo_map, "repo-map.schema.json"), validate_schema_json(catalog, "symbols.schema.json"), validate_schema_json(relationships, "relationships.schema.json"), validate_semantic_graph(root, repo_map, relationships, symbols, manifest)), [])
+    if errors: raise ValueError(f"Knowledge build validation failed: {errors}")
+    for name, data in artifact_payloads.items(): write_file_deterministic(out / name, serialize_json_deterministic(data))
+    write_file_deterministic(out / "manifest.json", serialize_json_deterministic(manifest))
+    write_file_deterministic(out / "context.md", format_context_md(revision, subsystems, sorted(languages), entry_points, commands, unknowns=unknowns))
+    write_file_deterministic(out / "architecture.md", format_architecture_md(revision, subsystems, imports, [{"path": l["source"], "targets": [l["target"]]} for l in test_links], configs))
+    legacy = out / "index.json"
+    if legacy.exists(): legacy.unlink()
     workflow = ensure_github_workflow(root, config["workflow_branch"], config["workflow_runtime_repository"], config["workflow_runtime_revision"], config["workflow_runtime_directory"])
-
-    return {
-        "status": "success",
-        "output_dir": str(out_dir),
-        "files_indexed": len(files_list),
-        "symbols_indexed": len(symbols_list),
-        "source_fingerprint": source_fp,
-        "workflow": workflow,
-    }
+    return {"status": "success", "output_dir": str(out), "files_indexed": len(files), "symbols_indexed": len(symbols), "index_hash": manifest["index_hash"], "workflow": workflow}
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build codebase knowledge artifacts.")
-    parser.add_argument("--repo-root", default=".", help="Target repository root")
-    parser.add_argument("--output", help="Output directory for knowledge artifacts")
-    parser.add_argument("--quiet", action="store_true", help="Suppress detailed output")
-    args = parser.parse_args()
-
-    repo_root = Path(args.repo_root).resolve()
-    out_dir = Path(args.output).resolve() if args.output else None
-
-    res = build_knowledge(repo_root, out_dir)
-    if not args.quiet:
-        print(f"Build completed: {res['files_indexed']} files, {res['symbols_indexed']} symbols indexed -> {res['output_dir']}")
+    parser = argparse.ArgumentParser(); parser.add_argument("--repo-root", default="."); parser.add_argument("--output"); parser.add_argument("--quiet", action="store_true"); args = parser.parse_args()
+    result = build_knowledge(Path(args.repo_root), Path(args.output) if args.output else None)
+    if not args.quiet: print(f"Build completed: {result['files_indexed']} files, {result['symbols_indexed']} symbols indexed -> {result['output_dir']}")
     return 0
 
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == "__main__": raise SystemExit(main())

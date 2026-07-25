@@ -18,7 +18,8 @@ def generate_managed_block(rel_k_path: str) -> str:
 ## Repository Knowledge
 - Codebase orientation & entry points: [{rel_k_path}/context.md]({rel_k_path}/context.md)
 - Architecture & dependencies: [{rel_k_path}/architecture.md]({rel_k_path}/architecture.md)
-- Machine index: [{rel_k_path}/index.json]({rel_k_path}/index.json)
+- Machine map: [{rel_k_path}/repo-map.json]({rel_k_path}/repo-map.json)
+- Symbol shard catalog: [{rel_k_path}/symbols.json]({rel_k_path}/symbols.json)
 {MANAGED_END}"""
 
 

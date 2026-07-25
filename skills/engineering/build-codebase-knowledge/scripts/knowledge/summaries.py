@@ -73,9 +73,11 @@ def format_context_md(
 
     lines.extend([
         "",
-        "## Knowledge Index Detail",
+        "## Knowledge Artifact Detail",
         "- Architecture: `architecture.md`",
-        "- Machine Index: `index.json`",
+        "- Repository map: `repo-map.json`",
+        "- Symbols: `symbols.json` (load only the selected shard)",
+        "- Relationships: `relationships.json`",
     ])
 
     return "\n".join(lines) + "\n"
