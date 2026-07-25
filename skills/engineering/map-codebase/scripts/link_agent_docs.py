@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-MANAGED_BEGIN = "<!-- BEGIN BUILD-CODEBASE-KNOWLEDGE -->"
-MANAGED_END = "<!-- END BUILD-CODEBASE-KNOWLEDGE -->"
+MANAGED_BEGIN = "<!-- BEGIN MAP-CODEBASE -->"
+MANAGED_END = "<!-- END MAP-CODEBASE -->"
+LEGACY_MANAGED_BEGIN = "<!-- BEGIN BUILD-CODEBASE-KNOWLEDGE -->"
+LEGACY_MANAGED_END = "<!-- END BUILD-CODEBASE-KNOWLEDGE -->"
 
 
 def generate_managed_block(rel_k_path: str) -> str:
@@ -20,19 +22,29 @@ Repository knowledge is available under `{rel_k_path}/`. Before broad exploratio
 {MANAGED_END}"""
 
 
+def _find_managed_block(content: str) -> tuple[int, int] | None:
+    """Return one complete canonical or legacy managed documentation block."""
+    for begin, end in ((MANAGED_BEGIN, MANAGED_END), (LEGACY_MANAGED_BEGIN, LEGACY_MANAGED_END)):
+        if begin in content and end in content:
+            start = content.find(begin)
+            end_index = content.find(end, start) + len(end)
+            return start, end_index
+    return None
+
+
 def update_file_with_managed_block(fpath: Path, rel_k_path: str) -> bool:
     """Update or append managed block in fpath. Returns True if file was modified."""
     content = fpath.read_text(encoding="utf-8")
 
     # Check opt-out marker
-    if "<!-- OPT-OUT BUILD-CODEBASE-KNOWLEDGE -->" in content:
+    if "<!-- OPT-OUT MAP-CODEBASE -->" in content:
         return False
 
     new_block = generate_managed_block(rel_k_path)
 
-    if MANAGED_BEGIN in content and MANAGED_END in content:
-        start_idx = content.find(MANAGED_BEGIN)
-        end_idx = content.find(MANAGED_END) + len(MANAGED_END)
+    managed_block = _find_managed_block(content)
+    if managed_block is not None:
+        start_idx, end_idx = managed_block
         existing_block = content[start_idx:end_idx]
 
         if existing_block.strip() == new_block.strip():

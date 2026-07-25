@@ -8,11 +8,38 @@ import re
 from pathlib import Path
 from typing import Any
 
-BEGIN = "# BEGIN BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
-END = "# END BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
+BEGIN = "# BEGIN MAP-CODEBASE WORKFLOW"
+END = "# END MAP-CODEBASE WORKFLOW"
+LEGACY_BEGIN = "# BEGIN BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
+LEGACY_END = "# END BUILD-CODEBASE-KNOWLEDGE WORKFLOW"
+MANAGED_SENTINELS = ((BEGIN, END), (LEGACY_BEGIN, LEGACY_END))
 DEFAULT_REPOSITORY = "akshay-diwadkar/skills"
 DEFAULT_RUNTIME_DIR = ".codebase-knowledge-runtime"
 DEFAULT_BRANCH = "main"
+
+
+def _find_managed_block(content: str) -> tuple[int, int] | None:
+    """Return the bounds of one supported managed block, rejecting ambiguity."""
+    sentinel_counts = {sentinel: content.count(sentinel) for pair in MANAGED_SENTINELS for sentinel in pair}
+    if not any(sentinel_counts.values()):
+        return None
+    if any(count != 1 for count in sentinel_counts.values() if count):
+        raise ValueError("Malformed managed workflow: sentinel appears more than once")
+
+    matching_pairs = [
+        (begin, end)
+        for begin, end in MANAGED_SENTINELS
+        if sentinel_counts[begin] == 1 and sentinel_counts[end] == 1
+    ]
+    if len(matching_pairs) != 1 or sum(sentinel_counts.values()) != 2:
+        raise ValueError("Malformed managed workflow: expected one matching begin/end sentinel pair")
+
+    begin, end = matching_pairs[0]
+    start = content.index(begin)
+    end_start = content.index(end)
+    if end_start < start:
+        raise ValueError("Malformed managed workflow: end sentinel precedes begin sentinel")
+    return start, end_start + len(end)
 
 
 def _safe_relative_path(value: str, field: str) -> str:
@@ -92,12 +119,11 @@ def scaffold_github_workflow(
     block = _workflow_block(branch, repository, revision, runtime_dir)
     if target.exists():
         existing = target.read_text(encoding="utf-8")
-        managed = BEGIN in existing and END in existing
-        if not managed and not force:
+        managed_block = _find_managed_block(existing)
+        if managed_block is None and not force:
             return {"status": "warning", "path": str(target), "message": "User-owned workflow was not overwritten."}
-        if managed and not force:
-            start = existing.index(BEGIN)
-            end = existing.index(END) + len(END)
+        if managed_block is not None:
+            start, end = managed_block
             updated = existing[:start] + block.rstrip() + existing[end:]
         else:
             updated = block
