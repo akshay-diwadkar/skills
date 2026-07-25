@@ -152,7 +152,7 @@ def _main() -> int:
                     print(f"  Warning: {w}")
             if res.get("errors"):
                 for e in res["errors"]:
-                    print(f"  Error: {e}")
+                    print(f"  Error: {e}", file=sys.stderr)
         return 1 if res.get("errors") else 0
 
     elif args.command == "link-docs":

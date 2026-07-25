@@ -215,6 +215,17 @@ def _add(evidence: dict[str, tuple[float, str]], key: str, weight: float, family
         evidence[key] = (weight, family)
 
 
+def has_positive_evidence(candidate: dict[str, Any]) -> bool:
+    """Whether a candidate has a positive score backed by positive evidence."""
+    return candidate.get("score", 0) > 0 and any(weight > 0 for weight, _ in candidate.get("evidence", {}).values())
+
+
+def _fallback_search(output_prefix: str, term: str) -> str:
+    """Build one shell-safe, whole-token fallback search."""
+    pattern = rf"\b{re.escape(term)}\b"
+    return f"rg -n --glob {shlex.quote('!' + output_prefix + '/**')} -- {shlex.quote(pattern)}"
+
+
 def _lexical(
     files: list[dict[str, Any]], signals: dict[str, set[str]], weights: dict[str, float], freshness: str
 ) -> list[dict[str, Any]]:
@@ -513,18 +524,10 @@ def resolve_task(
     intent = classify_task_intent(task, signals, repo["files"])
     primaries = [
         item for item in ranked
-        if item["file"]["path"] in lexical_paths and item["file"]["role"] == intent.primary_role
+        if item["file"]["path"] in lexical_paths
+        and item["file"]["role"] == intent.primary_role
+        and has_positive_evidence(item)
     ][:3]
-    if not primaries:
-        primaries = [
-            {
-                "file": file,
-                "score": 0.0,
-                "evidence": {"role_fallback": (0.0, "ownership")},
-            }
-            for file in sorted(repo["files"], key=lambda item: item["path"])
-            if file["role"] == intent.primary_role
-        ][:3]
     symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
     primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}
@@ -553,13 +556,21 @@ def resolve_task(
     level = "high" if high else "medium" if primary else "low"
     terms = sorted(signals["terms"])
     output_prefix = knowledge_output_prefix(root, directory)
-    strongest = sorted(signals["symbols"] or signals["terms"], key=lambda value: (-len(value), value))
+    strongest = sorted(
+        {value for value in signals["symbols"] | signals["terms"] if value.lower() not in STOPWORDS},
+        key=lambda value: (-len(value), value),
+    )
     if primary and primary[0]["role"] == "configuration" and not focused:
         strongest = [rf"{re.escape(strongest[0])}\s*[:=]"] if strongest else []
-    fallback = [] if high else [
-        f"rg -n --glob {shlex.quote('!' + output_prefix + '/**')} -- {shlex.quote(term)}"
-        for term in strongest[: (1 if level == "medium" else 3)]
-    ]
+    fallback = []
+    if not high:
+        limit = 1 if level == "medium" else 3
+        fallback = list(
+            dict.fromkeys(
+                _fallback_search(output_prefix, term)
+                for term in strongest[:limit]
+            )
+        )
     if not primary:
         reasons = ["no indexed owner matched the task terms"]
         uncertainties = ["run the targeted fallback search against authoritative source"]
@@ -592,6 +603,7 @@ def resolve_task(
                     for item in ranked
                     if item["file"]["role"] in set(intent.secondary_roles)
                     and item["file"]["path"] not in primary_paths
+                    and has_positive_evidence(item)
                 ]
             )[:3],
             "question": "Which direct tests, configuration, or represented constraints constrain the change?",

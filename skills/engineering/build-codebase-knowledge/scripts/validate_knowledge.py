@@ -20,9 +20,10 @@ from refresh_knowledge import check_freshness
 def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict:
     root = Path(repo_root).resolve()
     try:
-        out = resolve_knowledge_directory(root, knowledge_dir, load_config(root))
-    except ValueError:
-        return {"status": "invalid", "errors": ["knowledge output must be inside repository"], "warnings": []}
+        config = load_config(root)
+        out = resolve_knowledge_directory(root, knowledge_dir, config)
+    except ValueError as exc:
+        return {"status": "invalid", "errors": [str(exc)], "warnings": []}
     try:
         manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
         repo = json.loads((out / "repo-map.json").read_text(encoding="utf-8"))
@@ -86,6 +87,8 @@ def main() -> int:
     args = parser.parse_args()
     result = validate_knowledge(args.repo_root, args.output)
     print(f"Validation status: {result['status']}")
+    for error in result["errors"]:
+        print(f"Error: {error}", file=sys.stderr)
     return 1 if result["errors"] else 0
 
 
