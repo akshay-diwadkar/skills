@@ -13,6 +13,7 @@ from build_knowledge import build_knowledge
 from link_agent_docs import link_agent_docs
 from refresh_knowledge import check_freshness, refresh_knowledge
 from resolve_task import format_human, resolve_task
+from scaffold_github_workflow import scaffold_github_workflow
 from validate_knowledge import validate_knowledge
 
 def main() -> int:
@@ -60,6 +61,13 @@ def main() -> int:
     p_link = subparsers.add_parser("link-docs", help="Link knowledge docs in AGENTS.md / CLAUDE.md.")
     p_link.add_argument("--repo-root", default=".", help="Target repository root")
     p_link.add_argument("--output", help="Knowledge output directory")
+
+    # generate-workflow
+    p_gen = subparsers.add_parser("generate-workflow", help="Generate GitHub Action workflow to auto-refresh codebase knowledge.")
+    p_gen.add_argument("--repo-root", default=".", help="Target repository root")
+    p_gen.add_argument("--branch", default="main", help="Target git branch (default: main)")
+    p_gen.add_argument("--output", help="Custom output workflow file path")
+    p_gen.add_argument("--force", action="store_true", help="Overwrite existing workflow file")
 
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
@@ -130,6 +138,14 @@ def main() -> int:
             print(f"Updated agent doc files referencing '{res['knowledge_path']}': {', '.join(res['modified'])}")
         else:
             print(f"Agent doc files already reference '{res['knowledge_path']}'. No changes made.")
+        return 0
+
+    elif args.command == "generate-workflow":
+        res = scaffold_github_workflow(repo_root, args.branch, args.output, args.force)
+        if res["status"] == "error":
+            print(f"Error: {res['message']}", file=sys.stderr)
+            return 1
+        print(f"Successfully generated GitHub Action workflow at '{res['path']}' for branch '{res['branch']}'.")
         return 0
 
     return 0

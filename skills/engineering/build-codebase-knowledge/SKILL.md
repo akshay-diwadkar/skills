@@ -44,6 +44,13 @@ python scripts/link_agent_docs.py --repo-root /absolute/path/to/repo
 python scripts/cli.py link-docs --repo-root /absolute/path/to/repo
 ```
 
+To scaffold a GitHub Action workflow that automatically refreshes knowledge docs on push to main:
+```bash
+python scripts/scaffold_github_workflow.py --repo-root /absolute/path/to/repo --branch main
+# or via CLI:
+python scripts/cli.py generate-workflow --repo-root /absolute/path/to/repo --branch main
+```
+
 ### 2. Task Resolution Pipeline
 When assigned an engineering task, query the resolver:
 ```bash

@@ -254,6 +254,7 @@ ALLOWED_SKILL_SCRIPTS: dict[str, set[str]] = {
         "link_agent_docs.py",
         "refresh_knowledge.py",
         "resolve_task.py",
+        "scaffold_github_workflow.py",
         "validate_knowledge.py",
     },
     "codebase-issue-auditor": {
