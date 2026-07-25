@@ -7,16 +7,15 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 # Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from build_knowledge import build_knowledge
+from finalize_knowledge import KnowledgeFinalizationError, build_and_finalize, refresh_and_finalize
 from link_agent_docs import ensure_agent_docs
-from refresh_knowledge import check_freshness, refresh_knowledge
+from refresh_knowledge import check_freshness
 from resolve_task import format_human, resolve_task
 from scaffold_github_workflow import (
     DEFAULT_BRANCH,
@@ -96,19 +95,9 @@ def _main() -> int:
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
 
-    def finalize_agent_docs(result: dict[str, Any]) -> bool:
-        try:
-            result["agent_docs"] = ensure_agent_docs(repo_root, Path(args.output) if args.output else None)
-        except (ValueError, OSError, UnicodeDecodeError) as exc:
-            print(f"Knowledge artifacts were created, but agent-document finalization failed: {exc}", file=sys.stderr)
-            return False
-        return True
-
     if args.command == "build":
         out = Path(args.output) if args.output else None
-        res = build_knowledge(repo_root, out)
-        if not finalize_agent_docs(res):
-            return 1
+        res = build_and_finalize(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         elif not getattr(args, "quiet", False):
@@ -144,9 +133,7 @@ def _main() -> int:
 
     elif args.command == "refresh":
         out = Path(args.output) if args.output else None
-        res = refresh_knowledge(repo_root, args.changed_file, out)
-        if not finalize_agent_docs(res):
-            return 1
+        res = refresh_and_finalize(repo_root, args.changed_file, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:
@@ -213,6 +200,9 @@ def main() -> int:
     """Convert expected operational failures into concise CLI diagnostics."""
     try:
         return _main()
+    except KnowledgeFinalizationError as exc:
+        print(exc, file=sys.stderr)
+        return 1
     except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

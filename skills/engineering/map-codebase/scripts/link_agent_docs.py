@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import os
+import stat
 import sys
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from knowledge.config import load_config, resolve_knowledge_directory
 
@@ -19,6 +23,17 @@ OPT_OUT = "<!-- OPT-OUT MAP-CODEBASE -->"
 
 class AgentDocumentError(ValueError):
     """A supported instruction file has an unsafe managed-block state."""
+
+
+@dataclass(frozen=True)
+class PlannedAgentDoc:
+    path: Path
+    name: str
+    action: Literal["created", "modified", "unchanged", "skipped"]
+    original_exists: bool
+    original_bytes: bytes | None
+    final_bytes: bytes
+    mode: int | None
 
 
 def generate_managed_block(rel_k_path: str) -> str:
@@ -68,14 +83,19 @@ def _append_block(content: str, block: str, newline: str) -> str:
     return f"{content}{separator}{block}{newline}"
 
 
-def _planned_content(path: Path, title: str, managed_block: str) -> tuple[str, str]:
+def _planned_content(
+    path: Path,
+    title: str,
+    managed_block: str,
+    original_exists: bool,
+    original_bytes: bytes | None,
+) -> tuple[str, str]:
     """Return the action and complete replacement text without writing the file."""
-    if not path.exists():
+    if not original_exists:
         return "created", f"# {title}\n\n{managed_block}\n"
-    if not path.is_file():
-        raise AgentDocumentError(f"instruction path is not a file: {path.name}")
 
-    content = path.read_bytes().decode("utf-8")
+    assert original_bytes is not None
+    content = original_bytes.decode("utf-8")
     if OPT_OUT in content:
         return "skipped", content
 
@@ -90,8 +110,53 @@ def _planned_content(path: Path, title: str, managed_block: str) -> tuple[str, s
     return ("unchanged" if final == content else "modified"), final
 
 
-def _write_if_changed(path: Path, content: str) -> None:
-    path.write_bytes(content.encode("utf-8"))
+def _plan_agent_doc(path: Path, title: str, managed_block: str) -> PlannedAgentDoc:
+    original_exists = path.exists()
+    if original_exists and not path.is_file():
+        raise AgentDocumentError(f"instruction path is not a file: {path.name}")
+    original_bytes = path.read_bytes() if original_exists else None
+    mode = stat.S_IMODE(path.stat().st_mode) if original_exists else None
+    action, content = _planned_content(path, title, managed_block, original_exists, original_bytes)
+    return PlannedAgentDoc(
+        path=path,
+        name=title,
+        action=cast(Literal["created", "modified", "unchanged", "skipped"], action),
+        original_exists=original_exists,
+        original_bytes=original_bytes,
+        final_bytes=content.encode("utf-8"),
+        mode=mode,
+    )
+
+
+def _atomic_replace(path: Path, content: bytes, mode: int | None = None) -> None:
+    """Replace one target from a same-directory temporary file."""
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.map-codebase-", suffix=".tmp", dir=path.parent)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if mode is not None:
+            os.chmod(temp_path, mode)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def _rollback(planned: list[PlannedAgentDoc]) -> list[str]:
+    failures: list[str] = []
+    for item in reversed(planned):
+        try:
+            if item.original_exists:
+                assert item.original_bytes is not None
+                _atomic_replace(item.path, item.original_bytes, item.mode)
+            elif item.path.exists():
+                item.path.unlink()
+        except Exception as exc:  # rollback must report every restoration failure
+            failures.append(f"{item.name}: {exc}")
+    return failures
 
 
 def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
@@ -104,7 +169,7 @@ def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = Non
     targets = ((root / "AGENTS.md", "AGENTS.md"), (root / "CLAUDE.md", "CLAUDE.md"))
 
     # Plan and validate both targets before changing either one.
-    planned = [(path, name, *_planned_content(path, name, block)) for path, name in targets]
+    planned = [_plan_agent_doc(path, name, block) for path, name in targets]
     result: dict[str, Any] = {
         "status": "success",
         "created": [],
@@ -113,10 +178,22 @@ def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = Non
         "skipped": [],
         "knowledge_path": rel_k_path,
     }
-    for path, name, action, content in planned:
-        if action in {"created", "modified"}:
-            _write_if_changed(path, content)
-        result[action].append(name)
+    changed: list[PlannedAgentDoc] = []
+    try:
+        for item in planned:
+            if item.action in {"created", "modified"}:
+                # Include the item before the write: an injected or platform error may
+                # occur after a successful replacement but before it returns.
+                changed.append(item)
+                _atomic_replace(item.path, item.final_bytes, item.mode)
+    except Exception as exc:
+        rollback_failures = _rollback(changed)
+        message = f"failed to commit agent documents: {exc}"
+        if rollback_failures:
+            message += f"; rollback incomplete: {'; '.join(rollback_failures)}"
+        raise AgentDocumentError(message) from exc
+    for item in planned:
+        result[item.action].append(item.name)
     return result
 
 

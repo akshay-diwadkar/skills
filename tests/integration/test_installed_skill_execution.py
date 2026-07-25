@@ -314,6 +314,19 @@ def test_installed_map_codebase_lifecycle_execution(installed_skills_env):
         assert target.read_text(encoding="utf-8").count("<!-- END MAP-CODEBASE -->") == 1
         assert not (map_skill / instruction_file).exists()
 
+    # Standalone executable entrypoints provide the same finalization postcondition.
+    (target_repo / "CLAUDE.md").unlink()
+    standalone_build = subprocess.run(
+        [sys.executable, "scripts/build_knowledge.py", "--repo-root", str(target_repo), "--format", "json"],
+        cwd=map_skill,
+        capture_output=True,
+        text=True,
+        env=SUBPROCESS_ENV,
+    )
+    assert standalone_build.returncode == 0, standalone_build.stderr
+    assert (target_repo / "CLAUDE.md").is_file()
+    assert (target_repo / "CLAUDE.md").read_text(encoding="utf-8").count("<!-- BEGIN MAP-CODEBASE -->") == 1
+
     status = run_cli("status")
     assert status["status"] == "fresh"
 
