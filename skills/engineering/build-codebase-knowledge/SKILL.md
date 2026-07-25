@@ -17,6 +17,8 @@ Use compact machine-only repository knowledge to reduce exploration overhead whi
 
 Use `--phase all` only for explicit debugging or human inspection. Do not preload maps or shards. Source remains authoritative.
 
+`include_untracked = false` applies uniformly to build, status, refresh, and explicit `--changed-file` paths. Ambiguous resolver tasks default to source ownership; configuration targets may include deterministic bounded source ranges. Phase-three evidence is directional and one-hop only.
+
 ## Skill Directory Resolution
 
 Resolve this skill directory before invoking bundled scripts. Use the resolved directory as the command base; do not assume the current working directory is the skill directory.

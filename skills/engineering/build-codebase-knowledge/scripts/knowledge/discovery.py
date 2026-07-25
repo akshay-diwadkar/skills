@@ -79,11 +79,11 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
     gen_patterns = config.get("generated", [])
     max_size = config.get("max_file_size_bytes", 1048576)
 
-    tracked = _git_files(root)
+    tracked = git_tracked_paths(root)
     if tracked is None:
         candidates = _walk_files(root)
     else:
-        untracked = _git_untracked_files(root) if config.get("include_untracked", True) else []
+        untracked = git_untracked_paths(root) if config.get("include_untracked", True) else []
         candidates = sorted(set(tracked) | set(untracked))
     for rel_str in candidates:
         full_path = root / rel_str
@@ -114,20 +114,33 @@ def _safe_path(root: Path, path: Path) -> bool:
         return False
 
 
-def _git_files(root: Path) -> list[str] | None:
+def git_tracked_paths(root: Path) -> set[str] | None:
+    """Return one deterministic tracked-path inventory, or ``None`` outside Git."""
     result = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False)
     if result.returncode:
         return None
-    return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
+    return {
+        item.decode("utf-8", errors="surrogateescape").replace("\\", "/")
+        for item in result.stdout.split(b"\0")
+        if item
+    }
 
 
-def _git_untracked_files(root: Path) -> list[str]:
+def git_untracked_paths(root: Path) -> list[str]:
     result = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=root, capture_output=True, check=False
     )
     if result.returncode:
         return []
     return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
+
+
+def is_tracked_path(root: Path, path: str, tracked_paths: set[str] | None = None) -> bool:
+    """Determine tracking from a shared inventory; non-Git fallback remains permissive."""
+    inventory = tracked_paths if tracked_paths is not None else git_tracked_paths(root)
+    if inventory is None:
+        return True
+    return path.replace("\\", "/") in inventory
 
 
 def _walk_files(root: Path) -> list[str]:

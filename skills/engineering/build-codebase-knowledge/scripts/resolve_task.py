@@ -39,8 +39,14 @@ STOPWORDS = {
     "error",
     "issue",
 }
-CONFIG_TERMS = {"config", "configuration", "setting", "settings", "ruff", "mypy", "pytest", "line", "length", "toml", "yaml", "yml", "ini"}
-TEST_TERMS = {"test", "tests", "testing", "failing", "failure", "assert", "fixture", "regression"}
+CONFIG_NAMES = {"pyproject.toml", "package.json", "makefile", "gnumakefile", "tsconfig.json"}
+CONFIG_EXTENSIONS = {".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"}
+CONFIG_PHRASES = {
+    "ruff line length", "mypy strict", "pytest addopts", "package json script", "workflow trigger",
+    "github actions matrix", "tool ruff", "tool pytest ini options", "eslint", "prettier", "tsconfig",
+}
+STRONG_CONFIG_TOKENS = {"ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow"}
+TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test"}
 
 
 def _split(value: str) -> set[str]:
@@ -65,16 +71,23 @@ def _signals(task: str) -> dict[str, set[str]]:
 
 
 def _task_roles(task: str, signals: dict[str, set[str]], files: list[dict[str, Any]]) -> set[str]:
+    """Classify only on explicit or strong role evidence; ambiguity belongs to source."""
     explicit = signals["paths"]
     matched_roles = {
         file["role"]
         for file in files
         if any(file["path"] == path or file["path"].endswith("/" + path) for path in explicit)
     }
-    terms = signals["terms"]
-    if terms & CONFIG_TERMS or any(Path(path).suffix in {".toml", ".yaml", ".yml", ".ini"} for path in explicit):
+    lowered = task.lower().replace("_", " ").replace("-", " ").replace(".", " ")
+    config_path = any(Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES for path in explicit)
+    test_path = any("/test" in f"/{path.lower()}" or Path(path).name.lower().startswith("test_") for path in explicit)
+    config_semantic = any(phrase in lowered for phrase in CONFIG_PHRASES)
+    # pytest alone is deliberately not configuration evidence: it often names test code.
+    pytest_config = "pytest" in lowered and any(key in lowered for key in ("addopts", "ini options", "configuration", "config"))
+    test_semantic = any(phrase in lowered for phrase in TEST_PHRASES) or bool(re.search(r"\btest_[a-z0-9_]+\b|\btests?\b", lowered))
+    if config_path or config_semantic or pytest_config:
         matched_roles.add("configuration")
-    if terms & TEST_TERMS or any("test" in path.lower() for path in explicit):
+    if test_path or test_semantic or ("fixture" in lowered and "pytest" in lowered):
         matched_roles.add("test")
     if {"configuration", "test"} <= matched_roles:
         matched_roles.add("source")
@@ -132,7 +145,7 @@ def _lexical(
         matched = signals["terms"] & _split(path)
         if matched:
             _add(evidence, f"text_match: {sorted(matched)[0]}", weights["text_match"], "path")
-        if file["role"] == "configuration" and (signals["terms"] & CONFIG_TERMS or file["path"] in signals["paths"]):
+        if file["role"] == "configuration" and (file["path"] in signals["paths"] or signals["terms"] & STRONG_CONFIG_TOKENS):
             _add(evidence, f"configuration: {path}", weights["configuration"], "configuration")
         if file.get("generated"):
             _add(evidence, "generated_penalty", weights["generated_penalty"], "generated")
@@ -188,18 +201,64 @@ def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[
     return answer
 
 
-def _target(candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: dict[str, set[str]]) -> dict[str, Any]:
+def _focused_text_range(root: Path, path: str, task: str, config: dict[str, Any]) -> tuple[int | None, int | None, str | None]:
+    """Return a compact, comment-safe range for an already selected text file."""
+    try:
+        lines = (root / path).read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return None, None, None
+    raw = task.lower()
+    quoted = re.findall(r"['\"]([^'\"]+)['\"]", task)
+    dotted = re.findall(r"\b(?:[A-Za-z][\w-]*\.)+[A-Za-z][\w-]*\b", task)
+    hyphenated = re.findall(r"\b[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+\b", raw)
+    phrases = ["ruff line-length", "pytest addopts", "mypy strict", "scripts.test", "on.pull_request", "jobs.test.matrix"]
+    candidates = quoted + dotted + hyphenated + phrases + sorted(signals for signals in _split(task) if len(signals) > 3)
+    for needle in candidates:
+        normal = needle.lower().replace("-", "_")
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith(("#", ";", "//")):
+                continue
+            comparable = stripped.lower().replace("-", "_")
+            if normal in comparable:
+                # Include a nearby TOML/INI/YAML section header when it is close.
+                start = index
+                for prior in range(index - 1, max(-1, index - 8), -1):
+                    previous = lines[prior].strip()
+                    if previous.startswith("[") or (previous.endswith(":") and not previous.startswith("#")):
+                        start = prior
+                        break
+                limit = config["max_context_lines"]
+                start = max(0, start - min(2, limit // 4))
+                end = min(len(lines), index + 1 + min(4, limit - 1))
+                if end - start > limit:
+                    end = start + limit
+                return start + 1, end, needle
+    return None, None, None
+
+
+def _target(
+    candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: dict[str, set[str]], root: Path, task: str, config: dict[str, Any]
+) -> dict[str, Any]:
     match = next((x for x in symbols if x["name"] in signals["symbols"]), None) or next(
         (x for x in symbols if _split(x["name"]) & signals["terms"]), None
     )
     file = candidate["file"]
+    start_line = match["line_start"] if match else None
+    end_line = match["line_end"] if match else None
+    focused_key = None
+    if not match and file["role"] == "configuration":
+        start_line, end_line, focused_key = _focused_text_range(root, file["path"], task, config)
+    evidence = [key for key, (weight, _) in sorted(candidate["evidence"].items()) if weight > 0]
+    if focused_key:
+        evidence.append(f"configuration_key: {focused_key}")
     return {
         "path": file["path"],
         "symbol": match["name"] if match else None,
-        "start_line": match["line_start"] if match else None,
-        "end_line": match["line_end"] if match else None,
+        "start_line": start_line,
+        "end_line": end_line,
         "role": file["role"],
-        "evidence": [key for key, (weight, _) in sorted(candidate["evidence"].items()) if weight],
+        "evidence": sorted(set(evidence)),
         "question": f"Does {match['name'] if match else file['path']} own the requested behavior?",
     }
 
@@ -215,6 +274,27 @@ def _dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(output.values())
 
 
+def _relationship_targets(
+    primary_paths: set[str], relationships: dict[str, Any], by_path: dict[str, Any], root: Path, task: str,
+    signals: dict[str, set[str]], config: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Return deterministic direct neighbours with evidence from the neighbour's perspective."""
+    merged: dict[str, dict[str, Any]] = {}
+    for edge in relationships.get("imports", []):
+        source, target = edge["source"], edge["target"]
+        if source in primary_paths and target not in primary_paths:
+            adjacent, evidence = target, f"dependency_of: {source}"
+        elif target in primary_paths and source not in primary_paths:
+            adjacent, evidence = source, f"imports: {target}"
+        else:
+            continue
+        if adjacent not in by_path:
+            continue
+        item = merged.setdefault(adjacent, {"file": by_path[adjacent], "evidence": {}})
+        _add(item["evidence"], evidence, config["weights"]["import_relationship"], "import")
+    return _dedupe([_target(item, [], signals, root, task, config) for _, item in sorted(merged.items())])
+
+
 def resolve_task(
     repo_root: Path | str, task: str, knowledge_dir: Path | str | None = None, phase: int | str = 1
 ) -> dict[str, Any]:
@@ -228,11 +308,13 @@ def resolve_task(
     by_path = {x["path"]: x for x in repo["files"]}
     lexical = _lexical(repo["files"], signals, config["weights"], freshness)[:8]
     ranked = _rerank(lexical, relationships, by_path, config["weights"])
+    lexical_paths = {item["file"]["path"] for item in lexical}
     requested_roles = _task_roles(task, signals, repo["files"])
-    role_order = ["source", "configuration", "test"] if requested_roles == {"source", "configuration", "test"} else [role for role in ("source", "configuration", "test") if role in requested_roles]
-    primaries = [item for role in role_order for item in ranked if item["file"]["role"] == role][:3]
+    mixed = requested_roles == {"source", "configuration", "test"}
+    role_order = ["source"] if mixed else [role for role in ("source", "configuration", "test") if role in requested_roles]
+    primaries = [item for role in role_order for item in ranked if item["file"]["path"] in lexical_paths and item["file"]["role"] == role][:3]
     symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
-    primary = [_target(x, symbol_map[x["file"]["path"]], signals) for x in primaries]
+    primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}
     tests = _dedupe(
         [
@@ -242,26 +324,13 @@ def resolve_task(
                     "evidence": {f"tested_by: {x['source']}": (config["weights"]["related_test"], "test")},
                 },
                 [],
-                signals,
+                signals, root, task, config,
             )
             for x in relationships.get("test_links", [])
             if x["target"] in primary_paths
         ]
     )
-    impacts = _dedupe(
-        [
-            _target(
-                {
-                    "file": by_path[x["target"] if x["source"] in primary_paths else x["source"]],
-                    "evidence": {f"imports: {x['target'] if x['source'] in primary_paths else x['source']}": (config["weights"]["import_relationship"], "import")},
-                },
-                [],
-                signals,
-            )
-            for x in relationships.get("imports", [])
-            if (x["source"] in primary_paths) ^ (x["target"] in primary_paths)
-        ]
-    )
+    impacts = _relationship_targets(primary_paths, relationships, by_path, root, task, signals, config)
     score = primaries[0]["score"] if primaries else 0
     margin = score - (primaries[1]["score"] if len(primaries) > 1 else 0)
     families = {family for weight, family in primaries[0]["evidence"].values() if weight > 0} if primaries else set()
@@ -282,9 +351,9 @@ def resolve_task(
         if high
         else (
             [
-                "primary target lacks a focused indexed range"
-                if not focused
-                else "primary candidates have limited independent evidence"
+                "exact configuration path matched but no exact configuration key was located"
+                if primary and primary[0]["role"] == "configuration" and not focused
+                else ("primary target lacks a focused indexed range" if not focused else "two primary candidates have similar lexical ownership scores")
             ]
             if primary
             else ["no indexed implementation matched the task terms"]
@@ -294,7 +363,7 @@ def resolve_task(
         []
         if high
         else (
-            ["verify ownership in source before expanding"]
+            ["no direct test, import, or entry-point relationship separates the candidates"]
             if primary
             else ["use the targeted fallback search to locate an owner"]
         )
@@ -307,7 +376,7 @@ def resolve_task(
             "expansion_triggers": ["ownership remains ambiguous", "source contradicts the index"],
         },
         2: {
-            "targets": _dedupe(tests + [_target(item, [], signals) for item in ranked if item["file"]["role"] == "configuration" and item["file"]["path"] not in primary_paths])[:3],
+            "targets": _dedupe(tests + [_target(item, [], signals, root, task, config) for item in ranked if item["file"]["role"] in ({"configuration", "test"} if mixed else {"configuration"}) and item["file"]["path"] not in primary_paths])[:3],
             "question": "Which direct tests, configuration, or represented constraints constrain the change?",
             "stop_condition": "Stop when direct constraints are understood.",
             "expansion_triggers": ["a compatibility constraint is unresolved"],
