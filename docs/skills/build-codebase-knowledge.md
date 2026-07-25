@@ -1,42 +1,11 @@
-# build-codebase-knowledge
+# Build Codebase Knowledge
 
-Generate and maintain a compact, deterministic repository-intelligence layer and task resolver to minimize broad repository scans, unnecessary file reads, context-window usage, and stale architectural assumptions.
-
-## Overview
-
-The `build-codebase-knowledge` skill equips AI coding agents with a structured, versioned knowledge layer (`context.md`, `architecture.md`, `repo-map.json`, sharded `symbols`, `relationships.json`, and `manifest.json`) and a deterministic bounded task resolver.
-
-Key capabilities:
-1. **Compact orientation**: `context.md` (60–120 lines) & `architecture.md` (100–220 lines).
-2. **Deterministic Task Resolver**: Analyzes task intent, scores candidates using weighted repository signals, and outputs an ordered read plan with progressive expansion.
-3. **Cheap Freshness & Incremental Refresh**: Verifies Git revision/diff and re-indexes only changed files on implementation finish.
-4. **Validation & Benchmark Suite**: Schema verification, conciseness audits, secret exclusion, and token reduction metrics.
-
-## CLI Usage
+`build-codebase-knowledge` creates compact repository artifacts and resolves coding tasks into small, evidence-backed read phases.
 
 ```bash
-# Build initial repository knowledge
-python skills/engineering/build-codebase-knowledge/scripts/cli.py build --repo-root .
-
-# Resolve a natural language task
-python skills/engineering/build-codebase-knowledge/scripts/cli.py resolve "Add rate limiting to password reset" --format human
-
-# Refresh incrementally after changes
-python skills/engineering/build-codebase-knowledge/scripts/cli.py refresh --changed-file src/auth/service.py
-
-# Validate knowledge status
-python skills/engineering/build-codebase-knowledge/scripts/cli.py validate
-
-# Run benchmark suite
-python skills/engineering/build-codebase-knowledge/scripts/cli.py benchmark --tasks tests/skills/build-codebase-knowledge/fixtures/benchmark_tasks.json
+python skills/engineering/build-codebase-knowledge/scripts/cli.py status --repo-root /absolute/path/to/repo --format json
+python skills/engineering/build-codebase-knowledge/scripts/cli.py resolve "fix auth token parsing" --repo-root /absolute/path/to/repo --phase 1 --format json
+python skills/engineering/build-codebase-knowledge/scripts/cli.py refresh --repo-root /absolute/path/to/repo --changed-file /absolute/path/to/repo/src/auth.py
 ```
 
-## Generated Artifacts
-
-Artifacts default to `.agent/knowledge/`:
-- `context.md`: High-density repository map & commands.
-- `architecture.md`: Boundary matrix, runtime flows, and risk points.
-- `repo-map.json`: Schema-validated map of subsystems, files, entry points, commands, and configuration.
-- `symbols.json`: Shard catalog; load only the selected `symbols/*.json` payload.
-- `relationships.json`: Imports and direct test/configuration links.
-- `manifest.json`: Freshness metadata, file hashes, and delta tracking.
+Builds are side-effect-safe: they write only under the configured knowledge directory. Use `link-docs` or `generate-workflow` explicitly when those integrations are wanted.

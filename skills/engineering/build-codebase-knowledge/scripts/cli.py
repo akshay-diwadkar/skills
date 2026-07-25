@@ -13,7 +13,6 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from benchmark_knowledge import BenchmarkEvaluator, format_human_report
 from build_knowledge import build_knowledge
 from link_agent_docs import link_agent_docs
 from refresh_knowledge import check_freshness, refresh_knowledge
@@ -49,6 +48,7 @@ def main() -> int:
     p_resolve.add_argument("--repo-root", default=".", help="Target repository root")
     p_resolve.add_argument("--output", "--knowledge-dir", help="Output knowledge directory")
     p_resolve.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    p_resolve.add_argument("--phase", choices=["1", "2", "3", "all"], default="1", help="Return only the requested read phase")
 
     # refresh
     p_refresh = subparsers.add_parser("refresh", help="Refresh knowledge artifacts incrementally.")
@@ -63,18 +63,12 @@ def main() -> int:
     p_validate.add_argument("--output", "--knowledge-dir", help="Output knowledge directory")
     p_validate.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
 
-    # benchmark
-    p_benchmark = subparsers.add_parser("benchmark", help="Run benchmark evaluation suite.")
-    p_benchmark.add_argument("--repo-root", default=".", help="Target repository root")
-    p_benchmark.add_argument("--tasks", required=True, help="Path to benchmark tasks JSON file")
-    p_benchmark.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
-    p_benchmark.add_argument("--report-only", action="store_true", help="Report gate failures without failing")
-
     # link-docs
     p_link = subparsers.add_parser("link-docs", help="Link knowledge docs in AGENTS.md / CLAUDE.md.")
     p_link.add_argument("--repo-root", default=".", help="Target repository root")
     p_link.add_argument("--output", "--knowledge-dir", help="Knowledge output directory")
     p_link.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    p_link.add_argument("--create-missing", action="store_true", help="Create AGENTS.md only when neither supported instruction file exists")
 
     # generate-workflow
     p_gen = subparsers.add_parser("generate-workflow", help="Generate GitHub Action workflow file.")
@@ -116,7 +110,8 @@ def main() -> int:
             print("Error: task string or --task-file required", file=sys.stderr)
             return 1
         out = Path(args.output).resolve() if args.output else None
-        res = resolve_task(repo_root, t_str, out)
+        selected_phase = args.phase if args.phase == "all" else int(args.phase)
+        res = resolve_task(repo_root, t_str, out, selected_phase)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:
@@ -147,19 +142,9 @@ def main() -> int:
                     print(f"  Error: {e}")
         return 1 if res.get("errors") else 0
 
-    elif args.command == "benchmark":
-        tasks_p = Path(args.tasks).resolve()
-        evaluator = BenchmarkEvaluator(repo_root, tasks_p)
-        res = evaluator.evaluate()
-        if getattr(args, "format", "human") == "json":
-            print(json.dumps(res, indent=2))
-        else:
-            print(format_human_report(res))
-        return 0
-
     elif args.command == "link-docs":
         out = Path(args.output).resolve() if args.output else None
-        res = link_agent_docs(repo_root, out)
+        res = link_agent_docs(repo_root, out, args.create_missing)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:

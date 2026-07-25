@@ -19,9 +19,9 @@ def test_resolver_exact_symbol_match(tmp_path: Path):
 
     res = resolve_task(tmp_path, "Fix bug in PasswordResetHandler", out_dir)
     assert res["confidence"]["level"] == "high"
-    assert len(res["primary_targets"]) > 0
-    assert res["primary_targets"][0]["path"] == "src/auth.py"
-    assert res["primary_targets"][0]["symbol"] == "PasswordResetHandler"
+    assert len(res["targets"]) > 0
+    assert res["targets"][0]["path"] == "src/auth.py"
+    assert res["targets"][0]["symbol"] == "PasswordResetHandler"
 
 
 def test_resolver_progressive_expansion_medium_confidence(tmp_path: Path):
@@ -34,5 +34,7 @@ def test_resolver_progressive_expansion_medium_confidence(tmp_path: Path):
 
     res = resolve_task(tmp_path, "Refactor order module", out_dir)
     assert res["confidence"]["level"] in ["medium", "high"]
-    assert len(res["read_phases"]) >= 3
-    assert len(res["skip_targets"]) > 0
+    assert "phases" not in res
+    all_phases = resolve_task(tmp_path, "Refactor order module", out_dir, phase="all")
+    assert len(all_phases["phases"]) == 3
+    assert res["stop_condition"]

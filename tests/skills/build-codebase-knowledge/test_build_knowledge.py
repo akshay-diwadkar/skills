@@ -11,6 +11,9 @@ from build_knowledge import build_knowledge
 
 def test_build_knowledge_artifacts(sample_repo: Path):
     out_dir = sample_repo / ".agent" / "knowledge"
+    assert not (sample_repo / "AGENTS.md").exists()
+    assert not (sample_repo / "CLAUDE.md").exists()
+    assert not (sample_repo / ".github" / "workflows" / "refresh-codebase-knowledge.yml").exists()
     res = build_knowledge(sample_repo, out_dir)
 
     assert res["status"] == "success"
@@ -21,6 +24,9 @@ def test_build_knowledge_artifacts(sample_repo: Path):
     assert (out_dir / "context.md").is_file()
     assert (out_dir / "architecture.md").is_file()
     assert (out_dir / "manifest.json").is_file()
+    assert not (sample_repo / "AGENTS.md").exists()
+    assert not (sample_repo / "CLAUDE.md").exists()
+    assert not (sample_repo / ".github" / "workflows" / "refresh-codebase-knowledge.yml").exists()
 
     index_data = json.loads((out_dir / "repo-map.json").read_text(encoding="utf-8"))
     assert index_data["schema_version"] == "2.0"

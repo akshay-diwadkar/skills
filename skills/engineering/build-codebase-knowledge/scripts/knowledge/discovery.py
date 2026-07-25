@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -78,61 +79,57 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
     gen_patterns = config.get("generated", [])
     max_size = config.get("max_file_size_bytes", 1048576)
 
+    tracked = _git_files(root)
+    candidates = tracked if tracked else _walk_files(root)
+    for rel_str in candidates:
+        full_path = root / rel_str
+        if not full_path.exists() or full_path.is_symlink() or not _safe_path(root, full_path):
+            ignored.append(rel_str)
+            continue
+        if matches_glob(rel_str, excludes) or (includes and not matches_glob(rel_str, includes)):
+            ignored.append(rel_str)
+            continue
+        try:
+            if full_path.stat().st_size > max_size or is_binary_file(full_path):
+                ignored.append(rel_str)
+                continue
+        except OSError:
+            ignored.append(rel_str)
+            continue
+        if matches_glob(rel_str, gen_patterns):
+            generated.append(rel_str)
+        included.append(rel_str)
+    return sorted(included), sorted(generated), sorted(set(ignored))
+
+
+def _safe_path(root: Path, path: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _git_files(root: Path) -> list[str] | None:
+    result = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False)
+    if result.returncode:
+        return None
+    return sorted(item.decode("utf-8", errors="surrogateescape").replace("\\", "/") for item in result.stdout.split(b"\0") if item)
+
+
+def _walk_files(root: Path) -> list[str]:
+    """Filesystem fallback used only when Git metadata is unavailable."""
+    result: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
         # Sort directories for deterministic traversal order
         dirnames.sort()
 
-        rel_dir = Path(dirpath).relative_to(root)
-        rel_dir_str = str(rel_dir).replace("\\", "/")
-
-        # Prune hidden or excluded directories
-        dirs_to_remove = []
-        for d in dirnames:
-            sub_rel = f"{rel_dir_str}/{d}".strip("./")
-            if d.startswith(".") or matches_glob(sub_rel, excludes):
-                dirs_to_remove.append(d)
-        for d in dirs_to_remove:
-            dirnames.remove(d)
+        dirnames[:] = [name for name in dirnames if not name.startswith(".")]
 
         # Sort filenames for deterministic file processing
         filenames.sort()
 
         for fname in filenames:
             full_path = Path(dirpath) / fname
-            if full_path.is_symlink():
-                ignored.append(str(full_path.relative_to(root)).replace("\\", "/"))
-                continue
-
-            rel_path = full_path.relative_to(root)
-            rel_str = str(rel_path).replace("\\", "/")
-
-            if matches_glob(rel_str, excludes):
-                ignored.append(rel_str)
-                continue
-
-            if (
-                includes
-                and not matches_glob(rel_str, includes)
-                and rel_str not in ["AGENTS.md", "CLAUDE.md", "README.md", "pyproject.toml", "package.json"]
-            ):
-                ignored.append(rel_str)
-                continue
-
-            try:
-                if full_path.stat().st_size > max_size:
-                    ignored.append(rel_str)
-                    continue
-            except Exception:
-                ignored.append(rel_str)
-                continue
-
-            if is_binary_file(full_path):
-                ignored.append(rel_str)
-                continue
-
-            if matches_glob(rel_str, gen_patterns):
-                generated.append(rel_str)
-
-            included.append(rel_str)
-
-    return sorted(included), sorted(generated), sorted(ignored)
+            result.append(str(full_path.relative_to(root)).replace("\\", "/"))
+    return sorted(result)

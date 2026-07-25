@@ -26,8 +26,6 @@ from knowledge.relationships import resolve_import_to_path
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 from knowledge.summaries import format_architecture_md, format_context_md
-from link_agent_docs import link_agent_docs
-from scaffold_github_workflow import ensure_github_workflow
 
 SCHEMA_VERSION = "2.0"
 EXTRACTOR_VERSION = "3.0.0"
@@ -58,7 +56,7 @@ def get_git_info(root: Path) -> tuple[str, str, bool, list[str]]:
         return result.stdout.strip() if result.returncode == 0 else ""
 
     return (
-        git("rev-parse", "--short", "HEAD") or "unknown",
+        git("rev-parse", "HEAD") or "unknown",
         git("rev-parse", "--abbrev-ref", "HEAD") or "unknown",
         bool(git("status", "--porcelain")),
         sorted(line[3:] for line in git("ls-files", "--others", "--exclude-standard").splitlines() if line),
@@ -88,9 +86,6 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     out = Path(output_dir).resolve() if output_dir else root / config["output_dir"]
     out.mkdir(parents=True, exist_ok=True)
     (out / "symbols").mkdir(exist_ok=True)
-    # Agent-doc integration is intentionally part of a build; create it before
-    # discovery so the snapshot cannot immediately mark itself stale.
-    link_agent_docs(root, out)
     included, generated, ignored = discover_files(root, config)
     files: list[dict[str, Any]] = []
     symbols: list[dict[str, Any]] = []
@@ -244,6 +239,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
         },
         "generation_mode": "full",
         "ignore_hash": _digest({k: config.get(k) for k in ("include", "exclude", "generated")}),
+        "config_hash": _digest({k: config.get(k) for k in ("include", "exclude", "generated", "max_file_size_bytes", "weights")}),
         "index_hash": _digest(artifact_hashes),
         "inventory_hash": _digest(file_hashes),
         "indexed_paths": sorted(paths),
@@ -284,20 +280,12 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     legacy = out / "index.json"
     if legacy.exists():
         legacy.unlink()
-    workflow = ensure_github_workflow(
-        root,
-        config["workflow_branch"],
-        config["workflow_runtime_repository"],
-        config["workflow_runtime_revision"],
-        config["workflow_runtime_directory"],
-    )
     return {
         "status": "success",
         "output_dir": str(out),
         "files_indexed": len(files),
         "symbols_indexed": len(symbols),
         "index_hash": manifest["index_hash"],
-        "workflow": workflow,
     }
 
 

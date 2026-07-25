@@ -35,11 +35,15 @@ jobs:
           repository: akshay-diwadkar/skills
           ref: {revision}
           path: {runtime_dir}
-      - run: python {runtime_dir}/skills/engineering/build-codebase-knowledge/scripts/cli.py build --repo-root .
+      - name: Refresh knowledge from repository changes
+        run: |
+          TOOL=python {runtime_dir}/skills/engineering/build-codebase-knowledge/scripts/cli.py
+          $TOOL status --repo-root . --format json > knowledge-status.json
+          python -c "import json; s=json.load(open('knowledge-status.json')); print(s['status']); raise SystemExit(0 if s['status'] == 'fresh' else 1)" || $TOOL refresh --repo-root .
       - uses: stefanzweifel/git-auto-commit-action@e588668b8d28edb50e6afef614df8acdbf115f23 # v5.0.0
         with:
           commit_message: "docs(knowledge): auto-refresh codebase knowledge [skip ci]"
-          file_pattern: ".agent/knowledge/** AGENTS.md CLAUDE.md"
+          file_pattern: ".agent/knowledge/**"
 {END}
 """
 

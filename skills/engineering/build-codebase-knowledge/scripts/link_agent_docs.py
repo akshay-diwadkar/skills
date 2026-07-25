@@ -16,10 +16,7 @@ def generate_managed_block(rel_k_path: str) -> str:
     """Generate HTML comment managed block content for agent documentation."""
     return f"""{MANAGED_BEGIN}
 ## Repository Knowledge
-- Codebase orientation & entry points: [{rel_k_path}/context.md]({rel_k_path}/context.md)
-- Architecture & dependencies: [{rel_k_path}/architecture.md]({rel_k_path}/architecture.md)
-- Machine map: [{rel_k_path}/repo-map.json]({rel_k_path}/repo-map.json)
-- Symbol shard catalog: [{rel_k_path}/symbols.json]({rel_k_path}/symbols.json)
+Repository knowledge is available under `{rel_k_path}/`. Before broad exploration: check freshness, resolve the current task, read phase 1 only, and expand only when its stop condition is unmet. Source remains authoritative; load maps and symbol shards selectively.
 {MANAGED_END}"""
 
 
@@ -50,7 +47,7 @@ def update_file_with_managed_block(fpath: Path, rel_k_path: str) -> bool:
     return True
 
 
-def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
+def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None, create_missing: bool = False) -> dict[str, Any]:
     """Link repository knowledge documentation in AGENTS.md / CLAUDE.md using managed blocks."""
     root = Path(repo_root).resolve()
     if output_dir:
@@ -72,13 +69,14 @@ def link_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None)
     def starter_template(title: str) -> str:
         return f"# {title}\n\n{generate_managed_block(rel_k_path)}\n"
 
-    for fpath, name in [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]:
+    existing = [(agents_file, "AGENTS.md"), (claude_file, "CLAUDE.md")]
+    for fpath, name in existing:
         if fpath.is_file():
             if update_file_with_managed_block(fpath, rel_k_path):
                 modified.append(name)
-        else:
-            fpath.write_text(starter_template(name), encoding="utf-8")
-            created.append(name)
+    if not modified and not any(path.is_file() for path, _ in existing) and create_missing:
+        agents_file.write_text(starter_template("AGENTS.md"), encoding="utf-8")
+        created.append("AGENTS.md")
 
     return {
         "status": "success",
@@ -92,9 +90,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Link repository knowledge docs in AGENTS.md / CLAUDE.md.")
     parser.add_argument("--repo-root", default=".", help="Target repository root")
     parser.add_argument("--output", help="Knowledge output directory")
+    parser.add_argument("--create-missing", action="store_true", help="Create AGENTS.md only when no supported instruction file exists")
 
     args = parser.parse_args()
-    res = link_agent_docs(args.repo_root, args.output)
+    res = link_agent_docs(args.repo_root, args.output, args.create_missing)
 
     if res["created"]:
         print(f"Created agent doc files referencing '{res['knowledge_path']}': {', '.join(res['created'])}")
