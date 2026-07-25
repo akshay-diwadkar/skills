@@ -33,7 +33,7 @@ python scripts/cli.py refresh --repo-root /absolute/path/to/repo --changed-file 
 python scripts/cli.py validate --repo-root /absolute/path/to/repo
 ```
 
-Successful `build` and `refresh` automatically ensure `AGENTS.md` and `CLAUDE.md` contain one current managed repository-knowledge reference. Missing files are created, user content outside the managed block is preserved, and custom `--output` paths are reflected in the reference. Add `<!-- OPT-OUT MAP-CODEBASE -->` to either existing file to skip only that file. `link-docs` remains available to explicitly repair or reapply the references; it always creates missing supported files and accepts `--create-missing` as a compatibility no-op.
+The unified CLI is the preferred interface. Its successful `build` and `refresh` commands, and the standalone `scripts/build_knowledge.py` and `scripts/refresh_knowledge.py` executables, automatically ensure `AGENTS.md` and `CLAUDE.md` contain one current managed repository-knowledge reference. Importable `build_knowledge()` and `refresh_knowledge()` remain lower-level artifact-only APIs. Missing files are created, user content outside the managed block is preserved, and custom `--output` paths are reflected in the reference. Add `<!-- OPT-OUT MAP-CODEBASE -->` to either existing file to skip only that file. Agent-document updates are atomically replaced per file and rolled back across both files on a failed commit; knowledge artifacts remain available when finalization fails. `link-docs` remains available to explicitly repair or reapply the references; it always creates missing supported files and accepts `--create-missing` as a compatibility no-op.
 
 To explicitly add a managed GitHub refresh workflow, provide an immutable runtime revision:
 

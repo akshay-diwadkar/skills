@@ -175,9 +175,22 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
 
 if __name__ == "__main__":
     import argparse
+    import json
+    import sys
+
+    from finalize_knowledge import KnowledgeFinalizationError, build_and_finalize
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--output")
+    parser.add_argument("--format", choices=["json", "human"], default="human")
     args = parser.parse_args()
-    build_knowledge(args.repo_root, args.output)
+    try:
+        result = build_and_finalize(args.repo_root, args.output)
+    except KnowledgeFinalizationError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(1)
+    if args.format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"Build completed: {result['files_indexed']} files, {result['symbols_indexed']} symbols indexed.")

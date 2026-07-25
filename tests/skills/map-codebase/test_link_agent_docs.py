@@ -15,6 +15,19 @@ def _block_count(content: str) -> int:
     return content.count(MANAGED_BEGIN) + content.count(MANAGED_END)
 
 
+def _assert_navigation_workflow(content: str, knowledge_path: str) -> None:
+    assert knowledge_path in content
+    for instruction in (
+        "Before broad exploration, check freshness.",
+        "Build or refresh only when knowledge is missing, invalid, or stale.",
+        "Resolve the current task at phase 1; read only its returned targets and selected symbol shards.",
+        "Expand to later phases only when phase 1's stop condition is unmet.",
+        "Verify conclusions in current source, then refresh after a coherent change set.",
+        "Do not preload all maps or shards. Knowledge guides navigation; source remains authoritative.",
+    ):
+        assert instruction in content
+
+
 def test_neither_file_exists_creates_both_with_default_path(tmp_path: Path):
     result = ensure_agent_docs(tmp_path)
 
@@ -23,7 +36,7 @@ def test_neither_file_exists_creates_both_with_default_path(tmp_path: Path):
         content = (tmp_path / name).read_text(encoding="utf-8")
         assert content.startswith(f"# {name}\n\n")
         assert _block_count(content) == 2
-        assert ".agent/knowledge/" in content
+        _assert_navigation_workflow(content, ".agent/knowledge/")
 
 
 def test_only_agents_exists_preserves_user_content_and_creates_claude(tmp_path: Path):
@@ -72,7 +85,7 @@ def test_custom_output_path_is_reflected_in_both_files(tmp_path: Path):
     assert result["knowledge_path"] == ".cache/custom-map"
     for name in ("AGENTS.md", "CLAUDE.md"):
         content = (tmp_path / name).read_text(encoding="utf-8")
-        assert ".cache/custom-map/" in content
+        _assert_navigation_workflow(content, ".cache/custom-map/")
         assert ".agent/knowledge/" not in content
 
 
