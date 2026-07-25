@@ -12,16 +12,15 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
-from knowledge.config import load_config
+from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from refresh_knowledge import check_freshness
 
 
 def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict:
     root = Path(repo_root).resolve()
-    out = Path(knowledge_dir).resolve() if knowledge_dir else root / load_config(root)["output_dir"]
     try:
-        out.relative_to(root)
+        out = resolve_knowledge_directory(root, knowledge_dir, load_config(root))
     except ValueError:
         return {"status": "invalid", "errors": ["knowledge output must be inside repository"], "warnings": []}
     try:

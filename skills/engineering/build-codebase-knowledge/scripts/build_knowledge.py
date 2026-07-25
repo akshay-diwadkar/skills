@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -13,8 +12,8 @@ from typing import Any
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
-from knowledge.config import load_config
-from knowledge.discovery import discover_files, filter_internal_paths, git_untracked_paths, is_knowledge_path
+from knowledge.config import load_config, resolve_knowledge_directory
+from knowledge.discovery import discover_files, filter_internal_paths, git_untracked_paths, is_knowledge_path, run_git
 from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
@@ -27,15 +26,13 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def get_git_info(
-    root: Path, config: dict[str, Any] | None = None, indexed_paths: set[str] | None = None
-) -> tuple[str, str, bool, list[str]]:
+def get_git_info(root: Path, config: dict[str, Any] | None, output_dir: Path) -> tuple[str, str, bool, list[str]]:
     """Return repository metadata using the same untracked policy as indexing."""
-    output = root / (config or {}).get("output_dir", ".agent/knowledge")
+    output = output_dir.resolve()
 
     def git(*args: str) -> str:
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
-        return result.stdout.strip() if result.returncode == 0 else ""
+        result = run_git(root, *args, text=True)
+        return result.stdout.strip() if result is not None else ""
 
     include_untracked = config is None or config.get("include_untracked", True)
     untracked = (
@@ -96,14 +93,10 @@ def _write_shards(out: Path, symbols: list[dict[str, Any]]) -> dict[str, Any]:
 def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
     root = Path(repo_root).resolve()
     config = load_config(root)
-    out = Path(output_dir).resolve() if output_dir else root / config["output_dir"]
-    try:
-        out.relative_to(root)
-    except ValueError:
-        raise ValueError("knowledge output must be inside repository")
+    out = resolve_knowledge_directory(root, output_dir, config)
     out.mkdir(parents=True, exist_ok=True)
     (out / "symbols").mkdir(exist_ok=True)
-    included, _, ignored = discover_files(root, config)
+    included, _, ignored = discover_files(root, config, out)
     ignored = filter_internal_paths(root, out, ignored)
     files = []
     symbols = []
@@ -125,7 +118,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     artifacts = {"repo-map.json": repo, "relationships.json": relationships, "symbols.json": catalog}
     hashes = {name: _digest(data) for name, data in artifacts.items()}
     file_hashes = {f["path"]: f["hash"] for f in files}
-    revision, branch, dirty, untracked = get_git_info(root, config, set(file_hashes))
+    revision, branch, dirty, untracked = get_git_info(root, config, out)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "extractor_version": EXTRACTOR_VERSION,

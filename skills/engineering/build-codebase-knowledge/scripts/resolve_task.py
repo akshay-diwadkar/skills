@@ -15,7 +15,7 @@ from typing import Any, Literal
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
-from knowledge.config import load_config
+from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import knowledge_output_prefix
 from knowledge.indexing import shard_id
 from knowledge.schemas import validate_schema_json
@@ -50,14 +50,16 @@ CONFIG_PHRASES = {
 STRONG_CONFIG_TOKENS = {"ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow"}
 TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test", "assertion", "fixture", "rename test", "expected output"}
 IMPLEMENTATION_WORDS = {"implement", "add", "fix", "support", "prevent", "handle", "refactor", "caller", "behavior"}
+SecondaryRole = Literal["test", "configuration"]
+PrimaryRole = Literal["source", "test", "configuration"]
 
 
 @dataclass(frozen=True)
 class TaskIntent:
     """Deterministic primary ownership and explicitly requested constraints."""
 
-    primary_role: Literal["source", "test", "configuration"]
-    secondary_roles: tuple[Literal["test", "configuration"], ...]
+    primary_role: PrimaryRole
+    secondary_roles: tuple[SecondaryRole, ...]
     reasons: tuple[str, ...]
 
 
@@ -82,25 +84,93 @@ def _signals(task: str) -> dict[str, set[str]]:
     }
 
 
+def _role_order(roles: list[str]) -> list[PrimaryRole]:
+    """Return deterministic roles with source owning mixed explicit work."""
+    ordered: list[PrimaryRole] = []
+    for role in ("source", "test", "configuration"):
+        if role in roles:
+            ordered.append(role)
+    return ordered
+
+
+def _explicit_path_roles(signals: dict[str, set[str]], files: list[dict[str, Any]], exact: bool) -> list[PrimaryRole]:
+    matches: list[str] = []
+    for path in signals["paths"]:
+        for file in files:
+            indexed = file["path"]
+            if (indexed == path) if exact else (indexed.endswith("/" + path) or path.endswith("/" + indexed)):
+                matches.append(file["role"])
+    return _role_order(matches)
+
+
+def _explicit_symbol_roles(signals: dict[str, set[str]], files: list[dict[str, Any]]) -> list[PrimaryRole]:
+    return _role_order([file["role"] for file in files if set(file.get("symbols", [])) & signals["symbols"]])
+
+
+def _is_test_creation_task(lowered: str) -> bool:
+    return bool(re.search(r"\b(?:add|create|write)\b.{0,40}\b(?:regression )?tests?\b", lowered))
+
+
+def _is_mixed_implementation_task(lowered: str, implementation: bool, test_evidence: bool, config_evidence: bool) -> bool:
+    if not implementation or not (test_evidence or config_evidence):
+        return False
+    # "Add a regression test" owns a test; implementation support alongside it
+    # makes test work a constraint instead.
+    return not _is_test_creation_task(lowered) or "support" in lowered or "implement" in lowered
+
+
 def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[dict[str, Any]]) -> TaskIntent:
-    """Classify ownership by strong evidence; weak vocabulary never owns a task."""
+    """Classify ownership using indexed evidence before vocabulary."""
     explicit = signals["paths"]
     lowered = task.lower().replace("_", " ").replace("-", " ").replace(".", " ")
+    for roles, reason in (
+        (_explicit_path_roles(signals, files, True), "explicit indexed path matched"),
+        (_explicit_path_roles(signals, files, False), "explicit indexed path suffix matched"),
+        (_explicit_symbol_roles(signals, files), "explicit indexed symbol matched"),
+    ):
+        if roles:
+            primary = roles[0]
+            explicit_secondary = tuple(role for role in roles[1:] if role != "source")
+            matched = next(
+                (
+                    file["path"]
+                    for file in files
+                    if file["role"] == primary
+                    and (file["path"] in explicit or any(file["path"].endswith("/" + path) for path in explicit) or set(file.get("symbols", [])) & signals["symbols"])
+                ),
+                primary,
+            )
+            return TaskIntent(primary, explicit_secondary, (f"{reason} {matched}",))
     config_path = any(Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES for path in explicit)
     test_path = any("/test" in f"/{path.lower()}" or Path(path).name.lower().startswith("test_") for path in explicit)
     config_semantic = any(phrase in lowered for phrase in CONFIG_PHRASES)
     # pytest alone is deliberately not configuration evidence: it often names test code.
     pytest_config = "pytest" in lowered and any(key in lowered for key in ("addopts", "ini options", "configuration", "config"))
     test_semantic = any(phrase in lowered for phrase in TEST_PHRASES) or bool(re.search(r"\btest_[a-z0-9_]+\b|\btests?\b", lowered))
-    config_evidence = config_path or config_semantic or pytest_config or bool(
+    config_evidence = config_path or config_semantic or pytest_config or "configuration" in lowered or bool(
         re.search(r"\b(?:addopts|line[- ]?length|permissions|matrix|package script|compiler|linter)\b", lowered)
     )
     test_evidence = test_path or test_semantic or ("fixture" in lowered and "pytest" in lowered)
     implementation = any(re.search(rf"\b{re.escape(word)}\b", lowered) for word in IMPLEMENTATION_WORDS)
     maintenance = bool(re.search(r"\b(assertion|fixture|rename|expected output|failing (?:\w+ )*test|correct (?:\w+ )*regression test)\b", lowered))
     reasons: list[str] = []
-    if test_evidence and (test_path or maintenance):
-        return TaskIntent("test", (), tuple(reasons))
+    if config_path:
+        return TaskIntent("configuration", (), ("explicit configuration filename or extension",))
+    if test_path:
+        return TaskIntent("test", (), ("explicit test filename or test path",))
+    if test_evidence and maintenance:
+        return TaskIntent("test", (), ("strong test-maintenance wording",))
+    if _is_mixed_implementation_task(lowered, implementation, test_evidence, config_evidence):
+        reasons.append("strong implementation wording")
+        mixed_secondary: list[SecondaryRole] = []
+        if config_evidence:
+            mixed_secondary.append("configuration")
+        if test_evidence:
+            mixed_secondary.append("test")
+        reasons.extend(f"{role} work is a secondary constraint" for role in mixed_secondary)
+        return TaskIntent("source", tuple(mixed_secondary), tuple(reasons))
+    if _is_test_creation_task(lowered):
+        return TaskIntent("test", (), ("task explicitly requests creation of a regression test",))
     if implementation:
         reasons.append("strong implementation wording")
     if config_evidence:
@@ -108,20 +178,20 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
     if test_evidence:
         reasons.append("strong test-maintenance evidence")
     if implementation:
-        secondary: list[Literal["test", "configuration"]] = []
+        implementation_secondary: list[SecondaryRole] = []
         # Configuration precedes tests so mixed constraints have stable output.
         if config_evidence or "configuration" in lowered:
-            secondary.append("configuration")
+            implementation_secondary.append("configuration")
         if test_evidence:
-            secondary.append("test")
-        return TaskIntent("source", tuple(secondary), tuple(reasons))
+            implementation_secondary.append("test")
+        return TaskIntent("source", tuple(implementation_secondary), tuple(reasons))
     if config_evidence:
         return TaskIntent("configuration", (), tuple(reasons))
     return TaskIntent("source", (), ("ambiguous ownership defaults to source",))
 
 
-def _load(root: Path, out: Path | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
-    directory = out or root / load_config(root)["output_dir"]
+def _load(root: Path, out: Path | str | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+    directory = resolve_knowledge_directory(root, out, load_config(root))
     names = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
     if any(not (directory / x).is_file() for x in names):
         raise FileNotFoundError("Knowledge artifacts missing; run build first.")
@@ -261,6 +331,54 @@ def _configuration_match_score(line: str, candidate: str) -> int:
     return 0
 
 
+def _structured_configuration_keys(path: str, lines: list[str]) -> dict[int, str]:
+    """Track the small amount of structure needed to rank active config keys."""
+    suffix = Path(path).suffix.lower()
+    result: dict[int, str] = {}
+    if Path(path).name.lower() in {"makefile", "gnumakefile"}:
+        for index, line in enumerate(lines):
+            match = re.match(r"^([A-Za-z0-9_.-]+)\s*:(?![=])", line)
+            if match:
+                result[index] = match.group(1)
+        return result
+    if suffix in {".toml", ".ini", ".cfg"}:
+        section = ""
+        for index, line in enumerate(lines):
+            match = re.match(r"\s*\[([^]]+)\]", line)
+            if match:
+                section = match.group(1).strip()
+            match = re.match(r"\s*([A-Za-z0-9_.-]+)\s*[=:]", line)
+            if match and not line.lstrip().startswith(("#", ";")):
+                result[index] = ".".join(part for part in (section, match.group(1)) if part)
+        return result
+    if suffix in {".yaml", ".yml"}:
+        yaml_ancestors: list[tuple[int, str]] = []
+        for index, line in enumerate(lines):
+            match = re.match(r"^(\s*)([A-Za-z0-9_.-]+):", line)
+            if not match or line.lstrip().startswith("#"):
+                continue
+            indent, key = len(match.group(1).expandtabs(2)), match.group(2)
+            while yaml_ancestors and yaml_ancestors[-1][0] >= indent:
+                yaml_ancestors.pop()
+            result[index] = ".".join([name for _, name in yaml_ancestors] + [key])
+            yaml_ancestors.append((indent, key))
+        return result
+    if suffix == ".json":
+        json_ancestors: list[str] = []
+        for index, line in enumerate(lines):
+            match = re.match(r'\s*"([^"\\]+)"\s*:', line)
+            if match:
+                key = match.group(1)
+                result[index] = ".".join(json_ancestors + [key])
+                if "{" in line[line.find(":") + 1:]:
+                    json_ancestors.append(key)
+            closes = line.count("}")
+            for _ in range(min(closes, len(json_ancestors))):
+                json_ancestors.pop()
+        return result
+    return result
+
+
 def _focused_text_range(root: Path, path: str, task: str, config: dict[str, Any]) -> tuple[int | None, int | None, str | None]:
     """Return the highest-ranked compact, active configuration-key range."""
     try:
@@ -268,9 +386,21 @@ def _focused_text_range(root: Path, path: str, task: str, config: dict[str, Any]
     except OSError:
         return None, None, None
     ranked = []
+    structured = _structured_configuration_keys(path, lines)
     for candidate in _configuration_key_candidates(task):
         for index, line in enumerate(lines):
             score = _configuration_match_score(line, candidate)
+            normalized = candidate.lower().replace("-", "_")
+            structure = structured.get(index, "").lower().replace("-", "_")
+            if structure == normalized:
+                score = 120 if "." in normalized else 110
+            elif Path(path).suffix.lower() == ".json" and "." in candidate:
+                quoted_parts = [f'"{part}"' for part in candidate.split(".")]
+                positions = [line.find(part) for part in quoted_parts]
+                if all(position >= 0 for position in positions) and positions == sorted(positions):
+                    score = 120
+            elif structure.rsplit(".", 1)[-1:] == normalized.rsplit(".", 1)[-1:] and score >= 70:
+                score = max(score, 100)
             if "." in candidate and score < 75:
                 key = candidate.rsplit(".", 1)[-1].replace("-", "_")
                 if re.match(rf"^\s*{re.escape(key)}\s*[=:]", line.strip().lower().replace("-", "_")):
@@ -372,7 +502,7 @@ def resolve_task(
     if phase not in {1, 2, 3, "all"}:
         raise ValueError("phase must be 1, 2, 3, or all")
     root = Path(repo_root).resolve()
-    directory, _, repo, catalog, relationships = _load(root, Path(knowledge_dir).resolve() if knowledge_dir else None)
+    directory, _, repo, catalog, relationships = _load(root, knowledge_dir)
     config = load_config(root)
     freshness = check_freshness(root, directory)["status"]
     signals = _signals(task)
@@ -385,6 +515,16 @@ def resolve_task(
         item for item in ranked
         if item["file"]["path"] in lexical_paths and item["file"]["role"] == intent.primary_role
     ][:3]
+    if not primaries:
+        primaries = [
+            {
+                "file": file,
+                "score": 0.0,
+                "evidence": {"role_fallback": (0.0, "ownership")},
+            }
+            for file in sorted(repo["files"], key=lambda item: item["path"])
+            if file["role"] == intent.primary_role
+        ][:3]
     symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
     primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}

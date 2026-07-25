@@ -26,7 +26,7 @@ from scaffold_github_workflow import (
 from validate_knowledge import validate_knowledge
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser(
         prog="build-codebase-knowledge",
         description="Repository intelligence layer and deterministic task resolver.",
@@ -96,7 +96,7 @@ def main() -> int:
     repo_root = Path(args.repo_root).resolve()
 
     if args.command == "build":
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         res = build_knowledge(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
@@ -105,7 +105,7 @@ def main() -> int:
         return 0
 
     elif args.command == "status":
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         st = check_freshness(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(st, indent=2))
@@ -122,7 +122,7 @@ def main() -> int:
         if not t_str:
             print("Error: task string or --task-file required", file=sys.stderr)
             return 1
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         selected_phase = args.phase if args.phase == "all" else int(args.phase)
         res = resolve_task(repo_root, t_str, out, selected_phase)
         if getattr(args, "format", "human") == "json":
@@ -132,7 +132,7 @@ def main() -> int:
         return 0
 
     elif args.command == "refresh":
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         res = refresh_knowledge(repo_root, args.changed_file, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
@@ -141,7 +141,7 @@ def main() -> int:
         return 0
 
     elif args.command == "validate":
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         res = validate_knowledge(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
@@ -156,7 +156,7 @@ def main() -> int:
         return 1 if res.get("errors") else 0
 
     elif args.command == "link-docs":
-        out = Path(args.output).resolve() if args.output else None
+        out = Path(args.output) if args.output else None
         res = link_agent_docs(repo_root, out, args.create_missing)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
@@ -192,6 +192,15 @@ def main() -> int:
         return 0 if res["status"] != "warning" else 1
 
     return 0
+
+
+def main() -> int:
+    """Convert expected operational failures into concise CLI diagnostics."""
+    try:
+        return _main()
+    except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
