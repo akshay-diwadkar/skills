@@ -125,3 +125,15 @@ def load_config(repo_root: Path | str) -> dict[str, Any]:
 
     _validate(config)
     return config
+
+
+def resolve_knowledge_directory(repo_root: Path | str, output_dir: Path | str | None, config: dict[str, Any]) -> Path:
+    """Resolve the one safe runtime output location for a command."""
+    root = Path(repo_root).resolve()
+    candidate = Path(output_dir) if output_dir is not None else Path(config["output_dir"])
+    resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("knowledge output must be inside repository") from exc
+    return resolved

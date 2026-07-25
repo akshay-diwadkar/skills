@@ -92,7 +92,9 @@ def is_secret_file_or_content(path: Path, content: str) -> bool:
     return False
 
 
-def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
+def discover_files(
+    repo_root: Path, config: dict[str, Any], output_dir: Path | str | None = None
+) -> tuple[list[str], list[str], list[str]]:
     """Discover files under repo_root.
 
     Returns:
@@ -114,7 +116,7 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
     else:
         untracked = git_untracked_paths(root) if config.get("include_untracked", True) else []
         candidates = sorted(set(tracked) | set(untracked))
-    output = root / config.get("output_dir", ".agent/knowledge")
+    output = Path(output_dir).resolve() if output_dir is not None else root / config.get("output_dir", ".agent/knowledge")
     for rel_str in filter_internal_paths(root, output, candidates):
         full_path = root / rel_str
         if not full_path.exists() or full_path.is_symlink() or not _safe_path(root, full_path):

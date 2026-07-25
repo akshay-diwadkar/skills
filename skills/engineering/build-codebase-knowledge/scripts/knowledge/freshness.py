@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, _config_hash, _digest, get_git_info
-from knowledge.config import load_config
+from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import (
     discover_files,
     filter_internal_paths,
@@ -58,7 +58,7 @@ def _git_changes(root: Path, revision: str, include_untracked: bool, output: Pat
 
 def _repository_metadata(root: Path, config: dict[str, Any], output: Path) -> dict[str, Any]:
     """Compute metadata with only safely indexable untracked files represented."""
-    revision, branch, dirty, _untracked = get_git_info(root, config)
+    revision, branch, dirty, _untracked = get_git_info(root, config, output)
     # Preserve repository-state metadata for all Git-visible untracked paths
     # when opt-in is enabled; this is intentionally separate from eligibility.
     relevant_untracked = (
@@ -73,9 +73,9 @@ def _repository_metadata(root: Path, config: dict[str, Any], output: Path) -> di
     }
 
 
-def _inventory_changes(root: Path, config: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
+def _inventory_changes(root: Path, config: dict[str, Any], manifest: dict[str, Any], output: Path) -> list[str]:
     """Compare eligible content hashes without relying on a diffable revision."""
-    included, _, _ = discover_files(root, config)
+    included, _, _ = discover_files(root, config, output)
     old = manifest.get("file_hashes", {})
     current = {path: item.record["hash"] for path in included if (item := classify_and_extract(root, path, config)[0])}
     return sorted(path for path in set(old) | set(current) if old.get(path) != current.get(path))
@@ -114,7 +114,7 @@ def _load_root_artifacts(out: Path) -> tuple[dict[str, Any], dict[str, Any], dic
 def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
     root = Path(repo_root).resolve()
     config = load_config(root)
-    out = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
+    out = resolve_knowledge_directory(root, knowledge_dir, config)
     loaded = _load_root_artifacts(out)
     if not isinstance(loaded, tuple):
         return loaded
@@ -123,7 +123,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
         return {"status": "stale", "reason": "Schema, extractor, or indexing configuration changed.", "changed_files": [], "requires_full_rebuild": True}
     state = _git_changes(root, manifest["repository"].get("revision", ""), config["include_untracked"], out)
     if state is None:
-        fallback_changes = _inventory_changes(root, config, manifest)
+        fallback_changes = _inventory_changes(root, config, manifest, out)
         return {
             "status": "fresh" if not fallback_changes else "partially-stale",
             "reason": "Git unavailable; used inventory fallback.",
@@ -134,7 +134,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
         }
     candidates, current_revision, detection_mode = state
     if detection_mode == "git-inventory-recovery":
-        recovery_changes = _inventory_changes(root, config, manifest)
+        recovery_changes = _inventory_changes(root, config, manifest, out)
         metadata = _repository_metadata(root, config, out)
         return {
             "status": "fresh" if not recovery_changes else "partially-stale",
@@ -210,8 +210,18 @@ def _metadata_only(root: Path, out: Path, manifest: dict[str, Any], config: dict
 def refresh_knowledge(repo_root: Path | str, changed_files: list[str] | None = None, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
     root = Path(repo_root).resolve()
     config = load_config(root)
-    out = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
+    out = resolve_knowledge_directory(root, knowledge_dir, config)
     state = check_freshness(root, out)
+    if state.get("requires_full_rebuild"):
+        from build_knowledge import build_knowledge
+
+        return {
+            "mode": "full",
+            "status": "fresh",
+            "reason": state.get("reason", "Full rebuild required."),
+            "changed_files": state.get("changed_files", []),
+            "details": build_knowledge(root, out),
+        }
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     tracked = git_tracked_paths(root)
     explicit = _normalise(root, out, changed_files or [])
@@ -221,7 +231,7 @@ def refresh_knowledge(repo_root: Path | str, changed_files: list[str] | None = N
         if config["include_untracked"] or is_tracked_path(root, path, tracked) or path in manifest.get("file_hashes", {})
     ]
     changes = sorted(set(explicit) | set(state.get("changed_files", [])))
-    if state.get("requires_full_rebuild") or any(is_repository_wide_config(path) for path in changes):
+    if any(is_repository_wide_config(path) for path in changes):
         from build_knowledge import build_knowledge
         return {
             "mode": "full",
@@ -272,7 +282,7 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
         if extracted:
             commands.extend(extracted.commands)
     repo, relationships = project(list(files.values()), list(configs.values()), commands)
-    _included, _generated, current_ignored = discover_files(root, config)
+    _included, _generated, current_ignored = discover_files(root, config, out)
     current_ignored = filter_internal_paths(root, out, current_ignored)
     repo["ignored_paths"] = sorted((set(old_repo.get("ignored_paths", [])) - set(changes)) | set(current_ignored))
     for key in affected:
