@@ -1,6 +1,6 @@
-# Authoring Skills & Agents
+# Authoring Skills
 
-This document details how to author, register, test, and document new engineering skills and role agents in this monorepo.
+This document details how to author, register, test, and document new engineering skills in this monorepo.
 
 ---
 
@@ -52,9 +52,6 @@ Add an entry to `catalog/skills.yaml`:
     summary: Concise, high-level summary.
     platforms:
       skills_sh: true
-      claude_plugin: true
-      cursor_plugin: true
-      codex: true
     relationships:
       invokes: []
       complements: []
@@ -76,10 +73,7 @@ tests/skills/my-new-skill/
 └── fixtures/                # Disposable test fixtures
 ```
 
-### Step 6: Attach to Role Agents (Optional)
-If the new skill belongs to a role-based agent, add it to `catalog/agents.yaml` under the appropriate agent's `skills:` list and update the agent's source prompt under `agents/source/<agent-name>.md`.
-
-### Step 7: Synchronize & Validate
+### Step 6: Synchronize & Validate
 Run catalog sync and repository validation:
 
 ```bash

@@ -72,7 +72,7 @@ python tools/validation/run_mypy.py
 ```bash
 python -m pytest -q
 ```
-Runs unit tests for bundled scripts, platform manifest tests, agent generation tests, contract validators, and cross-platform diagram tests.
+Runs unit tests for bundled scripts, contract validators, retrieval benchmarks, and cross-platform tests.
 
 ---
 

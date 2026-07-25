@@ -76,34 +76,17 @@ def build_distribution(output_dir: Path) -> Path:
             elif p.is_file():
                 shutil.copy2(p, dest)
 
-    # Copy distribution manifests & adapters
-    claude_src = ROOT / ".claude-plugin"
-    if claude_src.is_dir():
-        shutil.copytree(claude_src, output_dir / ".claude-plugin")
-
-    cursor_src = ROOT / ".cursor-plugin"
-    if cursor_src.is_dir():
-        shutil.copytree(cursor_src, output_dir / ".cursor-plugin")
-
-    codex_src = ROOT / ".codex"
-    if codex_src.is_dir():
-        shutil.copytree(codex_src, output_dir / ".codex")
-
     catalog_src = ROOT / "catalog"
     if catalog_src.is_dir():
         shutil.copytree(catalog_src, output_dir / "catalog")
-
-    agents_src = ROOT / "agents"
-    if agents_src.is_dir():
-        shutil.copytree(agents_src, output_dir / "agents")
 
     # Copy user-facing documentation
     docs_src = ROOT / "docs"
     if docs_src.is_dir():
         dest_docs = output_dir / "docs"
         dest_docs.mkdir(parents=True, exist_ok=True)
-        allowed_root_docs = {"getting-started.md", "installation.md", "compatibility.md", "agents.md", "workflow.md", "safety.md"}
-        allowed_subdirs = {"skills", "agents"}
+        allowed_root_docs = {"getting-started.md", "installation.md", "compatibility.md", "workflow.md", "safety.md"}
+        allowed_subdirs = {"skills"}
         for p in docs_src.rglob("*"):
             rel = p.relative_to(docs_src)
             first_part = rel.parts[0]
@@ -119,13 +102,6 @@ def build_distribution(output_dir: Path) -> Path:
             elif p.is_file():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(p, dest)
-
-    # Copy Codex installer script
-    installer_src = ROOT / "tools" / "agents" / "install_codex_agents.py"
-    if installer_src.is_file():
-        dest_tools_agents = output_dir / "tools" / "agents"
-        dest_tools_agents.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(installer_src, dest_tools_agents / "install_codex_agents.py")
 
     # Copy root documentation and metadata files
     for root_file in ("README.md", "VERSION", "LICENSE", "SECURITY.md", "CHANGELOG.md", "pyproject.toml"):

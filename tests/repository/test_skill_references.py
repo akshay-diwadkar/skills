@@ -11,9 +11,8 @@ import sync_catalog  # noqa: E402
 import validate_repository  # noqa: E402
 
 
-def test_runtime_skill_and_agent_references_are_valid() -> None:
+def test_runtime_skill_references_are_valid() -> None:
     skills_catalog = sync_catalog.load_skills_catalog()
-    agents_catalog = sync_catalog.load_agents_catalog()
 
-    errors = validate_repository.validate_skill_references(skills_catalog, agents_catalog)
+    errors = validate_repository.validate_skill_references(skills_catalog)
     assert not errors, "Unresolved skill reference errors found:\n" + "\n".join(errors)

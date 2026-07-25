@@ -21,11 +21,7 @@ def test_build_and_verify_clean_distribution() -> None:
         errors = verify_distribution.verify_distribution_tree(dist_path)
         assert not errors, "Distribution verification failed:\n" + "\n".join(errors)
 
-        # 1. Verify Codex installer exists
-        installer = dist_path / "tools" / "agents" / "install_codex_agents.py"
-        assert installer.is_file(), "Codex installer missing in built distribution"
-
-        # 2. Verify docs exist
+        # 1. Verify docs exist
         assert (dist_path / "docs" / "installation.md").is_file()
         assert (dist_path / "docs" / "compatibility.md").is_file()
 

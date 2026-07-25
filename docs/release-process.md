@@ -17,8 +17,8 @@ Update the single version string in `VERSION`:
 ### 2. Update Changelog
 Document all notable additions, changes, and fixes in `CHANGELOG.md` under the new version header following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
-### 3. Regenerate Catalogs & Platform Adapters
-Run catalog synchronization to update generated platform manifests (`.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`), TOML agents (`.codex/agents/`), adapter prompts, and documentation markdown tables:
+### 3. Regenerate Skill Catalog
+Run catalog synchronization to update markdown tables in `README.md` and `skills/engineering/README.md`:
 ```bash
 python tools/catalog/sync_catalog.py --write
 ```
@@ -51,18 +51,13 @@ python tools/validation/run_mypy.py
 python -m pytest -q
 ```
 
-### 8. Perform Manual Native-Host Smoke Tests
+### 8. Perform Manual Smoke Tests
 
-Automated CI gates prove repository contract and schema compliance, but maintainers must manually verify live host installation prior to tagging a stable release:
-
-- **Claude Local Plugin**: `claude --plugin-dir .` (verify plugin loads and agents appear)
-- **Claude Marketplace**: `/plugin marketplace add akshay-diwadkar/skills` and `/plugin install engineering-skills@engineering-skills-marketplace`
-- **Cursor Local Plugin**: Symlink `~/.cursor/plugins/local/engineering-skills` and verify agents populate in Cursor
-- **Codex Project Installer**: `python tools/agents/install_codex_agents.py --target <test-project> --write` (verify TOML agents created)
+Verify skill resolution:
 - **skills.sh CLI**: `npx skills add akshay-diwadkar/skills` (verify skills resolve)
 
 ### 9. Tag Release & Verify Artifacts
-Create the git release tag only after all automated verification gates and manual native-host smoke tests pass cleanly:
+Create the git release tag only after all automated verification gates and manual smoke tests pass cleanly:
 ```bash
 git tag -a v1.0.0 -m "Release v1.0.0"
 ```
