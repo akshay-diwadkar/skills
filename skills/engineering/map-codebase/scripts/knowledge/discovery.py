@@ -59,9 +59,15 @@ def is_knowledge_path(repo_root: Path, output_dir: Path | str, path: str) -> boo
     return normalized == prefix or normalized.startswith(prefix + "/")
 
 
+def is_internal_runtime_path(repo_root: Path, output_dir: Path | str, path: str) -> bool:
+    """Whether a path is generated runtime support rather than repository source."""
+    normalized = path.replace("\\", "/").strip("/")
+    return normalized in {"AGENTS.md", "CLAUDE.md"} or is_knowledge_path(repo_root, output_dir, path)
+
+
 def filter_internal_paths(repo_root: Path, output_dir: Path | str, paths: list[str] | set[str]) -> list[str]:
-    """Return deterministic repository paths excluding generated knowledge artifacts."""
-    return sorted({path.replace("\\", "/") for path in paths if not is_knowledge_path(repo_root, output_dir, path)})
+    """Return deterministic repository paths excluding generated runtime support."""
+    return sorted({path.replace("\\", "/") for path in paths if not is_internal_runtime_path(repo_root, output_dir, path)})
 
 
 def matches_glob(rel_path_str: str, patterns: list[str]) -> bool:

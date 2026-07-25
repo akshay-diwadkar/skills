@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -14,7 +15,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from build_knowledge import build_knowledge
-from link_agent_docs import link_agent_docs
+from link_agent_docs import ensure_agent_docs
 from refresh_knowledge import check_freshness, refresh_knowledge
 from resolve_task import format_human, resolve_task
 from scaffold_github_workflow import (
@@ -78,7 +79,7 @@ def _main() -> int:
     p_link.add_argument(
         "--create-missing",
         action="store_true",
-        help="Create AGENTS.md only when neither supported instruction file exists",
+        help="Deprecated; missing AGENTS.md and CLAUDE.md files are always created",
     )
 
     # generate-workflow is deliberately opt-in; no default knowledge command writes workflows.
@@ -95,9 +96,19 @@ def _main() -> int:
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
 
+    def finalize_agent_docs(result: dict[str, Any]) -> bool:
+        try:
+            result["agent_docs"] = ensure_agent_docs(repo_root, Path(args.output) if args.output else None)
+        except (ValueError, OSError, UnicodeDecodeError) as exc:
+            print(f"Knowledge artifacts were created, but agent-document finalization failed: {exc}", file=sys.stderr)
+            return False
+        return True
+
     if args.command == "build":
         out = Path(args.output) if args.output else None
         res = build_knowledge(repo_root, out)
+        if not finalize_agent_docs(res):
+            return 1
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         elif not getattr(args, "quiet", False):
@@ -134,6 +145,8 @@ def _main() -> int:
     elif args.command == "refresh":
         out = Path(args.output) if args.output else None
         res = refresh_knowledge(repo_root, args.changed_file, out)
+        if not finalize_agent_docs(res):
+            return 1
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:
@@ -157,7 +170,7 @@ def _main() -> int:
 
     elif args.command == "link-docs":
         out = Path(args.output) if args.output else None
-        res = link_agent_docs(repo_root, out, args.create_missing)
+        res = ensure_agent_docs(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:
@@ -165,6 +178,8 @@ def _main() -> int:
                 print(f"Created agent doc files referencing '{res['knowledge_path']}': {', '.join(res['created'])}")
             elif res["modified"]:
                 print(f"Updated agent doc files referencing '{res['knowledge_path']}': {', '.join(res['modified'])}")
+            elif res["skipped"]:
+                print(f"Skipped opted-out agent doc files: {', '.join(res['skipped'])}")
             else:
                 print("Agent doc files already up to date. No changes made.")
         return 0
