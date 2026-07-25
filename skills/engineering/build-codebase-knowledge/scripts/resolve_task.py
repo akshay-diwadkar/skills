@@ -158,6 +158,8 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
         return TaskIntent("configuration", (), ("explicit configuration filename or extension",))
     if test_path:
         return TaskIntent("test", (), ("explicit test filename or test path",))
+    if test_evidence and maintenance:
+        return TaskIntent("test", (), ("strong test-maintenance wording",))
     if _is_mixed_implementation_task(lowered, implementation, test_evidence, config_evidence):
         reasons.append("strong implementation wording")
         mixed_secondary: list[SecondaryRole] = []
@@ -169,8 +171,6 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
         return TaskIntent("source", tuple(mixed_secondary), tuple(reasons))
     if _is_test_creation_task(lowered):
         return TaskIntent("test", (), ("task explicitly requests creation of a regression test",))
-    if test_evidence and maintenance:
-        return TaskIntent("test", (), ("strong test-maintenance wording",))
     if implementation:
         reasons.append("strong implementation wording")
     if config_evidence:
