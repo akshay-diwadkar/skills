@@ -111,15 +111,15 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
         # This is intentionally explicit: only the fallback can scan the inventory.
         included, _, _ = discover_files(root, config)
         current = {path: compute_file_hash(root / path) for path in included if (root / path).is_file()}
-        changed = sorted(
+        fallback_changed = sorted(
             path
             for path in set(current) | set(manifest.get("file_hashes", {}))
             if current.get(path) != manifest.get("file_hashes", {}).get(path)
         )
         return {
-            "status": "fresh" if not changed else "partially-stale",
+            "status": "fresh" if not fallback_changed else "partially-stale",
             "reason": "Git unavailable; used full inventory fallback.",
-            "changed_files": changed,
+            "changed_files": fallback_changed,
             "requires_full_rebuild": False,
             "fallback": "inventory",
         }
@@ -359,20 +359,20 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     }
     for shard in changed_shards:
         entries = sorted(shard_symbols[shard], key=lambda item: (item["path"], item["line_start"], item["name"]))
-        target = out / f"symbols/{shard}.json"
+        shard_path = out / f"symbols/{shard}.json"
         if entries:
             encoded = serialize_json_deterministic(
                 {"schema_version": SCHEMA_VERSION, "shard": shard, "symbols": entries}
             )
-            write_file_deterministic(target, encoded)
+            write_file_deterministic(shard_path, encoded)
             old_shards[shard] = {
                 "id": shard,
                 "path": f"symbols/{shard}.json",
                 "count": len(entries),
                 "hash": hashlib.sha256(encoded.encode()).hexdigest(),
             }
-        elif target.exists():
-            target.unlink()
+        elif shard_path.exists():
+            shard_path.unlink()
             old_shards.pop(shard, None)
     catalog = {
         "schema_version": SCHEMA_VERSION,
