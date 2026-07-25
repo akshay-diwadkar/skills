@@ -15,6 +15,35 @@ SECRET_PATTERNS = [
 ]
 
 
+def knowledge_output_prefix(repo_root: Path, output_dir: Path | str) -> str:
+    """Return the normalized repository-relative knowledge output prefix."""
+    root = repo_root.resolve()
+    output = Path(output_dir)
+    output = output.resolve() if output.is_absolute() else (root / output).resolve()
+    try:
+        return output.relative_to(root).as_posix()
+    except ValueError as exc:
+        raise ValueError("knowledge output must be inside repository") from exc
+
+
+def is_knowledge_path(repo_root: Path, output_dir: Path | str, path: str) -> bool:
+    """Whether ``path`` names the configured internal knowledge output."""
+    root = repo_root.resolve()
+    candidate = Path(path)
+    try:
+        relative = (candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()).relative_to(root)
+    except ValueError:
+        return False
+    prefix = knowledge_output_prefix(root, output_dir)
+    normalized = relative.as_posix()
+    return normalized == prefix or normalized.startswith(prefix + "/")
+
+
+def filter_internal_paths(repo_root: Path, output_dir: Path | str, paths: list[str] | set[str]) -> list[str]:
+    """Return deterministic repository paths excluding generated knowledge artifacts."""
+    return sorted({path.replace("\\", "/") for path in paths if not is_knowledge_path(repo_root, output_dir, path)})
+
+
 def matches_glob(rel_path_str: str, patterns: list[str]) -> bool:
     """Check if a relative path matches any glob pattern in patterns."""
     norm_path = rel_path_str.replace("\\", "/").strip("/")
@@ -85,7 +114,8 @@ def discover_files(repo_root: Path, config: dict[str, Any]) -> tuple[list[str], 
     else:
         untracked = git_untracked_paths(root) if config.get("include_untracked", True) else []
         candidates = sorted(set(tracked) | set(untracked))
-    for rel_str in candidates:
+    output = root / config.get("output_dir", ".agent/knowledge")
+    for rel_str in filter_internal_paths(root, output, candidates):
         full_path = root / rel_str
         if not full_path.exists() or full_path.is_symlink() or not _safe_path(root, full_path):
             ignored.append(rel_str)
