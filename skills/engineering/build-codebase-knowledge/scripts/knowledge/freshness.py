@@ -10,7 +10,7 @@ from typing import Any
 
 from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, _config_hash, _digest, get_git_info
 from knowledge.config import load_config
-from knowledge.discovery import discover_files
+from knowledge.discovery import discover_files, git_tracked_paths, git_untracked_paths, is_tracked_path
 from knowledge.indexing import classify_and_extract, is_repository_wide_config, project, shard_id
 from knowledge.schemas import validate_schema_json
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
@@ -27,7 +27,7 @@ def _changed(text: str) -> set[str]:
     return {field.replace("\\", "/") for line in text.splitlines() for field in line.split("\t")[1:] if field}
 
 
-def _git_changes(root: Path, revision: str) -> tuple[set[str], str] | None:
+def _git_changes(root: Path, revision: str, include_untracked: bool) -> tuple[set[str], str] | None:
     current = _git(root, "rev-parse", "HEAD")
     if current is None:
         return None
@@ -36,12 +36,27 @@ def _git_changes(root: Path, revision: str) -> tuple[set[str], str] | None:
         _git(root, "diff", "--find-renames", "--name-status"),
         _git(root, "diff", "--find-renames", "--name-status", "--cached"),
     ]
-    untracked = _git(root, "ls-files", "--others", "--exclude-standard")
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard") if include_untracked else ""
     if any(value is None for value in outputs) or untracked is None:
         return None
     changes = set().union(*(_changed(value or "") for value in outputs))
     changes.update(value.replace("\\", "/") for value in untracked.splitlines() if value)
     return changes, current.strip()
+
+
+def _repository_metadata(root: Path, config: dict[str, Any]) -> dict[str, Any]:
+    """Compute metadata with only safely indexable untracked files represented."""
+    revision, branch, dirty, _untracked = get_git_info(root, config)
+    # Preserve repository-state metadata for all Git-visible untracked paths
+    # when opt-in is enabled; this is intentionally separate from eligibility.
+    relevant_untracked = git_untracked_paths(root) if config.get("include_untracked", True) else []
+    return {
+        "root": ".",
+        "revision": revision,
+        "branch": branch,
+        "dirty": dirty,
+        "untracked_files": sorted(relevant_untracked),
+    }
 
 
 def _invalid(reason: str) -> dict[str, Any]:
@@ -84,7 +99,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     manifest, _repo, _catalog, _relationships = loaded
     if manifest.get("schema_version") != SCHEMA_VERSION or manifest.get("extractor_version") != EXTRACTOR_VERSION or manifest.get("config_hash") != _config_hash(config):
         return {"status": "stale", "reason": "Schema, extractor, or indexing configuration changed.", "changed_files": [], "requires_full_rebuild": True}
-    state = _git_changes(root, manifest["repository"].get("revision", ""))
+    state = _git_changes(root, manifest["repository"].get("revision", ""), config["include_untracked"])
     if state is None:
         included, _, _ = discover_files(root, config)
         old = manifest.get("file_hashes", {})
@@ -98,11 +113,19 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
             "revision_changed": False,
         }
     candidates, current_revision = state
+    tracked = git_tracked_paths(root)
     output_rel = out.relative_to(root).as_posix()
     old = manifest.get("file_hashes", {})
     changes: set[str] = set()
     for path in candidates:
         if path == output_rel or path.startswith(output_rel + "/"):
+            continue
+        tracked_path = is_tracked_path(root, path, tracked)
+        if not config["include_untracked"] and not tracked_path:
+            # A formerly indexed path that is now untracked must be removed;
+            # brand-new untracked paths are invisible to this configuration.
+            if path in old:
+                changes.add(path)
             continue
         extracted, normalised, _reason = classify_and_extract(root, path, config)
         if extracted is None:
@@ -110,7 +133,9 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
                 changes.add(normalised)
         elif extracted.record["hash"] != old.get(normalised):
             changes.add(normalised)
+    metadata = _repository_metadata(root, config)
     revision_changed = current_revision != manifest["repository"].get("revision")
+    repository_metadata_changed = metadata != manifest.get("repository", {})
     return {
         "status": "fresh" if not changes else "partially-stale",
         "reason": (
@@ -121,6 +146,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
         "changed_files": sorted(changes),
         "requires_full_rebuild": False,
         "revision_changed": revision_changed,
+        "repository_metadata_changed": repository_metadata_changed,
         "current_revision": current_revision,
     }
 
@@ -136,12 +162,11 @@ def _normalise(root: Path, paths: list[str]) -> list[str]:
     return sorted(set(result))
 
 
-def _metadata_only(root: Path, out: Path, manifest: dict[str, Any]) -> None:
-    revision, branch, dirty, untracked = get_git_info(root)
+def _metadata_only(root: Path, out: Path, manifest: dict[str, Any], config: dict[str, Any]) -> None:
     manifest.update(
         {
             "generation_mode": "metadata-only",
-            "repository": {"root": ".", "revision": revision, "branch": branch, "dirty": dirty, "untracked_files": untracked},
+            "repository": _repository_metadata(root, config),
             "changed_files": [],
             "freshness_state": "fresh",
         }
@@ -154,7 +179,15 @@ def refresh_knowledge(repo_root: Path | str, changed_files: list[str] | None = N
     config = load_config(root)
     out = Path(knowledge_dir).resolve() if knowledge_dir else root / config["output_dir"]
     state = check_freshness(root, out)
-    changes = sorted(set(_normalise(root, changed_files or [])) | set(state.get("changed_files", [])))
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    tracked = git_tracked_paths(root)
+    explicit = _normalise(root, changed_files or [])
+    explicit = [
+        path
+        for path in explicit
+        if config["include_untracked"] or is_tracked_path(root, path, tracked) or path in manifest.get("file_hashes", {})
+    ]
+    changes = sorted(set(explicit) | set(state.get("changed_files", [])))
     if state.get("requires_full_rebuild") or any(is_repository_wide_config(path) for path in changes):
         from build_knowledge import build_knowledge
         return {
@@ -164,11 +197,10 @@ def refresh_knowledge(repo_root: Path | str, changed_files: list[str] | None = N
             "changed_files": changes,
             "details": build_knowledge(root, out),
         }
-    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     if not changes:
-        if state.get("revision_changed"):
-            _metadata_only(root, out, manifest)
-            return {"mode": "metadata-only", "status": "fresh", "reason": "Updated repository revision without indexed content changes.", "changed_files": []}
+        if state.get("repository_metadata_changed"):
+            _metadata_only(root, out, manifest, config)
+            return {"mode": "metadata-only", "status": "fresh", "reason": "Updated repository metadata without indexed content changes.", "changed_files": []}
         return {"mode": "none", "status": "fresh", "message": "Knowledge is already fresh.", "changed_files": []}
     if len(manifest.get("indexed_paths", [])) > 10 and len(changes) / len(manifest["indexed_paths"]) > config["full_refresh_change_ratio"]:
         from build_knowledge import build_knowledge
@@ -230,8 +262,8 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     artifacts = {"repo-map.json": repo, "relationships.json": relationships, "symbols.json": catalog}
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))
-    revision, branch, dirty, untracked = get_git_info(root)
+    metadata = _repository_metadata(root, config)
     file_hashes = {item["path"]: item["hash"] for item in files.values()}
     hashes = {name: _digest(data) for name, data in artifacts.items()}
-    manifest.update({"schema_version": SCHEMA_VERSION, "extractor_version": EXTRACTOR_VERSION, "repository": {"root": ".", "revision": revision, "branch": branch, "dirty": dirty, "untracked_files": untracked}, "generation_mode": "incremental", "config_hash": _config_hash(config), "index_hash": _digest(hashes), "inventory_hash": _digest(file_hashes), "indexed_paths": sorted(file_hashes), "file_hashes": file_hashes, "artifact_hashes": hashes, "changed_files": changes, "freshness_state": "fresh"})
+    manifest.update({"schema_version": SCHEMA_VERSION, "extractor_version": EXTRACTOR_VERSION, "repository": metadata, "generation_mode": "incremental", "config_hash": _config_hash(config), "index_hash": _digest(hashes), "inventory_hash": _digest(file_hashes), "indexed_paths": sorted(file_hashes), "file_hashes": file_hashes, "artifact_hashes": hashes, "changed_files": changes, "freshness_state": "fresh"})
     write_file_deterministic(out / "manifest.json", serialize_json_deterministic(manifest))

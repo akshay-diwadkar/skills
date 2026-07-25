@@ -38,7 +38,8 @@ def role(path: str) -> str:
     name = Path(path).name.lower()
     if (
         name in CONFIG_NAMES
-        or Path(path).suffix.lower() in {".toml", ".yaml", ".yml", ".ini"}
+        or name.startswith("tsconfig") and name.endswith(".json")
+        or Path(path).suffix.lower() in {".toml", ".yaml", ".yml", ".ini", ".cfg"}
         or path.endswith(".env.example")
     ):
         return "configuration"
