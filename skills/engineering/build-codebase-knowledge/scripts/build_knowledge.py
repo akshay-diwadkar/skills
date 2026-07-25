@@ -189,11 +189,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
             candidates += [p for p, x in file_by_path.items() if x["role"] == "source" and Path(p).stem == stem]
             for target in sorted(set(candidates)):
                 test_links.append({"source": f["path"], "target": target, "kind": "test"})
-    config_links = [
-        {"source": cfg["path"], "target": p, "kind": "configuration", "confidence": "low"}
-        for cfg in configs
-        for p in []
-    ]
+    config_links: list[dict[str, str]] = []
     entry_points = [
         {"path": f["path"], "symbol": (f["symbols"][0] if f["symbols"] else "main"), "kind": "entry-point"}
         for f in files
@@ -224,7 +220,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     shards: dict[str, list[dict[str, Any]]] = {}
     for symbol in symbols:
         shards.setdefault(_shard_id(symbol["path"]), []).append(symbol)
-    catalog = {"schema_version": SCHEMA_VERSION, "symbol_count": len(symbols), "shards": []}
+    catalog: dict[str, Any] = {"schema_version": SCHEMA_VERSION, "symbol_count": len(symbols), "shards": []}
     for shard, entries in sorted(shards.items()):
         relative = f"symbols/{shard}.json"
         payload = {"schema_version": SCHEMA_VERSION, "shard": shard, "symbols": entries}
@@ -256,7 +252,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
         "changed_files": [],
         "freshness_state": "fresh",
     }
-    errors = sum(
+    errors: list[str] = sum(
         (
             validate_schema_json(manifest, "manifest.schema.json"),
             validate_schema_json(repo_map, "repo-map.schema.json"),
