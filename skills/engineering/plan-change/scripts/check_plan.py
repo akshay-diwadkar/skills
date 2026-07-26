@@ -13,7 +13,7 @@ from plan_runtime import validate_plan
 def collect_diagnostics(
     text: str, tier: str, repo_root: Path, *, require_finalized: bool = False, baseline: dict | None = None
 ):
-    plan, diagnostics = validate_plan(text, repo_root, require_finalized=require_finalized)
+    plan, diagnostics = validate_plan(text, repo_root, require_finalized=require_finalized, baseline=baseline)
     if plan and tier != plan.tier:
         from plan_runtime import Diagnostic
 
@@ -28,13 +28,16 @@ def main() -> int:
     parser.add_argument("--tier", choices=("tiny", "standard", "high-risk"), required=True)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--require-finalized", action="store_true")
+    parser.add_argument("--baseline", type=Path, help="Planning snapshot JSON captured before exploration.")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("path", nargs="?")
     args = parser.parse_args()
     text = Path(args.path).read_text(encoding="utf-8") if args.path else __import__("sys").stdin.read()
-    diagnostics = collect_diagnostics(
-        text, args.tier, args.repo_root.resolve(), require_finalized=args.require_finalized
-    )
+    try:
+        baseline = json.loads(args.baseline.read_text(encoding="utf-8")) if args.baseline else None
+    except (OSError, json.JSONDecodeError) as exc:
+        parser.error(f"--baseline must be readable JSON: {exc}")
+    diagnostics = collect_diagnostics(text, args.tier, args.repo_root.resolve(), require_finalized=args.require_finalized, baseline=baseline)
     if args.format == "json":
         print(
             json.dumps(

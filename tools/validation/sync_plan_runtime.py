@@ -14,9 +14,9 @@ TARGETS = (
 
 
 def main() -> int:
-    source = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_bytes()
     for target in TARGETS:
-        target.write_text(source, encoding="utf-8")
+        target.write_bytes(source)
     return 0
 
 
