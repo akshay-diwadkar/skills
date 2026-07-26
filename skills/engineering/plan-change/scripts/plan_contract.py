@@ -1,4 +1,4 @@
-"""Load and render the canonical v3 plan contract."""
+"""Load and render the canonical v4 plan contract."""
 
 from __future__ import annotations
 
@@ -10,81 +10,83 @@ CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "plan-contr
 
 
 def load_contract() -> dict[str, Any]:
-    data = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
-    if data.get("contract_version") != 3:
-        raise ValueError("plan contract must have contract_version 3")
-    return data
+    value = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    if value.get("contract_version") != 4:
+        raise ValueError("plan contract must have contract_version 4")
+    return value
 
 
 def section_names(tier: str) -> list[str]:
-    contract = load_contract()
-    tier_contract = contract["tiers"][tier]
-    return [*contract["base_sections"], *tier_contract["extra_sections"]]
-
-
-def render_scaffold(tier: str, task_type: str) -> str:
+    """Expose v4 section order for scaffolding and package checks."""
     contract = load_contract()
     if tier not in contract["tiers"]:
         raise ValueError(f"unsupported tier: {tier}")
-    if task_type not in contract["task_types"]:
-        raise ValueError(f"unsupported task type: {task_type}")
+    return list(contract["base_sections"])
 
-    tier_contract = contract["tiers"][tier]
-    required_attacks = contract["tiers"][tier]["required_attacks"]
-    lines: list[str] = [
+
+def render_scaffold(tier: str, intent: str, domains: list[str]) -> str:
+    contract = load_contract()
+    if tier not in contract["tiers"] or intent not in contract["intents"]:
+        raise ValueError("unsupported plan classification")
+    if len(domains) != len(set(domains)) or any(domain not in contract["risk_domains"] for domain in domains):
+        raise ValueError("risk domains must be known and unique")
+    metadata = {
+        "provisional": {"intent": intent, "risk_domains": domains, "tier": tier},
+        "final": {"intent": intent, "risk_domains": domains, "tier": tier},
+    }
+    lines = [
         "# Replace With an Action-Oriented Outcome",
         contract["marker"],
-        f"<!-- tier: {tier}; task-type: {task_type} -->",
+        "<!-- plan-metadata: " + json.dumps(metadata, separators=(",", ":")) + " -->",
+        "<!-- plan-repository: Replace with finalizer-generated binding JSON -->",
         "",
         "## Outcome and Scope",
-        "- SC-1: Replace with one measurable observable result.",
-        "- In scope: Replace with exact behavior and surfaces.",
-        "- Unchanged: Replace with explicit invariants and exclusions.",
+        "- SC-1: given: exact initial state | when: exact trigger | then: observable result | unchanged: stable behavior",
+        "- In scope: exact behavior and surfaces.",
+        "- Unchanged: explicit invariants and exclusions.",
         "",
         "## Evidence Ledger",
-        "- F-1: `path:1` | anchor: `existing_anchor` | observation: Replace with verified current behavior.",
+        "- F-1: path: `path` | lines: 1-1 | anchor: `symbol` | excerpt-sha256: `hash` | file-sha256: `hash` | observation: verified current behavior.",
         "",
         "## Decisions",
-        "- D-1: selected: Replace with exact approach | because: Replace with cited constraint or precedent | rejected: Replace with nearest alternative and drawback.",
+        "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative | drawback: concrete drawback.",
         "",
         "## Implementation Specification",
-        "- CH-1: `path` | anchor: `existing_symbol` | status: existing | change: Replace with exact behavior, branches, errors, and side effects.",
-    ]
-    if tier_contract["blueprint_required"]:
-        lines.extend([
-            "",
-            "### Execution Blueprint: CH-1 — Replace with the hardest implementation flow",
-            "```pseudocode",
-            "Replace with exact branches, errors, ordering, and side effects.",
-            "```",
-        ])
-    lines.extend([
+        "- CH-1: path: `path` | anchor: `symbol` | status: existing | evidence: F-1 | change: exact behavior, branches, errors, ordering, and side effects.",
+        "",
+        "## Propagation Record",
+        "- P-1: path: `path` | surface: caller or generated surface | disposition: changed | owner: CH-1.",
+        "",
+        "## Boundary Traces",
+        "- B-1: class: API request | path: F-1 | flow: caller -> entry -> side effect -> result.",
+        "",
+        "## Domain Obligations",
+        "- O-none: not-applicable | evidence: F-1.",
         "",
         "## Traceability",
-        "| Criterion / constraint | Changes | Tests | Status / rollback |",
-        "|---|---|---|---|",
-        "| SC-1 | CH-1 | T-1 | Replace with preserved, modified, or rollback behavior |",
+        "| Criterion / constraint | Changes | Tests |",
+        "|---|---|---|",
+        "| SC-1 | CH-1 | T-1 |",
         "",
         "## Verification",
-        "- T-1: given: Replace with exact input and state | expect: Replace with exact output, error, or side effect | command: `replace-with-command`",
+        "- T-1: given: exact input and state | expect: exact output/error/effect | command: `exact command`.",
         "",
         "## Risks, Assumptions, and Attack",
-        "- Assumptions: None, or list only low-impact reversible assumptions.",
-    ])
-    lines.extend(
-        f"- {attack}: not-applicable | evidence: Replace with concrete cited reason."
-        for attack in required_attacks
-    )
-    if tier in {"standard", "high-risk"}:
-        lines.insert(lines.index("## Traceability") + 1, "- C-1: Replace with an at-risk or preserved constraint | status: preserved")
-    if tier == "high-risk":
-        lines.extend([
-            "- R-1 P1: Replace with concrete scenario and consequence | Resolution: CH-1/T-1",
-            "",
-            "## Compatibility and Rollout",
-            "Replace with old/new reader, writer, client, deployment-order, monitoring, and stop behavior.",
-            "",
-            "## Durable Rollback",
-            "Replace with code, data, queued-work, cache, and irreversible-effect recovery.",
-        ])
-    return "\n".join(lines).rstrip() + "\n"
+        "- Assumptions: None.",
+        "- A-forgotten-propagation: repaired | evidence: P-1.",
+        "- A-boundary-input: repaired | evidence: T-1.",
+        "- A-literal-implementation: repaired | evidence: D-1.",
+    ]
+    if tier != "tiny":
+        lines.insert(lines.index("## Traceability"), "- C-1: preserved constraint | status: preserved.")
+    if contract["tiers"][tier]["blueprint_required"]:
+        lines.extend(
+            [
+                "",
+                "### Execution Blueprint: CH-1 — hardest flow",
+                "```pseudocode",
+                "exact branches, errors, ordering, and side effects",
+                "```",
+            ]
+        )
+    return "\n".join(lines) + "\n"

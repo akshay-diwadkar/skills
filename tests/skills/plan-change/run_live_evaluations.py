@@ -111,8 +111,8 @@ def summarize(results: list[dict[str, Any]], model_labels: list[str]) -> tuple[b
         }
         summary["passed"] = (
             not hard_failures
-            and median_score >= 90
-            and minimum_score >= 80
+            and median_score >= 95
+            and minimum_score >= 90
             and minimum_blueprint_score == 100
         )
         summaries[model_label] = summary
@@ -133,8 +133,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if args.runs < 1:
-        raise SystemExit("--runs must be at least 1")
+    if args.runs < 3:
+        raise SystemExit("--runs must be at least 3 for the v4 release gate")
     expectations = json.loads(args.expectations.read_text(encoding="utf-8"))
     results: list[dict[str, Any]] = []
     for model_label in args.model_label:

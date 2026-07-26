@@ -69,7 +69,7 @@ Execute bundled runtime commands with the active skill directory (the directory 
      - `blocked`: required local/external evidence is unavailable; list exact unblock conditions.
      - `close-candidate`: local evidence indicates no code change is needed; never close automatically.
    - Set `ready-for-senior-plan` when any shared/public contract, persisted-data migration, auth/security behavior, concurrency/order/idempotency behavior, external or irreversible effect, or cross-subsystem change is involved. The user may request senior planning for any other issue.
-    - Every artifact must retain its `Senior Handoff` section. Invoke `$plan-change` with that artifact when routing is required or requested; its v3 plan must carry the source SHA-256, checkout commit, and issue-update markers emitted by the scaffold.
+    - Every artifact must retain its `Senior Handoff` section. Invoke `$plan-change` with that artifact when routing is required or requested; its v4 plan must carry the source SHA-256, checkout commit, and issue-update markers emitted by the scaffold.
 
 7. **Validate and report**
    - Run the checker and repair the artifact until it passes:
