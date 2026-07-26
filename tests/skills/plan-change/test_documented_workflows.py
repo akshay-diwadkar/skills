@@ -87,10 +87,10 @@ def test_inline_tiny_example_passes_check_plan(tmp_path: Path) -> None:
             "json",
             str(plan),
         ],
-        check=True,
         capture_output=True,
         text=True,
     )
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
     assert json.loads(result.stdout) == {
         "valid": True,
         "contract_version": 5,
