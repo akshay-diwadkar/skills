@@ -13,7 +13,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from v4_plan_factory import finalized_tiny_plan  # noqa: E402
+from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]  # noqa: E402
 
 SUBPROCESS_ENV = {
     **os.environ,
