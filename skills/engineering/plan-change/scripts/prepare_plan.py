@@ -6,18 +6,17 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from plan_contract import INTENTS, load_contract, render_scaffold
+from plan_contract import INTENTS, render_scaffold
 from plan_inventory import build_inventory
-from plan_runtime import snapshot
+from plan_runtime import TIERS, snapshot
 
 
 def main() -> int:
-    contract = load_contract()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--request-file", type=Path, required=True)
     parser.add_argument("--run-dir", type=Path, required=True)
-    parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
+    parser.add_argument("--tier", choices=TIERS, required=True)
     parser.add_argument("--intent", choices=INTENTS, required=True)
     parser.add_argument("--risk-domain", action="append", default=[])
     args = parser.parse_args()
