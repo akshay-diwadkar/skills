@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate an implementation bundle; v5 plans carry their own receipt."""
+"""Validate an implementation-contract v3 bundle and stamp its receipt."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def main() -> int:
     receipt_body = dict(bundle)
     receipt_body.pop("validation_receipt", None)
     bundle["validation_receipt"] = {
-        "implementation_contract": 2,
+        "implementation_contract": 3,
         "plan_contract": 5,
         "sha256": hashlib.sha256(json.dumps(receipt_body, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
     }

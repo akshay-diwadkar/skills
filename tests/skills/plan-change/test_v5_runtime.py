@@ -20,7 +20,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 ## Outcome and Scope
 - SC-1: given: blank input | when: normalize_name runs | then: stable normalized output | unchanged: nonblank normalization remains stable
 ## Evidence Ledger
-- F-1: kind: function-signature | path: src/names.py | lines: 1-1 | anchor: normalize_name | excerpt-sha256: {hashlib.sha256(excerpt).hexdigest()} | file-sha256: {hashlib.sha256(content).hexdigest()} | observation: planner-authored observation | parameters: raw: str | returns: str
+- F-1: kind: function-signature | path: src/names.py | lines: 1-1 | anchor: normalize_name | excerpt-sha256: {hashlib.sha256(excerpt).hexdigest()} | file-sha256: {hashlib.sha256(content).hexdigest()} | observation: planner-authored observation | parameters: raw: str | returns: str | async: false
 ## Decisions
 - D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface | drawback: changes the existing local contract
 ## Implementation Specification
@@ -55,7 +55,7 @@ def test_v5_finalization_and_targeted_binding(tmp_path: Path) -> None:
     assert diagnostics == []
     (tmp_path / "src" / "names.py").write_text("changed\n")
     _, diagnostics = validate_plan(finalized, tmp_path, require_finalized=True)
-    assert any(item.code in {"fact.stale", "binding.stale"} for item in diagnostics)
+    assert any(item.code in {"fact.stale", "binding.evidence_stale", "binding.target_stale"} for item in diagnostics)
 
 
 def test_unsupported_contract_is_single_diagnostic(tmp_path: Path) -> None:
@@ -108,7 +108,7 @@ def test_baseline_detects_planner_mutation_but_binding_allows_unrelated_change(t
     baseline = snapshot(tmp_path)
     target.write_text("changed\n")
     _, diagnostics = validate_plan(draft(tmp_path), tmp_path, baseline=baseline)
-    assert any(item.code == "snapshot.mutation" for item in diagnostics)
+    assert any(item.code in {"snapshot.tracked_changed", "snapshot.untracked_changed"} for item in diagnostics)
 
 
 def test_every_scaffold_places_blueprints_inside_implementation_specification() -> None:
@@ -119,8 +119,9 @@ def test_every_scaffold_places_blueprints_inside_implementation_specification() 
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    for tier in ("tiny", "standard", "high-risk"):
-        plan, diagnostics = module.render_scaffold(tier, "bug-fix", []) and __import__("plan_runtime").parse_plan(module.render_scaffold(tier, "bug-fix", []))
+    cases: tuple[tuple[str, list[str]], ...] = (("tiny", []), ("standard", []), ("high-risk", ["security"]))
+    for tier, domains in cases:
+        plan, diagnostics = module.render_scaffold(tier, "bug-fix", domains) and __import__("plan_runtime").parse_plan(module.render_scaffold(tier, "bug-fix", domains))
         assert plan is not None
         assert not [item for item in diagnostics if item.code == "blueprint.location"]
 
@@ -131,6 +132,6 @@ def test_deferred_changes_and_generic_standard_checks_fail_closed(tmp_path: Path
     text = draft(tmp_path, tier="standard")
     text = text.replace("return stable empty output before normalizing blank input", "determine behavior later")
     text = text.replace("## Decisions\n", "## Decisions\n- C-1: constraint: preserve current caller contract | evidence: F-1\n")
-    text = text.replace("## Implementation Specification\n", "## Implementation Specification\n### Execution Blueprint: CH-1 â€” branch [type: pseudocode]\n```pseudocode\ninput -> branch -> result\n```\n")
+    text = text.replace("## Implementation Specification\n", "## Implementation Specification\n### Execution Blueprint: CH-1 — branch [type: pseudocode; domains: none]\n```pseudocode\ninput -> branch -> result\n```\n")
     _plan, diagnostics = validate_plan(text, tmp_path)
     assert {item.code for item in diagnostics} >= {"record.deferred", "change.specificity", "verification.generic_command"}

@@ -19,13 +19,17 @@ def main() -> int:
     parser.add_argument("--tier", choices=TIERS, required=True)
     parser.add_argument("--intent", choices=INTENTS, required=True)
     parser.add_argument("--risk-domain", action="append", default=[])
+    parser.add_argument("--anchor", action="append", default=[], help="Grounded PATH[:SYMBOL] inventory seed.")
     args = parser.parse_args()
     root = args.repo_root.resolve()
     request = args.request_file.resolve().read_text(encoding="utf-8")
     run_dir = args.run_dir.resolve()
     run_dir.mkdir(parents=True, exist_ok=False)
     (run_dir / "baseline.json").write_text(__import__("json").dumps(snapshot(root), indent=2) + "\n", encoding="utf-8")
-    inventory = build_inventory(root, request)
+    try:
+        inventory = build_inventory(root, request, args.anchor)
+    except ValueError as exc:
+        parser.error(str(exc))
     (run_dir / "inventory.json").write_text(__import__("json").dumps(inventory, indent=2) + "\n", encoding="utf-8")
     (run_dir / "draft.md").write_text(render_scaffold(args.tier, args.intent, args.risk_domain), encoding="utf-8")
     return 0

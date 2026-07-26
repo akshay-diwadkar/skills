@@ -3,20 +3,232 @@
   "marker": "<!-- plan-contract: 5 -->",
   "intents": ["feature", "bug-fix", "refactor"],
   "tiers": ["tiny", "standard", "high-risk"],
-  "risk_domains": ["public-contract", "durable-state", "migration", "security", "concurrency", "external-integration", "irreversible-external-effect"],
-  "record_kinds": ["SC", "F", "D", "CH", "P", "B", "O", "C", "R", "T", "A", "X"],
-  "artifact_types": ["pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"],
-  "sections": ["Outcome and Scope", "Evidence Ledger", "Decisions", "Implementation Specification", "Propagation Record", "Boundary Traces", "Domain Obligations", "Traceability", "Verification", "Risks, Assumptions, and Attack"],
+  "risk_domains": [
+    "public-contract",
+    "durable-state",
+    "migration",
+    "security",
+    "concurrency",
+    "external-integration",
+    "irreversible-external-effect"
+  ],
+  "sections": [
+    "Outcome and Scope",
+    "Evidence Ledger",
+    "Decisions",
+    "Implementation Specification",
+    "Propagation Record",
+    "Boundary Traces",
+    "Domain Obligations",
+    "Traceability",
+    "Verification",
+    "Risks, Assumptions, and Attack"
+  ],
+  "record_schemas": {
+    "SC": {"required": ["given", "when", "then", "unchanged"], "optional": [], "section": "Outcome and Scope"},
+    "F": {
+      "required": ["kind", "path", "lines", "anchor", "excerpt-sha256", "file-sha256", "observation"],
+      "optional": [
+        "parameters", "returns", "async", "bases", "fields", "key", "value", "condition",
+        "error", "effect", "caller", "callee", "generator", "output", "directory"
+      ],
+      "section": "Evidence Ledger"
+    },
+    "D": {"required": ["selected", "evidence", "rejected", "drawback"], "optional": [], "section": "Decisions"},
+    "CH": {
+      "required": ["path", "anchor", "status", "evidence", "change"],
+      "optional": ["directory-owner", "generator-owner"],
+      "section": "Implementation Specification"
+    },
+    "P": {"required": ["owner", "because", "surface", "disposition"], "optional": [], "section": "Propagation Record"},
+    "B": {"required": ["class", "path", "flow"], "optional": [], "section": "Boundary Traces"},
+    "O": {
+      "required": ["domain", "obligation", "status", "coverage", "evidence", "decision", "changes", "tests"],
+      "optional": [],
+      "section": "Domain Obligations"
+    },
+    "C": {"required": ["constraint"], "optional": ["evidence"], "section": "Decisions"},
+    "R": {"required": ["severity", "owner", "tests", "risk"], "optional": [], "section": "Risks, Assumptions, and Attack"},
+    "T": {"required": ["given", "when", "then", "command"], "optional": [], "section": "Verification"},
+    "A": {"required": ["status", "finding", "evidence", "resolution"], "optional": [], "section": "Risks, Assumptions, and Attack"},
+    "X": {"required": ["domain", "status", "evidence", "reason"], "optional": [], "section": "Risks, Assumptions, and Attack"}
+  },
+  "reference_fields": {
+    "D": {"evidence": ["F", "C"]},
+    "CH": {"evidence": ["F"], "directory-owner": ["CH", "F"], "generator-owner": ["CH", "F"]},
+    "P": {"owner": ["CH"], "because": ["F"]},
+    "B": {"path": ["F"]},
+    "O": {"evidence": ["F"], "decision": ["D"], "changes": ["CH"], "tests": ["T"]},
+    "C": {"evidence": ["F"]},
+    "R": {"owner": ["CH"], "tests": ["T"]},
+    "A": {"evidence": ["F"], "resolution": ["CH", "T", "F", "D"]},
+    "X": {"evidence": ["F"]}
+  },
   "tier_requirements": {
     "tiny": ["SC", "F", "D", "CH", "P", "B", "T", "A"],
-    "standard": ["SC", "F", "D", "CH", "P", "B", "C", "T", "A", "blueprint"],
-    "high-risk": ["SC", "F", "D", "CH", "P", "B", "C", "R", "T", "A", "O", "blueprint"]
+    "standard": ["SC", "F", "D", "CH", "P", "B", "C", "T", "A"],
+    "high-risk": ["SC", "F", "D", "CH", "P", "B", "C", "R", "T", "A", "O"]
   },
-  "record_schemas": {
-    "SC": {"required": ["given", "when", "then", "unchanged"], "section": "Outcome and Scope"},
-    "D": {"required": ["selected", "evidence", "rejected", "drawback"], "references": {"evidence": ["F", "C"]}},
-    "CH": {"required": ["path", "anchor", "status", "evidence", "change"], "references": {"evidence": ["F"]}},
-    "O": {"required": ["domain", "obligation", "status", "evidence", "decision", "changes", "tests"], "references": {"evidence": ["F"], "decision": ["D"], "changes": ["CH"], "tests": ["T"]}},
-    "A": {"required": ["status", "finding", "evidence", "resolution"]}
-  }
+  "fact_kinds": {
+    "function-signature": ["parameters", "returns", "async"],
+    "class-signature": ["bases"],
+    "schema-shape": ["fields"],
+    "config-key": ["key", "value"],
+    "branch": ["condition"],
+    "error": ["error"],
+    "side-effect": ["effect"],
+    "call-edge": ["caller", "callee"],
+    "generated-from": ["generator", "output"],
+    "directory-ownership": ["directory"],
+    "authorization-boundary": [],
+    "transaction-boundary": [],
+    "external-call": ["callee"],
+    "test-behavior": [],
+    "documentation-contract": []
+  },
+  "dispositions": ["changed", "test-only", "generated", "unchanged", "out-of-scope"],
+  "material_surfaces": [
+    "direct-caller", "transitive-consumer", "re-export", "fixture", "mock", "config", "schema",
+    "generated-output", "generator", "documentation-contract", "deployment-hook"
+  ],
+  "artifact_types": ["pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"],
+  "required_attacks": ["forgotten-propagation", "boundary-input", "literal-implementation"],
+  "domain_attacks": {
+    "security": ["security", "authorization-bypass"],
+    "concurrency": ["concurrency"],
+    "public-contract": ["compatibility"],
+    "durable-state": ["migration-interruption", "rollback"],
+    "migration": ["migration-interruption", "rollback"],
+    "external-integration": ["ambiguous-success"],
+    "irreversible-external-effect": ["ambiguous-success", "rollback"]
+  },
+  "obligations": {
+    "security": [
+      "principal", "tenant", "trust-boundary", "authorization-owner", "validation-order",
+      "denial-semantics", "enumeration-resistance", "revocation", "audit-behavior", "cross-tenant-tests"
+    ],
+    "concurrency": [
+      "shared-state", "transaction-or-lock-boundary", "idempotency-identity", "retries",
+      "duplicate-delivery", "cancellation", "ordering", "worst-interleaving", "reconciliation"
+    ],
+    "public-contract": [
+      "current-shape", "proposed-shape", "defaults-and-nullability", "errors",
+      "old-writer-new-reader", "new-writer-old-reader", "generated-clients",
+      "mixed-version-rollout", "compatibility-tests"
+    ],
+    "durable-state": [
+      "current-state", "target-state", "forward-migration", "backward-compatibility",
+      "partial-migration", "interrupted-migration", "rollback-or-roll-forward",
+      "queue-cache-index-effects", "data-verification", "deployment-order"
+    ],
+    "migration": [
+      "current-state", "target-state", "forward-migration", "backward-compatibility",
+      "partial-migration", "interrupted-migration", "rollback-or-roll-forward",
+      "queue-cache-index-effects", "data-verification", "deployment-order"
+    ],
+    "external-integration": [
+      "sdk-or-api-version", "authentication", "timeout", "retryable-errors",
+      "non-retryable-errors", "rate-limits", "idempotency", "malformed-responses",
+      "ambiguous-success", "reconciliation", "irreversible-effects"
+    ],
+    "irreversible-external-effect": [
+      "sdk-or-api-version", "authentication", "timeout", "retryable-errors",
+      "non-retryable-errors", "rate-limits", "idempotency", "malformed-responses",
+      "ambiguous-success", "reconciliation", "irreversible-effects"
+    ]
+  },
+  "obligation_aliases": {
+    "principal": ["principal", "identity", "actor"],
+    "tenant": ["tenant", "account", "organization"],
+    "trust-boundary": ["trust boundary", "untrusted", "boundary"],
+    "authorization-owner": ["authorization owner", "authorizer", "permission"],
+    "validation-order": ["validation order", "validate before", "ordering"],
+    "denial-semantics": ["deny", "denial", "forbidden"],
+    "enumeration-resistance": ["enumeration", "not found", "information leak"],
+    "revocation": ["revocation", "revoked"],
+    "audit-behavior": ["audit", "security log"],
+    "cross-tenant-tests": ["cross-tenant", "other tenant"],
+    "shared-state": ["shared state", "shared record"],
+    "transaction-or-lock-boundary": ["transaction", "lock", "atomic"],
+    "idempotency-identity": ["idempotency key", "operation identity"],
+    "retries": ["retry", "retries"],
+    "duplicate-delivery": ["duplicate", "redelivery"],
+    "cancellation": ["cancel", "cancellation"],
+    "ordering": ["ordering", "sequence"],
+    "worst-interleaving": ["interleaving", "race"],
+    "reconciliation": ["reconcile", "reconciliation"],
+    "current-shape": ["current shape", "existing field"],
+    "proposed-shape": ["proposed shape", "new field"],
+    "defaults-and-nullability": ["default", "nullable", "nullability"],
+    "errors": ["error", "failure"],
+    "old-writer-new-reader": ["old writer", "new reader"],
+    "new-writer-old-reader": ["new writer", "old reader"],
+    "generated-clients": ["generated client", "sdk"],
+    "mixed-version-rollout": ["mixed version", "rollout"],
+    "compatibility-tests": ["compatibility test", "old and new"],
+    "current-state": ["current state", "existing state"],
+    "target-state": ["target state", "desired state"],
+    "forward-migration": ["forward migration", "migrate forward"],
+    "backward-compatibility": ["backward compatibility", "old version"],
+    "partial-migration": ["partial migration", "partially migrated"],
+    "interrupted-migration": ["interrupted migration", "resume migration"],
+    "rollback-or-roll-forward": ["rollback", "roll forward"],
+    "queue-cache-index-effects": ["queue", "cache", "index"],
+    "data-verification": ["data verification", "verify rows"],
+    "deployment-order": ["deployment order", "deploy before"],
+    "sdk-or-api-version": ["api version", "sdk version"],
+    "authentication": ["authentication", "credential"],
+    "timeout": ["timeout", "deadline"],
+    "retryable-errors": ["retryable error", "retry"],
+    "non-retryable-errors": ["non-retryable", "terminal error"],
+    "rate-limits": ["rate limit", "throttle"],
+    "idempotency": ["idempotency", "idempotent"],
+    "malformed-responses": ["malformed response", "invalid response"],
+    "ambiguous-success": ["ambiguous success", "unknown outcome"],
+    "irreversible-effects": ["irreversible", "compensation"]
+  },
+  "blueprint_concepts": {
+    "security": [
+      ["principal", "identity", "tenant"],
+      ["authorization", "permission", "authorizer"],
+      ["deny", "denial", "forbidden"]
+    ],
+    "concurrency": [
+      ["shared state", "lock", "transaction"],
+      ["interleaving", "race", "ordering"],
+      ["idempotency", "duplicate", "retry"],
+      ["reconcile", "reconciliation", "cancellation"]
+    ],
+    "public-contract": [
+      ["current shape", "old writer", "old reader"],
+      ["proposed shape", "new writer", "new reader"],
+      ["default", "nullability", "error"],
+      ["compatibility", "mixed-version", "rollout"]
+    ],
+    "durable-state": [
+      ["current state", "target state"],
+      ["partial migration", "interrupted"],
+      ["rollback", "roll forward"],
+      ["data verification", "deployment order"]
+    ],
+    "migration": [
+      ["current state", "target state"],
+      ["partial migration", "interrupted"],
+      ["rollback", "roll forward"],
+      ["data verification", "deployment order"]
+    ],
+    "external-integration": [
+      ["authentication", "api version", "sdk version"],
+      ["timeout", "rate limit", "error"],
+      ["retry", "idempotency"],
+      ["ambiguous success", "reconciliation"]
+    ],
+    "irreversible-external-effect": [
+      ["irreversible", "compensation"],
+      ["duplicate", "idempotency"],
+      ["ambiguous success", "unknown outcome"],
+      ["reconcile", "reconciliation", "audit"]
+    ]
+  },
+  "binding_categories": ["evidence", "targets", "generators", "config", "schemas"]
 }

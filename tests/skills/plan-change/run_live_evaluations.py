@@ -65,9 +65,16 @@ def evaluate(
                     _parsed, diagnostics = validate_plan(plan, repo, require_finalized=True)
                     score, dimensions, missing = score_expectations(plan, expectations[name])
                     forbidden = [value for value in expectations[name].get("forbidden", []) if value.casefold() in plan.casefold()]
-                    downstream_passed = (
-                        run_downstream_adapter(downstream_adapter, {"scenario": name, "family": family, "repo_root": str(repo), "plan_markdown": plan})
-                        if downstream_adapter else False
+                    downstream_status = (
+                        "passed"
+                        if downstream_adapter
+                        and run_downstream_adapter(
+                            downstream_adapter,
+                            {"scenario": name, "family": family, "repo_root": str(repo), "plan_markdown": plan},
+                        )
+                        else "failed"
+                        if downstream_adapter
+                        else "not-applicable"
                     )
                     hard_failures = ([] if before == after else ["repository-mutation"])
                     hard_failures.extend(f"contract:{item.code}" for item in diagnostics)
@@ -77,9 +84,14 @@ def evaluate(
                         "scenario": name, "family": family, "attempt": attempt + 1, "model_label": model_label,
                         "raw_plan": plan, "repository_mutation": before != after, "score": score,
                         "dimension_scores": dimensions, "hard_failures": sorted(set(hard_failures)),
-                        "failures": sorted(set(hard_failures)), "downstream_passed": downstream_passed,
+                        "failures": sorted(set(hard_failures)), "downstream_status": downstream_status,
                     })
-    report = {"contract_version": 5, "runs": runs, "release_failures": release_gate(runs), "proxy_run": model_label.casefold() == "terra-low", "luna_certified": model_label.casefold() == "luna-low" and not release_gate(runs)}
+    report = {
+        "contract_version": 5,
+        "runs": runs,
+        "release_failures": release_gate(runs),
+        "reliability_claim": None,
+    }
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 

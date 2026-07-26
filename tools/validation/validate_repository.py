@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -129,6 +130,16 @@ def main() -> int:
         errors.extend(validate_script_references(skill_dir))
     errors.extend(validate_retired_surfaces())
     errors.extend(validate_legacy_plan_contracts())
+    for script in ("generate_plan_contract.py", "sync_plan_runtime.py"):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "validation" / script), "--check"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode:
+            errors.extend(line for line in result.stderr.splitlines() if line)
     if errors:
         print("Repository validation failed:", file=sys.stderr)
         for error in sorted(set(errors)):
