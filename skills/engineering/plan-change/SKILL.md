@@ -15,7 +15,12 @@ Resolve `skill-root` as this directory. Run scripts with `cwd` set to `skill-roo
 
 ## 1. Classify and Prepare
 
-Read `references/plan-contract.md` and `references/cognitive-protocols.md` completely. Select a provisional intent, tier, every plausible risk domain, and every typed tier signal; choose the safer tier when evidence is incomplete. Keep `tiny` to one local, reversible production change with no propagation or shared-contract signal.
+Read `references/glossary.md`, `references/plan-contract.md`, and
+`references/cognitive-protocols.md` completely before running
+`prepare_plan.py`. Select a provisional intent, tier, every plausible risk
+domain, and every typed tier signal; choose the safer tier when evidence is
+incomplete. Keep `tiny` to one local, reversible production change with no
+propagation or shared-contract signal.
 
 Run:
 
@@ -37,6 +42,20 @@ Read `baseline.json`, `inventory.json`, and `draft.md`. Complete this step only 
 Read the requested behavior and its current anchors in full. Follow the common evidence sequence in `references/cognitive-protocols.md`.
 
 For each inventory candidate, create current `F-n` evidence and reconcile it with a `P-n` disposition, or own the required edit through a `CH-n`. Read `references/task-playbooks.md` only for the matching task branch. Re-run the affected propagation sweep after every material decision.
+
+Never estimate or invent `excerpt-sha256` or `file-sha256`. Immediately before
+writing an `F-n`, compute both against the exact current file content and
+inclusive line range:
+
+```bash
+python scripts/hash_excerpt.py \
+  --path /absolute/path/to/repository/path \
+  --start-line <first-line> \
+  --end-line <last-line>
+```
+
+An equivalent shell command is acceptable only when it reproduces
+`plan_runtime.py` exactly. Recompute after any content or line-range change.
 
 Complete this step only when current behavior, root cause where applicable, callers, consumers, invariants, side effects, contradictions, and test gaps are known; no material inventory candidate remains unexplained.
 
@@ -67,6 +86,14 @@ python scripts/check_plan.py \
   --format json \
   /absolute/path/to/temporary-run/draft.md
 ```
+
+Count attempts separately for each diagnostic category. After three failed
+`check_plan.py` runs against the same category, stop guessing and re-read the
+specific `F-n`, `CH-n`, or `P-n` named by that diagnostic before a fourth
+attempt. If the category still fails after five total attempts, stop iterating
+and name the specific blocking evidence gap to the user. Never downgrade the
+tier, suppress a diagnostic, or change ownership merely to make validation
+pass.
 
 Do not work around diagnostics, translate an old plan, or finalize a plan with unresolved inventory candidates. Finalize only after the draft passes:
 
