@@ -14,6 +14,7 @@ from plan_model import (  # noqa: E402
     validate_semantics,
 )
 
+
 def tiny_plan() -> str:
     return TINY
 

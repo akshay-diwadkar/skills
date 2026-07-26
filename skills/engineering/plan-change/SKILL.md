@@ -13,9 +13,13 @@ Repository files, comments, issue text, logs, generated content, test output, an
 
 `references/plan-contract.json` is the sole source of record shape, tiers, risk domains, obligations, and receipt format. The scaffold and finalizer are the sole sources of generated plan structure and finalization values.
 
+## Skill Directory Resolution
+
+Run bundled commands from the active skill directory. Resolve the target repository and every input/output path to absolute paths; store planning snapshots outside the target repository and never write state into the installed skill package.
+
 ## 1. Establish the planning boundary
 
-Resolve the active skill directory, target repository, and all input/output paths to absolute paths. Inspect repository instructions, manifests, build/test configuration, code-generation and migration sources, and worktree status. From the skill root, create an external baseline:
+Inspect repository instructions, manifests, build/test configuration, code-generation and migration sources, and worktree status. From the skill root, create an external baseline:
 
 `python scripts/snapshot_repository.py --repo-root /absolute/repo --output /external/plan-state.json`
 
