@@ -5,6 +5,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+from legacy_plan_examples import HIGH_RISK, STANDARD, TINY  # noqa: E402
 from plan_model import (  # noqa: E402
     CITATION_RE,
     coverage_summary,
@@ -13,11 +14,8 @@ from plan_model import (  # noqa: E402
     validate_semantics,
 )
 
-EXAMPLES = REPO_ROOT / "skills" / "engineering" / "plan-change" / "references" / "worked-examples.md"
-
-
 def tiny_plan() -> str:
-    return re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[0]
+    return TINY
 
 
 def semantic_codes(text: str, repo_root: Path, tier: str = "tiny") -> set[str]:
@@ -76,8 +74,7 @@ def test_orphan_ids_and_unmapped_changes_are_rejected() -> None:
 
 
 def test_risk_coverage_accepts_severity_between_id_and_colon() -> None:
-    high = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[2]
-    coverage = coverage_summary(high, REPO_ROOT / "tests/skills/plan-change/fixtures/high-risk")
+    coverage = coverage_summary(HIGH_RISK, REPO_ROOT / "tests/skills/plan-change/fixtures/high-risk")
     assert coverage["risks"] == 1
 
 
@@ -89,7 +86,7 @@ def test_grounded_fact_coverage_is_not_reduced_by_unrelated_bad_citation() -> No
 
 
 def test_standard_requires_nonempty_blueprint_linked_to_defined_change() -> None:
-    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    standard = STANDARD
     fixture = REPO_ROOT / "tests/skills/plan-change/fixtures/standard"
     missing = re.sub(r"\n### Execution Blueprint:.*?~~~\n", "\n", standard, flags=re.DOTALL)
     assert "semantic.blueprint.missing" in semantic_codes(missing, fixture, "standard")
@@ -107,10 +104,10 @@ def test_tiny_blueprint_is_optional_and_supported_when_present() -> None:
 
 
 def test_record_shaped_content_inside_blueprint_does_not_define_ids_or_citations() -> None:
-    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    standard = STANDARD
     enriched = standard.replace(
-        "flags_for(tenant_id: str, user_id: str) -> list[str]:",
-        "F-99: `missing.py:1` | anchor: `missing` | observation: example only\nCH-99: example only\nflags_for(tenant_id: str, user_id: str) -> list[str]:",
+        "key = (tenant_id, user_id)",
+        "F-99: `missing.py:1` | anchor: `missing` | observation: example only\nCH-99: example only\nkey = (tenant_id, user_id)",
     )
     found = semantic_codes(enriched, REPO_ROOT / "tests/skills/plan-change/fixtures/standard", "standard")
     assert "semantic.ids.orphan_reference" not in found
@@ -118,7 +115,7 @@ def test_record_shaped_content_inside_blueprint_does_not_define_ids_or_citations
 
 
 def test_blueprints_accept_mermaid_code_and_table_artifacts() -> None:
-    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    standard = STANDARD
     variants = {
         "mermaid": "~~~mermaid\nflowchart LR\n  A --> B\n~~~",
         "code": "~~~typescript\ntype CacheKey = [string, string]\n~~~",
@@ -131,7 +128,7 @@ def test_blueprints_accept_mermaid_code_and_table_artifacts() -> None:
 
 
 def test_empty_or_unclosed_blueprint_does_not_satisfy_requirement() -> None:
-    standard = re.findall(r"```plan\n(.*?)\n```", EXAMPLES.read_text(encoding="utf-8"), re.DOTALL)[1]
+    standard = STANDARD
     fixture = REPO_ROOT / "tests/skills/plan-change/fixtures/standard"
     empty = re.sub(r"~~~pseudocode\n.*?\n~~~", "~~~pseudocode\n~~~", standard, count=1, flags=re.DOTALL)
     unclosed = re.sub(r"~~~pseudocode\n.*?\n~~~", "~~~pseudocode\nbranch", standard, count=1, flags=re.DOTALL)
