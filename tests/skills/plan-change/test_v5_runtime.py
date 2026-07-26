@@ -24,7 +24,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 ## Decisions
 - D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface | drawback: changes the existing local contract
 ## Implementation Specification
-- CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: handle blank input before normalization
+- CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return stable empty output before normalizing blank input
 ## Propagation Record
 - P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: unchanged
 ## Boundary Traces
@@ -123,3 +123,14 @@ def test_every_scaffold_places_blueprints_inside_implementation_specification() 
         plan, diagnostics = module.render_scaffold(tier, "bug-fix", []) and __import__("plan_runtime").parse_plan(module.render_scaffold(tier, "bug-fix", []))
         assert plan is not None
         assert not [item for item in diagnostics if item.code == "blueprint.location"]
+
+
+def test_deferred_changes_and_generic_standard_checks_fail_closed(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
+    text = draft(tmp_path, tier="standard")
+    text = text.replace("return stable empty output before normalizing blank input", "determine behavior later")
+    text = text.replace("## Decisions\n", "## Decisions\n- C-1: constraint: preserve current caller contract | evidence: F-1\n")
+    text = text.replace("## Implementation Specification\n", "## Implementation Specification\n### Execution Blueprint: CH-1 â€” branch [type: pseudocode]\n```pseudocode\ninput -> branch -> result\n```\n")
+    _plan, diagnostics = validate_plan(text, tmp_path)
+    assert {item.code for item in diagnostics} >= {"record.deferred", "change.specificity", "verification.generic_command"}

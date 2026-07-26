@@ -42,19 +42,21 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
     tests = ["T-1"] + [f"T-{index}" for index in range(2, len(domains) + 2)]
     rows = [
         "# Replace With an Action-Oriented Outcome", "<!-- plan-contract: 5 -->", "<!-- plan-metadata: " + json.dumps(metadata, separators=(",", ":")) + " -->", "",
-        "## Outcome and Scope", "- SC-1: given: exact starting state | when: exact trigger | then: observable result | unchanged: stable behavior", "",
-        "## Evidence Ledger", "- F-1: kind: function-signature | path: src/example.py | lines: 1-1 | anchor: example | excerpt-sha256: REPLACE | file-sha256: REPLACE | observation: planner-authored observation | parameters: REPLACE | returns: REPLACE", "",
-        "## Decisions", "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative | drawback: concrete repository-grounded drawback",
+        "## Outcome and Scope", "- SC-1: given: exact current input or state | when: named entry point receives the trigger | then: exact observable output effect or error | unchanged: named adjacent behavior remains unchanged", "",
+        "## Evidence Ledger", "- F-1: kind: function-signature | path: REPLACE_CURRENT_PATH | lines: REPLACE_CURRENT_RANGE | anchor: REPLACE_CURRENT_ANCHOR | excerpt-sha256: REPLACE_CURRENT_HASH | file-sha256: REPLACE_CURRENT_FILE_HASH | observation: describe current branches errors calls and side effects | parameters: REPLACE_EXACT_SIGNATURE | returns: REPLACE_EXACT_RETURN", "",
+        "## Decisions", "- D-1: selected: name the exact repository-local behavior and ordering | evidence: F-1 | rejected: name the nearest viable repository-local alternative | drawback: state its concrete caller contract test or rollout cost",
     ]
     if tier != "tiny":
         rows.append("- C-1: constraint: preserve declared behavior | evidence: F-1")
-    rows.extend(["", "## Implementation Specification", "- CH-1: path: src/example.py | anchor: example | status: existing | evidence: F-1 | change: exact branches errors ordering and effects"])
+    rows.extend(["", "## Implementation Specification", "- CH-1: path: REPLACE_CURRENT_PATH | anchor: REPLACE_CURRENT_ANCHOR | status: existing | evidence: F-1 | change: specify input branches error behavior ordering side effects and caller ownership; do not defer any material behavior"])
     if tier == "standard":
         rows.extend(["", "### Execution Blueprint: CH-1 — hardest flow [type: pseudocode]", "```pseudocode", "validate input -> branch -> effect -> verify", "```"])
+    if tier == "standard":
+        rows[-2] = "read exact input -> validate named condition -> select named branch -> perform ordered effect -> return or raise exact observable result"
     if tier == "high-risk":
         for domain in domains:
             rows.extend([""] + _domain_blueprint(domain))
-    rows.extend(["", "## Propagation Record", "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed", "", "## Boundary Traces", "- B-1: class: API request | path: F-1 | flow: request -> change -> result", "", "## Domain Obligations"])
+    rows.extend(["", "## Propagation Record", "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed", "", "## Boundary Traces", "- B-1: class: named external or shared boundary | path: F-1 | flow: caller input -> named current anchor -> observable result", "", "## Domain Obligations"])
     if tier == "high-risk":
         number = 1
         for domain in domains:
@@ -64,17 +66,18 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
     rows.extend(["", "## Traceability", "| Criterion / constraint | Changes | Tests |", "|---|---|---|", f"| SC-1 | CH-1 | {', '.join(tests)} |"])
     if tier != "tiny":
         rows.append(f"| C-1 | CH-1 | {', '.join(tests)} |")
-    rows.extend(["", "## Verification", "- T-1: given: exact state | when: exact trigger | then: exact result | command: python -m pytest"])
+    command = "python -m pytest" if tier == "tiny" else "python -m pytest tests/REPLACE_TARGETED_TEST.py"
+    rows.extend(["", "## Verification", f"- T-1: given: exact setup input and dependency state | when: named entry point runs | then: exact output error persisted state or external-call expectation | command: {command}"])
     for index, domain in enumerate(domains, 2):
-        rows.append(f"- T-{index}: given: {domain} boundary | when: required failure path runs | then: {domain} behavior is verified | command: python -m pytest")
+        rows.append(f"- T-{index}: given: {domain} boundary with exact precondition | when: named failure or mixed-version path runs | then: exact {domain} behavior is verified | command: python -m pytest tests/REPLACE_{domain}.py")
     rows.extend(["", "## Risks, Assumptions, and Attack"])
     for attack in GENERIC_ATTACKS:
         status = "dismissed" if attack == "boundary-input" else "repaired"
         resolution = "F-1" if status == "dismissed" else "CH-1, T-1"
-        rows.append(f"- A-{attack}: status: {status} | finding: {attack} behavior is explicitly reviewed | evidence: F-1 | resolution: {resolution}")
+        rows.append(f"- A-{attack}: status: {status} | finding: describe the concrete {attack} failure mode and affected boundary | evidence: F-1 | resolution: {resolution}")
     for domain in domains:
         for attack in sorted(DOMAIN_ATTACKS.get(domain, ())):
-            rows.append(f"- A-{attack}: status: repaired | finding: {domain} {attack} behavior is explicitly verified | evidence: F-1 | resolution: CH-1, T-{domains.index(domain) + 2}")
+            rows.append(f"- A-{attack}: status: repaired | finding: describe the concrete {domain} {attack} failure mode and exact outcome | evidence: F-1 | resolution: CH-1, T-{domains.index(domain) + 2}")
     if tier == "high-risk":
         rows.append("- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named concrete risk")
     return "\n".join(rows) + "\n"

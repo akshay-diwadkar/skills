@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run isolated, provider-neutral plan-change evaluation scenarios."""
+"""Run isolated, provider-neutral behavioral plan-change evaluations."""
 
 from __future__ import annotations
 
@@ -7,27 +7,20 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from score_plan_evaluation import release_gate
-
 ROOT = Path(__file__).resolve().parents[3]
+SCRIPTS = ROOT / "skills" / "engineering" / "plan-change" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+from plan_runtime import validate_plan  # noqa: E402
+from score_plan_evaluation import release_gate, score_expectations
+
 SCENARIOS = Path(__file__).with_name("evals") / "v5_scenarios.json"
+EXPECTATIONS = Path(__file__).with_name("evals") / "expectations.json"
 FIXTURES = Path(__file__).with_name("evals") / "fixtures"
-
-
-def score_plan(plan: str, family: str, mutated: bool) -> tuple[int, int, list[str]]:
-    """Score contract-bearing output without coupling evaluations to a provider."""
-    required = ("<!-- plan-contract: 5 -->", "## Outcome and Scope", "## Evidence Ledger", "## Traceability", "SC-", "CH-", "T-")
-    misses = [item for item in required if item not in plan]
-    score = max(0, 100 - 12 * len(misses) - (100 if mutated else 0))
-    blueprint = 100
-    if family in {"standard", "high-risk"} and "### Execution Blueprint:" not in plan:
-        blueprint = 0
-        misses.append("execution blueprint")
-    return score, blueprint, misses
 
 
 def run_adapter(command: list[str], request: dict[str, Any]) -> str:
@@ -40,46 +33,53 @@ def run_adapter(command: list[str], request: dict[str, Any]) -> str:
     return response["plan_markdown"]
 
 
-def evaluate(adapter: list[str], output: Path, repetitions: int = 3, model_label: str = "unknown") -> dict[str, Any]:
-    contract = json.loads(SCENARIOS.read_text(encoding="utf-8"))
+def run_downstream_adapter(command: list[str], request: dict[str, Any]) -> bool:
+    result = subprocess.run(command, input=json.dumps(request), capture_output=True, text=True, check=False)
+    if result.returncode:
+        raise RuntimeError(f"downstream adapter exited {result.returncode}: {result.stderr.strip()}")
+    response = json.loads(result.stdout)
+    if not isinstance(response, dict) or not isinstance(response.get("passed"), bool):
+        raise RuntimeError("downstream adapter stdout must be JSON with boolean passed")
+    return response["passed"]
+
+
+def evaluate(
+    adapter: list[str], output: Path, repetitions: int = 3, model_label: str = "unknown", downstream_adapter: list[str] | None = None
+) -> dict[str, Any]:
+    scenarios = json.loads(SCENARIOS.read_text(encoding="utf-8"))
+    expectations = json.loads(EXPECTATIONS.read_text(encoding="utf-8"))
     runs: list[dict[str, Any]] = []
-    for family, names in contract["scenario_families"].items():
+    for family, names in scenarios["scenario_families"].items():
         for name in names:
             fixture = FIXTURES / name
+            if not fixture.is_dir() or name not in expectations:
+                raise RuntimeError(f"scenario {name} must have a fixture and expectations")
             for attempt in range(repetitions):
                 with tempfile.TemporaryDirectory(prefix="plan-change-eval-") as temp:
                     repo = Path(temp) / "repo"
-                    if fixture.is_dir():
-                        shutil.copytree(fixture, repo)
-                    else:
-                        repo.mkdir()
-                    before = sorted(
-                        (p.relative_to(repo).as_posix(), p.read_bytes()) for p in repo.rglob("*") if p.is_file()
+                    shutil.copytree(fixture, repo)
+                    before = sorted((p.relative_to(repo).as_posix(), p.read_bytes()) for p in repo.rglob("*") if p.is_file())
+                    prompt = (repo / "prompt.md").read_text(encoding="utf-8")
+                    plan = run_adapter(adapter, {"scenario": name, "family": family, "repo_root": str(repo), "prompt": prompt})
+                    after = sorted((p.relative_to(repo).as_posix(), p.read_bytes()) for p in repo.rglob("*") if p.is_file())
+                    _parsed, diagnostics = validate_plan(plan, repo, require_finalized=True)
+                    score, dimensions, missing = score_expectations(plan, expectations[name])
+                    forbidden = [value for value in expectations[name].get("forbidden", []) if value.casefold() in plan.casefold()]
+                    downstream_passed = (
+                        run_downstream_adapter(downstream_adapter, {"scenario": name, "family": family, "repo_root": str(repo), "plan_markdown": plan})
+                        if downstream_adapter else False
                     )
-                    prompt = (
-                        (repo / "prompt.md").read_text(encoding="utf-8") if (repo / "prompt.md").is_file() else name
-                    )
-                    plan = run_adapter(
-                        adapter, {"scenario": name, "family": family, "repo_root": str(repo), "prompt": prompt}
-                    )
-                    after = sorted(
-                        (p.relative_to(repo).as_posix(), p.read_bytes()) for p in repo.rglob("*") if p.is_file()
-                    )
-                    score, blueprint_score, failures = score_plan(plan, family, before != after)
-                    run = {
-                        "scenario": name,
-                        "family": family,
-                        "attempt": attempt + 1,
-                        "model_label": model_label,
-                        "raw_plan": plan,
-                        "repository_mutation": before != after,
-                        "score": score,
-                        "blueprint_score": blueprint_score,
-                        "hard_failures": int(before != after or bool(failures and score < 90)),
-                        "failures": failures,
-                    }
-                    runs.append(run)
-    report = {"contract_version": 5, "runs": runs, "release_failures": release_gate(runs), "terra_medium_run": model_label.lower() == "terra-medium"}
+                    hard_failures = ([] if before == after else ["repository-mutation"])
+                    hard_failures.extend(f"contract:{item.code}" for item in diagnostics)
+                    hard_failures.extend(f"missing:{item}" for item in missing)
+                    hard_failures.extend(f"forbidden:{item}" for item in forbidden)
+                    runs.append({
+                        "scenario": name, "family": family, "attempt": attempt + 1, "model_label": model_label,
+                        "raw_plan": plan, "repository_mutation": before != after, "score": score,
+                        "dimension_scores": dimensions, "hard_failures": sorted(set(hard_failures)),
+                        "failures": sorted(set(hard_failures)), "downstream_passed": downstream_passed,
+                    })
+    report = {"contract_version": 5, "runs": runs, "release_failures": release_gate(runs), "proxy_run": model_label.casefold() == "terra-low", "luna_certified": model_label.casefold() == "luna-low" and not release_gate(runs)}
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
@@ -90,8 +90,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repetitions", type=int, default=3)
     parser.add_argument("--model-label", default="unknown")
+    parser.add_argument("--downstream-adapter", nargs="+")
     args = parser.parse_args()
-    evaluate(args.adapter, args.output, args.repetitions, args.model_label)
+    evaluate(args.adapter, args.output, args.repetitions, args.model_label, args.downstream_adapter)
     return 0
 
 

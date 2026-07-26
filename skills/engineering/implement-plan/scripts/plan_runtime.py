@@ -556,6 +556,11 @@ def _concrete(value: str) -> bool:
     return len(words) >= 2 and not (set(words) <= vague)
 
 
+def _deferred(value: str) -> bool:
+    """Reject placeholders that let a plan appear complete while deferring a decision."""
+    return bool(re.search(r"\b(?:tbd|todo|later|as needed|if necessary|appropriate|determine|decide later|follow up)\b", value, re.I))
+
+
 def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str, source_text: str = "") -> None:
     kind = fact.fields.get("kind", "")
     for required in FACT_FIELD_REQUIREMENTS.get(kind, set()) - set(fact.fields):
@@ -695,6 +700,8 @@ def validate_plan(
                 ds.append(Diagnostic("success.observable", f"{r.id}: given, when, then, and unchanged must be observable and concrete.", r.line))
             if kind == "D" and (not _concrete(r.fields.get("selected", "")) or not _concrete(r.fields.get("rejected", "")) or not _concrete(r.fields.get("drawback", ""))):
                 ds.append(Diagnostic("decision.concrete", f"{r.id}: selected, rejected, and drawback must be concrete repository-grounded statements.", r.line))
+            if kind in {"SC", "D", "CH", "T", "R"} and any(_deferred(value) for value in r.fields.values()):
+                ds.append(Diagnostic("record.deferred", f"{r.id}: material planning records must not defer a decision or verification detail.", r.line))
             if kind == "P":
                 disposition = r.fields.get("disposition")
                 if disposition not in VALID_DISPOSITIONS:
@@ -769,6 +776,13 @@ def validate_plan(
             for fact in facts.values()
         ) and not ch.fields.get("generator-owner"):
             ds.append(Diagnostic("change.generated_output", f"{ch.id}: generated output requires a generator owner; edit the authoritative source.", ch.line))
+        change_words = re.findall(r"[A-Za-z0-9_/-]+", ch.fields.get("change", ""))
+        if len(change_words) < 6 or len(set(change_words)) < 5:
+            ds.append(Diagnostic("change.specificity", f"{ch.id}: change needs exact behavior, branches, errors, ordering, or side effects.", ch.line))
+    for boundary in plan.records.get("B", ()):
+        flow = boundary.fields.get("flow", "")
+        if flow.count("->") < 2 or not _concrete(boundary.fields.get("class", "")):
+            ds.append(Diagnostic("boundary.specificity", f"{boundary.id}: boundary traces need a concrete class and a three-stage flow.", boundary.line))
     expected_obligations = {d: set(OBLIGATIONS[d]) for d in plan.domains}
     seen_obligations: dict[str, set[str]] = defaultdict(set)
     for obligation_record in plan.records.get("O", ()):
@@ -840,6 +854,12 @@ def validate_plan(
         for domain, word in domain_words.items():
             if domain in plan.domains and word not in bp.body.lower():
                 ds.append(Diagnostic("blueprint.domain", f"Blueprint must describe {domain} {word} behavior.", bp.line))
+    for test in plan.records.get("T", ()):
+        command = test.fields.get("command", "").strip()
+        if plan.tier != "tiny" and command in {"python -m pytest", "pytest", "npm test", "go test ./..."}:
+            ds.append(Diagnostic("verification.generic_command", f"{test.id}: standard and high-risk plans need a targeted verification command.", test.line))
+        if not all(_concrete(test.fields.get(field, "")) for field in ("given", "when", "then")):
+            ds.append(Diagnostic("verification.specificity", f"{test.id}: given, when, and then must be exact observable behavior.", test.line))
     traced = {r.criterion for r in plan.traceability}
     chs = set().union(*(set(r.changes) for r in plan.traceability), set())
     tests = set().union(*(set(r.tests) for r in plan.traceability), set())
@@ -864,6 +884,11 @@ def validate_plan(
         ds.append(Diagnostic("traceability.change", f"{ident} is not mapped in traceability."))
     for ident in plan.ids("T") - tests:
         ds.append(Diagnostic("traceability.test", f"{ident} is not mapped in traceability."))
+    # Facts earn their place by grounding another record; self-references are not evidence use.
+    used_facts = set().union(*(_refs(value) for record in plan.all_records() if record.id.split("-", 1)[0] != "F" for value in record.fields.values()))
+    for fact_id in plan.ids("F") - used_facts:
+        fact = facts[fact_id]
+        ds.append(Diagnostic("fact.unused", f"{fact_id}: evidence must ground a decision, change, propagation, boundary, or attack.", fact.line))
     if baseline is not None:
         current = snapshot(repo_root)
         if not isinstance(baseline, dict) or any(current.get(key) != baseline.get(key) for key in ("repository_id", "git", "git_head", "dirty", "tracked", "untracked")):
