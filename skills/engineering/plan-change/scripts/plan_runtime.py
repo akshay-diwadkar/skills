@@ -425,8 +425,8 @@ def snapshot(root: Path, plan: Plan | None = None) -> dict[str, Any]:
     dirty = {}
     for line in status.splitlines():
         raw = line[3:]
-        p = root / raw
-        dirty[raw.replace("\\", "/")] = _hash(p.read_bytes()) if p.is_file() else "missing"
+        dirty_path = root / raw
+        dirty[raw.replace("\\", "/")] = _hash(dirty_path.read_bytes()) if dirty_path.is_file() else "missing"
     targets = set()
     if plan:
         for kind in ("F", "CH"):
@@ -434,9 +434,9 @@ def snapshot(root: Path, plan: Plan | None = None) -> dict[str, Any]:
                 if r.fields.get("status", "existing") == "existing":
                     targets.add(r.fields.get("path", ""))
     files = [
-        {"path": raw.replace("\\", "/"), "sha256": _hash(p.read_bytes())}
+        {"path": raw.replace("\\", "/"), "sha256": _hash(resolved_path.read_bytes())}
         for raw in sorted(targets)
-        if (p := _resolve(root, raw)) and p.is_file()
+        if (resolved_path := _resolve(root, raw)) is not None and resolved_path.is_file()
     ]
     return {
         "repository_id": git("config", "--get", "remote.origin.url") or str(root.resolve()),
@@ -512,7 +512,8 @@ def validate_plan(
         except (KeyError, ValueError):
             ds.append(Diagnostic("fact.lines", f"{f.id}: lines must be a valid inclusive range.", f.line))
             continue
-        if start < 1 or end < start or end > len(source) or f.fields.get("anchor") not in excerpt:
+        fact_anchor = f.fields.get("anchor", "")
+        if start < 1 or end < start or end > len(source) or fact_anchor not in excerpt:
             ds.append(Diagnostic("fact.anchor", f"{f.id}: anchor must occur in the cited range.", f.line))
         if f.fields.get("file-sha256") != _hash(path.read_bytes()) or f.fields.get("excerpt-sha256") != _hash(
             excerpt.encode()
@@ -534,12 +535,12 @@ def validate_plan(
             evidence = facts.get(ch.fields.get("evidence", ""))
             if not p or not p.is_file():
                 ds.append(Diagnostic("change.target", f"{ch.id}: existing target is absent or unsafe.", ch.line))
-            elif ch.fields.get("anchor") not in p.read_text(encoding="utf-8", errors="replace"):
+            elif ch.fields.get("anchor", "") not in p.read_text(encoding="utf-8", errors="replace"):
                 ds.append(Diagnostic("change.anchor", f"{ch.id}: anchor is absent.", ch.line))
             if (
                 not evidence
                 or evidence.fields.get("path", "").replace("\\", "/") != ch.fields.get("path", "").replace("\\", "/")
-                or ch.fields.get("anchor") not in evidence.fields.get("anchor", "")
+                or ch.fields.get("anchor", "") not in evidence.fields.get("anchor", "")
             ):
                 ds.append(
                     Diagnostic(
@@ -559,15 +560,15 @@ def validate_plan(
             )
     expected_obligations = {d: set(OBLIGATIONS[d]) for d in plan.domains}
     seen_obligations: dict[str, set[str]] = defaultdict(set)
-    for o in plan.records.get("O", ()):
-        seen_obligations[o.fields.get("domain", "")].add(o.fields.get("obligation", ""))
+    for obligation_record in plan.records.get("O", ()):
+        seen_obligations[obligation_record.fields.get("domain", "")].add(obligation_record.fields.get("obligation", ""))
     for d, needed in expected_obligations.items():
-        for o in needed - seen_obligations[d]:
-            ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {o}."))
+        for obligation_name in needed - seen_obligations[d]:
+            ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {obligation_name}."))
     attacks = {r.id[2:]: r for r in plan.records.get("A", ())}
     needed_attacks = REQUIRED_ATTACKS | set().union(*(DOMAIN_ATTACKS.get(d, set()) for d in plan.domains))
-    for attack in needed_attacks - attacks.keys():
-        ds.append(Diagnostic("attack.required", f"A-{attack} is required."))
+    for attack_name in needed_attacks - attacks.keys():
+        ds.append(Diagnostic("attack.required", f"A-{attack_name} is required."))
     for r in attacks.values():
         if (
             r.fields.get("status") not in {"repaired", "dismissed", "not-applicable"}
