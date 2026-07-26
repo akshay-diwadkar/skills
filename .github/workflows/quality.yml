@@ -22,6 +22,11 @@ jobs:
         run: python tools/validation/run_mypy.py
       - name: Repository validation
         run: python tools/validation/validate_repository.py
+      - name: Resolver benchmark
+        working-directory: skills/engineering/map-codebase
+        run: |
+          python scripts/eval_resolver.py
+          git diff --exit-code -- references/benchmark.md
       - name: Test
         run: python -m pytest -q
 

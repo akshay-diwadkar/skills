@@ -24,6 +24,7 @@ exclude = [
   "tests/skills/design-codebase/evals/fixtures/",
   "tests/skills/optimize-codebase/evals/fixtures/",
   "tests/skills/audit-codebase/evals/fixtures/",
+  "tests/skills/map-codebase/eval/repos/",
 ]
 
 [[tool.mypy.overrides]]

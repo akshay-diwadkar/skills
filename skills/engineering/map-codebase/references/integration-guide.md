@@ -12,6 +12,19 @@
 8. Expand only on an explicit trigger.
 9. After one coherent change set, refresh and run `validate`.
 
+## Extractor Coverage
+
+<!-- BEGIN EXTRACTOR COVERAGE -->
+| Extractor module | Inputs | Coverage | Resolver precision |
+| --- | --- | --- | --- |
+| `python.py` | Python (`.py`) | Full AST extraction | Structured symbols, ranges, and imports provide the strongest ownership evidence. |
+| `javascript.py` | JavaScript, TypeScript, JSX, and TSX | Full dedicated extraction | Dedicated symbols and imports support normal path, symbol, and relationship ranking. |
+| `lexical.py` | Go, Rust, Java, C, and C++ | Lexical-only | Regex-discovered symbols and imports can miss complex or nested constructs, reducing resolver precision. |
+| `configuration.py` | Repository configuration files | Configuration metadata and command extraction | Known keys and commands support configuration ownership; unrecognized structures fall back to text evidence. |
+<!-- END EXTRACTOR COVERAGE -->
+
+Lexical-only means deterministic regex-based symbol and import discovery rather than language-aware parsing. It has lower structural confidence, so complex declarations, nesting, and unusual syntax may produce weaker or missing resolver evidence.
+
 ## Agent Mode Permissions
 
 - `status`, `resolve`, `validate`, and direct reads of knowledge or source are read-only.

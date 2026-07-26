@@ -50,8 +50,82 @@ CONFIG_PHRASES = {
 STRONG_CONFIG_TOKENS = {"ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow"}
 TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test", "assertion", "fixture", "rename test", "expected output"}
 IMPLEMENTATION_WORDS = {"implement", "add", "fix", "support", "prevent", "handle", "refactor", "caller", "behavior"}
+SYNONYM_GROUPS = (
+    frozenset({"retry", "retries", "backoff"}),
+    frozenset({"auth", "authentication", "login", "signin"}),
+    frozenset({"config", "configuration", "settings", "options"}),
+    frozenset({"error", "errors", "failure", "failures", "exception", "exceptions"}),
+    frozenset({"cache", "caching", "memoization", "memoize"}),
+    frozenset({"search", "searching", "find", "lookup"}),
+    frozenset({"permission", "permissions", "access", "authorization", "authorize"}),
+    frozenset({"throttle", "throttling", "ratelimit", "ratelimits"}),
+    frozenset({"delete", "deletion", "remove", "removal"}),
+    frozenset({"serialize", "serialization", "encode", "encoding"}),
+    frozenset({"parse", "parsing", "decode", "decoding"}),
+    frozenset({"timeout", "timeouts", "deadline", "deadlines"}),
+    frozenset({"queue", "queues", "worker", "workers", "job", "jobs"}),
+    frozenset({"validate", "validation", "verify", "verification", "check", "checks"}),
+    frozenset({"create", "creation", "add", "addition", "insert"}),
+    frozenset({"update", "revision", "modify", "modification"}),
+)
+TOKEN_SYNONYMS = {
+    token: group - {token}
+    for group in SYNONYM_GROUPS
+    for token in group
+}
 SecondaryRole = Literal["test", "configuration"]
 PrimaryRole = Literal["source", "test", "configuration"]
+INTENT_RULES: list[tuple[re.Pattern[str], PrimaryRole, int]] = [
+    (re.compile(r"^(?:ci|build|chore\(ci\)|fix\(ci\)):"), "configuration", 260),
+    (re.compile(r"^(?:test|tests)(?:\([^)]*\))?:"), "test", 260),
+    (
+        re.compile(
+            r"(?=.*\b(?:implement|support|expose)\b)"
+            r"(?=.*\b(?:tests?|assertion|fixture|expected|configuration|config|settings|options|"
+            r"ruff|mypy|eslint|prettier|tsconfig|workflow|compiler|linter|addopts|matrix)\b)"
+        ),
+        "source",
+        220,
+    ),
+    (
+        re.compile(
+            r"\b(?:failing (?:\w+ )*test|failing assertion|fix (?:the )?assertion|change (?:the )?fixture|"
+            r"update (?:the )?(?:regression )?tests?|rename (?:the )?(?:regression )?tests?|"
+            r"correct (?:the )?expected|expected (?:\w+ )*output|stabilize (?:the )?(?:\w+ )*fixture)\b"
+        ),
+        "test",
+        190,
+    ),
+    (re.compile(r"\b(?:add|create|write)\b.{0,40}\b(?:regression )?tests?\b"), "test", 180),
+    (
+        re.compile(
+            r"\b(?:ruff|mypy|eslint|prettier|tsconfig|typescript configuration|workflow trigger|"
+            r"github actions|addopts|ini options|package script|npm test flag|compiler options|"
+            r"linter configuration|line[- ]?length|permissions matrix)\b"
+        ),
+        "configuration",
+        170,
+    ),
+    (
+        re.compile(r"\b(?:assertion|fixture|regression test|tests?|expected output)\b"),
+        "test",
+        130,
+    ),
+    (
+        re.compile(
+            r"\b(?:implement|add|fix|support|prevent|handle|refactor|caller|behavior|repair|"
+            r"harden|improve|strengthen|tighten|restore|rebuild|stabilize|correct|modify|update)\b"
+        ),
+        "source",
+        120,
+    ),
+    (
+        re.compile(r"\b(?:configuration|config|compiler|linter|workflow|matrix)\b"),
+        "configuration",
+        90,
+    ),
+]
+ROLE_ORDER: tuple[PrimaryRole, ...] = ("source", "test", "configuration")
 
 
 @dataclass(frozen=True)
@@ -63,7 +137,7 @@ class TaskIntent:
     reasons: tuple[str, ...]
 
 
-def _split(value: str) -> set[str]:
+def _literal_split(value: str) -> set[str]:
     words = (
         re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
         .replace("_", " ")
@@ -75,11 +149,56 @@ def _split(value: str) -> set[str]:
     return {word.lower() for word in words if len(word) > 1 and word.lower() not in STOPWORDS}
 
 
+def _stems(token: str) -> set[str]:
+    """Return conservative deterministic stems without external language tooling."""
+    stems = {token}
+    if len(token) > 4 and token.endswith("ies"):
+        stems.add(token[:-3] + "y")
+    if len(token) > 5 and token.endswith("ing"):
+        base = token[:-3]
+        stems.add(base)
+        if len(base) > 2 and base[-1] == base[-2]:
+            stems.add(base[:-1])
+    if len(token) > 4 and token.endswith("ed"):
+        base = token[:-2]
+        stems.add(base)
+        if len(base) > 2 and base[-1] == base[-2]:
+            stems.add(base[:-1])
+    if len(token) > 4 and token.endswith("es"):
+        stems.add(token[:-2])
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        stems.add(token[:-1])
+    return stems
+
+
+def _split(value: str) -> set[str]:
+    """Split text into literal, stemmed, and explicitly synonymous token forms."""
+    literal = _literal_split(value)
+    stemmed = set().union(*(_stems(token) for token in literal)) if literal else set()
+    expanded = set(stemmed)
+    for token in sorted(stemmed):
+        expanded.update(TOKEN_SYNONYMS.get(token, ()))
+    return {token for token in expanded if token not in STOPWORDS}
+
+
+def _transformed_pair(task_tokens: set[str], candidate_tokens: set[str]) -> tuple[str, str] | None:
+    """Return the first deterministic non-literal task-to-candidate token match."""
+    if task_tokens & candidate_tokens:
+        return None
+    for task_token in sorted(task_tokens):
+        task_forms = _split(task_token)
+        for candidate_token in sorted(candidate_tokens):
+            if task_forms & _split(candidate_token):
+                return task_token, candidate_token
+    return None
+
+
 def _signals(task: str) -> dict[str, set[str]]:
     raw = re.findall(r"[A-Za-z_][A-Za-z0-9_./:-]*", task)
     return {
         "paths": {x.replace("\\", "/") for x in raw if "/" in x or re.search(r"\.[A-Za-z0-9]{1,5}$", x)},
         "symbols": {x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x},
+        "literal_terms": set().union(*(_literal_split(x) for x in raw)) if raw else set(),
         "terms": set().union(*(_split(x) for x in raw)) if raw else set(),
     }
 
@@ -107,20 +226,8 @@ def _explicit_symbol_roles(signals: dict[str, set[str]], files: list[dict[str, A
     return _role_order([file["role"] for file in files if set(file.get("symbols", [])) & signals["symbols"]])
 
 
-def _is_test_creation_task(lowered: str) -> bool:
-    return bool(re.search(r"\b(?:add|create|write)\b.{0,40}\b(?:regression )?tests?\b", lowered))
-
-
-def _is_mixed_implementation_task(lowered: str, implementation: bool, test_evidence: bool, config_evidence: bool) -> bool:
-    if not implementation or not (test_evidence or config_evidence):
-        return False
-    # "Add a regression test" owns a test; implementation support alongside it
-    # makes test work a constraint instead.
-    return not _is_test_creation_task(lowered) or "support" in lowered or "implement" in lowered
-
-
 def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[dict[str, Any]]) -> TaskIntent:
-    """Classify ownership using indexed evidence before vocabulary."""
+    """Classify ownership using indexed evidence, then a scored rule table."""
     explicit = signals["paths"]
     lowered = task.lower().replace("_", " ").replace("-", " ").replace(".", " ")
     for roles, reason in (
@@ -141,53 +248,35 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
                 primary,
             )
             return TaskIntent(primary, explicit_secondary, (f"{reason} {matched}",))
+
+    scores: dict[PrimaryRole, int] = {role: 0 for role in ROLE_ORDER}
+    matched_roles: set[PrimaryRole] = set()
     config_path = any(Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES for path in explicit)
     test_path = any("/test" in f"/{path.lower()}" or Path(path).name.lower().startswith("test_") for path in explicit)
-    config_semantic = any(phrase in lowered for phrase in CONFIG_PHRASES)
-    # pytest alone is deliberately not configuration evidence: it often names test code.
-    pytest_config = "pytest" in lowered and any(key in lowered for key in ("addopts", "ini options", "configuration", "config"))
-    test_semantic = any(phrase in lowered for phrase in TEST_PHRASES) or bool(re.search(r"\btest_[a-z0-9_]+\b|\btests?\b", lowered))
-    config_evidence = config_path or config_semantic or pytest_config or "configuration" in lowered or bool(
-        re.search(r"\b(?:addopts|line[- ]?length|permissions|matrix|package script|compiler|linter)\b", lowered)
-    )
-    test_evidence = test_path or test_semantic or ("fixture" in lowered and "pytest" in lowered)
-    implementation = any(re.search(rf"\b{re.escape(word)}\b", lowered) for word in IMPLEMENTATION_WORDS)
-    maintenance = bool(re.search(r"\b(assertion|fixture|rename|expected output|failing (?:\w+ )*test|correct (?:\w+ )*regression test)\b", lowered))
-    reasons: list[str] = []
     if config_path:
-        return TaskIntent("configuration", (), ("explicit configuration filename or extension",))
+        scores["configuration"] = 300
+        matched_roles.add("configuration")
     if test_path:
-        return TaskIntent("test", (), ("explicit test filename or test path",))
-    if test_evidence and maintenance:
-        return TaskIntent("test", (), ("strong test-maintenance wording",))
-    if _is_mixed_implementation_task(lowered, implementation, test_evidence, config_evidence):
-        reasons.append("strong implementation wording")
-        mixed_secondary: list[SecondaryRole] = []
-        if config_evidence:
-            mixed_secondary.append("configuration")
-        if test_evidence:
-            mixed_secondary.append("test")
-        reasons.extend(f"{role} work is a secondary constraint" for role in mixed_secondary)
-        return TaskIntent("source", tuple(mixed_secondary), tuple(reasons))
-    if _is_test_creation_task(lowered):
-        return TaskIntent("test", (), ("task explicitly requests creation of a regression test",))
-    if implementation:
-        reasons.append("strong implementation wording")
-    if config_evidence:
-        reasons.append("strong configuration evidence")
-    if test_evidence:
-        reasons.append("strong test-maintenance evidence")
-    if implementation:
-        implementation_secondary: list[SecondaryRole] = []
-        # Configuration precedes tests so mixed constraints have stable output.
-        if config_evidence or "configuration" in lowered:
-            implementation_secondary.append("configuration")
-        if test_evidence:
-            implementation_secondary.append("test")
-        return TaskIntent("source", tuple(implementation_secondary), tuple(reasons))
-    if config_evidence:
-        return TaskIntent("configuration", (), tuple(reasons))
-    return TaskIntent("source", (), ("ambiguous ownership defaults to source",))
+        scores["test"] = 300
+        matched_roles.add("test")
+    for pattern, role, weight in INTENT_RULES:
+        if pattern.search(lowered):
+            scores[role] = max(scores[role], weight)
+            matched_roles.add(role)
+
+    primary = min(ROLE_ORDER, key=lambda role: (-scores[role], ROLE_ORDER.index(role)))
+    if not scores[primary]:
+        return TaskIntent("source", (), ("ambiguous ownership defaults to source",))
+
+    secondary: list[SecondaryRole] = []
+    if primary == "source":
+        if "configuration" in matched_roles:
+            secondary.append("configuration")
+        if "test" in matched_roles:
+            secondary.append("test")
+    reasons = [f"{primary} ownership rule scored {scores[primary]}"]
+    reasons.extend(f"{role} work is a secondary constraint" for role in secondary)
+    return TaskIntent(primary, tuple(secondary), tuple(reasons))
 
 
 def _load(root: Path, out: Path | str | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -239,19 +328,31 @@ def _lexical(
             _add(evidence, f"exact_path: {path}", weights["exact_path"], "path")
         if exact:
             _add(evidence, f"exact_symbol: {exact[0]}", weights["exact_symbol"], "identifier")
-        matched = signals["terms"] & _split(Path(path).stem)
+        path_stem_terms = _literal_split(Path(path).stem)
+        matched = signals["literal_terms"] & path_stem_terms
         if matched:
             _add(evidence, f"filename: {sorted(matched)[0]}", weights["filename"], "path")
-        symbol_terms = set().union(*(_split(x) for x in names)) if names else set()
-        matched = signals["terms"] & symbol_terms
+        symbol_terms = set().union(*(_literal_split(x) for x in names)) if names else set()
+        matched = signals["literal_terms"] & symbol_terms
         if matched:
             _add(evidence, f"symbol_token: {sorted(matched)[0]}", weights["symbol_token"], "identifier")
-        matched = signals["terms"] & _split(file["subsystem"])
+        subsystem_terms = _literal_split(file["subsystem"])
+        matched = signals["literal_terms"] & subsystem_terms
         if matched:
             _add(evidence, f"subsystem: {sorted(matched)[0]}", weights["subsystem"], "subsystem")
-        matched = signals["terms"] & _split(path)
+        path_terms = _literal_split(path)
+        matched = signals["literal_terms"] & path_terms
         if matched:
             _add(evidence, f"text_match: {sorted(matched)[0]}", weights["text_match"], "path")
+        candidate_terms = path_terms | path_stem_terms | symbol_terms | subsystem_terms
+        transformed = _transformed_pair(signals["literal_terms"], candidate_terms)
+        if transformed:
+            _add(
+                evidence,
+                f"synonym_token: {transformed[0]}\N{RIGHTWARDS ARROW}{transformed[1]}",
+                weights["synonym_token"],
+                "synonym_token",
+            )
         if file["role"] == "configuration" and (file["path"] in signals["paths"] or signals["terms"] & STRONG_CONFIG_TOKENS):
             _add(evidence, f"configuration: {path}", weights["configuration"], "configuration")
         if file.get("generated"):
@@ -314,7 +415,7 @@ def _configuration_key_candidates(task: str) -> list[str]:
     dotted = re.findall(r"\b(?:[A-Za-z][\w-]*\.)+[A-Za-z][\w-]*\b", task)
     hyphenated = re.findall(r"\b[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+\b", task.lower())
     phrases = [phrase for phrase in CONFIG_PHRASES if phrase in task.lower().replace("-", " ")]
-    strong = sorted(term for term in _split(task) if len(term) > 3 and term not in STOPWORDS)
+    strong = sorted(term for term in _literal_split(task) if len(term) > 3 and term not in STOPWORDS)
     return list(dict.fromkeys(quoted + dotted + hyphenated + phrases + strong))
 
 
@@ -330,12 +431,12 @@ def _configuration_fallback_candidates(task: str, signals: dict[str, set[str]]) 
         if "/" in path or Path(path).suffix.lower() in CONFIG_EXTENSIONS or Path(path).name.lower() in CONFIG_NAMES
     }
     path_values = {path.lower() for path in configuration_paths}
-    path_terms = set().union(*(_split(path) for path in configuration_paths)) if configuration_paths else set()
+    path_terms = set().union(*(_literal_split(path) for path in configuration_paths)) if configuration_paths else set()
     ignored = {"config", "configuration", "project"}
     candidates = []
     for candidate in _configuration_key_candidates(task):
         normalized = candidate.lower().replace("\\", "/")
-        candidate_terms = _split(candidate)
+        candidate_terms = _literal_split(candidate)
         if normalized in path_values or (candidate_terms and candidate_terms <= path_terms) or normalized in ignored:
             continue
         candidates.append(candidate)
@@ -542,10 +643,18 @@ def resolve_task(
     freshness = check_freshness(root, directory)["status"]
     signals = _signals(task)
     by_path = {x["path"]: x for x in repo["files"]}
-    lexical = _lexical(repo["files"], signals, config["weights"], freshness)[:8]
-    ranked = _rerank(lexical, relationships, by_path, config["weights"])
-    lexical_paths = {item["file"]["path"] for item in lexical}
     intent = classify_task_intent(task, signals, repo["files"])
+    lexical_matches = _lexical(repo["files"], signals, config["weights"], freshness)
+    literal_primary_matches = [
+        item
+        for item in lexical_matches
+        if item["file"]["role"] == intent.primary_role
+        and any(weight > 0 and family != "synonym_token" for weight, family in item["evidence"].values())
+    ]
+    primary_lexical = (literal_primary_matches or lexical_matches)[:8]
+    lexical = lexical_matches[:8]
+    ranked = _rerank(lexical, relationships, by_path, config["weights"])
+    lexical_paths = {item["file"]["path"] for item in primary_lexical}
     primaries = [
         item for item in ranked
         if item["file"]["path"] in lexical_paths

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+collect_ignore_glob = ["eval/repos/**"]
+
 
 @pytest.fixture
 def sample_repo(tmp_path: Path) -> Path:
