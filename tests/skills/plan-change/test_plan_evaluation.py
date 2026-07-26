@@ -8,7 +8,7 @@ DEV_DIR = REPO_ROOT / "tests" / "skills" / "plan-change"
 sys.path.insert(0, str(DEV_DIR))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 import score_plan_evaluation  # noqa: E402
-from v4_plan_factory import finalized_tiny_plan  # noqa: E402
+from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]  # noqa: E402
 
 
 def test_evaluation_catalog_has_six_blind_cases() -> None:
