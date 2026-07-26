@@ -1,31 +1,9 @@
 {
-  "contract_version": 4,
-  "marker": "<!-- plan-contract: 4 -->",
-  "metadata_prefix": "<!-- plan-metadata: ",
-  "repository_prefix": "<!-- plan-repository: ",
-  "validation_receipt": "<!-- plan-validation: 4; body-sha256: <64 lowercase hex>; binding-sha256: <64 lowercase hex> -->",
+  "contract_version": 5,
+  "marker": "<!-- plan-contract: 5 -->",
   "intents": ["feature", "bug-fix", "refactor"],
+  "tiers": ["tiny", "standard", "high-risk"],
   "risk_domains": ["public-contract", "durable-state", "migration", "security", "concurrency", "external-integration", "irreversible-external-effect"],
-  "tiers": {
-    "tiny": {"required_ids": ["SC", "F", "D", "CH", "T", "P", "B"], "blueprint_required": false},
-    "standard": {"required_ids": ["SC", "F", "D", "CH", "T", "P", "B", "C"], "blueprint_required": true},
-    "high-risk": {"required_ids": ["SC", "F", "D", "CH", "T", "P", "B", "C", "R"], "blueprint_required": true}
-  },
-  "tier_rules": {
-    "high-risk_domains": ["public-contract", "durable-state", "migration", "security", "concurrency", "external-integration", "irreversible-external-effect"],
-    "standard_signals": ["multi-file", "multi-layer", "internal-interface", "uncertain-root-cause", "propagation"],
-    "never_downgrade": true
-  },
-  "domain_obligations": {
-    "security": ["principal", "tenant", "trust-boundary", "authorization", "validation-order", "denial", "enumeration", "revocation", "audit", "cross-tenant"],
-    "concurrency": ["shared-state", "boundary", "idempotency", "retries", "duplicate-delivery", "cancellation", "ordering", "interleaving", "reconciliation"],
-    "public-contract": ["current-shape", "proposed-shape", "defaults-nullability", "error-compatibility", "old-writer-new-reader", "new-writer-old-reader", "generated-clients", "mixed-version", "compatibility-tests"],
-    "durable-state": ["current-shape", "target-shape", "forward-migration", "backward-compatibility", "partial-migration", "interrupted-migration", "rollback", "queue-cache-index", "data-verification", "deployment-order"],
-    "migration": ["current-shape", "target-shape", "forward-migration", "backward-compatibility", "partial-migration", "interrupted-migration", "rollback", "data-verification", "deployment-order"],
-    "external-integration": ["sdk-version", "authentication", "timeouts", "retryable-errors", "non-retryable-errors", "idempotency", "rate-limits", "malformed-response", "ambiguous-success", "reconciliation", "irreversible-effects"],
-    "irreversible-external-effect": ["idempotency", "ambiguous-success", "reconciliation", "irreversible-effects"]
-  },
-  "always_required_attacks": ["forgotten-propagation", "boundary-input", "literal-implementation"],
-  "domain_attacks": {"security": ["security"], "concurrency": ["concurrency"], "migration": ["rollback", "compatibility"], "durable-state": ["rollback", "compatibility"], "public-contract": ["compatibility"], "external-integration": ["rollback", "scale"], "irreversible-external-effect": ["rollback"]},
-  "base_sections": ["Outcome and Scope", "Evidence Ledger", "Decisions", "Implementation Specification", "Propagation Record", "Boundary Traces", "Domain Obligations", "Traceability", "Verification", "Risks, Assumptions, and Attack"]
+  "record_kinds": ["SC", "F", "D", "CH", "P", "B", "O", "C", "R", "T", "A", "X"],
+  "artifact_types": ["pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"]
 }

@@ -1,6 +1,6 @@
 # Cognitive Protocols
 
-Use these procedures while producing v4 records. Keep working notes out of the final plan.
+Use these procedures while producing v5 records. Keep working notes out of the final plan.
 
 ## Evidence and Root Cause
 

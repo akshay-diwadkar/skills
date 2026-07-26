@@ -9,7 +9,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = ROOT / "skills" / "engineering"
-ALLOWED_TOP_LEVEL = {"SKILL.md", "scripts", "references", "schemas", "templates", "assets", "requirements.txt", ".env.example"}
+ALLOWED_TOP_LEVEL = {
+    "SKILL.md",
+    "scripts",
+    "references",
+    "schemas",
+    "templates",
+    "assets",
+    "requirements.txt",
+    ".env.example",
+}
 FORBIDDEN_PARTS = {"agents", "evals", "fixtures", "__pycache__"}
 RETIRED_PATHS = (
     "catalog",
@@ -92,6 +101,26 @@ def validate_retired_surfaces() -> list[str]:
     return errors
 
 
+def validate_legacy_plan_contracts() -> list[str]:
+    """Keep v1-v4 plan formats out of active packages and fixtures.
+
+    The one v4 string in the v5 negative test is intentional: it proves the
+    canonical unsupported-contract diagnostic.
+    """
+    errors: list[str] = []
+    ignored = {ROOT / "tests" / "skills" / "plan-change" / "test_v5_runtime.py"}
+    pattern = re.compile(r"<!--\s*plan-(?:contract|validation):\s*[1-4](?:[; ]|-->)")
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or path in ignored or "map-codebase" in path.parts:
+            continue
+        try:
+            if pattern.search(path.read_text(encoding="utf-8")):
+                errors.append(f"Legacy plan contract remains: {path.relative_to(ROOT)}")
+        except UnicodeDecodeError:
+            continue
+    return errors
+
+
 def main() -> int:
     skills = discover_skills()
     errors = ["No skills found under skills/engineering"] if not skills else []
@@ -99,6 +128,7 @@ def main() -> int:
         errors.extend(validate_skill_package(skill_dir))
         errors.extend(validate_script_references(skill_dir))
     errors.extend(validate_retired_surfaces())
+    errors.extend(validate_legacy_plan_contracts())
     if errors:
         print("Repository validation failed:", file=sys.stderr)
         for error in sorted(set(errors)):

@@ -23,7 +23,7 @@ Read these files completely before editing:
 ## Non-Negotiables
 
 - Identify and snapshot the exact approved plan before editing.
-  - Require finalized `plan-contract: 4` metadata, canonical `SC/CH/T` records, a repository binding, and a v4 finalizer receipt. Reject v1–v3 and unversioned/legacy plans.
+  - Require finalized `plan-contract: 5` metadata, the complete typed record graph, targeted repository binding, and a v5 finalizer receipt. Reject every other version and do not translate it.
 - Refuse a plan when the parser reports ambiguity, unfinalized status, receipt mismatch, or a material repository contradiction.
 - Never use an implementation interview to reinterpret, repair, or extend approved product intent. Record semantic gaps and route them to `plan-change`; ask only for execution-state authorization already permitted by this contract.
 - Create an implementation-run bundle in confirmed ignored storage or an OS temporary directory.
@@ -51,7 +51,7 @@ Execute bundled runtime commands with the active skill directory (the directory 
 
 Save conversational plans verbatim to the run directory. Parse the plan with `implementation_contract.parse_plan`.
 
-- Require `<!-- plan-contract: 4 -->`, strict classification metadata, canonical `SC/CH/T` records, a valid repository binding, and a v4 receipt. Revalidate the binding against the target repository before creating the run bundle.
+- Require `<!-- plan-contract: 5 -->`, strict classification metadata, the complete typed record graph, a valid targeted repository binding, and a v5 receipt. Revalidate bound evidence and targets before creating the run bundle.
 - Stop with field-specific diagnostics when parsing or receipt validation fails. Reject all v1/v2/legacy plans. Do not reinterpret the plan.
 
 If inspection exposes a semantic contradiction or a choice affecting product behavior, failure semantics, contracts, persistence, dependencies, migration, or external effects, stop and hand the evidence back to `plan-change`. Dirty-target incorporation and explicitly scoped unsafe/external-operation authorization remain execution questions; their answers do not revise the plan.
