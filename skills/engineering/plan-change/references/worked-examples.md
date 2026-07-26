@@ -1,47 +1,68 @@
-# V5 example rules
+# Reproducible v5 worked examples
 
-Use `scripts/scaffold_plan.py` as the only scaffold. Fill facts with current
-fingerprints, preserve all provisional domains or add grounded `X-n` dismissals,
-and finalize only after `scripts/check_plan.py --require-finalized` passes.
+Every example uses the complete scaffold emitted by `scripts/prepare_plan.py`.
+The executable hydration cases in `tests/skills/plan-change/test_scaffolds_end_to_end.py`
+reconstruct the repository, fill every fingerprint and placeholder, validate the
+draft, finalize it, and validate the receipt.
 
-An existing `CH-n` always cites a same-path `F-n`; traceability uses exact table
-rows; standard and high-risk plans place a typed execution blueprint inside
-`Implementation Specification`.
+## Required command order
 
-## Tiny local fix
+1. Run `prepare_plan.py` with a grounded `--anchor PATH[:SYMBOL]`.
+2. Fill every scaffold field and preserve provisional classification.
+3. Run draft `check_plan.py` without `--require-finalized`.
+4. Repair baseline and inventory diagnostics until draft validation passes.
+5. Run `finalize_plan.py` and save its exact stdout.
+6. Run `check_plan.py --require-finalized` against the finalized output.
 
-Use one `SC` with observable `given/when/then/unchanged`, one same-anchor
-function fact, one `CH`, and one exact `SC -> CH -> T` trace row. A null guard
-that preserves non-null normalization is tiny only when no caller changes.
+`--require-finalized` cannot pass before step 5 because the binding and receipt do
+not yet exist.
+
+## Tiny local failure
+
+For `def normalize_name(raw: str) -> str`, prepare with `--tier tiny --intent
+bug-fix --anchor src/names.py:normalize_name`. Own the blank-input branch in
+`CH-1`, preserve nonblank behavior in `SC-1`, and verify both outcomes in `T-1`.
 
 ## Standard propagation
 
-For a parser rename, inventory the library export, CLI, fixture, and mock as
-separate `P` records. Use an interface blueprint immediately after the owner
-changes; every consumer disposition has an owning change or factual reason.
+Prepare a parser rename with `--tier standard --anchor
+src/parser.py:parse_value`. Ground the definition, re-export, CLI importer, and
+related test. Give each relevant candidate a `P` disposition, own every changed
+path with a `CH`, and use a `domains: none` interface blueprint.
 
-## High-risk contract
+## Security
 
-For an event-schema migration, classify public-contract and durable-state,
-create every matrix obligation, and use a compatibility-table blueprint that
-shows old writer/new reader, new writer/old reader, and interrupted rollout.
+Prepare with `--tier high-risk --risk-domain security --anchor
+src/auth.py:read_record`. The complete scaffold contains every security
+obligation, one obligation-specific test per row, and a blueprint covering
+principal identity, authorization ownership, and denial behavior.
 
-## Re-tier and dismissal
+## Concurrency
 
-Re-tier from tiny to standard after finding a second boundary. Remove a
-provisional concurrency domain only with `X-n` evidence showing request-local
-state and a concrete dismissal reason; never simply delete it.
+Prepare with `--tier high-risk --risk-domain concurrency --anchor
+src/billing.py:capture`. Specify shared state and lock/transaction ownership,
+the worst interleaving, duplicate retry identity, cancellation, and
+reconciliation.
 
-## Generated, security, and concurrency
+## Migration
 
-Use `generated-from` plus a generator owner instead of editing generated output.
-Security obligations name principal, tenant, authorization order, denial, and
-cross-tenant tests. A concurrency blueprint names the worst interleaving,
-idempotency key, timeout/duplicate outcome, and reconciliation.
+Prepare with both `--risk-domain durable-state` and `--risk-domain migration`.
+Use separate domain-tagged state blueprints when their owning changes differ, or
+one blueprint tagged with both domains when it covers current/target state,
+partial and interrupted migration, rollback/roll-forward, verification, and
+deployment order.
 
-## Questions and exact failures
+## New-path ownership
 
-Ask only material user questions, for example: “Should an existing token remain
-valid after tenant transfer?”  `D-1: selected: cleaner` fails
-`decision.concrete`; `A-security: done` fails `attack.format`; an old marker
-fails `contract.unsupported`. Generate receipts only through the finalizer.
+For `src/package/new_module.py`, ground `src/package/__init__.py` with a
+`directory-ownership` fact whose `directory` is `src/package`, then cite it as
+`directory-owner`. For generated output, cite a `generated-from` fact on the
+generator source with exact `generator` and `output`; never cite the output as
+its own owner.
+
+## Fail-closed repair
+
+An absent anchor, stale digest, copied obligation ownership, incomplete blueprint
+concept group, unrelated new-path owner, baseline mutation, or stale categorized
+binding leaves the plan unfinalized. Repair the evidence or plan; never edit the
+receipt, remove the diagnostic, or downgrade the tier.

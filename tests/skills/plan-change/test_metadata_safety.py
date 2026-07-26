@@ -41,7 +41,7 @@ def test_python_signature_return_is_structurally_verified(tmp_path: Path) -> Non
 ## Outcome and Scope
 - SC-1: given: blank name input | when: normalize is called | then: blank result is returned | unchanged: nonblank names retain trimming
 ## Evidence Ledger
-- F-1: kind: function-signature | path: src/names.py | lines: 1-2 | anchor: normalize | excerpt-sha256: {hashlib.sha256(excerpt.encode()).hexdigest()} | file-sha256: {hashlib.sha256(source.encode()).hexdigest()} | observation: local normalizer | parameters: raw | returns: int
+    - F-1: kind: function-signature | path: src/names.py | lines: 1-2 | anchor: normalize | excerpt-sha256: {hashlib.sha256(excerpt.encode()).hexdigest()} | file-sha256: {hashlib.sha256(source.encode()).hexdigest()} | observation: local normalizer | parameters: raw | returns: int | async: false
 ## Decisions
 - D-1: selected: preserve normalizer shape | evidence: F-1 | rejected: replace public function | drawback: callers would need migration
 ## Implementation Specification

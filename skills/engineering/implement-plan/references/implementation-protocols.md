@@ -1,6 +1,8 @@
 # Implementation Protocols
 
-This is the canonical decision procedure for an implementation run. `implementation-contract.json` is authoritative where field names or enumerations are involved.
+This is the canonical decision procedure for an implementation run.
+`implementation-contract.json` v3 is authoritative for nested row schemas,
+field names, enumerations, workspace reconciliation, and receipt policy.
 
 ## 1. Plan Normalization Protocol
 

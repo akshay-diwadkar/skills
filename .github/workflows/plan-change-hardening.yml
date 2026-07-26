@@ -1,0 +1,37 @@
+name: Plan Change Hardening
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install verification dependencies
+        run: python -m pip install mypy pytest pytest-subtests pyyaml jsonschema ruff
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy
+        run: python tools/validation/run_mypy.py
+      - name: Repository contract
+        run: python tools/validation/validate_repository.py
+      - name: Plan Change
+        run: python -m pytest tests/skills/plan-change -q
+      - name: Implement Plan
+        run: python -m pytest tests/skills/implement-plan -q
+      - name: Scope Issue
+        run: python -m pytest tests/skills/scope-issue -q
+      - name: Installed skill execution
+        run: python -m pytest tests/integration/test_installed_skill_execution.py -q
+      - name: Full suite
+        run: python -m pytest -q

@@ -26,6 +26,7 @@ python scripts/prepare_plan.py \
   --run-dir /absolute/path/to/temporary-run \
   --tier <tiny|standard|high-risk> \
   --intent <feature|bug-fix|refactor> \
+  --anchor <repository/path[:symbol]> \
   [--risk-domain <domain> ...]
 ```
 
@@ -78,4 +79,9 @@ python scripts/finalize_plan.py \
   /absolute/path/to/temporary-run/draft.md
 ```
 
-Submit the finalizer’s exact stdout. Completion requires its v5 receipt and current bound evidence/targets.
+Save the finalizer output, then run `check_plan.py` once more with the same
+baseline, inventory, tier, and repository arguments plus `--require-finalized`.
+A draft cannot pass that flag because its binding and receipt do not yet exist.
+
+Submit the finalizer's exact stdout. Completion requires its v5 receipt and
+current categorized repository binding.

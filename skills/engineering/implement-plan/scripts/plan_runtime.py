@@ -12,209 +12,42 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-VERSION = 5
-MARKER = "<!-- plan-contract: 5 -->"
-TIERS = ("tiny", "standard", "high-risk")
-RISK_DOMAINS = {
-    "public-contract",
-    "durable-state",
-    "migration",
-    "security",
-    "concurrency",
-    "external-integration",
-    "irreversible-external-effect",
-}
-SECTIONS = (
-    "Outcome and Scope",
-    "Evidence Ledger",
-    "Decisions",
-    "Implementation Specification",
-    "Propagation Record",
-    "Boundary Traces",
-    "Domain Obligations",
-    "Traceability",
-    "Verification",
-    "Risks, Assumptions, and Attack",
-)
+from plan_contract_data import CONTRACT
+
+VERSION = int(CONTRACT["contract_version"])
+MARKER = str(CONTRACT["marker"])
+TIERS = tuple(str(value) for value in CONTRACT["tiers"])
+RISK_DOMAINS = {str(value) for value in CONTRACT["risk_domains"]}
+SECTIONS = tuple(str(value) for value in CONTRACT["sections"])
 SCHEMA: dict[str, tuple[set[str], set[str], str]] = {
-    "SC": ({"given", "when", "then", "unchanged"}, set(), "Outcome and Scope"),
-    "F": (
-        {"kind", "path", "lines", "anchor", "excerpt-sha256", "file-sha256", "observation"},
-        {"parameters", "returns", "fields", "key", "caller", "callee", "generator"},
-        "Evidence Ledger",
-    ),
-    "D": ({"selected", "evidence", "rejected", "drawback"}, set(), "Decisions"),
-    "CH": (
-        {"path", "anchor", "status", "evidence", "change"},
-        {"directory-owner", "generator-owner"},
-        "Implementation Specification",
-    ),
-    "P": ({"owner", "because", "surface", "disposition"}, set(), "Propagation Record"),
-    "B": ({"class", "path", "flow"}, set(), "Boundary Traces"),
-    "O": ({"domain", "obligation", "status", "evidence", "decision", "changes", "tests"}, set(), "Domain Obligations"),
-    "C": ({"constraint"}, {"evidence"}, "Decisions"),
-    "R": ({"severity", "owner", "tests", "risk"}, set(), "Risks, Assumptions, and Attack"),
-    "T": ({"given", "when", "then", "command"}, set(), "Verification"),
-    "A": ({"status", "finding", "evidence", "resolution"}, set(), "Risks, Assumptions, and Attack"),
-    "X": ({"domain", "status", "evidence", "reason"}, set(), "Risks, Assumptions, and Attack"),
+    kind: (set(value["required"]), set(value["optional"]), str(value["section"]))
+    for kind, value in CONTRACT["record_schemas"].items()
 }
-# This table is deliberately data, rather than prose in SKILL.md.  The validator
-# is the contract: an unknown field can never accidentally become a valid plan
-# field simply because a planner happened to spell it plausibly.
 REFERENCE_FIELDS: dict[str, dict[str, set[str]]] = {
-    "D": {"evidence": {"F", "C"}},
-    "CH": {"evidence": {"F"}, "directory-owner": {"CH", "F"}, "generator-owner": {"CH", "F"}},
-    "P": {"owner": {"CH"}, "because": {"F"}},
-    "B": {"path": {"F"}},
-    "O": {"evidence": {"F"}, "decision": {"D"}, "changes": {"CH"}, "tests": {"T"}},
-    "C": {"evidence": {"F"}},
-    "R": {"owner": {"CH"}, "tests": {"T"}},
-    "A": {"evidence": {"F"}, "resolution": {"CH", "T", "F", "D"}},
-    "X": {"evidence": {"F"}},
+    kind: {field: set(allowed) for field, allowed in fields.items()}
+    for kind, fields in CONTRACT["reference_fields"].items()
 }
-FACT_FIELD_REQUIREMENTS: dict[str, set[str]] = {
-    "function-signature": {"parameters", "returns"},
-    "class-signature": set(),
-    "schema-shape": {"fields"},
-    "config-key": {"key"},
-    "branch": set(),
-    "error": set(),
-    "side-effect": set(),
-    "call-edge": {"caller", "callee"},
-    "generated-from": {"generator"},
-    "authorization-boundary": set(),
-    "transaction-boundary": set(),
-    "external-call": set(),
-    "test-behavior": set(),
-    "documentation-contract": set(),
+FACT_FIELD_REQUIREMENTS = {kind: set(fields) for kind, fields in CONTRACT["fact_kinds"].items()}
+FACT_KINDS = set(FACT_FIELD_REQUIREMENTS)
+VALID_DISPOSITIONS = set(CONTRACT["dispositions"])
+MATERIAL_SURFACES = set(CONTRACT["material_surfaces"])
+REQUIRED = {tier: set(kinds) for tier, kinds in CONTRACT["tier_requirements"].items()}
+REQUIRED_ATTACKS = set(CONTRACT["required_attacks"])
+DOMAIN_ATTACKS = {domain: set(attacks) for domain, attacks in CONTRACT["domain_attacks"].items()}
+OBLIGATIONS = {domain: tuple(obligations) for domain, obligations in CONTRACT["obligations"].items()}
+OBLIGATION_ALIASES = {name: tuple(aliases) for name, aliases in CONTRACT["obligation_aliases"].items()}
+BLUEPRINT_CONCEPTS = {
+    domain: tuple(tuple(group) for group in groups) for domain, groups in CONTRACT["blueprint_concepts"].items()
 }
-VALID_DISPOSITIONS = {"changed", "test-only", "generated", "unchanged", "out-of-scope"}
-MATERIAL_SURFACES = {
-    "direct-caller", "transitive-consumer", "re-export", "fixture", "mock", "config", "schema",
-    "generated-output", "generator", "documentation-contract", "deployment-hook",
-}
-REQUIRED = {
-    "tiny": {"SC", "F", "D", "CH", "P", "B", "T", "A"},
-    "standard": {"SC", "F", "D", "CH", "P", "B", "C", "T", "A"},
-    "high-risk": {"SC", "F", "D", "CH", "P", "B", "C", "R", "T", "A", "O"},
-}
-REQUIRED_ATTACKS = {"forgotten-propagation", "boundary-input", "literal-implementation"}
-DOMAIN_ATTACKS = {
-    "security": {"security", "authorization-bypass"},
-    "concurrency": {"concurrency"},
-    "public-contract": {"compatibility"},
-    "migration": {"migration-interruption", "rollback"},
-    "external-integration": {"ambiguous-success"},
-    "irreversible-external-effect": {"ambiguous-success", "rollback"},
-}
-OBLIGATIONS = {
-    "security": (
-        "principal",
-        "tenant",
-        "trust-boundary",
-        "authorization-owner",
-        "validation-order",
-        "denial-semantics",
-        "enumeration-resistance",
-        "revocation",
-        "audit-behavior",
-        "cross-tenant-tests",
-    ),
-    "concurrency": (
-        "shared-state",
-        "transaction-or-lock-boundary",
-        "idempotency-identity",
-        "retries",
-        "duplicate-delivery",
-        "cancellation",
-        "ordering",
-        "worst-interleaving",
-        "reconciliation",
-    ),
-    "public-contract": (
-        "current-shape",
-        "proposed-shape",
-        "defaults-and-nullability",
-        "errors",
-        "old-writer-new-reader",
-        "new-writer-old-reader",
-        "generated-clients",
-        "mixed-version-rollout",
-        "compatibility-tests",
-    ),
-    "durable-state": (
-        "current-state",
-        "target-state",
-        "forward-migration",
-        "backward-compatibility",
-        "partial-migration",
-        "interrupted-migration",
-        "rollback-or-roll-forward",
-        "queue-cache-index-effects",
-        "data-verification",
-        "deployment-order",
-    ),
-    "migration": (
-        "current-state",
-        "target-state",
-        "forward-migration",
-        "backward-compatibility",
-        "partial-migration",
-        "interrupted-migration",
-        "rollback-or-roll-forward",
-        "queue-cache-index-effects",
-        "data-verification",
-        "deployment-order",
-    ),
-    "external-integration": (
-        "sdk-or-api-version",
-        "authentication",
-        "timeout",
-        "retryable-errors",
-        "non-retryable-errors",
-        "rate-limits",
-        "idempotency",
-        "malformed-responses",
-        "ambiguous-success",
-        "reconciliation",
-        "irreversible-effects",
-    ),
-    "irreversible-external-effect": (
-        "sdk-or-api-version",
-        "authentication",
-        "timeout",
-        "retryable-errors",
-        "non-retryable-errors",
-        "rate-limits",
-        "idempotency",
-        "malformed-responses",
-        "ambiguous-success",
-        "reconciliation",
-        "irreversible-effects",
-    ),
-}
-FACT_KINDS = {
-    "function-signature",
-    "class-signature",
-    "schema-shape",
-    "config-key",
-    "branch",
-    "error",
-    "side-effect",
-    "call-edge",
-    "generated-from",
-    "authorization-boundary",
-    "transaction-boundary",
-    "external-call",
-    "test-behavior",
-    "documentation-contract",
-}
+BINDING_CATEGORIES = tuple(str(value) for value in CONTRACT["binding_categories"])
+ARTIFACT_TYPES = set(CONTRACT["artifact_types"])
 ID = re.compile(r"\b(?:SC|F|D|CH|P|B|O|C|R|T|X)-[1-9]\d*\b")
 REC = re.compile(
     r"^\s*-\s+(?P<id>(?:SC|F|D|CH|P|B|O|C|R|T|X)-[1-9]\d*|A-(?:[1-9]\d*|[a-z][a-z-]*))\s*:\s*(?P<body>.+)$"
 )
 BP = re.compile(
-    r"^### Execution Blueprint: (?P<changes>CH-[1-9]\d*(?:,\s*CH-[1-9]\d*)*) — (?P<purpose>.+) \[type: (?P<type>[a-z-]+)\]$"
+    r"^### Execution Blueprint: (?P<changes>CH-[1-9]\d*(?:,\s*CH-[1-9]\d*)*) — (?P<purpose>.+) "
+    r"\[type: (?P<type>[a-z-]+); domains: (?P<domains>none|[a-z-]+(?:,[a-z-]+)*)\]$"
 )
 
 
@@ -244,6 +77,7 @@ class Blueprint:
     changes: tuple[str, ...]
     purpose: str
     artifact_type: str
+    domains: tuple[str, ...]
     body: str
     line: int
     section: str
@@ -434,8 +268,17 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
             )
             body = "\n".join(lines[n:end]).strip()
             bp_section = next((name for no, name in reversed(headings) if no < n), "")
+            domains = () if m["domains"] == "none" else tuple(m["domains"].split(","))
             blueprints.append(
-                Blueprint(tuple(x.strip() for x in m["changes"].split(",")), m["purpose"], m["type"], body, n, bp_section)
+                Blueprint(
+                    tuple(x.strip() for x in m["changes"].split(",")),
+                    m["purpose"],
+                    m["type"],
+                    domains,
+                    body,
+                    n,
+                    bp_section,
+                )
             )
             if bp_section != "Implementation Specification":
                 ds.append(
@@ -488,18 +331,30 @@ def snapshot(root: Path, plan: Plan | None = None) -> dict[str, Any]:
         for path in root.rglob("*"):
             if path.is_file():
                 untracked[path.relative_to(root).as_posix()] = _hash(path.read_bytes())
-    targets: set[str] = set()
+    categorized: dict[str, set[str]] = {category: set() for category in BINDING_CATEGORIES}
     if plan:
-        for kind in ("F", "CH"):
-            for record in plan.records.get(kind, ()):
-                if record.fields.get("status", "existing") == "existing":
-                    targets.add(record.fields.get("path", ""))
-        targets.update(r.fields.get("generator", "") for r in plan.records.get("F", ()) if r.fields.get("kind") == "generated-from")
-    files = []
-    for raw in sorted(targets):
-        resolved = _resolve(root, raw)
-        if resolved and resolved.is_file():
-            files.append({"path": raw.replace("\\", "/"), "sha256": _hash(resolved.read_bytes())})
+        for record in plan.records.get("F", ()):
+            raw = record.fields.get("path", "")
+            category = (
+                "config"
+                if record.fields.get("kind") == "config-key"
+                else "schemas"
+                if record.fields.get("kind") == "schema-shape"
+                else "evidence"
+            )
+            categorized[category].add(raw)
+            if record.fields.get("kind") == "generated-from":
+                categorized["generators"].add(record.fields.get("generator", ""))
+        for record in plan.records.get("CH", ()):
+            if record.fields.get("status") == "existing":
+                categorized["targets"].add(record.fields.get("path", ""))
+    bound: dict[str, list[dict[str, str]]] = {}
+    for category, paths in categorized.items():
+        bound[category] = []
+        for raw in sorted(paths):
+            resolved = _resolve(root, raw)
+            if resolved and resolved.is_file():
+                bound[category].append({"path": raw.replace("\\", "/"), "sha256": _hash(resolved.read_bytes())})
     return {
         "repository_id": (git("config", "--get", "remote.origin.url").stdout.strip() if is_git else "") or str(root.resolve()),
         "git": is_git,
@@ -507,7 +362,7 @@ def snapshot(root: Path, plan: Plan | None = None) -> dict[str, Any]:
         "dirty": dirty,
         "tracked": tracked,
         "untracked": untracked,
-        "files": files,
+        **bound,
     }
 
 
@@ -516,7 +371,9 @@ def binding_for(plan: Plan, root: Path) -> dict[str, Any]:
     # A finalized plan is intentionally insensitive to unrelated repository
     # activity.  The planning baseline remains exhaustive; this receipt binds
     # only evidence/targets/generator sources and dirty content on those paths.
-    bound_paths = {item["path"] for item in value["files"]}
+    bound_paths = {
+        item["path"] for category in BINDING_CATEGORIES for item in value.get(category, [])
+    }
     value["dirty"] = {path: digest for path, digest in value["dirty"].items() if path in bound_paths}
     value.pop("tracked", None)
     value.pop("untracked", None)
@@ -527,6 +384,62 @@ def binding_for(plan: Plan, root: Path) -> dict[str, Any]:
         ).encode()
     )
     return value
+
+
+def _map_changes(expected: object, actual: object) -> list[str]:
+    before = expected if isinstance(expected, dict) else {}
+    after = actual if isinstance(actual, dict) else {}
+    return sorted(
+        path for path in set(before) | set(after) if before.get(path) != after.get(path)
+    )
+
+
+def _snapshot_diagnostics(baseline: object, current: dict[str, Any]) -> list[Diagnostic]:
+    if not isinstance(baseline, dict):
+        return [Diagnostic("snapshot.malformed", "Planning baseline must be a snapshot object.")]
+    diagnostics: list[Diagnostic] = []
+    if baseline.get("repository_id") != current.get("repository_id") or baseline.get("git") != current.get("git"):
+        diagnostics.append(Diagnostic("snapshot.repository_changed", "Repository identity or Git mode changed."))
+    if baseline.get("git_head") != current.get("git_head"):
+        diagnostics.append(
+            Diagnostic(
+                "snapshot.head_changed",
+                f"Repository HEAD changed from {baseline.get('git_head')} to {current.get('git_head')}.",
+            )
+        )
+    for category in ("dirty", "tracked", "untracked"):
+        for path in _map_changes(baseline.get(category), current.get(category)):
+            diagnostics.append(
+                Diagnostic(f"snapshot.{category}_changed", f"{category} snapshot changed: {path}.")
+            )
+    return diagnostics
+
+
+def _binding_diagnostics(expected: object, actual: dict[str, Any]) -> list[Diagnostic]:
+    if not isinstance(expected, dict):
+        return [Diagnostic("binding.malformed", "Repository binding must be an object.")]
+    diagnostics: list[Diagnostic] = []
+    for category in BINDING_CATEGORIES:
+        before = {
+            item.get("path"): item.get("sha256")
+            for item in expected.get(category, [])
+            if isinstance(item, dict) and isinstance(item.get("path"), str)
+        }
+        after = {
+            item.get("path"): item.get("sha256")
+            for item in actual.get(category, [])
+            if isinstance(item, dict) and isinstance(item.get("path"), str)
+        }
+        for path in _map_changes(before, after):
+            diagnostics.append(
+                Diagnostic(f"binding.{category.rstrip('s')}_stale", f"Bound {category} item changed: {path}.")
+            )
+    for path in _map_changes(expected.get("dirty"), actual.get("dirty")):
+        diagnostics.append(Diagnostic("binding.dirty_stale", f"Bound dirty path changed: {path}."))
+    for field in ("repository_id", "git", "plan_body_sha256"):
+        if expected.get(field) != actual.get(field):
+            diagnostics.append(Diagnostic("binding.metadata_stale", f"Binding field changed: {field}."))
+    return diagnostics
 
 
 def _need(ds: list[Diagnostic], r: Record, kind: str) -> None:
@@ -561,68 +474,286 @@ def _deferred(value: str) -> bool:
     return bool(re.search(r"\b(?:tbd|todo|later|as needed|if necessary|appropriate|determine|decide later|follow up)\b", value, re.I))
 
 
-def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str, source_text: str = "") -> None:
+def _in_range(node: ast.AST, start: int, end: int) -> bool:
+    lineno = getattr(node, "lineno", 0)
+    end_lineno = getattr(node, "end_lineno", lineno)
+    return start <= lineno <= end and end_lineno <= end
+
+
+def _dotted_name(node: ast.AST) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        return f"{prefix}.{node.attr}" if prefix else node.attr
+    if isinstance(node, ast.Call):
+        return _dotted_name(node.func)
+    return ""
+
+
+def _structured_error(ds: list[Diagnostic], fact: Record, detail: str) -> None:
+    ds.append(Diagnostic("fact.structured", f"{fact.id}: {detail}", fact.line))
+
+
+def _fact_fields(
+    ds: list[Diagnostic],
+    fact: Record,
+    excerpt: str,
+    source_text: str,
+    source_path: Path,
+    repo_root: Path,
+) -> None:
     kind = fact.fields.get("kind", "")
-    for required in FACT_FIELD_REQUIREMENTS.get(kind, set()) - set(fact.fields):
+    missing = FACT_FIELD_REQUIREMENTS.get(kind, set()) - set(fact.fields)
+    for required in sorted(missing):
         ds.append(Diagnostic("fact.structured_required", f"{fact.id}: {kind} requires {required}.", fact.line))
-    checks = {
-        "parameters": fact.fields.get("parameters", ""), "returns": fact.fields.get("returns", ""),
-        "fields": fact.fields.get("fields", ""), "key": fact.fields.get("key", ""),
-        "caller": fact.fields.get("caller", ""), "callee": fact.fields.get("callee", ""),
-        "generator": fact.fields.get("generator", ""),
-    }
-    for field in FACT_FIELD_REQUIREMENTS.get(kind, set()):
-        value = checks[field]
-        if value and field != "generator" and value not in excerpt:
-            ds.append(Diagnostic("fact.structured", f"{fact.id}: claimed {field} is not present in cited source.", fact.line))
-    if kind not in {"function-signature", "call-edge"} or not source_text:
+    if missing:
         return
-    try:
-        tree = ast.parse(source_text)
-    except SyntaxError:
-        return
-    if kind == "function-signature":
-        functions = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
-        start, end = map(int, fact.fields["lines"].split("-", 1))
-        node = next(
-            (
-                n
-                for n in functions
-                if n.name == fact.fields.get("anchor")
-                and start <= n.lineno <= end
-            ),
-            None,
-        )
-        if node is None:
-            ds.append(Diagnostic("fact.signature", f"{fact.id}: cited anchor is not a Python function in the stated range.", fact.line))
+    start, end = map(int, fact.fields["lines"].split("-", 1))
+    tree: ast.Module | None = None
+    if source_path.suffix == ".py":
+        try:
+            tree = ast.parse(source_text)
+        except SyntaxError:
+            _structured_error(ds, fact, "Python structured evidence cannot be parsed.")
             return
-        claimed = [x.strip() for x in fact.fields.get("parameters", "").split(",")]
-        positional = [*node.args.posonlyargs, *node.args.args]
-        defaults = [None] * (len(positional) - len(node.args.defaults)) + list(node.args.defaults)
-        actual = [
-            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
-            for arg, default in zip(positional, defaults)
+
+    if kind == "function-signature":
+        if tree is None:
+            _structured_error(ds, fact, "function-signature requires Python source.")
+            return
+        functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == fact.fields.get("anchor")
+            and start <= node.lineno <= end
         ]
-        if node.args.vararg:
-            actual.append("*" + node.args.vararg.arg + (f": {ast.unparse(node.args.vararg.annotation)}" if node.args.vararg.annotation else ""))
-        actual.extend(
-            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
-            for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults)
+        if not functions:
+            ds.append(
+                Diagnostic(
+                    "fact.signature",
+                    f"{fact.id}: cited anchor is not a Python function in the stated range.",
+                    fact.line,
+                )
+            )
+            return
+        node = functions[0]
+        async_claim = fact.fields.get("async")
+        if async_claim not in {"true", "false"} or (async_claim == "true") != isinstance(node, ast.AsyncFunctionDef):
+            _structured_error(ds, fact, "async must exactly match the cited function declaration.")
+        try:
+            claimed_tree = ast.parse(f"def _claimed({fact.fields['parameters']}) -> {fact.fields['returns']}:\n    pass\n")
+            claimed = claimed_tree.body[0]
+            assert isinstance(claimed, ast.FunctionDef)
+            assert claimed.returns is not None
+        except (SyntaxError, AssertionError):
+            _structured_error(ds, fact, "claimed parameters or return annotation are not valid Python syntax.")
+            return
+        if ast.dump(claimed.args, include_attributes=False) != ast.dump(node.args, include_attributes=False):
+            ds.append(
+                Diagnostic(
+                    "fact.signature_parameters",
+                    f"{fact.id}: claimed parameters do not exactly match the Python signature.",
+                    fact.line,
+                )
+            )
+        claimed_return = ast.dump(claimed.returns, include_attributes=False)
+        actual_return = ast.dump(node.returns, include_attributes=False) if node.returns is not None else ""
+        if claimed_return != actual_return:
+            ds.append(
+                Diagnostic(
+                    "fact.signature_returns",
+                    f"{fact.id}: claimed return annotation does not exactly match the Python signature.",
+                    fact.line,
+                )
+            )
+        return
+
+    if kind == "class-signature":
+        if tree is None:
+            _structured_error(ds, fact, "class-signature requires Python source.")
+            return
+        classes = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == fact.fields.get("anchor") and start <= node.lineno <= end
+        ]
+        if not classes:
+            _structured_error(ds, fact, "cited anchor is not a Python class in the stated range.")
+            return
+        try:
+            claimed_tree = ast.parse(f"class _Claimed({fact.fields['bases']}):\n    pass\n")
+            claimed = claimed_tree.body[0]
+            assert isinstance(claimed, ast.ClassDef)
+        except (SyntaxError, AssertionError):
+            _structured_error(ds, fact, "claimed bases are not valid Python syntax.")
+            return
+        actual = [ast.dump(base, include_attributes=False) for base in classes[0].bases]
+        expected = [ast.dump(base, include_attributes=False) for base in claimed.bases]
+        if actual != expected:
+            _structured_error(ds, fact, "claimed bases do not match the cited class.")
+        return
+
+    if kind in {"call-edge", "external-call"}:
+        if tree is None:
+            _structured_error(ds, fact, f"{kind} requires Python source.")
+            return
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and _in_range(node, start, end)
+            and _dotted_name(node.func) == fact.fields.get("callee")
+        ]
+        if kind == "call-edge":
+            callers = [
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == fact.fields.get("caller")
+                and start <= node.lineno <= end
+            ]
+            if not callers or not any(call in set(ast.walk(callers[0])) for call in calls):
+                _structured_error(ds, fact, "qualified caller/callee edge is not contained in the cited range.")
+        elif not calls:
+            _structured_error(ds, fact, "qualified external call is not contained in the cited range.")
+        return
+
+    if kind in {"branch", "error", "side-effect"}:
+        if tree is None:
+            _structured_error(ds, fact, f"{kind} requires Python source.")
+            return
+        if kind == "branch":
+            values = [
+                ast.unparse(node.test)
+                for node in ast.walk(tree)
+                if isinstance(node, (ast.If, ast.While, ast.IfExp)) and _in_range(node.test, start, end)
+            ]
+            claim = fact.fields["condition"]
+        elif kind == "error":
+            values = [
+                ast.unparse(node.exc)
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Raise) and node.exc is not None and _in_range(node, start, end)
+            ]
+            claim = fact.fields["error"]
+        else:
+            values = [
+                ast.unparse(node)
+                for node in ast.walk(tree)
+                if isinstance(node, (ast.Call, ast.Assign, ast.AugAssign, ast.Delete)) and _in_range(node, start, end)
+            ]
+            claim = fact.fields["effect"]
+        if claim not in values and not any(claim in value for value in values):
+            _structured_error(ds, fact, f"claimed {kind} is not structurally contained in the cited range.")
+        return
+
+    if kind == "schema-shape":
+        claimed_fields = {value.strip() for value in fact.fields["fields"].split(",") if value.strip()}
+        actual_fields: set[str] = set()
+        if tree is not None:
+            classes = [
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ClassDef) and node.name == fact.fields.get("anchor") and start <= node.lineno <= end
+            ]
+            if classes:
+                actual_fields = {
+                    node.target.id
+                    for node in classes[0].body
+                    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and _in_range(node, start, end)
+                }
+        elif source_path.suffix == ".json":
+            try:
+                schema_value = json.loads(source_text)
+                schema = schema_value.get("properties", schema_value) if isinstance(schema_value, dict) else {}
+                actual_fields = set(schema) if isinstance(schema, dict) else set()
+            except json.JSONDecodeError:
+                pass
+        if claimed_fields != actual_fields:
+            _structured_error(ds, fact, "claimed schema fields do not exactly match the cited schema.")
+        return
+
+    if kind == "config-key":
+        key, config_expected = fact.fields["key"], fact.fields["value"]
+        found = False
+        if source_path.suffix == ".json":
+            try:
+                config_value: Any = json.loads(source_text)
+                for part in key.split("."):
+                    config_value = config_value[part] if isinstance(config_value, dict) else None
+                found = json.dumps(config_value, sort_keys=True).strip('"') == config_expected
+            except (json.JSONDecodeError, KeyError):
+                pass
+        elif source_path.suffix in {".toml", ".ini", ".cfg", ".yaml", ".yml"}:
+            found = any(
+                start <= number <= end and key in line and config_expected in line
+                for number, line in enumerate(source_text.splitlines(), 1)
+            )
+        if not found or key.split(".")[-1] not in excerpt:
+            _structured_error(ds, fact, "config key/value is not structurally contained in the cited range.")
+        return
+
+    if kind == "generated-from":
+        generator = _resolve(repo_root, fact.fields["generator"])
+        output = fact.fields["output"].replace("\\", "/")
+        if (
+            fact.fields["generator"].replace("\\", "/") != fact.fields.get("path", "").replace("\\", "/")
+            or not output
+            or not generator
+            or not generator.is_file()
+        ):
+            _structured_error(ds, fact, "generated output and authoritative generator relationship is invalid.")
+        elif output not in generator.read_text(encoding="utf-8", errors="replace") and Path(output).name not in generator.read_text(
+            encoding="utf-8", errors="replace"
+        ):
+            _structured_error(ds, fact, "authoritative generator does not declare the cited output.")
+        return
+
+    if kind == "directory-ownership":
+        directory = _resolve(repo_root, fact.fields["directory"])
+        if not directory or not directory.is_dir() or source_path == directory or source_path.parent not in (directory, *directory.parents):
+            _structured_error(ds, fact, "ownership manifest must be inside an ancestor of the declared directory.")
+
+
+def _is_within_path(child: str, parent: str) -> bool:
+    try:
+        Path(child).relative_to(Path(parent))
+        return True
+    except ValueError:
+        return False
+
+
+def _valid_directory_owner(target: Record, owner: Record, repo_root: Path) -> bool:
+    target_path = target.fields.get("path", "").replace("\\", "/")
+    owner_path = owner.fields.get("path", "").replace("\\", "/")
+    if not target_path or not owner_path or target_path == owner_path:
+        return False
+    if owner.id.startswith("F-") and owner.fields.get("kind") == "directory-ownership":
+        directory = owner.fields.get("directory", "").replace("\\", "/").rstrip("/")
+        return bool(directory) and _is_within_path(target_path, directory + "/")
+    manifests = {"__init__.py", "pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml", "build.gradle"}
+    return Path(owner_path).name in manifests and _is_within_path(target_path, Path(owner_path).parent.as_posix() + "/")
+
+
+def _valid_generator_owner(target: Record, owner: Record, facts: dict[str, Record]) -> bool:
+    target_path = target.fields.get("path", "").replace("\\", "/")
+    owner_path = owner.fields.get("path", "").replace("\\", "/")
+    if not target_path or target_path == owner_path:
+        return False
+    if owner.id.startswith("F-"):
+        return (
+            owner.fields.get("kind") == "generated-from"
+            and owner.fields.get("output", "").replace("\\", "/") == target_path
+            and owner.fields.get("generator", "").replace("\\", "/") != target_path
         )
-        if node.args.kwarg:
-            actual.append("**" + node.args.kwarg.arg + (f": {ast.unparse(node.args.kwarg.annotation)}" if node.args.kwarg.annotation else ""))
-        if claimed != actual:
-            ds.append(Diagnostic("fact.signature_parameters", f"{fact.id}: claimed parameters do not exactly match the cited Python signature.", fact.line))
-        actual_return = ast.unparse(node.returns) if node.returns is not None else "None"
-        if fact.fields.get("returns", "").strip() != actual_return:
-            ds.append(Diagnostic("fact.signature_returns", f"{fact.id}: claimed return annotation `{fact.fields.get('returns', '')}` does not match `{actual_return}`.", fact.line))
-    else:
-        start, end = map(int, fact.fields["lines"].split("-", 1))
-        callers = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == fact.fields.get("caller") and start <= n.lineno <= end and (n.end_lineno is None or n.end_lineno <= end)]
-        if not callers:
-            ds.append(Diagnostic("fact.call_edge", f"{fact.id}: caller `{fact.fields.get('caller')}` does not exist.", fact.line))
-        elif not any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == fact.fields.get("callee")) or (isinstance(n.func, ast.Attribute) and n.func.attr == fact.fields.get("callee"))) for n in ast.walk(callers[0])):
-            ds.append(Diagnostic("fact.call_edge", f"{fact.id}: caller `{fact.fields.get('caller')}` does not call `{fact.fields.get('callee')}`.", fact.line))
+    return any(
+        fact.fields.get("kind") == "generated-from"
+        and fact.fields.get("output", "").replace("\\", "/") == target_path
+        and fact.fields.get("generator", "").replace("\\", "/") == owner_path
+        for fact in facts.values()
+    )
 
 
 def _metadata_diagnostics(plan: Plan) -> tuple[list[Diagnostic], dict[str, Any], dict[str, Any]]:
@@ -671,6 +802,8 @@ def validate_plan(
     if metadata_ok and final["tier"] in TIERS and provisional["tier"] in TIERS and TIERS.index(final["tier"]) < TIERS.index(provisional["tier"]):
         ds.append(Diagnostic("tier.downgrade", "Final tier cannot be below provisional tier."))
     if metadata_ok and plan.tier in TIERS:
+        if plan.tier == "high-risk" and not plan.domains:
+            ds.append(Diagnostic("metadata.high_risk_domains", "High-risk plans require at least one final risk domain."))
         for k in REQUIRED[plan.tier]:
             if not plan.records.get(k):
                 ds.append(Diagnostic("record.required", f"{plan.tier} plan requires at least one {k} record."))
@@ -735,7 +868,7 @@ def validate_plan(
             excerpt.encode()
         ):
             ds.append(Diagnostic("fact.stale", f"{f.id}: fact fingerprints are stale.", f.line))
-        _fact_fields(ds, f, excerpt, "\n".join(source))
+        _fact_fields(ds, f, excerpt, "\n".join(source), path, repo_root)
     for ch in plan.records.get("CH", ()):
         p = _resolve(repo_root, ch.fields.get("path", ""))
         status = ch.fields.get("status")
@@ -761,18 +894,43 @@ def validate_plan(
                         "change.evidence_anchor", f"{ch.id}: needs same-path F-n evidence whose cited range contains the exact change anchor.", ch.line
                     )
                 )
-        elif not p or p.exists() or not p.parent.exists() or not (ch.fields.get("directory-owner") or ch.fields.get("generator-owner")):
-            ds.append(
-                Diagnostic(
-                    "change.new_path", f"{ch.id}: new target must be absent, contained, and have an owner.", ch.line
+        else:
+            if not p or p.exists() or not p.parent.exists() or not (
+                ch.fields.get("directory-owner") or ch.fields.get("generator-owner")
+            ):
+                ds.append(
+                    Diagnostic(
+                        "change.new_path", f"{ch.id}: new target must be absent, contained, and have a semantic owner.", ch.line
+                    )
                 )
-            )
-        elif ch.fields.get("generator-owner"):
-            owners = _refs(ch.fields["generator-owner"])
-            if not owners or not owners <= (plan.ids("F") | plan.ids("CH")):
-                ds.append(Diagnostic("change.generator_owner", f"{ch.id}: generator-owner must be an F-n or CH-n authoritative generator reference.", ch.line))
+            record_index = {record.id: record for record in plan.all_records()}
+            directory_refs = _refs(ch.fields.get("directory-owner", ""))
+            generator_refs = _refs(ch.fields.get("generator-owner", ""))
+            if directory_refs and not any(
+                ref in record_index and _valid_directory_owner(ch, record_index[ref], repo_root)
+                for ref in directory_refs
+            ):
+                ds.append(
+                    Diagnostic(
+                        "change.directory_owner",
+                        f"{ch.id}: directory-owner must prove ancestor package or manifest ownership.",
+                        ch.line,
+                    )
+                )
+            if generator_refs and not any(
+                ref in record_index and _valid_generator_owner(ch, record_index[ref], facts)
+                for ref in generator_refs
+            ):
+                ds.append(
+                    Diagnostic(
+                        "change.generator_owner",
+                        f"{ch.id}: generator-owner must prove an authoritative generator declares this output.",
+                        ch.line,
+                    )
+                )
         if any(
-            fact.fields.get("kind") == "generated-from" and fact.fields.get("path", "") == ch.fields.get("path", "")
+            fact.fields.get("kind") == "generated-from"
+            and fact.fields.get("output", "").replace("\\", "/") == ch.fields.get("path", "").replace("\\", "/")
             for fact in facts.values()
         ) and not ch.fields.get("generator-owner"):
             ds.append(Diagnostic("change.generated_output", f"{ch.id}: generated output requires a generator owner; edit the authoritative source.", ch.line))
@@ -785,6 +943,8 @@ def validate_plan(
             ds.append(Diagnostic("boundary.specificity", f"{boundary.id}: boundary traces need a concrete class and a three-stage flow.", boundary.line))
     expected_obligations = {d: set(OBLIGATIONS[d]) for d in plan.domains}
     seen_obligations: dict[str, set[str]] = defaultdict(set)
+    obligation_ownership: dict[tuple[str, str, str, str], list[Record]] = defaultdict(list)
+    record_index = {record.id: record for record in plan.all_records()}
     for obligation_record in plan.records.get("O", ()):
         domain, obligation = obligation_record.fields.get("domain", ""), obligation_record.fields.get("obligation", "")
         if domain not in plan.domains or obligation not in OBLIGATIONS.get(domain, ()):
@@ -795,7 +955,52 @@ def validate_plan(
             _refs(obligation_record.fields.get(field, "")) for field in ("evidence", "decision", "changes", "tests")
         ):
             ds.append(Diagnostic("obligation.format", f"{obligation_record.id}: use a concrete satisfied obligation with owned evidence, decision, changes, and tests.", obligation_record.line))
+        aliases = OBLIGATION_ALIASES.get(obligation, ())
+        coverage = obligation_record.fields.get("coverage", "").casefold()
+        change_text = " ".join(
+            record_index[ref].fields.get("change", "")
+            for ref in _refs(obligation_record.fields.get("changes", ""))
+            if ref in record_index
+        ).casefold()
+        test_texts = [
+            " ".join(record_index[ref].fields.get(field, "") for field in ("given", "when", "then")).casefold()
+            for ref in _refs(obligation_record.fields.get("tests", ""))
+            if ref in record_index
+        ]
+        if aliases and not any(alias in f"{coverage} {change_text}" for alias in aliases):
+            ds.append(
+                Diagnostic(
+                    "obligation.coverage",
+                    f"{obligation_record.id}: coverage and owning change must describe {obligation}.",
+                    obligation_record.line,
+                )
+            )
+        if aliases and not any(any(alias in test_text for alias in aliases) for test_text in test_texts):
+            ds.append(
+                Diagnostic(
+                    "obligation.test_ownership",
+                    f"{obligation_record.id}: a referenced T-n must verify {obligation} behavior.",
+                    obligation_record.line,
+                )
+            )
+        ownership_key = (
+            obligation_record.fields.get("evidence", ""),
+            obligation_record.fields.get("decision", ""),
+            obligation_record.fields.get("changes", ""),
+            obligation_record.fields.get("tests", ""),
+        )
+        obligation_ownership[ownership_key].append(obligation_record)
         seen_obligations[domain].add(obligation)
+    for records in obligation_ownership.values():
+        if len(records) > 1:
+            for record in records:
+                ds.append(
+                    Diagnostic(
+                        "obligation.generic_ownership",
+                        f"{record.id}: obligations may not copy the same evidence, decision, change, and test ownership.",
+                        record.line,
+                    )
+                )
     for d, needed in expected_obligations.items():
         for obligation_name in needed - seen_obligations[d]:
             ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {obligation_name}."))
@@ -831,13 +1036,13 @@ def validate_plan(
             ds.append(Diagnostic("attack.dismissal", f"{r.id}: dismissal needs grounded F-n evidence.", r.line))
     if plan.tier in {"standard", "high-risk"} and not plan.blueprints:
         ds.append(Diagnostic("blueprint.required", f"{plan.tier} plans require an execution blueprint."))
+    covered_domains: set[str] = set()
     for bp in plan.blueprints:
         if (
             bp.section != "Implementation Specification"
             or not bp.body
             or not bp.purpose
-            or bp.artifact_type
-            not in {"pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"}
+            or bp.artifact_type not in ARTIFACT_TYPES
             or not set(bp.changes) <= plan.ids("CH")
         ):
             ds.append(
@@ -847,13 +1052,36 @@ def validate_plan(
                     bp.line,
                 )
             )
-        domain_words = {
-            "concurrency": "interleaving", "public-contract": "compatib", "migration": "interrupt",
-            "security": "authorization", "external-integration": "timeout",
-        }
-        for domain, word in domain_words.items():
-            if domain in plan.domains and word not in bp.body.lower():
-                ds.append(Diagnostic("blueprint.domain", f"Blueprint must describe {domain} {word} behavior.", bp.line))
+        if set(bp.domains) - plan.domains:
+            ds.append(
+                Diagnostic(
+                    "blueprint.domain",
+                    "Blueprint domains must be a subset of final risk domains.",
+                    bp.line,
+                )
+            )
+        if plan.tier == "standard" and bp.domains:
+            ds.append(Diagnostic("blueprint.domain", "Standard blueprints must declare domains: none.", bp.line))
+        covered_domains.update(bp.domains)
+    if plan.tier == "high-risk" and covered_domains != plan.domains:
+        missing = ", ".join(sorted(plan.domains - covered_domains)) or "none"
+        extra = ", ".join(sorted(covered_domains - plan.domains)) or "none"
+        ds.append(
+            Diagnostic(
+                "blueprint.domain_coverage",
+                f"Blueprint domains must exactly cover final domains; missing={missing}; extra={extra}.",
+            )
+        )
+    for domain in sorted(plan.domains):
+        body = "\n".join(bp.body for bp in plan.blueprints if domain in bp.domains).casefold()
+        for index, group in enumerate(BLUEPRINT_CONCEPTS[domain], 1):
+            if not any(concept.casefold() in body for concept in group):
+                ds.append(
+                    Diagnostic(
+                        "blueprint.domain_concept",
+                        f"{domain}: blueprint coverage is missing concept group {index} ({', '.join(group)}).",
+                    )
+                )
     for test in plan.records.get("T", ()):
         command = test.fields.get("command", "").strip()
         if plan.tier != "tiny" and command in {"python -m pytest", "pytest", "npm test", "go test ./..."}:
@@ -891,17 +1119,14 @@ def validate_plan(
         ds.append(Diagnostic("fact.unused", f"{fact_id}: evidence must ground a decision, change, propagation, boundary, or attack.", fact.line))
     if baseline is not None:
         current = snapshot(repo_root)
-        if not isinstance(baseline, dict) or any(current.get(key) != baseline.get(key) for key in ("repository_id", "git", "git_head", "dirty", "tracked", "untracked")):
-            ds.append(Diagnostic("snapshot.mutation", "Planner changed the target repository after its baseline snapshot."))
+        ds.extend(_snapshot_diagnostics(baseline, current))
     if require_finalized:
         if not plan.receipt or not plan.binding:
             ds.append(Diagnostic("receipt.missing", "Finalized v5 plan needs repository binding and receipt."))
         elif plan.receipt["body"] != plan_digest(text) or plan.receipt["binding"] != binding_digest(plan.binding):
             ds.append(Diagnostic("receipt.stale", "Plan receipt does not match plan body or binding."))
-        elif binding_for(plan, repo_root) != plan.binding:
-            ds.append(
-                Diagnostic("binding.stale", "A bound evidence, target, or baseline changed; regenerate the plan.")
-            )
+        else:
+            ds.extend(_binding_diagnostics(plan.binding, binding_for(plan, repo_root)))
     return plan, _sorted_diagnostics(ds)
 
 
