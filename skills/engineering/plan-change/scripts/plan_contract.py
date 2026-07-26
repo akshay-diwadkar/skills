@@ -7,16 +7,6 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "plan-contract.json"
-OBLIGATIONS = {
-    "security": ("principal", "tenant", "trust-boundary", "authorization-owner", "validation-order", "denial-semantics", "enumeration-resistance", "revocation", "audit-behavior", "cross-tenant-tests"),
-    "concurrency": ("shared-state", "transaction-or-lock-boundary", "idempotency-identity", "retries", "duplicate-delivery", "cancellation", "ordering", "worst-interleaving", "reconciliation"),
-    "public-contract": ("current-shape", "proposed-shape", "defaults-and-nullability", "errors", "old-writer-new-reader", "new-writer-old-reader", "generated-clients", "mixed-version-rollout", "compatibility-tests"),
-    "migration": ("current-state", "target-state", "forward-migration", "backward-compatibility", "partial-migration", "interrupted-migration", "rollback-or-roll-forward", "queue-cache-index-effects", "data-verification", "deployment-order"),
-    "durable-state": ("current-state", "target-state", "forward-migration", "backward-compatibility", "partial-migration", "interrupted-migration", "rollback-or-roll-forward", "queue-cache-index-effects", "data-verification", "deployment-order"),
-    "external-integration": ("sdk-or-api-version", "authentication", "timeout", "retryable-errors", "non-retryable-errors", "rate-limits", "idempotency", "malformed-responses", "ambiguous-success", "reconciliation", "irreversible-effects"),
-    "irreversible-external-effect": ("sdk-or-api-version", "authentication", "timeout", "retryable-errors", "non-retryable-errors", "rate-limits", "idempotency", "malformed-responses", "ambiguous-success", "reconciliation", "irreversible-effects"),
-}
-DOMAIN_ATTACKS = {"security": ("security", "authorization-bypass"), "concurrency": ("concurrency",), "public-contract": ("compatibility",), "migration": ("migration-interruption", "rollback"), "external-integration": ("ambiguous-success",), "irreversible-external-effect": ("ambiguous-success", "rollback")}
 
 
 def load_contract() -> dict[str, Any]:

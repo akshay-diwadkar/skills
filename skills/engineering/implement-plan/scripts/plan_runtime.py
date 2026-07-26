@@ -324,6 +324,11 @@ def _refs(v: str) -> set[str]:
     return set(ID.findall(v))
 
 
+def _sorted_diagnostics(diagnostics: Iterable[Diagnostic]) -> list[Diagnostic]:
+    """Stable public diagnostic order for deterministic repair loops."""
+    return sorted(diagnostics, key=lambda item: (item.line is not None, item.line or 0, item.code, item.message))
+
+
 def _resolve(root: Path, raw: str) -> Path | None:
     try:
         if not raw or ".." in Path(raw).parts:
@@ -629,7 +634,7 @@ def validate_plan(
 ) -> tuple[Plan | None, list[Diagnostic]]:
     plan, ds = parse_plan(text)
     if not plan:
-        return None, ds
+        return None, _sorted_diagnostics(ds)
     metadata_ds, provisional, final = _metadata_diagnostics(plan)
     ds.extend(metadata_ds)
     metadata_ok = not metadata_ds
@@ -841,7 +846,7 @@ def validate_plan(
             ds.append(
                 Diagnostic("binding.stale", "A bound evidence, target, or baseline changed; regenerate the plan.")
             )
-    return plan, ds
+    return plan, _sorted_diagnostics(ds)
 
 
 def finalized_text(text: str, root: Path, baseline: dict[str, Any] | None = None) -> str:

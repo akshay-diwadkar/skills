@@ -18,6 +18,9 @@ def main() -> int:
     parser.add_argument("bundle", type=Path)
     args = parser.parse_args()
     bundle = json.loads(args.bundle.read_text(encoding="utf-8"))
+    if not isinstance(bundle, dict) or bundle.get("status") != "complete":
+        print("Error [bundle.receipt_status]: Only a complete implementation bundle may receive a validation receipt.")
+        return 1
     diagnostics = validate_bundle(bundle, args.plan.read_text(encoding="utf-8"), args.repo_root)
     if diagnostics:
         for item in diagnostics:

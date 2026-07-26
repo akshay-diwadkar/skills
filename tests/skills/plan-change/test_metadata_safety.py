@@ -21,6 +21,15 @@ def test_malformed_metadata_is_total(tmp_path: Path) -> None:
         assert any(item.code.startswith("metadata.") for item in diagnostics)
 
 
+def test_diagnostics_are_stably_ordered(tmp_path: Path) -> None:
+    text = _plan('{"provisional":[],"final":"invalid"}')
+    _value, first = validate_plan(text, tmp_path)
+    _value, second = validate_plan(text, tmp_path)
+    assert [(item.line, item.code, item.message) for item in first] == [
+        (item.line, item.code, item.message) for item in second
+    ]
+
+
 def test_python_signature_return_is_structurally_verified(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     source = "def normalize(raw: str) -> str:\n    return raw.strip()\n"
