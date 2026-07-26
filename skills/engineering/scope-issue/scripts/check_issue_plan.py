@@ -127,8 +127,7 @@ def validate_metadata(metadata: dict[str, Any], contract: dict[str, Any]) -> lis
         if not isinstance(reasons, list):
             errors.append("routing.reasons must be an array")
         required_by_risk = (
-            isinstance(task_types, list)
-            and bool(SENIOR_REQUIRED_TASKS.intersection(task_types))
+            isinstance(task_types, list) and bool(SENIOR_REQUIRED_TASKS.intersection(task_types))
         ) or routing.get("tier") == "high-risk"
         if required_by_risk and routing.get("senior_required") is not True:
             errors.append("objective high-risk routing must set senior_required to true")
@@ -148,8 +147,7 @@ def validate_sections(text: str, contract: dict[str, Any]) -> list[str]:
 
 def parse_records(text: str) -> dict[str, list[dict[str, str]]]:
     return {
-        prefix: [match.groupdict() for match in pattern.finditer(text)]
-        for prefix, pattern in RECORD_PATTERNS.items()
+        prefix: [match.groupdict() for match in pattern.finditer(text)] for prefix, pattern in RECORD_PATTERNS.items()
     }
 
 
@@ -171,7 +169,9 @@ def validate_status_requirements(
     if status not in contract["status_requirements"]:
         return []
     rule = contract["status_requirements"][status]
-    errors = [f"status {status} requires at least one {prefix} record" for prefix in rule["records"] if not records[prefix]]
+    errors = [
+        f"status {status} requires at least one {prefix} record" for prefix in rule["records"] if not records[prefix]
+    ]
     if rule.get("open_decisions_empty") and metadata.get("open_decisions"):
         errors.append(f"status {status} requires no open decisions")
     if rule.get("questions_required") and not metadata.get("questions"):
@@ -286,9 +286,12 @@ def validate_senior_plan(
         f"<!-- source-issue-updated-at: {source['issue_updated_at']} -->",
     ]
     errors = [f"senior plan missing source marker: {marker}" for marker in required_markers if marker not in text]
-    tier_match = re.search(r"<!--\s*tier:\s*(tiny|standard|high-risk);\s*task-type:", text)
+    tier_match = re.search(
+        r'<!-- plan-metadata: \{.*?"final":\{"intent":"[^"]+","risk_domains":\[[^\]]*\],"tier":"(tiny|standard|high-risk)"\}.*\} -->',
+        text,
+    )
     if not tier_match:
-        errors.append("senior plan lacks tier/task marker")
+        errors.append("senior plan lacks v4 final tier metadata")
         return errors
     checker = senior_skill_dir / "scripts" / "check_plan.py"
     if not checker.is_file():
@@ -357,7 +360,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", required=True, help="Local checkout used for planning.")
     parser.add_argument("--issue-json", required=True, help="Fresh normalized selected-issue JSON.")
     parser.add_argument("--execution-ready", action="store_true", help="Apply freshness and execution gates.")
-    parser.add_argument("--senior-plan", help="Source-bound plan-contract v3 plan for a routed issue.")
+    parser.add_argument("--senior-plan", help="Source-bound plan-contract v4 plan for a routed issue.")
     parser.add_argument("--senior-skill-dir", help="Installed plan-change skill directory.")
     return parser
 

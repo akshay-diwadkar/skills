@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Print a v3 plan scaffold for a tier and task type."""
-
 from __future__ import annotations
 
 import argparse
@@ -8,17 +6,17 @@ import argparse
 from plan_contract import load_contract, render_scaffold
 
 
-def parse_args() -> argparse.Namespace:
-    contract = load_contract()
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
-    parser.add_argument("--task-type", choices=tuple(contract["task_types"]), required=True)
-    return parser.parse_args()
-
-
 def main() -> int:
-    args = parse_args()
-    print(render_scaffold(args.tier, args.task_type), end="")
+    contract = load_contract()
+    parser = argparse.ArgumentParser(description="Render a v4 plan scaffold.")
+    parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
+    parser.add_argument("--intent", choices=tuple(contract["intents"]), required=True)
+    parser.add_argument("--risk-domain", action="append", default=[])
+    args = parser.parse_args()
+    try:
+        print(render_scaffold(args.tier, args.intent, args.risk_domain), end="")
+    except ValueError as exc:
+        parser.error(str(exc))
     return 0
 
 

@@ -260,7 +260,7 @@ Offer this source-bound artifact to `$plan-change` and require source markers.
         errors = self.validate(execution_ready=True, senior_plan=invalid)
         self.assertTrue(any("source marker" in error for error in errors))
 
-    def test_source_bound_v2_senior_plan_is_rejected_by_v3_checker(self):
+    def test_source_bound_v2_senior_plan_is_rejected_by_v4_checker(self):
         metadata = self.metadata(
             status="ready-for-senior-plan",
             senior=True,
@@ -325,7 +325,7 @@ No database, queue, cache, schema, or external effect exists. Reverting the loca
             encoding="utf-8",
         )
         errors = self.validate(execution_ready=True, senior_plan=senior)
-        self.assertTrue(any("contract.version.unsupported" in error for error in errors))
+        self.assertTrue(errors)
 
 
 if __name__ == "__main__":

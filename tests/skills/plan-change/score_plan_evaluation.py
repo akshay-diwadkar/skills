@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score a blind v3 plan against synthetic-repository expectations."""
+"""Score a blind v4 plan against synthetic-repository expectations."""
 
 from __future__ import annotations
 
@@ -15,11 +15,9 @@ SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-import check_plan_rubric  # noqa: E402
-import check_plan_shape  # noqa: E402
 import plan_model  # noqa: E402
-from _plan_utils import validate_receipt  # noqa: E402
-from plan_model import parse_markdown, validate_semantics  # noqa: E402
+from plan_model import parse_markdown  # noqa: E402
+from v4_model import validate  # noqa: E402
 
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
 WEIGHTS = {
@@ -59,12 +57,7 @@ def score(
 ) -> dict[str, Any]:
     tier = str(case["tier"])
     document = parse_markdown(plan)
-    diagnostics = [
-        *check_plan_shape.validate(plan, tier),
-        *check_plan_rubric.validate(plan, tier),
-        *validate_semantics(plan, tier, repo_root),
-        *validate_receipt(plan, required=True),
-    ]
+    diagnostics = validate(plan, repo_root, tier, require_finalized=True)
     hard_failures = [f"validator:{item.code}" for item in diagnostics if not item.is_warning]
     dimension_sources = {
         "grounding": _body(document, "Evidence Ledger"),
@@ -81,8 +74,7 @@ def score(
     }
     forbidden_source = dimension_sources["propagation"].casefold()
     dimension_scores = {
-        dimension: _dimension_score(dimension_sources[dimension], case.get(dimension, []))
-        for dimension in WEIGHTS
+        dimension: _dimension_score(dimension_sources[dimension], case.get(dimension, [])) for dimension in WEIGHTS
     }
     lowered = plan.casefold()
     for forbidden in case.get("forbidden", []):
@@ -95,7 +87,7 @@ def score(
     return {
         "score": round(total, 2),
         "passed": not hard_failures and total >= float(case.get("minimum_score", 90)),
-        "contract_version": 3,
+        "contract_version": 4,
         "hard_failures": sorted(set(hard_failures)),
         "dimension_scores": {name: round(value * 100, 2) for name, value in dimension_scores.items()},
         "diagnostics": [item.to_dict() for item in diagnostics],

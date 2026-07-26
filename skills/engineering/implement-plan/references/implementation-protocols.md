@@ -6,8 +6,8 @@ This is the canonical decision procedure for an implementation run. `implementat
 
 1. Save the approved plan verbatim. Never summarize away constraints or verification details.
 2. Parse metadata before content:
-   - Require `<!-- plan-contract: 3 -->`, explicit tier/task marker, canonical anchor-based records, and a valid `finalize_plan.py` SHA-256 validation receipt (`<!-- plan-validation: 3; sha256: <digest> -->`).
-   - Reject all v1, v2, and unversioned/legacy plans with field-specific diagnostics (`plan.version.unsupported`).
+   - Require `<!-- plan-contract: 4 -->`, strict metadata, repository binding, canonical records, and a valid v4 `finalize_plan.py` receipt.
+   - Reject all v1–v3 and unversioned/legacy plans with field-specific diagnostics (`plan.version.unsupported`).
 3. Reject unsupported or unfinalized plan versions instead of guessing forward compatibility.
 4. Build registries for `SC-n`, `CH-n`, `T-n`, `C-n`, and `R-n`, plus traceability rows.
 5. Order `CH-n` records by dependency: contracts/data → core logic → orchestration/callers → tests/fixtures → generated/docs/operations.

@@ -1,64 +1,54 @@
 #!/usr/bin/env python3
-"""Validate a v3 plan and emit the only submission-ready, receipt-stamped form."""
+"""Finalize a v4 plan only when its repository and planning session are unchanged."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-from _plan_utils import VALIDATION_RECEIPT_RE, finalize_plan_text, read_plan, receipt_lines
+from _plan_utils import read_plan
 from check_plan import collect_diagnostics
 from plan_contract import load_contract
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", choices=tuple(load_contract()["tiers"]), required=True)
-    parser.add_argument("--repo-root", type=Path, required=True)
-    parser.add_argument("path", nargs="?", help="Draft Markdown path; read stdin when omitted or '-'.")
-    return parser.parse_args()
+from plan_runtime import finalized_text, load_snapshot
+from v4_model import binding_for
 
 
 def main() -> int:
-    args = parse_args()
+    contract = load_contract()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
+    parser.add_argument("--repo-root", type=Path, required=True)
+    parser.add_argument("--initial-state", type=Path, required=True, help="External snapshot created before planning.")
+    parser.add_argument("path", nargs="?")
+    args = parser.parse_args()
+    root = args.repo_root.resolve()
     try:
-        draft = read_plan(args.path)
+        draft, baseline = read_plan(args.path), load_snapshot(args.initial_state)
     except Exception as exc:
-        print(f"Error reading plan: {exc}", file=sys.stderr)
+        print(f"Error [finalization.input]: {exc}", file=sys.stderr)
         return 1
-
-    receipts = receipt_lines(draft)
-    if len(receipts) > 1:
-        print("Error [finalization.receipt.duplicate]: Draft contains multiple validation receipts", file=sys.stderr)
-        return 1
-    if receipts and VALIDATION_RECEIPT_RE.fullmatch(receipts[0][1]) is None:
-        print("Error [finalization.receipt.malformed]: Draft contains a malformed validation receipt", file=sys.stderr)
-        return 1
-
-    diagnostics = collect_diagnostics(
-        draft,
-        args.tier,
-        args.repo_root.resolve(),
-        require_finalized=False,
-    )
+    diagnostics = collect_diagnostics(draft, args.tier, root, baseline=baseline)
     if diagnostics:
-        print(f"Plan finalization blocked ({args.tier} tier):", file=sys.stderr)
         for item in diagnostics:
-            print(f"- {item}", file=sys.stderr)
+            print(item, file=sys.stderr)
         return 1
+    binding = binding_for(draft, root)
+    text = draft
+    repository = "<!-- plan-repository: " + json.dumps(binding, sort_keys=True, separators=(",", ":")) + " -->"
+    import re
 
-    finalized = finalize_plan_text(draft)
-    receipt_diagnostics = collect_diagnostics(
-        finalized,
-        args.tier,
-        args.repo_root.resolve(),
-        require_finalized=True,
-    )
-    if receipt_diagnostics:
-        print("Plan finalization produced an invalid result:", file=sys.stderr)
-        for item in receipt_diagnostics:
-            print(f"- {item}", file=sys.stderr)
+    # A binding may contain Windows paths.  A callable replacement prevents
+    # ``re.sub`` from treating their backslashes as replacement escapes.
+    text = re.sub(r"^<!-- plan-repository: .* -->$", lambda _match: repository, text, flags=re.MULTILINE)
+    if repository not in text:
+        text = text.replace("<!-- plan-contract: 4 -->", "<!-- plan-contract: 4 -->\n" + repository)
+    finalized = finalized_text(text, binding)
+    diagnostics = collect_diagnostics(finalized, args.tier, root, require_finalized=True, baseline=baseline)
+    if diagnostics:
+        for item in diagnostics:
+            print(item, file=sys.stderr)
         return 1
     sys.stdout.write(finalized)
     return 0

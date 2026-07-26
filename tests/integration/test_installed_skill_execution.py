@@ -11,6 +11,9 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "tests"))
+
+from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]  # noqa: E402
 
 SUBPROCESS_ENV = {
     **os.environ,
@@ -48,9 +51,16 @@ def installed_skills_env(tmp_path: Path):
 
     # Initialize a minimal git repository in target_repo with origin remote
     subprocess.run(["git", "init"], cwd=target_repo, capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.email", "eval@example.com"], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "eval@example.com"], cwd=target_repo, capture_output=True, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Eval"], cwd=target_repo, capture_output=True, check=True)
-    subprocess.run(["git", "remote", "add", "origin", "https://github.com/owner/repo.git"], cwd=target_repo, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://github.com/owner/repo.git"],
+        cwd=target_repo,
+        capture_output=True,
+        check=True,
+    )
     (target_repo / "README.md").write_text("# Target Project\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=target_repo, capture_output=True, check=True)
@@ -74,27 +84,38 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
 
     # 1. Run scaffold_plan from plan_skill CWD with relative script path
     scaffold_res = subprocess.run(
-        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--task-type", "bug-fix"],
+        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--intent", "bug-fix"],
         cwd=plan_skill,
         capture_output=True,
         text=True,
         env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
-    assert "plan-contract: 3" in scaffold_res.stdout
-
-    # Load valid tiny plan from worked-examples.md
-    worked_examples_path = plan_skill / "references" / "worked-examples.md"
-    examples_text = worked_examples_path.read_text(encoding="utf-8")
-    tiny_block = re.findall(r"```plan\n(.*?)\n```", examples_text, re.DOTALL)[0]
-    draft_text = re.sub(r"^<!-- plan-validation:.*\n", "", tiny_block, flags=re.MULTILINE)
-
-    draft_file = target_repo / "draft_plan.md"
-    draft_file.write_text(draft_text, encoding="utf-8")
+    assert "plan-contract: 4" in scaffold_res.stdout
 
     # Create dummy file referenced by tiny example in target_repo
     (target_repo / "src").mkdir(parents=True, exist_ok=True)
-    (target_repo / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8")
+    (target_repo / "src" / "names.py").write_text(
+        "def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8"
+    )
+    snapshot_file = target_repo.parent / "planning-state.json"
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/snapshot_repository.py",
+            "--repo-root",
+            str(target_repo),
+            "--output",
+            str(snapshot_file),
+        ],
+        cwd=plan_skill,
+        check=True,
+    )
+    draft_file = target_repo.parent / "draft_plan.md"
+    draft_file.write_text(
+        re.sub(r"^<!-- plan-validation:.*\n", "", finalized_tiny_plan(target_repo), flags=re.MULTILINE),
+        encoding="utf-8",
+    )
 
     # 2. Run finalize_plan from plan_skill CWD with absolute target repo and draft arguments
     finalize_res = subprocess.run(
@@ -105,6 +126,8 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
             "tiny",
             "--repo-root",
             str(target_repo),
+            "--initial-state",
+            str(snapshot_file),
             str(draft_file),
         ],
         cwd=plan_skill,
@@ -113,7 +136,7 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
         env=SUBPROCESS_ENV,
     )
     assert finalize_res.returncode == 0, f"Finalizer stderr: {finalize_res.stderr}"
-    assert "plan-validation: 3" in finalize_res.stdout
+    assert "plan-validation: 4" in finalize_res.stdout
 
     after_snapshot = get_skill_snapshot(plan_skill)
     assert_no_skill_mutation(before_snapshot, after_snapshot)
@@ -122,27 +145,23 @@ def test_installed_plan_with_senior_dev_execution(installed_skills_env):
 def test_installed_implement_with_senior_dev_execution(installed_skills_env, tmp_path: Path):
     installed_dir, target_repo = installed_skills_env
     implement_skill = installed_dir / "implement-plan"
-    plan_skill = installed_dir / "plan-change"
     assert (implement_skill / "SKILL.md").is_file()
 
     before_snapshot = get_skill_snapshot(implement_skill)
 
-    # Load valid tiny plan with receipt from plan-change worked-examples
-    worked_examples_path = plan_skill / "references" / "worked-examples.md"
-    examples_text = worked_examples_path.read_text(encoding="utf-8")
-    tiny_block = re.findall(r"```plan\n(.*?)\n```", examples_text, re.DOTALL)[0]
-
-    plan_file = target_repo / "plan.md"
-    plan_file.write_text(tiny_block, encoding="utf-8")
     output_dir = tmp_path / "external_run_dir"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "implementation.json"
 
     # Create dummy files referenced by tiny plan in target_repo and commit them
     (target_repo / "src").mkdir(parents=True, exist_ok=True)
-    (target_repo / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8")
+    (target_repo / "src" / "names.py").write_text(
+        "def normalize_name(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8"
+    )
     subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "add src/names.py"], cwd=target_repo, capture_output=True, check=True)
+    plan_file = tmp_path / "plan.md"
+    plan_file.write_text(finalized_tiny_plan(target_repo), encoding="utf-8")
 
     # 1. Run scaffold_implementation from implement_skill CWD
     scaffold_res = subprocess.run(
@@ -285,7 +304,7 @@ def test_installed_map_codebase_lifecycle_execution(installed_skills_env):
         encoding="utf-8",
     )
     (target_repo / "pyproject.toml").write_text(
-        "[tool.pytest.ini_options]\naddopts = \"-q\"\n",
+        '[tool.pytest.ini_options]\naddopts = "-q"\n',
         encoding="utf-8",
     )
     subprocess.run(["git", "add", "."], cwd=target_repo, capture_output=True, check=True)
@@ -369,44 +388,27 @@ def test_installed_create_diagram_execution(installed_skills_env):
             "purpose": "Validate a tiny happy path.",
             "fidelity": "narrative-architecture",
             "nodes": [
-                {
-                    "id": "a",
-                    "label": "Source",
-                    "type": "service",
-                    "description": "Starts the validated diagram flow."
-                },
+                {"id": "a", "label": "Source", "type": "service", "description": "Starts the validated diagram flow."},
                 {
                     "id": "b",
                     "label": "Target",
                     "type": "database",
-                    "description": "Receives the validated diagram flow."
-                }
+                    "description": "Receives the validated diagram flow.",
+                },
             ],
             "edges": [
-                {
-                    "sourceId": "a",
-                    "targetId": "b",
-                    "label": "writes",
-                    "evidence": "user-stated",
-                    "confidence": "stated"
-                }
+                {"sourceId": "a", "targetId": "b", "label": "writes", "evidence": "user-stated", "confidence": "stated"}
             ],
-            "clusters": [
-                {
-                    "id": "main",
-                    "label": "Main",
-                    "nodeIds": ["a", "b"]
-                }
-            ]
+            "clusters": [{"id": "main", "label": "Main", "nodeIds": ["a", "b"]}],
         },
         "metadata": {
             "tool": "diagram-codebase",
             "timestamp": "2026-07-23T00:00:00Z",
             "entities": [
                 {"id": "a", "kind": "service", "name": "Source"},
-                {"id": "b", "kind": "database", "name": "Target"}
-            ]
-        }
+                {"id": "b", "kind": "database", "name": "Target"},
+            ],
+        },
     }
     payload_file = target_repo / "payload.json"
     output_file = target_repo / "diagram.html"
@@ -548,14 +550,14 @@ def test_installed_skill_execution_via_symlink(tmp_path: Path):
         pytest.skip("Symlink creation not supported on host OS or permissions missing")
 
     scaffold_res = subprocess.run(
-        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--task-type", "bug-fix"],
+        [sys.executable, "scripts/scaffold_plan.py", "--tier", "tiny", "--intent", "bug-fix"],
         cwd=symlinked_skill,
         capture_output=True,
         text=True,
         env=SUBPROCESS_ENV,
     )
     assert scaffold_res.returncode == 0
-    assert "plan-contract: 3" in scaffold_res.stdout
+    assert "plan-contract: 4" in scaffold_res.stdout
 
 
 def test_every_skill_command_references_existing_bundled_file():
@@ -572,8 +574,12 @@ def test_every_skill_command_references_existing_bundled_file():
         # Ensure no executable code block contains unresolved prose placeholders like <skill-dir> or $skillDir
         code_blocks = re.findall(r"```(?:bash|powershell|sh)?\n(.*?)\n```", text, re.DOTALL)
         for block in code_blocks:
-            assert "<skill-dir>" not in block, f"{skill_folder.name}/SKILL.md contains unresolved <skill-dir> in command example:\n{block}"
-            assert "$skillDir" not in block, f"{skill_folder.name}/SKILL.md contains unresolved $skillDir in command example:\n{block}"
+            assert "<skill-dir>" not in block, (
+                f"{skill_folder.name}/SKILL.md contains unresolved <skill-dir> in command example:\n{block}"
+            )
+            assert "$skillDir" not in block, (
+                f"{skill_folder.name}/SKILL.md contains unresolved $skillDir in command example:\n{block}"
+            )
 
         # Find script references like python scripts/foo.py or python scripts\foo.py
         script_refs = re.findall(r"python\s+[\"']?(scripts[/\\][A-Za-z0-9_-]+\.py)[\"']?", text)

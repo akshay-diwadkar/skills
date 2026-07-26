@@ -10,6 +10,7 @@ shared plan-handling logic.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -64,9 +65,7 @@ def strip_fenced_code_blocks(text: str) -> str:
 
 
 VALIDATION_PREFIX_RE = re.compile(r"^\s*<!--\s*plan-validation\s*:", re.IGNORECASE)
-VALIDATION_RECEIPT_RE = re.compile(
-    r"^<!-- plan-validation: 3; sha256: (?P<digest>[0-9a-f]{64}) -->$"
-)
+VALIDATION_RECEIPT_RE = re.compile(r"^<!-- plan-validation: 3; sha256: (?P<digest>[0-9a-f]{64}) -->$")
 
 
 def _normalized_lines(text: str) -> list[str]:
@@ -94,16 +93,28 @@ def plan_digest(text: str) -> str:
 def validate_receipt(text: str, *, required: bool) -> list[Diagnostic]:
     found = receipt_lines(text)
     if not found:
-        return [Diagnostic("finalization.receipt.missing", "Finalized plan requires one validation receipt")] if required else []
+        return (
+            [Diagnostic("finalization.receipt.missing", "Finalized plan requires one validation receipt")]
+            if required
+            else []
+        )
     if len(found) > 1:
         return [Diagnostic("finalization.receipt.duplicate", "Plan contains multiple validation receipts", found[1][0])]
     line_number, line = found[0]
     match = VALIDATION_RECEIPT_RE.fullmatch(line)
     if match is None:
-        return [Diagnostic("finalization.receipt.malformed", "Validation receipt must use the v3 SHA-256 format", line_number)]
+        return [
+            Diagnostic(
+                "finalization.receipt.malformed", "Validation receipt must use the v3 SHA-256 format", line_number
+            )
+        ]
     expected = plan_digest(text)
     if match.group("digest") != expected:
-        return [Diagnostic("finalization.receipt.stale", "Validation receipt does not match the canonical plan body", line_number)]
+        return [
+            Diagnostic(
+                "finalization.receipt.stale", "Validation receipt does not match the canonical plan body", line_number
+            )
+        ]
     return []
 
 
@@ -122,3 +133,28 @@ def finalize_plan_text(text: str) -> str:
         )
     lines.insert(insertion, receipt)
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+# Bundle helpers are intentionally available here too: pytest imports skill
+# scripts in one interpreter, so a cached module must expose the portable
+# public interface expected by implement-plan.
+def canonical_bundle_bytes(bundle: dict) -> bytes:
+    cleaned = {key: value for key, value in bundle.items() if key != "validation_receipt"}
+    return (json.dumps(cleaned, indent=2, sort_keys=True).replace("\r\n", "\n").rstrip("\n") + "\n").encode("utf-8")
+
+
+def bundle_digest(bundle: dict) -> str:
+    return hashlib.sha256(canonical_bundle_bytes(bundle)).hexdigest()
+
+
+def validate_bundle_receipt(bundle: dict, *, required: bool = True) -> list[Diagnostic]:
+    receipt = bundle.get("validation_receipt")
+    if not isinstance(receipt, dict):
+        return (
+            [Diagnostic("bundle.receipt.missing", "Implementation bundle requires a valid validation receipt.")]
+            if required
+            else []
+        )
+    if receipt.get("version") != 1 or receipt.get("sha256") != bundle_digest(bundle):
+        return [Diagnostic("bundle.receipt.stale", "Validation receipt does not match the current bundle state.")]
+    return []

@@ -12,9 +12,17 @@ from pathlib import Path
 from typing import Any
 
 from _plan_utils import Diagnostic, plan_digest, strip_fenced_code_blocks, validate_receipt
+from plan_runtime import binding_digest, canonical_json, repo_snapshot
+from plan_runtime import plan_digest as v4_plan_digest
 
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "implementation-contract.json"
 PLAN_MARKER_RE = re.compile(r"<!--\s*plan-contract:\s*(?P<version>\d+)\s*-->")
+V4_METADATA_RE = re.compile(r"^<!-- plan-metadata: (?P<value>\{.*\}) -->$", re.MULTILINE)
+V4_BINDING_RE = re.compile(r"^<!-- plan-repository: (?P<value>\{.*\}) -->$", re.MULTILINE)
+V4_RECEIPT_RE = re.compile(
+    r"^<!-- plan-validation: 4; body-sha256: (?P<body>[0-9a-f]{64}); binding-sha256: (?P<binding>[0-9a-f]{64}) -->$",
+    re.MULTILINE,
+)
 TIER_RE = re.compile(r"<!--\s*tier:\s*(?P<tier>tiny|standard|high-risk);\s*task-type:\s*(?P<task>[^;]+?)\s*-->")
 ID_RE = re.compile(r"\b(?P<prefix>SC|CH|T|C|R)-(?P<number>\d+)\b")
 SC_RE = re.compile(r"^- (?P<id>SC-\d+):\s*(?P<body>.+)$", re.MULTILINE)
@@ -128,7 +136,9 @@ def _validate_references(plan: NormalizedPlan) -> list[Diagnostic]:
     for bp in plan.blueprints:
         for identifier in bp.get("changes", []):
             if identifier not in change_ids:
-                diagnostics.append(Diagnostic("plan.blueprint.change", f"Blueprint references unknown change {identifier}."))
+                diagnostics.append(
+                    Diagnostic("plan.blueprint.change", f"Blueprint references unknown change {identifier}.")
+                )
     return diagnostics
 
 
@@ -142,7 +152,9 @@ def _parse_v3(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tu
     changes = [match.groupdict() for match in CANONICAL_CHANGE_RE.finditer(unfenced_text)]
     tests = [match.groupdict() for match in CANONICAL_TEST_RE.finditer(unfenced_text)]
     success = [{"id": match.group("id"), "body": match.group("body")} for match in SC_RE.finditer(unfenced_text)]
-    constraints = [{"id": match.group("id"), "body": match.group("body")} for match in CONSTRAINT_RE.finditer(unfenced_text)]
+    constraints = [
+        {"id": match.group("id"), "body": match.group("body")} for match in CONSTRAINT_RE.finditer(unfenced_text)
+    ]
     risks = [
         {"id": match.group("id"), "severity": match.group("severity") or "", "body": match.group("body")}
         for match in RISK_RE.finditer(unfenced_text)
@@ -154,7 +166,13 @@ def _parse_v3(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tu
     if not tests:
         diagnostics.append(Diagnostic("plan.v3.test.missing", "At least one canonical T-n record is required."))
     for placeholder in PLACEHOLDER_RE.finditer(unfenced_text):
-        diagnostics.append(Diagnostic("plan.placeholder", f"Unresolved placeholder {placeholder.group(0)!r}.", _line(text, placeholder.start())))
+        diagnostics.append(
+            Diagnostic(
+                "plan.placeholder",
+                f"Unresolved placeholder {placeholder.group(0)!r}.",
+                _line(text, placeholder.start()),
+            )
+        )
     tier = tier_match.group("tier")
     if tier == "high-risk":
         for heading in ("## Compatibility and Rollout", "## Durable Rollback"):
@@ -163,10 +181,12 @@ def _parse_v3(text: str, marker: re.Match[str], tier_match: re.Match[str]) -> tu
 
     blueprints: list[dict[str, Any]] = []
     for match in BLUEPRINT_HEADER_RE.finditer(text):
-        blueprints.append({
-            "changes": _split_ids(match.group("changes")),
-            "purpose": match.group("purpose").strip(),
-        })
+        blueprints.append(
+            {
+                "changes": _split_ids(match.group("changes")),
+                "purpose": match.group("purpose").strip(),
+            }
+        )
 
     plan = NormalizedPlan(
         contract_version=int(marker.group("version")),
@@ -191,16 +211,100 @@ def parse_plan(text: str) -> tuple[NormalizedPlan, list[Diagnostic]]:
     tier_match = TIER_RE.search(text)
     if marker:
         version = int(marker.group("version"))
-        if version not in load_contract()["supported_plan_contract_versions"]:
+        if version != 4:
             fallback = NormalizedPlan(version, "tiny", "unknown", [], [], [], [], [], [])
             return fallback, [Diagnostic("plan.version.unsupported", f"Unsupported plan contract version {version}.")]
+        return _parse_v4(text)
+        # Kept below for historical context; v3 is deliberately unsupported.
         if tier_match is None:
             fallback = NormalizedPlan(version, "tiny", "unknown", [], [], [], [], [], [])
             return fallback, [Diagnostic("plan.tier.marker", "Versioned plan requires an explicit tier/task marker.")]
         return _parse_v3(text, marker, tier_match)
 
     fallback = NormalizedPlan("legacy", "tiny", "unknown", [], [], [], [], [], [])
-    return fallback, [Diagnostic("plan.version.unsupported", "Only plan-contract version 3 plans are supported.")]
+    return fallback, [
+        Diagnostic("plan.version.unsupported", "Only finalized plan-contract version 4 plans are supported.")
+    ]
+
+
+def _parse_v4(text: str) -> tuple[NormalizedPlan, list[Diagnostic]]:
+    diagnostics: list[Diagnostic] = []
+    metadata = V4_METADATA_RE.findall(text)
+    binding = V4_BINDING_RE.findall(text)
+    receipts = list(V4_RECEIPT_RE.finditer(text))
+    if len(metadata) != 1:
+        return NormalizedPlan(4, "tiny", "unknown", [], [], [], [], [], []), [
+            Diagnostic("plan.metadata", "v4 plan requires exactly one metadata record.")
+        ]
+    try:
+        value = json.loads(metadata[0])
+        final = value["final"]
+        tier, intent = final["tier"], final["intent"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return NormalizedPlan(4, "tiny", "unknown", [], [], [], [], [], []), [
+            Diagnostic("plan.metadata", "v4 plan metadata is malformed.")
+        ]
+    if tier not in {"tiny", "standard", "high-risk"}:
+        diagnostics.append(Diagnostic("plan.tier", "v4 plan tier is invalid."))
+    if len(binding) != 1 or len(receipts) != 1:
+        diagnostics.append(Diagnostic("plan.receipt", "v4 plan requires one repository binding and receipt."))
+    elif receipts[0].group("body") != v4_plan_digest(text):
+        diagnostics.append(Diagnostic("plan.receipt.stale", "v4 receipt body hash is stale."))
+    else:
+        try:
+            bound = json.loads(binding[0])
+        except json.JSONDecodeError:
+            diagnostics.append(Diagnostic("plan.binding", "v4 repository binding is malformed."))
+            bound = {}
+        if receipts[0].group("binding") != binding_digest(bound):
+            diagnostics.append(Diagnostic("plan.receipt.binding", "v4 receipt binding hash is stale."))
+    changes = [
+        match.groupdict()
+        for match in re.finditer(
+            r"^- (?P<id>CH-\d+): path: `(?P<path>[^`]+)` \| anchor: `(?P<anchor>[^`]+)` \| status: (?P<status>existing|new) \| evidence: F-\d+(?: \| directory-owner: F-\d+)? \| change: (?P<body>.+)$",
+            text,
+            re.MULTILINE,
+        )
+    ]
+    tests = [
+        match.groupdict()
+        for match in re.finditer(
+            r"^- (?P<id>T-\d+): given: (?P<given>.+?) \| expect: (?P<expect>.+?) \| command: `(?P<command>[^`]+)`",
+            text,
+            re.MULTILINE,
+        )
+    ]
+    success = [
+        {"id": m.group("id"), "body": m.group("body")}
+        for m in re.finditer(r"^- (?P<id>SC-\d+): (?P<body>.+)$", text, re.MULTILINE)
+    ]
+    plan = NormalizedPlan(4, tier, intent, success, changes, tests, [], [], [], [])
+    if not changes or not tests or not success:
+        diagnostics.append(Diagnostic("plan.records", "v4 plan requires SC, CH, and T records."))
+    return plan, diagnostics
+
+
+def validate_v4_repository_binding(plan_text: str, repo_root: Path) -> list[Diagnostic]:
+    bindings = V4_BINDING_RE.findall(plan_text)
+    if len(bindings) != 1:
+        return [Diagnostic("plan.binding", "v4 repository binding is missing.")]
+    try:
+        binding = json.loads(bindings[0])
+    except json.JSONDecodeError:
+        return [Diagnostic("plan.binding", "v4 repository binding is malformed.")]
+    current = repo_snapshot(repo_root)
+    expected = {key: binding.get(key) for key in ("repository_id", "git_head", "dirty")}
+    observed = {key: current.get(key) for key in expected}
+    return (
+        []
+        if canonical_json(expected) == canonical_json(observed)
+        else [
+            Diagnostic(
+                "plan.binding.stale",
+                "Plan binding does not match the current repository identity, revision, or dirty state.",
+            )
+        ]
+    )
 
 
 def git_status(repo_root: Path) -> dict[str, str]:
@@ -245,6 +349,7 @@ def output_is_ignored_or_external(repo_root: Path, output: Path) -> bool:
 def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id: str) -> dict[str, Any]:
     plan_text = plan_path.read_text(encoding="utf-8")
     plan, diagnostics = parse_plan(plan_text)
+    diagnostics.extend(validate_v4_repository_binding(plan_text, repo_root))
     if diagnostics:
         raise ValueError("invalid plan:\n  - " + "\n  - ".join(str(item) for item in diagnostics))
     if not output_is_ignored_or_external(repo_root, output_path):

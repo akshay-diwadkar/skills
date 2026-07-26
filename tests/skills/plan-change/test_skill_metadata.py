@@ -46,7 +46,7 @@ def test_frontmatter_declares_existing_required_finalizer() -> None:
     frontmatter = parse_simple_frontmatter(content)
     metadata = frontmatter["metadata"]
     assert metadata == {
-        "plan-contract": "3",
+        "plan-contract": "4",
         "finalizer": "scripts/finalize_plan.py",
         "validation-required": "true",
     }
