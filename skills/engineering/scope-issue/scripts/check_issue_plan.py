@@ -286,19 +286,22 @@ def validate_senior_plan(
         f"<!-- source-issue-updated-at: {source['issue_updated_at']} -->",
     ]
     errors = [f"senior plan missing source marker: {marker}" for marker in required_markers if marker not in text]
-    tier_match = re.search(
-        r'<!-- plan-metadata: \{.*?"final":\{"intent":"[^"]+","risk_domains":\[[^\]]*\],"tier":"(tiny|standard|high-risk)"\}.*\} -->',
-        text,
-    )
-    if not tier_match:
-        errors.append("senior plan lacks v4 final tier metadata")
+    marker = re.findall(r"<!--\s*plan-contract:\s*(\d+)\s*-->", text)
+    metadata_match = re.search(r"^<!-- plan-metadata: (.+) -->$", text, re.MULTILINE)
+    if marker != ["5"] or not metadata_match:
+        errors.append("senior plan must use finalized plan-contract version 5")
+        return errors
+    try:
+        tier = json.loads(metadata_match.group(1))["final"]["tier"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        errors.append("senior plan has malformed v5 final tier metadata")
         return errors
     checker = senior_skill_dir / "scripts" / "check_plan.py"
     if not checker.is_file():
         errors.append(f"senior plan checker not found: {checker}")
         return errors
     result = subprocess.run(
-        [sys.executable, str(checker), "--tier", tier_match.group(1), "--repo-root", str(repo_root), str(plan_path)],
+        [sys.executable, str(checker), "--tier", tier, "--repo-root", str(repo_root), "--require-finalized", str(plan_path)],
         capture_output=True,
         text=True,
     )
@@ -360,7 +363,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", required=True, help="Local checkout used for planning.")
     parser.add_argument("--issue-json", required=True, help="Fresh normalized selected-issue JSON.")
     parser.add_argument("--execution-ready", action="store_true", help="Apply freshness and execution gates.")
-    parser.add_argument("--senior-plan", help="Source-bound plan-contract v4 plan for a routed issue.")
+    parser.add_argument("--senior-plan", help="Source-bound finalized plan-contract v5 plan for a routed issue.")
     parser.add_argument("--senior-skill-dir", help="Installed plan-change skill directory.")
     return parser
 

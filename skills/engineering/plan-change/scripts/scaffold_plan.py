@@ -8,7 +8,7 @@ from plan_contract import load_contract, render_scaffold
 
 def main() -> int:
     contract = load_contract()
-    parser = argparse.ArgumentParser(description="Render a v4 plan scaffold.")
+    parser = argparse.ArgumentParser(description="Render a v5 plan scaffold.")
     parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
     parser.add_argument("--intent", choices=tuple(contract["intents"]), required=True)
     parser.add_argument("--risk-domain", action="append", default=[])

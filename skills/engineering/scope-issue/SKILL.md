@@ -96,13 +96,13 @@ Execute one issue per branch only after explicit user authorization.
      --issue-json /absolute/path/to/run-dir/fresh-issue-<number>.json \
      --execution-ready
    ```
-   For `ready-for-senior-plan`, also pass `--senior-plan /absolute/path/to/run-dir/validated-v3-plan.md`:
+   For `ready-for-senior-plan`, also pass `--senior-plan /absolute/path/to/run-dir/finalized-v5-plan.md`:
    ```bash
    python scripts/check_issue_plan.py \
      /absolute/path/to/run-dir/issue-<number>.md \
      --repo-root /absolute/path/to/repository \
      --issue-json /absolute/path/to/run-dir/fresh-issue-<number>.json \
-     --senior-plan /absolute/path/to/run-dir/validated-v3-plan.md \
+     --senior-plan /absolute/path/to/run-dir/finalized-v5-plan.md \
      --execution-ready
    ```
    If the checker or senior skill is unavailable, fail closed.

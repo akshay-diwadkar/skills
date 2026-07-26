@@ -1,4 +1,4 @@
-"""Load and render the canonical v4 plan contract."""
+"""Render the strict v5 planning scaffold."""
 
 from __future__ import annotations
 
@@ -11,58 +11,63 @@ CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "plan-contr
 
 def load_contract() -> dict[str, Any]:
     value = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
-    if value.get("contract_version") != 4:
-        raise ValueError("plan contract must have contract_version 4")
+    if value.get("contract_version") != 5:
+        raise ValueError("plan contract must have contract_version 5")
     return value
 
 
-def section_names(tier: str) -> list[str]:
-    """Expose v4 section order for scaffolding and package checks."""
-    contract = load_contract()
-    if tier not in contract["tiers"]:
-        raise ValueError(f"unsupported tier: {tier}")
-    return list(contract["base_sections"])
+def section_names(_: str) -> list[str]:
+    return [
+        "Outcome and Scope",
+        "Evidence Ledger",
+        "Decisions",
+        "Implementation Specification",
+        "Propagation Record",
+        "Boundary Traces",
+        "Domain Obligations",
+        "Traceability",
+        "Verification",
+        "Risks, Assumptions, and Attack",
+    ]
 
 
 def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) -> str:
-    contract = load_contract()
-    domains = domains or []
-    if tier not in contract["tiers"] or intent not in contract["intents"]:
+    contract, domains = load_contract(), domains or []
+    if (
+        tier not in contract["tiers"]
+        or intent not in contract["intents"]
+        or len(domains) != len(set(domains))
+        or not set(domains) <= set(contract["risk_domains"])
+    ):
         raise ValueError("unsupported plan classification")
-    if len(domains) != len(set(domains)) or any(domain not in contract["risk_domains"] for domain in domains):
-        raise ValueError("risk domains must be known and unique")
     metadata = {
         "provisional": {"intent": intent, "risk_domains": domains, "tier": tier},
         "final": {"intent": intent, "risk_domains": domains, "tier": tier},
     }
-    lines = [
+    rows = [
         "# Replace With an Action-Oriented Outcome",
-        contract["marker"],
+        "<!-- plan-contract: 5 -->",
         "<!-- plan-metadata: " + json.dumps(metadata, separators=(",", ":")) + " -->",
-        "<!-- plan-repository: Replace with finalizer-generated binding JSON -->",
         "",
         "## Outcome and Scope",
-        "- SC-1: given: exact initial state | when: exact trigger | then: observable result | unchanged: stable behavior",
-        "- In scope: exact behavior and surfaces.",
-        "- Unchanged: explicit invariants and exclusions.",
+        "- SC-1: outcome: exact observable result",
         "",
         "## Evidence Ledger",
-        "- F-1: path: `path` | lines: 1-1 | anchor: `symbol` | excerpt-sha256: `hash` | file-sha256: `hash` | observation: verified current behavior.",
+        "- F-1: kind: function-signature | path: src/example.py | lines: 1-1 | anchor: example | excerpt-sha256: REPLACE | file-sha256: REPLACE | observation: planner-authored observation",
         "",
         "## Decisions",
-        "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative | drawback: concrete drawback.",
+        "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative",
         "",
         "## Implementation Specification",
-        "- CH-1: path: `path` | anchor: `symbol` | status: existing | evidence: F-1 | change: exact behavior, branches, errors, ordering, and side effects.",
+        "- CH-1: path: src/example.py | anchor: example | status: existing | evidence: F-1 | change: exact branches errors ordering and effects",
         "",
         "## Propagation Record",
-        "- P-1: path: `path` | surface: caller or generated surface | disposition: changed | owner: CH-1.",
+        "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed",
         "",
         "## Boundary Traces",
-        "- B-1: class: API request | path: F-1 | flow: caller -> entry -> side effect -> result.",
+        "- B-1: class: API request | path: F-1 | flow: request -> change -> result",
         "",
         "## Domain Obligations",
-        "- O-none: not-applicable | evidence: F-1.",
         "",
         "## Traceability",
         "| Criterion / constraint | Changes | Tests |",
@@ -70,31 +75,29 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "| SC-1 | CH-1 | T-1 |",
         "",
         "## Verification",
-        "- T-1: given: exact input and state | expect: exact output/error/effect | command: `exact command`.",
+        "- T-1: given: exact state | expect: exact result | command: python -m pytest",
         "",
         "## Risks, Assumptions, and Attack",
-        "- Assumptions: None.",
-        "- A-forgotten-propagation: repaired | evidence: P-1.",
-        "- A-boundary-input: repaired | evidence: T-1.",
-        "- A-literal-implementation: repaired | evidence: D-1.",
+        "- A-forgotten-propagation: status: repaired | finding: propagation inventory reviewed | evidence: F-1 | resolution: CH-1, T-1",
+        "- A-boundary-input: status: dismissed | finding: input boundary is unchanged | evidence: F-1 | resolution: F-1",
+        "- A-literal-implementation: status: repaired | finding: implementation follows decision | evidence: F-1 | resolution: CH-1, T-1",
     ]
     if tier != "tiny":
-        lines.insert(lines.index("## Traceability"), "- C-1: preserved constraint | status: preserved.")
+        rows[rows.index("## Traceability") : rows.index("## Traceability")] = [
+            "- C-1: constraint: preserve declared behavior"
+        ]
     if tier == "high-risk":
-        lines.insert(lines.index("## Traceability"), "- R-1: P1 | risk: deployment or compatibility failure | owner: CH-1/T-1.")
-    if contract["tiers"][tier]["blueprint_required"]:
-        lines.extend(
+        rows[rows.index("## Traceability") : rows.index("## Traceability")] = [
+            "- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named risk"
+        ]
+    if tier != "tiny":
+        rows.extend(
             [
                 "",
-                "### Execution Blueprint: CH-1 — hardest flow",
+                "### Execution Blueprint: CH-1 — hardest flow [type: pseudocode]",
                 "```pseudocode",
-                "exact branches, errors, ordering, and side effects",
+                "validate -> branch -> effect -> verify",
                 "```",
             ]
         )
-    for domain in domains:
-        for obligation in contract["domain_obligations"].get(domain, []):
-            lines.insert(lines.index("## Traceability"), f"- O-{domain}-{obligation}: required | evidence: F-1.")
-        for attack in contract["domain_attacks"].get(domain, []):
-            lines.append(f"- A-{attack}: assess applicability | evidence: F-1.")
-    return "\n".join(lines) + "\n"
+    return "\n".join(rows) + "\n"
