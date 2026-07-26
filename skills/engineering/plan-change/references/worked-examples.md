@@ -19,9 +19,55 @@ not yet exist.
 
 ## Tiny local failure
 
-For `def normalize_name(raw: str) -> str`, prepare with `--tier tiny --intent
-bug-fix --anchor src/names.py:normalize_name`. Own the blank-input branch in
-`CH-1`, preserve nonblank behavior in `SC-1`, and verify both outcomes in `T-1`.
+The fixture at `tests/skills/plan-change/fixtures/tiny/` contains
+`normalize_name(name: str | None)`. The pipe in that annotation is also the v5
+record field separator, so this example uses a structurally verified
+`call-edge` fact rather than writing an invalid `parameters` field.
+
+<!-- tiny-plan:start -->
+```markdown
+# Handle absent names without changing normalization
+<!-- plan-contract: 5 -->
+<!-- plan-metadata: {"provisional":{"intent":"bug-fix","risk_domains":[],"tier":"tiny","tier_signals":[]},"final":{"intent":"bug-fix","risk_domains":[],"tier":"tiny","tier_signals":[]}} -->
+
+## Outcome and Scope
+- SC-1: given: name is None or a non-null string | when: normalize_name runs | then: None returns an empty string | unchanged: non-null names remain stripped and lowercased
+
+## Evidence Ledger
+- F-1: kind: call-edge | path: src/names.py | lines: 1-2 | anchor: normalize_name | excerpt-sha256: b30dd7e221cb9ea99152efd997135f3ee5eeb16868b52b422f68b2eceb7ffd62 | file-sha256: ea37618d0f56f1c3b015271c76e85612106fe17d3fc6cd85f939c6c389432ca1 | observation: normalize_name accepts name as str or None but unconditionally calls name.strip then lower, so None raises AttributeError while non-null strings are stripped and lowercased | caller: normalize_name | callee: name.strip
+
+## Decisions
+- D-1: selected: add a local None branch that returns an empty string before existing normalization | evidence: F-1 | rejected: remove None from the accepted parameter type | drawback: treating absence as empty preserves the broad input contract but conflates None with an empty normalized name
+
+## Implementation Specification
+- CH-1: path: src/names.py | anchor: normalize_name | status: existing | locality: local-production | reversibility: reversible | evidence: F-1 | change: check whether name is None before calling string methods; return an empty string for None, otherwise preserve the existing strip then lower branch ordering with no side effects or caller changes
+
+## Propagation Record
+- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed
+
+## Boundary Traces
+- B-1: class: Python function input boundary | path: F-1 | flow: caller passes None or str -> normalize_name selects the None or string branch -> caller receives str
+
+## Domain Obligations
+
+## Traceability
+| Criterion / constraint | Changes | Tests |
+|---|---|---|
+| SC-1 | CH-1 | T-1 |
+
+## Verification
+- T-1: given: None, whitespace-padded mixed-case text, and an empty string | when: normalize_name is called for each input | then: results are empty string, stripped lowercase text, and empty string respectively, with the None branch running before strip and no side effects | command: python -m pytest tests/test_names.py -q
+
+## Risks, Assumptions, and Attack
+- A-forgotten-propagation: status: repaired | finding: the propagation sweep could miss callers relying on normalize_name raising for None | evidence: F-1 | resolution: CH-1 preserves the typed interface and T-1 verifies the consumer-visible result
+- A-boundary-input: status: repaired | finding: the None boundary input currently reaches strip and raises AttributeError | evidence: F-1 | resolution: CH-1 adds the explicit None branch and T-1 verifies None, empty, and nonblank inputs
+- A-literal-implementation: status: repaired | finding: a literal implementation could reorder lower and strip or introduce a side effect while adding the branch | evidence: F-1 | resolution: CH-1 fixes branch ordering and no-side-effect behavior and T-1 verifies both
+```
+<!-- tiny-plan:end -->
+
+The exact extraction and `check_plan.py` rerun, with its passing output, are
+kept in `validation-evidence.md`. The focused documentation test performs the
+same extraction and validation on every test run.
 
 ## Standard propagation
 
