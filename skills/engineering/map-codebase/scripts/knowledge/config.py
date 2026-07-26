@@ -50,6 +50,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "related_test": 4.0,
         "configuration": 4.0,
         "text_match": 2.0,
+        "synonym_token": 1.5,
         "symbol_token": 5.0,
         "import_relationship": 3.0,
         "reverse_import_relationship": 3.0,

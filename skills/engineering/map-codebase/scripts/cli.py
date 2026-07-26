@@ -4,26 +4,111 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
+import re
 import sys
 from pathlib import Path
+from typing import Callable
 
 # Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from finalize_knowledge import KnowledgeFinalizationError, build_and_finalize, refresh_and_finalize
-from link_agent_docs import ensure_agent_docs
-from refresh_knowledge import check_freshness
-from resolve_task import format_human, resolve_task
-from scaffold_github_workflow import (
-    DEFAULT_BRANCH,
-    DEFAULT_REPOSITORY,
-    DEFAULT_RUNTIME_DIR,
-    scaffold_github_workflow,
-)
-from validate_knowledge import validate_knowledge
+DEFAULT_REPOSITORY = "akshay-diwadkar/skills"
+DEFAULT_RUNTIME_DIR = ".codebase-knowledge-runtime"
+DEFAULT_BRANCH = "main"
+MINIMUM_PYTHON = (3, 11)
+
+
+def _version_tuple(value: str) -> tuple[int, ...]:
+    numbers = re.match(r"(\d+(?:\.\d+)*)", value)
+    return tuple(int(part) for part in numbers.group(1).split(".")) if numbers else ()
+
+
+def _satisfies(installed: str, specifier: str) -> bool:
+    current = _version_tuple(installed)
+    for operator, expected_text in re.findall(r"(>=|<=|==|!=|>|<)\s*([0-9][^,;\s]*)", specifier):
+        expected = _version_tuple(expected_text)
+        if not expected:
+            continue
+        width = max(len(current), len(expected))
+        left = current + (0,) * (width - len(current))
+        right = expected + (0,) * (width - len(expected))
+        comparisons = {
+            ">=": left >= right,
+            "<=": left <= right,
+            "==": left == right,
+            "!=": left != right,
+            ">": left > right,
+            "<": left < right,
+        }
+        if not comparisons[operator]:
+            return False
+    return True
+
+
+def _requirements() -> list[tuple[str, str]]:
+    requirements_path = SCRIPTS_DIR.parent / "requirements.txt"
+    requirements = []
+    for raw_line in requirements_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        match = re.match(r"([A-Za-z0-9_.-]+)(.*)", line)
+        if match:
+            requirements.append((match.group(1), match.group(2)))
+    return requirements
+
+
+def run_doctor(
+    repo_root_value: str | Path,
+    version_lookup: Callable[[str], str] | None = None,
+) -> int:
+    """Run dependency-free preflight checks with actionable diagnostics."""
+    lookup = version_lookup or importlib.metadata.version
+    failures = False
+    if sys.version_info[:2] >= MINIMUM_PYTHON:
+        print(f"[OK] Python {sys.version_info.major}.{sys.version_info.minor} (requires >=3.11)")
+    else:
+        print(
+            f"[FAIL] Python {sys.version_info.major}.{sys.version_info.minor} is unsupported; install Python 3.11 or newer."
+        )
+        failures = True
+
+    try:
+        repo_root = Path(repo_root_value).expanduser().resolve(strict=True)
+        if not repo_root.is_dir():
+            raise NotADirectoryError(repo_root)
+        print(f"[OK] Repository root: {repo_root}")
+    except (OSError, RuntimeError) as exc:
+        print(f"[FAIL] Repository root cannot be resolved: {repo_root_value}")
+        print(f"Fix: pass an existing directory with --repo-root. Details: {exc}")
+        failures = True
+
+    missing: list[str] = []
+    incompatible: list[str] = []
+    requirements = _requirements()
+    for distribution, specifier in requirements:
+        try:
+            installed = lookup(distribution)
+        except importlib.metadata.PackageNotFoundError:
+            missing.append(distribution)
+            continue
+        if not _satisfies(installed, specifier):
+            incompatible.append(f"{distribution} {installed} (requires {specifier})")
+    if missing:
+        print(f"[FAIL] Missing dependencies: {', '.join(missing)}")
+        failures = True
+    if incompatible:
+        print(f"[FAIL] Incompatible dependencies: {', '.join(incompatible)}")
+        failures = True
+    if missing or incompatible:
+        print(f'Fix: python -m pip install -r "{SCRIPTS_DIR.parent / "requirements.txt"}"')
+    else:
+        print(f"[OK] Dependencies: {len(requirements)} requirement(s) installed")
+    return 1 if failures else 0
 
 
 def _main() -> int:
@@ -32,6 +117,10 @@ def _main() -> int:
         description="Repository intelligence layer and deterministic task resolver.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # doctor intentionally has no imports from the rest of the skill.
+    p_doctor = subparsers.add_parser("doctor", help="Check runtime prerequisites and repository path resolution.")
+    p_doctor.add_argument("--repo-root", default=".", help="Target repository root")
 
     # build
     p_build = subparsers.add_parser("build", help="Build repository knowledge artifacts.")
@@ -93,6 +182,16 @@ def _main() -> int:
     p_workflow.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
 
     args = parser.parse_args()
+    if args.command == "doctor":
+        return run_doctor(args.repo_root)
+
+    from finalize_knowledge import build_and_finalize, refresh_and_finalize
+    from link_agent_docs import ensure_agent_docs
+    from refresh_knowledge import check_freshness
+    from resolve_task import format_human, resolve_task
+    from scaffold_github_workflow import scaffold_github_workflow
+    from validate_knowledge import validate_knowledge
+
     repo_root = Path(args.repo_root).resolve()
 
     if args.command == "build":
@@ -200,10 +299,7 @@ def main() -> int:
     """Convert expected operational failures into concise CLI diagnostics."""
     try:
         return _main()
-    except KnowledgeFinalizationError as exc:
-        print(exc, file=sys.stderr)
-        return 1
-    except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+    except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

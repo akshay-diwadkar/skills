@@ -7,6 +7,23 @@ description: Build and use compact repository knowledge for resolver-first code 
 
 Use compact machine-only repository knowledge to reduce exploration overhead while preserving source as authoritative.
 
+## Quick Start
+
+For a task such as fixing retry behavior, first run `status` against the repository root to learn whether the existing knowledge is usable. Resolve the task at phase 1 and use the returned owner instead of broadly searching the repository. Read only that target and enough authoritative source to verify its contract. Implement the requested change once ownership is confirmed. After the coherent change set, run `refresh` with the changed files so the knowledge matches the source again. Finish with `validate` and the repository's normal verification commands.
+
+## Extractor Coverage
+
+<!-- BEGIN EXTRACTOR COVERAGE -->
+| Extractor module | Inputs | Coverage | Resolver precision |
+| --- | --- | --- | --- |
+| `python.py` | Python (`.py`) | Full AST extraction | Structured symbols, ranges, and imports provide the strongest ownership evidence. |
+| `javascript.py` | JavaScript, TypeScript, JSX, and TSX | Full dedicated extraction | Dedicated symbols and imports support normal path, symbol, and relationship ranking. |
+| `lexical.py` | Go, Rust, Java, C, and C++ | Lexical-only | Regex-discovered symbols and imports can miss complex or nested constructs, reducing resolver precision. |
+| `configuration.py` | Repository configuration files | Configuration metadata and command extraction | Known keys and commands support configuration ownership; unrecognized structures fall back to text evidence. |
+<!-- END EXTRACTOR COVERAGE -->
+
+Lexical-only means deterministic regex-based symbol and import discovery rather than language-aware parsing. It has lower structural confidence, so complex declarations, nesting, and unusual syntax may produce weaker or missing resolver evidence.
+
 ## Core Workflow
 
 1. Resolve absolute skill and repository paths.
