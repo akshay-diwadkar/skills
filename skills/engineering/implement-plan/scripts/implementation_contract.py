@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,11 @@ from plan_runtime import parse_plan as _parse_plan
 
 
 def load_contract() -> dict[str, Any]:
-    return {"contract_version": 2, "statuses": ["in-progress", "complete", "partial", "blocked"]}
+    path = Path(__file__).resolve().parents[1] / "references" / "implementation-contract.json"
+    contract = json.loads(path.read_text(encoding="utf-8"))
+    if contract.get("contract_version") != 2 or contract.get("supported_plan_contract_versions") != [5]:
+        raise ValueError("implementation contract must support only plan-contract version 5")
+    return contract
 
 
 def sha256_file(path: Path) -> str:
@@ -47,7 +52,7 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
     if output_path.is_relative_to(repo_root) and not (repo_root / ".gitignore").is_file():
         raise ValueError("output must be outside the repository or ignored")
     return {
-        "schema_version": 2,
+        "schema_version": load_contract()["contract_version"],
         "run_id": run_id,
         "status": "in-progress",
         "plan": {"sha256": hashlib.sha256(text.encode()).hexdigest(), "normalized": plan.to_dict()},
@@ -58,9 +63,13 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
             ],
             "initial_dirty": git_status(repo_root),
         },
+        "baseline": {"targets": [], "dirty": git_status(repo_root)},
         "changes": [],
         "verification": [],
         "unresolved_changes": [],
         "unresolved_tests": [],
+        "deviations": [],
+        "final_workspace": {},
+        "residual_risks": [],
         "report": {"summary": ""},
     }

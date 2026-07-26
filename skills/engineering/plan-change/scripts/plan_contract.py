@@ -50,16 +50,27 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "<!-- plan-metadata: " + json.dumps(metadata, separators=(",", ":")) + " -->",
         "",
         "## Outcome and Scope",
-        "- SC-1: outcome: exact observable result",
+        "- SC-1: given: exact starting state | when: exact trigger | then: observable result | unchanged: stable behavior",
         "",
         "## Evidence Ledger",
-        "- F-1: kind: function-signature | path: src/example.py | lines: 1-1 | anchor: example | excerpt-sha256: REPLACE | file-sha256: REPLACE | observation: planner-authored observation",
+        "- F-1: kind: function-signature | path: src/example.py | lines: 1-1 | anchor: example | excerpt-sha256: REPLACE | file-sha256: REPLACE | observation: planner-authored observation | parameters: REPLACE | returns: REPLACE",
         "",
         "## Decisions",
-        "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative",
+        "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative | drawback: concrete repository-grounded drawback",
         "",
         "## Implementation Specification",
         "- CH-1: path: src/example.py | anchor: example | status: existing | evidence: F-1 | change: exact branches errors ordering and effects",
+        *(
+            [
+                "",
+                "### Execution Blueprint: CH-1 — hardest flow [type: pseudocode]",
+                "```pseudocode",
+                "validate -> branch -> effect -> verify",
+                "```",
+            ]
+            if tier != "tiny"
+            else []
+        ),
         "",
         "## Propagation Record",
         "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed",
@@ -75,7 +86,7 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "| SC-1 | CH-1 | T-1 |",
         "",
         "## Verification",
-        "- T-1: given: exact state | expect: exact result | command: python -m pytest",
+        "- T-1: given: exact state | when: exact trigger | then: exact result | command: python -m pytest",
         "",
         "## Risks, Assumptions, and Attack",
         "- A-forgotten-propagation: status: repaired | finding: propagation inventory reviewed | evidence: F-1 | resolution: CH-1, T-1",
@@ -90,7 +101,7 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         rows[rows.index("## Traceability") : rows.index("## Traceability")] = [
             "- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named risk"
         ]
-    if tier != "tiny":
+    if False:  # Blueprint is emitted inside Implementation Specification above.
         rows.extend(
             [
                 "",
