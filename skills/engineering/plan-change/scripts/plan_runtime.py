@@ -785,8 +785,16 @@ def validate_plan(
     for d, needed in expected_obligations.items():
         for obligation_name in needed - seen_obligations[d]:
             ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {obligation_name}."))
-    attacks = {r.id[2:]: r for r in plan.records.get("A", ())}
+    attack_records = plan.records.get("A", ())
+    attacks = {r.id[2:]: r for r in attack_records}
     needed_attacks = REQUIRED_ATTACKS | set().union(*(DOMAIN_ATTACKS.get(d, set()) for d in plan.domains))
+    recognized_attacks = REQUIRED_ATTACKS | set().union(*DOMAIN_ATTACKS.values())
+    for name, count in Counter(r.id[2:] for r in attack_records).items():
+        if count > 1:
+            ds.append(Diagnostic("attack.duplicate", f"A-{name}: attack names must be unique.", next(r.line for r in attack_records if r.id[2:] == name)))
+    for r in attack_records:
+        if r.id[2:] not in recognized_attacks:
+            ds.append(Diagnostic("attack.unknown", f"{r.id}: attack is not recognized by plan-contract v5.", r.line))
     for attack_name in needed_attacks - attacks.keys():
         ds.append(Diagnostic("attack.required", f"A-{attack_name} is required."))
     for r in attacks.values():

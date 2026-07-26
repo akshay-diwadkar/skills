@@ -91,6 +91,14 @@ def test_same_path_wrong_anchor_and_new_target_are_rejected(tmp_path: Path) -> N
     assert any(item.code == "change.new_path" for item in diagnostics)
 
 
+def test_unknown_and_duplicate_attacks_are_rejected(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
+    text = draft(tmp_path) + "- A-invented: status: dismissed | finding: invented attack reviewed | evidence: F-1 | resolution: F-1\n- A-boundary-input: status: dismissed | finding: duplicate boundary review | evidence: F-1 | resolution: F-1\n"
+    _plan, diagnostics = validate_plan(text, tmp_path)
+    assert {item.code for item in diagnostics} >= {"attack.unknown", "attack.duplicate"}
+
+
 def test_baseline_detects_planner_mutation_but_binding_allows_unrelated_change(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     target = tmp_path / "src" / "names.py"
