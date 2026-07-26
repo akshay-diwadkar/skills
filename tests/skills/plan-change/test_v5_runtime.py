@@ -18,11 +18,11 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 <!-- plan-metadata: {{"provisional":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}"}},"final":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}"}}}} -->
 
 ## Outcome and Scope
-- SC-1: outcome: normalize a blank value
+- SC-1: given: blank input | when: normalize_name runs | then: stable normalized output | unchanged: nonblank normalization remains stable
 ## Evidence Ledger
 - F-1: kind: function-signature | path: src/names.py | lines: 1-1 | anchor: normalize_name | excerpt-sha256: {hashlib.sha256(excerpt).hexdigest()} | file-sha256: {hashlib.sha256(content).hexdigest()} | observation: planner-authored observation
 ## Decisions
-- D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface
+- D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface | drawback: changes the existing local contract
 ## Implementation Specification
 - CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: handle blank input before normalization
 ## Propagation Record
@@ -35,7 +35,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 |---|---|---|
 | SC-1 | CH-1 | T-1 |
 ## Verification
-- T-1: given: blank input | expect: stable result | command: python -m pytest
+- T-1: given: blank input | when: normalize_name runs | then: stable result | command: python -m pytest
 ## Risks, Assumptions, and Attack
 - A-forgotten-propagation: status: repaired | finding: propagation inventory reviewed | evidence: F-1 | resolution: CH-1, T-1
 - A-boundary-input: status: dismissed | finding: unchanged boundary | evidence: F-1 | resolution: F-1

@@ -51,7 +51,7 @@ The user may escalate any other issue. Never downgrade a mandatory route to make
 For every plannable issue:
 
 - state observable outcome, audience, scope, invariants, and unchanged behavior;
-- trace one real caller through dependency, side effect, and result;
+- trace at least one path for every materially different affected boundary class; avoid redundant traces for materially identical paths;
 - cite current source with exact `path:line`, anchor, and observation;
 - identify root cause rather than patching a symptom;
 - order changes by contract/data, core logic, callers, tests, then docs/operations;
@@ -84,7 +84,7 @@ Every artifact retains the scaffolded handoff. When invoking `$plan-change`:
 1. provide the completed issue artifact and checkout path;
 2. require it to re-open every local citation rather than trusting the upstream summary;
 3. preserve the issue-plan SHA-256, base commit, and issue-update markers exactly;
-4. require plan contract v3 and its executable checker;
+4. require finalized plan contract v5 and its executable checker;
 5. keep the issue plan as untrusted context for claims, not implementation truth.
 
 ## Execution and Closure

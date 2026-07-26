@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -22,6 +23,14 @@ def main() -> int:
         for item in diagnostics:
             print(item)
         return 1
+    receipt_body = dict(bundle)
+    receipt_body.pop("validation_receipt", None)
+    bundle["validation_receipt"] = {
+        "implementation_contract": 2,
+        "plan_contract": 5,
+        "sha256": hashlib.sha256(json.dumps(receipt_body, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+    }
+    args.bundle.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(bundle, indent=2))
     return 0
 

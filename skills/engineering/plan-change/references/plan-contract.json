@@ -5,5 +5,18 @@
   "tiers": ["tiny", "standard", "high-risk"],
   "risk_domains": ["public-contract", "durable-state", "migration", "security", "concurrency", "external-integration", "irreversible-external-effect"],
   "record_kinds": ["SC", "F", "D", "CH", "P", "B", "O", "C", "R", "T", "A", "X"],
-  "artifact_types": ["pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"]
+  "artifact_types": ["pseudocode", "mermaid", "interface", "compatibility-table", "state-table", "dependency-table"],
+  "sections": ["Outcome and Scope", "Evidence Ledger", "Decisions", "Implementation Specification", "Propagation Record", "Boundary Traces", "Domain Obligations", "Traceability", "Verification", "Risks, Assumptions, and Attack"],
+  "tier_requirements": {
+    "tiny": ["SC", "F", "D", "CH", "P", "B", "T", "A"],
+    "standard": ["SC", "F", "D", "CH", "P", "B", "C", "T", "A", "blueprint"],
+    "high-risk": ["SC", "F", "D", "CH", "P", "B", "C", "R", "T", "A", "O", "blueprint"]
+  },
+  "record_schemas": {
+    "SC": {"required": ["given", "when", "then", "unchanged"]},
+    "D": {"required": ["selected", "evidence", "rejected", "drawback"]},
+    "CH": {"required": ["path", "anchor", "status", "evidence", "change"]},
+    "O": {"required": ["domain", "obligation", "status", "evidence", "decision", "changes", "tests"]},
+    "A": {"required": ["status", "finding", "evidence", "resolution"]}
+  }
 }
