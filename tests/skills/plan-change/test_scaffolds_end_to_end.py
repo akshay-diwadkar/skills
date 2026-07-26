@@ -58,8 +58,10 @@ def test_hydrated_scaffolds_validate_and_finalize(tmp_path: Path, tier: str, dom
     _plan, diagnostics = validate_plan(draft, tmp_path)
     assert diagnostics == []
     finalized = finalized_text(draft, tmp_path)
-    _plan, diagnostics = validate_plan(finalized, tmp_path, require_finalized=True)
+    finalized_plan, diagnostics = validate_plan(finalized, tmp_path, require_finalized=True)
     assert diagnostics == []
+    assert finalized_plan is not None and finalized_plan.binding is not None
+    assert "branch" not in finalized_plan.binding
 
 
 def test_high_risk_scaffold_requires_a_domain() -> None:

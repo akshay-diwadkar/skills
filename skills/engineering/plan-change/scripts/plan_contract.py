@@ -40,11 +40,19 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
     if tier == "high-risk" and not domains:
         raise ValueError("high-risk scaffolds require at least one risk domain")
     metadata = {
-        "provisional": {"intent": intent, "risk_domains": domains, "tier": tier},
-        "final": {"intent": intent, "risk_domains": domains, "tier": tier},
+        "provisional": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": []},
+        "final": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": []},
     }
     obligation_rows = [(domain, obligation) for domain in domains for obligation in OBLIGATIONS[domain]]
-    tests = ["T-1", *(f"T-{index}" for index in range(2, len(obligation_rows) + 2))]
+    grouped_tests: list[tuple[str, list[str], str]] = []
+    obligation_tests: dict[tuple[str, str], str] = {}
+    for domain in domains:
+        for obligations in CONTRACT["obligation_test_groups"][domain]:
+            test_id = f"T-{len(grouped_tests) + 2}"
+            grouped_tests.append((domain, obligations, test_id))
+            for obligation in obligations:
+                obligation_tests[(domain, obligation)] = test_id
+    tests = ["T-1", *(test_id for _domain, _obligations, test_id in grouped_tests)]
     rows = [
         "# Replace With an Action-Oriented Outcome",
         "<!-- plan-contract: 5 -->",
@@ -65,7 +73,7 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         [
             "",
             "## Implementation Specification",
-            "- CH-1: path: REPLACE_CURRENT_PATH | anchor: REPLACE_CURRENT_ANCHOR | status: existing | evidence: F-1 | change: specify input branches error behavior ordering side effects and caller ownership; do not defer any material behavior",
+            "- CH-1: path: REPLACE_CURRENT_PATH | anchor: REPLACE_CURRENT_ANCHOR | status: existing | locality: local-production | reversibility: reversible | evidence: F-1 | change: specify propagation consumer caller boundary input literal implementation branches ordering side effects and exact behavior; do not defer any material behavior",
         ]
     )
     if tier == "standard":
@@ -94,10 +102,11 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
     )
     for number, (domain, obligation) in enumerate(obligation_rows, 1):
         alias = CONTRACT["obligation_aliases"][obligation][0]
+        test_id = obligation_tests[(domain, obligation)]
         rows.append(
             f"- O-{number}: domain: {domain} | obligation: {obligation} | status: satisfied | "
-            f"coverage: {alias} behavior is owned by CH-1 and verified by T-{number + 1} | "
-            f"evidence: F-1 | decision: D-1 | changes: CH-1 | tests: T-{number + 1}"
+            f"coverage: {alias} behavior is owned by CH-1 and verified by {test_id} | "
+            f"evidence: F-1 | decision: D-1 | changes: CH-1 | tests: {test_id}"
         )
     rows.extend(
         [
@@ -115,32 +124,35 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         [
             "",
             "## Verification",
-            f"- T-1: given: exact setup input and dependency state | when: named entry point runs | then: exact output error persisted state or external-call expectation | command: {command}",
+            f"- T-1: given: exact setup input and dependency state | when: named entry point runs | then: exact propagation consumer caller boundary input literal implementation branch ordering side effect output error persisted state or external-call expectation | command: {command}",
         ]
     )
-    for index, (domain, obligation) in enumerate(obligation_rows, 2):
-        alias = CONTRACT["obligation_aliases"][obligation][0]
+    for domain, obligations, test_id in grouped_tests:
+        concepts = ", ".join(CONTRACT["obligation_aliases"][obligation][0] for obligation in obligations)
+        attacks = ", ".join(
+            alias
+            for attack in DOMAIN_ATTACKS.get(domain, ())
+            for alias in CONTRACT["attack_aliases"][attack][:1]
+        )
         rows.append(
-            f"- T-{index}: given: {domain} boundary with exact {alias} precondition | "
-            f"when: named {obligation} path runs | then: exact {alias} outcome is verified | "
+            f"- {test_id}: given: {domain} boundary with exact {concepts} preconditions | "
+            f"when: named related obligation paths run | then: exact {concepts} outcomes and {attacks} attack behavior are verified | "
             f"command: python -m pytest tests/REPLACE_{domain}.py"
         )
     rows.extend(["", "## Risks, Assumptions, and Attack"])
     for attack in GENERIC_ATTACKS:
-        status = "dismissed" if attack == "boundary-input" else "repaired"
-        resolution = "F-1" if status == "dismissed" else "CH-1, T-1"
         rows.append(
-            f"- A-{attack}: status: {status} | finding: describe the concrete {attack} failure mode and affected boundary | evidence: F-1 | resolution: {resolution}"
+            f"- A-{attack}: status: repaired | finding: describe the concrete {attack} failure mode and affected boundary | evidence: F-1 | resolution: CH-1, T-1"
         )
     emitted_attacks: set[str] = set()
     for domain in domains:
-        domain_test = 2 + next(index for index, row in enumerate(obligation_rows) if row[0] == domain)
+        domain_test = obligation_tests[(domain, OBLIGATIONS[domain][0])]
         for attack in sorted(DOMAIN_ATTACKS.get(domain, ())):
             if attack in emitted_attacks:
                 continue
             emitted_attacks.add(attack)
             rows.append(
-                f"- A-{attack}: status: repaired | finding: describe the concrete {domain} {attack} failure mode and exact outcome | evidence: F-1 | resolution: CH-1, T-{domain_test}"
+                f"- A-{attack}: status: repaired | finding: describe the concrete {domain} {attack} failure mode and exact outcome | evidence: F-1 | resolution: CH-1, {domain_test}"
             )
     if tier == "high-risk":
         rows.append("- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named concrete risk")

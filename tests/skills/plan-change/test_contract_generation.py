@@ -15,6 +15,11 @@ def test_json_contract_is_complete_and_generated_data_is_current() -> None:
     assert set(contract["record_schemas"]) == {"SC", "F", "D", "CH", "P", "B", "O", "C", "R", "T", "A", "X"}
     assert set(contract["obligations"]) == set(contract["risk_domains"])
     assert set(contract["blueprint_concepts"]) == set(contract["risk_domains"])
+    assert set(contract["obligation_test_groups"]) == set(contract["risk_domains"])
+    for domain, obligations in contract["obligations"].items():
+        grouped = [obligation for group in contract["obligation_test_groups"][domain] for obligation in group]
+        assert sorted(grouped) == sorted(obligations)
+        assert len(grouped) == len(set(grouped))
     result = subprocess.run(
         [sys.executable, "tools/validation/generate_plan_contract.py", "--check"],
         cwd=ROOT,

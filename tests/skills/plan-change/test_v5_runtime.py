@@ -15,7 +15,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
     excerpt = b"def normalize_name(raw: str) -> str:\n"
     body = f'''# Normalize name
 <!-- plan-contract: 5 -->
-<!-- plan-metadata: {{"provisional":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}"}},"final":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}"}}}} -->
+<!-- plan-metadata: {{"provisional":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}","tier_signals":[]}},"final":{{"intent":"bug-fix","risk_domains":[],"tier":"{tier}","tier_signals":[]}}}} -->
 
 ## Outcome and Scope
 - SC-1: given: blank input | when: normalize_name runs | then: stable normalized output | unchanged: nonblank normalization remains stable
@@ -24,7 +24,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 ## Decisions
 - D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface | drawback: changes the existing local contract
 ## Implementation Specification
-- CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return stable empty output before normalizing blank input
+- CH-1: path: src/names.py | anchor: normalize_name | status: existing | locality: local-production | reversibility: reversible | evidence: F-1 | change: return stable empty output with propagation consumer boundary input literal implementation branch ordering and side effect coverage
 ## Propagation Record
 - P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: unchanged
 ## Boundary Traces
@@ -35,11 +35,11 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 |---|---|---|
 | SC-1 | CH-1 | T-1 |
 ## Verification
-- T-1: given: blank input | when: normalize_name runs | then: stable result | command: python -m pytest
+- T-1: given: blank boundary input and propagation consumer | when: normalize_name literal implementation runs | then: stable branch ordering and side effect result | command: python -m pytest
 ## Risks, Assumptions, and Attack
 - A-forgotten-propagation: status: repaired | finding: propagation inventory reviewed | evidence: F-1 | resolution: CH-1, T-1
-- A-boundary-input: status: dismissed | finding: unchanged boundary | evidence: F-1 | resolution: F-1
-- A-literal-implementation: status: repaired | finding: decision is explicit | evidence: F-1 | resolution: CH-1, T-1
+- A-boundary-input: status: repaired | finding: boundary input behavior is explicit | evidence: F-1 | resolution: CH-1, T-1
+- A-literal-implementation: status: repaired | finding: literal implementation decision is explicit | evidence: F-1 | resolution: CH-1, T-1
 '''
     return body
 
@@ -130,7 +130,10 @@ def test_deferred_changes_and_generic_standard_checks_fail_closed(tmp_path: Path
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
     text = draft(tmp_path, tier="standard")
-    text = text.replace("return stable empty output before normalizing blank input", "determine behavior later")
+    text = text.replace(
+        "return stable empty output with propagation consumer boundary input literal implementation branch ordering and side effect coverage",
+        "determine behavior later",
+    )
     text = text.replace("## Decisions\n", "## Decisions\n- C-1: constraint: preserve current caller contract | evidence: F-1\n")
     text = text.replace("## Implementation Specification\n", "## Implementation Specification\n### Execution Blueprint: CH-1 — branch [type: pseudocode; domains: none]\n```pseudocode\ninput -> branch -> result\n```\n")
     _plan, diagnostics = validate_plan(text, tmp_path)

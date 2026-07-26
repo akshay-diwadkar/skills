@@ -36,6 +36,8 @@ REQUIRED_ATTACKS = set(CONTRACT["required_attacks"])
 DOMAIN_ATTACKS = {domain: set(attacks) for domain, attacks in CONTRACT["domain_attacks"].items()}
 OBLIGATIONS = {domain: tuple(obligations) for domain, obligations in CONTRACT["obligations"].items()}
 OBLIGATION_ALIASES = {name: tuple(aliases) for name, aliases in CONTRACT["obligation_aliases"].items()}
+ATTACK_ALIASES = {name: tuple(aliases) for name, aliases in CONTRACT["attack_aliases"].items()}
+TIER_SIGNALS = set(CONTRACT["tier_signals"])
 BLUEPRINT_CONCEPTS = {
     domain: tuple(tuple(group) for group in groups) for domain, groups in CONTRACT["blueprint_concepts"].items()
 }
@@ -111,6 +113,12 @@ class Plan:
         final = self.metadata.get("final", {}) if isinstance(self.metadata, dict) else {}
         domains = final.get("risk_domains", []) if isinstance(final, dict) else []
         return set(domains) if isinstance(domains, list) and all(isinstance(x, str) for x in domains) else set()
+
+    @property
+    def tier_signals(self) -> set[str]:
+        final = self.metadata.get("final", {}) if isinstance(self.metadata, dict) else {}
+        signals = final.get("tier_signals", []) if isinstance(final, dict) else []
+        return set(signals) if isinstance(signals, list) and all(isinstance(x, str) for x in signals) else set()
 
     def all_records(self) -> Iterable[Record]:
         return (r for rs in self.records.values() for r in rs)
@@ -297,9 +305,20 @@ def derive_minimum_tier(plan: Plan) -> str:
     changes = plan.records.get("CH", ())
     return (
         "standard"
-        if len({x.fields.get("path") for x in changes}) > 1
+        if plan.tier_signals
+        or len(changes) != 1
+        or any(
+            change.fields.get("status") != "existing"
+            or change.fields.get("locality") != "local-production"
+            or change.fields.get("reversibility") != "reversible"
+            for change in changes
+        )
+        or len({x.fields.get("path") for x in changes}) > 1
         or plan.records.get("C")
         or len({x.fields.get("class") for x in plan.records.get("B", ())}) > 1
+        or any(x.fields.get("surface") == "transitive-consumer" for x in plan.records.get("P", ()))
+        or len({x.fields.get("async") for x in plan.records.get("F", ()) if x.fields.get("async") in {"true", "false"}}) > 1
+        or len({x.fields.get("command") for x in plan.records.get("T", ())}) > 1
         or any(x.fields.get("surface") in {"config", "schema", "generated-output", "generator", "deployment-hook"} for x in plan.records.get("P", ()))
         or any(x.fields.get("kind") == "generated-from" for x in plan.records.get("F", ()))
         else "tiny"
@@ -359,6 +378,7 @@ def snapshot(root: Path, plan: Plan | None = None) -> dict[str, Any]:
         "repository_id": (git("config", "--get", "remote.origin.url").stdout.strip() if is_git else "") or str(root.resolve()),
         "git": is_git,
         "git_head": git("rev-parse", "HEAD").stdout.strip() or None if is_git else None,
+        "branch": (git("symbolic-ref", "--short", "-q", "HEAD").stdout.strip() or None) if is_git else None,
         "dirty": dirty,
         "tracked": tracked,
         "untracked": untracked,
@@ -378,6 +398,7 @@ def binding_for(plan: Plan, root: Path) -> dict[str, Any]:
     value.pop("tracked", None)
     value.pop("untracked", None)
     value.pop("git_head", None)
+    value.pop("branch", None)
     value["plan_body_sha256"] = _hash(
         "\n".join(
             x for x in canonical_text(plan.text).splitlines() if not x.startswith("<!-- plan-repository:")
@@ -405,6 +426,13 @@ def _snapshot_diagnostics(baseline: object, current: dict[str, Any]) -> list[Dia
             Diagnostic(
                 "snapshot.head_changed",
                 f"Repository HEAD changed from {baseline.get('git_head')} to {current.get('git_head')}.",
+            )
+        )
+    if baseline.get("branch") != current.get("branch"):
+        diagnostics.append(
+            Diagnostic(
+                "snapshot.branch_changed",
+                f"Repository branch changed from {baseline.get('branch')} to {current.get('branch')}.",
             )
         )
     for category in ("dirty", "tracked", "untracked"):
@@ -467,6 +495,22 @@ def _concrete(value: str) -> bool:
     words = re.findall(r"[A-Za-z0-9_/-]+", value.lower())
     vague = {"works", "reliability", "necessary", "edge", "cases", "better", "cleaner", "simpler", "scalable", "done"}
     return len(words) >= 2 and not (set(words) <= vague)
+
+
+def _mentions(value: str, aliases: Iterable[str]) -> bool:
+    folded = re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+    return any(re.sub(r"[^a-z0-9]+", " ", alias.casefold()).strip() in folded for alias in aliases)
+
+
+def _grounds_absence(value: str, aliases: Iterable[str]) -> bool:
+    folded = re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+    for alias in aliases:
+        normalized = re.sub(r"[^a-z0-9]+", " ", alias.casefold()).strip()
+        before = rf"\b(?:no|not|none|absent|without|cannot|does not)(?:\s+[a-z0-9]+){{0,6}}\s+{re.escape(normalized)}\b"
+        after = rf"\b{re.escape(normalized)}(?:\s+[a-z0-9]+){{0,4}}\s+(?:is not|are not|does not|absent|none)\b"
+        if re.search(before, folded) or re.search(after, folded):
+            return True
+    return False
 
 
 def _deferred(value: str) -> bool:
@@ -785,6 +829,15 @@ def _metadata_diagnostics(plan: Plan) -> tuple[list[Diagnostic], dict[str, Any],
         for domain in domains:
             if domain not in RISK_DOMAINS:
                 ds.append(Diagnostic(f"metadata.{label}_domain", f"{label.title()} risk domain `{domain}` is unsupported."))
+        signals = value.get("tier_signals")
+        if not isinstance(signals, list) or not all(isinstance(x, str) for x in signals):
+            ds.append(Diagnostic(f"metadata.{label}_signals", f"{label.title()} tier_signals must be a list of known signal strings."))
+        elif len(signals) != len(set(signals)):
+            ds.append(Diagnostic(f"metadata.{label}_signals", f"{label.title()} tier_signals must not contain duplicates."))
+        else:
+            for signal in signals:
+                if signal not in TIER_SIGNALS:
+                    ds.append(Diagnostic(f"metadata.{label}_signal", f"{label.title()} tier signal `{signal}` is unsupported."))
     return ds, provisional, final
 
 
@@ -872,6 +925,10 @@ def validate_plan(
     for ch in plan.records.get("CH", ()):
         p = _resolve(repo_root, ch.fields.get("path", ""))
         status = ch.fields.get("status")
+        if ch.fields.get("locality") not in {"local-production", "shared-production", "test-only"}:
+            ds.append(Diagnostic("change.locality", f"{ch.id}: locality must be local-production, shared-production, or test-only.", ch.line))
+        if ch.fields.get("reversibility") not in {"reversible", "conditional", "irreversible"}:
+            ds.append(Diagnostic("change.reversibility", f"{ch.id}: reversibility must be reversible, conditional, or irreversible.", ch.line))
         if status not in {"existing", "new"}:
             ds.append(Diagnostic("change.status", f"{ch.id}: status must be existing or new.", ch.line))
             continue
@@ -943,7 +1000,6 @@ def validate_plan(
             ds.append(Diagnostic("boundary.specificity", f"{boundary.id}: boundary traces need a concrete class and a three-stage flow.", boundary.line))
     expected_obligations = {d: set(OBLIGATIONS[d]) for d in plan.domains}
     seen_obligations: dict[str, set[str]] = defaultdict(set)
-    obligation_ownership: dict[tuple[str, str, str, str], list[Record]] = defaultdict(list)
     record_index = {record.id: record for record in plan.all_records()}
     for obligation_record in plan.records.get("O", ()):
         domain, obligation = obligation_record.fields.get("domain", ""), obligation_record.fields.get("obligation", "")
@@ -951,12 +1007,13 @@ def validate_plan(
             ds.append(Diagnostic("obligation.domain", f"{obligation_record.id}: obligation must belong to a final risk domain.", obligation_record.line))
         if obligation in seen_obligations[domain]:
             ds.append(Diagnostic("obligation.duplicate", f"{obligation_record.id}: {domain}/{obligation} appears more than once.", obligation_record.line))
-        if obligation_record.fields.get("status") != "satisfied" or not all(
-            _refs(obligation_record.fields.get(field, "")) for field in ("evidence", "decision", "changes", "tests")
-        ):
-            ds.append(Diagnostic("obligation.format", f"{obligation_record.id}: use a concrete satisfied obligation with owned evidence, decision, changes, and tests.", obligation_record.line))
+        status = obligation_record.fields.get("status")
         aliases = OBLIGATION_ALIASES.get(obligation, ())
         coverage = obligation_record.fields.get("coverage", "").casefold()
+        evidence_refs = _refs(obligation_record.fields.get("evidence", ""))
+        evidence_text = " ".join(
+            record_index[ref].fields.get("observation", "") for ref in evidence_refs if ref in record_index
+        )
         change_text = " ".join(
             record_index[ref].fields.get("change", "")
             for ref in _refs(obligation_record.fields.get("changes", ""))
@@ -967,40 +1024,60 @@ def validate_plan(
             for ref in _refs(obligation_record.fields.get("tests", ""))
             if ref in record_index
         ]
-        if aliases and not any(alias in f"{coverage} {change_text}" for alias in aliases):
+        if status == "satisfied":
+            if obligation_record.fields.get("reason") or not all(
+                _refs(obligation_record.fields.get(field, "")) for field in ("evidence", "decision", "changes", "tests")
+            ):
+                ds.append(Diagnostic("obligation.format", f"{obligation_record.id}: satisfied obligations require evidence, decision, changes, and tests but no reason.", obligation_record.line))
+            if aliases and not _mentions(f"{coverage} {change_text}", aliases):
+                ds.append(
+                    Diagnostic(
+                        "obligation.coverage",
+                        f"{obligation_record.id}: coverage and owning change must describe {obligation}.",
+                        obligation_record.line,
+                    )
+                )
+            if aliases and not any(_mentions(test_text, aliases) for test_text in test_texts):
+                ds.append(
+                    Diagnostic(
+                        "obligation.test_ownership",
+                        f"{obligation_record.id}: a referenced T-n must verify {obligation} behavior.",
+                        obligation_record.line,
+                    )
+                )
+        elif status == "not-applicable":
+            reason = obligation_record.fields.get("reason", "")
+            if not evidence_refs or not _concrete(reason) or any(
+                obligation_record.fields.get(field) for field in ("decision", "changes", "tests")
+            ):
+                ds.append(Diagnostic("obligation.not_applicable", f"{obligation_record.id}: not-applicable requires a concrete reason and F-n evidence, without decision, change, or test ownership.", obligation_record.line))
+            elif not _grounds_absence(reason, aliases) or not _grounds_absence(evidence_text, aliases):
+                ds.append(Diagnostic("obligation.not_applicable_evidence", f"{obligation_record.id}: reason and cited facts must ground why {obligation} is absent.", obligation_record.line))
+            contradiction_texts = [
+                *(record.fields.get("observation", "") for record in facts.values() if record.id not in evidence_refs),
+                *(record.fields.get("change", "") for record in plan.records.get("CH", ())),
+                *(blueprint.body for blueprint in plan.blueprints),
+                *(
+                    " ".join(record.fields.get(field, "") for field in ("given", "when", "then"))
+                    for record in plan.records.get("T", ())
+                ),
+            ]
+            if (
+                _grounds_absence(reason, (domain.replace("-", " "),))
+                or any(_mentions(text, aliases) and not _grounds_absence(text, aliases) for text in contradiction_texts)
+            ):
+                ds.append(Diagnostic("obligation.not_applicable_contradiction", f"{obligation_record.id}: facts, changes, domain, blueprints, or tests contradict the non-applicability reason.", obligation_record.line))
+        else:
+            ds.append(Diagnostic("obligation.status", f"{obligation_record.id}: status must be satisfied or not-applicable.", obligation_record.line))
+        if aliases and not _mentions(coverage, aliases):
             ds.append(
                 Diagnostic(
                     "obligation.coverage",
-                    f"{obligation_record.id}: coverage and owning change must describe {obligation}.",
+                    f"{obligation_record.id}: coverage must explicitly name {obligation}.",
                     obligation_record.line,
                 )
             )
-        if aliases and not any(any(alias in test_text for alias in aliases) for test_text in test_texts):
-            ds.append(
-                Diagnostic(
-                    "obligation.test_ownership",
-                    f"{obligation_record.id}: a referenced T-n must verify {obligation} behavior.",
-                    obligation_record.line,
-                )
-            )
-        ownership_key = (
-            obligation_record.fields.get("evidence", ""),
-            obligation_record.fields.get("decision", ""),
-            obligation_record.fields.get("changes", ""),
-            obligation_record.fields.get("tests", ""),
-        )
-        obligation_ownership[ownership_key].append(obligation_record)
         seen_obligations[domain].add(obligation)
-    for records in obligation_ownership.values():
-        if len(records) > 1:
-            for record in records:
-                ds.append(
-                    Diagnostic(
-                        "obligation.generic_ownership",
-                        f"{record.id}: obligations may not copy the same evidence, decision, change, and test ownership.",
-                        record.line,
-                    )
-                )
     for d, needed in expected_obligations.items():
         for obligation_name in needed - seen_obligations[d]:
             ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {obligation_name}."))
@@ -1016,7 +1093,14 @@ def validate_plan(
             ds.append(Diagnostic("attack.unknown", f"{r.id}: attack is not recognized by plan-contract v5.", r.line))
     for attack_name in needed_attacks - attacks.keys():
         ds.append(Diagnostic("attack.required", f"A-{attack_name} is required."))
+    dismissal_reasons = Counter(
+        re.sub(r"\W+", " ", record.fields.get("reason", "").casefold()).strip()
+        for record in attacks.values()
+        if record.fields.get("status") in {"dismissed", "not-applicable"} and record.fields.get("reason")
+    )
     for r in attacks.values():
+        attack_name = r.id[2:]
+        aliases = ATTACK_ALIASES.get(attack_name, ())
         if (
             r.fields.get("status") not in {"repaired", "dismissed", "not-applicable"}
             or not r.fields.get("finding")
@@ -1030,10 +1114,31 @@ def validate_plan(
             )
         elif not _concrete(r.fields.get("finding", "")):
             ds.append(Diagnostic("attack.finding", f"{r.id}: finding must be concrete, not a token-only placeholder.", r.line))
-        elif r.fields.get("status") == "repaired" and (not _refs(r.fields.get("resolution", "")) & plan.ids("CH") or not _refs(r.fields.get("resolution", "")) & plan.ids("T")):
-            ds.append(Diagnostic("attack.ownership", f"{r.id}: repaired attack needs owning CH-n and T-n resolution.", r.line))
-        elif r.fields.get("status") in {"dismissed", "not-applicable"} and not _refs(r.fields.get("evidence", "")):
-            ds.append(Diagnostic("attack.dismissal", f"{r.id}: dismissal needs grounded F-n evidence.", r.line))
+        elif not _mentions(r.fields.get("finding", ""), aliases):
+            ds.append(Diagnostic("attack.specificity", f"{r.id}: finding must address the named attack.", r.line))
+        elif r.fields.get("status") == "repaired":
+            resolution_refs = _refs(r.fields.get("resolution", ""))
+            owning_changes = resolution_refs & plan.ids("CH")
+            owning_tests = resolution_refs & plan.ids("T")
+            ownership_text = " ".join(
+                " ".join(record_index[ref].fields.values()) for ref in owning_changes | owning_tests if ref in record_index
+            )
+            if not owning_changes or not owning_tests or not _mentions(ownership_text, aliases):
+                ds.append(Diagnostic("attack.ownership", f"{r.id}: repaired attack needs relevant owning CH-n and T-n resolution.", r.line))
+            if r.fields.get("reason"):
+                ds.append(Diagnostic("attack.reason", f"{r.id}: repaired attacks must not carry a dismissal reason.", r.line))
+        else:
+            reason = r.fields.get("reason", "")
+            evidence_text = " ".join(
+                facts[ref].fields.get("observation", "") for ref in _refs(r.fields.get("evidence", "")) if ref in facts
+            )
+            normalized = re.sub(r"\W+", " ", reason.casefold()).strip()
+            if not _concrete(reason) or not _mentions(reason, aliases):
+                ds.append(Diagnostic("attack.reason", f"{r.id}: dismissal needs an attack-specific reason.", r.line))
+            if not _refs(r.fields.get("evidence", "")) or not _mentions(evidence_text, aliases):
+                ds.append(Diagnostic("attack.dismissal", f"{r.id}: dismissal needs attack-specific F-n evidence.", r.line))
+            if normalized and dismissal_reasons[normalized] > 1:
+                ds.append(Diagnostic("attack.generic_reason", f"{r.id}: dismissal reason is copied across attacks.", r.line))
     if plan.tier in {"standard", "high-risk"} and not plan.blueprints:
         ds.append(Diagnostic("blueprint.required", f"{plan.tier} plans require an execution blueprint."))
     covered_domains: set[str] = set()

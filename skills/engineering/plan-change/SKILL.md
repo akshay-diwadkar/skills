@@ -15,7 +15,7 @@ Resolve `skill-root` as this directory. Run scripts with `cwd` set to `skill-roo
 
 ## 1. Classify and Prepare
 
-Read `references/plan-contract.md` and `references/cognitive-protocols.md` completely. Select a provisional intent, tier, and every plausible risk domain; choose the safer tier when evidence is incomplete.
+Read `references/plan-contract.md` and `references/cognitive-protocols.md` completely. Select a provisional intent, tier, every plausible risk domain, and every typed tier signal; choose the safer tier when evidence is incomplete. Keep `tiny` to one local, reversible production change with no propagation or shared-contract signal.
 
 Run:
 
@@ -42,7 +42,7 @@ Complete this step only when current behavior, root cause where applicable, call
 
 ## 3. Specify the Plan
 
-Fill the scaffold one record family at a time: `SC` outcome, `F` evidence, `D` decisions, `CH` changes, `P` propagation, `B` boundaries, domain obligations, traceability, `T` verification, and attacks. Use only current fingerprints.
+Fill the scaffold one record family at a time: `SC` outcome, `F` evidence, `D` decisions, `CH` changes, `P` propagation, `B` boundaries, domain obligations, traceability, `T` verification, and attacks. Use only current fingerprints. Mark an obligation `not-applicable` only with a concrete reason and repository-grounded evidence; map every satisfied obligation to a concept-specific test, sharing tests only across related obligations named by the test behavior.
 
 Read `references/worked-examples.md` before writing a standard or high-risk plan. For non-tiny work, include a literal execution blueprint that resolves branches, errors, ordering, side effects, and compatibility behavior. For every public/shared interface, state current and proposed shapes, defaults, errors, nullability, and old/new combinations.
 
@@ -50,7 +50,7 @@ Complete this step only when every success criterion and constraint maps to exac
 
 ## 4. Attack and Repair
 
-Read `references/adversarial-verification.md` completely. Apply every required attack and every attack implied by a final risk domain. Repair P0/P1 findings in their owning `CH-n` and `T-n`; dismiss a finding only with grounded evidence.
+Read `references/adversarial-verification.md` completely. Apply every required attack and every attack implied by a final risk domain. Repair P0/P1 findings in relevant owning `CH-n` and `T-n`; dismiss a finding only with an attack-specific reason and grounded evidence.
 
 Complete this step only when every boundary trace, propagation claim, execution blueprint, and test expectation still agrees with the repaired records.
 
