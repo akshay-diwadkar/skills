@@ -24,8 +24,9 @@ def section_names(tier: str) -> list[str]:
     return list(contract["base_sections"])
 
 
-def render_scaffold(tier: str, intent: str, domains: list[str]) -> str:
+def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) -> str:
     contract = load_contract()
+    domains = domains or []
     if tier not in contract["tiers"] or intent not in contract["intents"]:
         raise ValueError("unsupported plan classification")
     if len(domains) != len(set(domains)) or any(domain not in contract["risk_domains"] for domain in domains):
