@@ -6,7 +6,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "plan-change"
 sys.path.insert(0, str(DEV_DIR))
+sys.path.insert(0, str(REPO_ROOT / "tests"))
 import score_plan_evaluation  # noqa: E402
+from v4_plan_factory import finalized_tiny_plan  # noqa: E402
 
 
 def test_evaluation_catalog_has_six_blind_cases() -> None:
@@ -32,8 +34,6 @@ def test_scorer_hard_fails_invalid_or_forbidden_plan() -> None:
 
 
 def test_scorer_accepts_grounded_tiny_example() -> None:
-    sys.path.insert(0, str(REPO_ROOT / "tests"))
-    from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]
     plan = finalized_tiny_plan(DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug")
     result = score_plan_evaluation.score(
         plan,
@@ -70,8 +70,6 @@ def test_root_cause_case_rejects_unrequested_interface_widening() -> None:
 
 def test_unfinalized_plan_is_a_hard_failure() -> None:
     expectations = json.loads(score_plan_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
-    sys.path.insert(0, str(REPO_ROOT / "tests"))
-    from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]
     plan = finalized_tiny_plan(DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug")
     plan = re.sub(r"^<!-- plan-validation:.*\n", "", plan, flags=re.MULTILINE)
     result = score_plan_evaluation.score(
