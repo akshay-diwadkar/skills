@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import argparse
 
-from plan_contract import load_contract, render_scaffold
+from plan_contract import INTENTS, render_scaffold
+from plan_runtime import TIERS
 
 
 def main() -> int:
-    contract = load_contract()
     parser = argparse.ArgumentParser(description="Render a v5 plan scaffold.")
-    parser.add_argument("--tier", choices=tuple(contract["tiers"]), required=True)
-    parser.add_argument("--intent", choices=tuple(contract["intents"]), required=True)
+    parser.add_argument("--tier", choices=TIERS, required=True)
+    parser.add_argument("--intent", choices=INTENTS, required=True)
     parser.add_argument("--risk-domain", action="append", default=[])
     args = parser.parse_args()
     try:

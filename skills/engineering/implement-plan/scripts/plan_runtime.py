@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import dataclasses
 import hashlib
 import json
@@ -62,13 +63,13 @@ SCHEMA: dict[str, tuple[set[str], set[str], str]] = {
 # field simply because a planner happened to spell it plausibly.
 REFERENCE_FIELDS: dict[str, dict[str, set[str]]] = {
     "D": {"evidence": {"F", "C"}},
-    "CH": {"evidence": {"F"}},
-    "P": {"owner": {"CH"}, "because": {"F"}, "directory-owner": {"CH", "F"}, "generator-owner": {"CH", "F"}},
+    "CH": {"evidence": {"F"}, "directory-owner": {"CH", "F"}, "generator-owner": {"CH", "F"}},
+    "P": {"owner": {"CH"}, "because": {"F"}},
     "B": {"path": {"F"}},
     "O": {"evidence": {"F"}, "decision": {"D"}, "changes": {"CH"}, "tests": {"T"}},
     "C": {"evidence": {"F"}},
     "R": {"owner": {"CH"}, "tests": {"T"}},
-    "A": {"evidence": {"F"}, "resolution": {"CH", "T", "F"}},
+    "A": {"evidence": {"F"}, "resolution": {"CH", "T", "F", "D"}},
     "X": {"evidence": {"F"}},
 }
 FACT_FIELD_REQUIREMENTS: dict[str, set[str]] = {
@@ -268,11 +269,14 @@ class Plan:
 
     @property
     def tier(self) -> str:
-        return str(self.metadata.get("final", {}).get("tier", ""))
+        final = self.metadata.get("final", {}) if isinstance(self.metadata, dict) else {}
+        return str(final.get("tier", "")) if isinstance(final, dict) else ""
 
     @property
     def domains(self) -> set[str]:
-        return set(self.metadata.get("final", {}).get("risk_domains", []))
+        final = self.metadata.get("final", {}) if isinstance(self.metadata, dict) else {}
+        domains = final.get("risk_domains", []) if isinstance(final, dict) else []
+        return set(domains) if isinstance(domains, list) and all(isinstance(x, str) for x in domains) else set()
 
     def all_records(self) -> Iterable[Record]:
         return (r for rs in self.records.values() for r in rs)
@@ -318,6 +322,11 @@ def binding_digest(v: dict[str, Any]) -> str:
 
 def _refs(v: str) -> set[str]:
     return set(ID.findall(v))
+
+
+def _sorted_diagnostics(diagnostics: Iterable[Diagnostic]) -> list[Diagnostic]:
+    """Stable public diagnostic order for deterministic repair loops."""
+    return sorted(diagnostics, key=lambda item: (item.line is not None, item.line or 0, item.code, item.message))
 
 
 def _resolve(root: Path, raw: str) -> Path | None:
@@ -511,6 +520,7 @@ def binding_for(plan: Plan, root: Path) -> dict[str, Any]:
     value["dirty"] = {path: digest for path, digest in value["dirty"].items() if path in bound_paths}
     value.pop("tracked", None)
     value.pop("untracked", None)
+    value.pop("git_head", None)
     value["plan_body_sha256"] = _hash(
         "\n".join(
             x for x in canonical_text(plan.text).splitlines() if not x.startswith("<!-- plan-repository:")
@@ -531,11 +541,13 @@ def _need(ds: list[Diagnostic], r: Record, kind: str) -> None:
 
 def _typed_refs(ds: list[Diagnostic], record: Record, ids: set[str]) -> None:
     for field, allowed in REFERENCE_FIELDS.get(record.id.split("-", 1)[0], {}).items():
-        for ref in _refs(record.fields.get(field, "")):
-            if ref not in ids:
-                continue
+        value = record.fields.get(field, "")
+        refs = _refs(value)
+        if field in record.fields and not refs:
+            ds.append(Diagnostic("reference.required", f"{record.id}.{field}: use at least one {', '.join(sorted(allowed))}-n reference; filler text is not valid.", record.line))
+        for ref in refs:
             if ref.split("-", 1)[0] not in allowed:
-                ds.append(Diagnostic("reference.type", f"{record.id}.{field} may reference only {', '.join(sorted(allowed))} records.", record.line))
+                ds.append(Diagnostic("reference.type", f"{record.id}.{field} references {ref}; use only {', '.join(sorted(allowed))}-n records.", record.line))
 
 
 def _concrete(value: str) -> bool:
@@ -544,7 +556,12 @@ def _concrete(value: str) -> bool:
     return len(words) >= 2 and not (set(words) <= vague)
 
 
-def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str) -> None:
+def _deferred(value: str) -> bool:
+    """Reject placeholders that let a plan appear complete while deferring a decision."""
+    return bool(re.search(r"\b(?:tbd|todo|later|as needed|if necessary|appropriate|determine|decide later|follow up)\b", value, re.I))
+
+
+def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str, source_text: str = "") -> None:
     kind = fact.fields.get("kind", "")
     for required in FACT_FIELD_REQUIREMENTS.get(kind, set()) - set(fact.fields):
         ds.append(Diagnostic("fact.structured_required", f"{fact.id}: {kind} requires {required}.", fact.line))
@@ -558,6 +575,86 @@ def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str) -> None:
         value = checks[field]
         if value and field != "generator" and value not in excerpt:
             ds.append(Diagnostic("fact.structured", f"{fact.id}: claimed {field} is not present in cited source.", fact.line))
+    if kind not in {"function-signature", "call-edge"} or not source_text:
+        return
+    try:
+        tree = ast.parse(source_text)
+    except SyntaxError:
+        return
+    if kind == "function-signature":
+        functions = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        start, end = map(int, fact.fields["lines"].split("-", 1))
+        node = next(
+            (
+                n
+                for n in functions
+                if n.name == fact.fields.get("anchor")
+                and start <= n.lineno <= end
+            ),
+            None,
+        )
+        if node is None:
+            ds.append(Diagnostic("fact.signature", f"{fact.id}: cited anchor is not a Python function in the stated range.", fact.line))
+            return
+        claimed = [x.strip() for x in fact.fields.get("parameters", "").split(",")]
+        positional = [*node.args.posonlyargs, *node.args.args]
+        defaults = [None] * (len(positional) - len(node.args.defaults)) + list(node.args.defaults)
+        actual = [
+            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
+            for arg, default in zip(positional, defaults)
+        ]
+        if node.args.vararg:
+            actual.append("*" + node.args.vararg.arg + (f": {ast.unparse(node.args.vararg.annotation)}" if node.args.vararg.annotation else ""))
+        actual.extend(
+            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
+            for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults)
+        )
+        if node.args.kwarg:
+            actual.append("**" + node.args.kwarg.arg + (f": {ast.unparse(node.args.kwarg.annotation)}" if node.args.kwarg.annotation else ""))
+        if claimed != actual:
+            ds.append(Diagnostic("fact.signature_parameters", f"{fact.id}: claimed parameters do not exactly match the cited Python signature.", fact.line))
+        actual_return = ast.unparse(node.returns) if node.returns is not None else "None"
+        if fact.fields.get("returns", "").strip() != actual_return:
+            ds.append(Diagnostic("fact.signature_returns", f"{fact.id}: claimed return annotation `{fact.fields.get('returns', '')}` does not match `{actual_return}`.", fact.line))
+    else:
+        start, end = map(int, fact.fields["lines"].split("-", 1))
+        callers = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == fact.fields.get("caller") and start <= n.lineno <= end and (n.end_lineno is None or n.end_lineno <= end)]
+        if not callers:
+            ds.append(Diagnostic("fact.call_edge", f"{fact.id}: caller `{fact.fields.get('caller')}` does not exist.", fact.line))
+        elif not any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == fact.fields.get("callee")) or (isinstance(n.func, ast.Attribute) and n.func.attr == fact.fields.get("callee"))) for n in ast.walk(callers[0])):
+            ds.append(Diagnostic("fact.call_edge", f"{fact.id}: caller `{fact.fields.get('caller')}` does not call `{fact.fields.get('callee')}`.", fact.line))
+
+
+def _metadata_diagnostics(plan: Plan) -> tuple[list[Diagnostic], dict[str, Any], dict[str, Any]]:
+    """Validate untrusted metadata before any classification or set operation."""
+    ds: list[Diagnostic] = []
+    metadata = plan.metadata
+    if not isinstance(metadata, dict):
+        return [Diagnostic("metadata.shape", "Metadata must be a JSON object.")], {}, {}
+    provisional, final = metadata.get("provisional"), metadata.get("final")
+    if not isinstance(provisional, dict):
+        ds.append(Diagnostic("metadata.provisional", "Provisional metadata must be an object."))
+        provisional = {}
+    if not isinstance(final, dict):
+        ds.append(Diagnostic("metadata.final", "Final metadata must be an object."))
+        final = {}
+    for label, value in (("provisional", provisional), ("final", final)):
+        intent = value.get("intent")
+        if intent not in {"feature", "bug-fix", "refactor"}:
+            ds.append(Diagnostic(f"metadata.{label}_intent", f"{label.title()} intent `{intent}` is unsupported; use feature, bug-fix, or refactor."))
+        tier = value.get("tier")
+        if tier not in TIERS:
+            ds.append(Diagnostic(f"metadata.{label}_tier", f"{label.title()} tier `{tier}` is unsupported; use one of: {', '.join(TIERS)}."))
+        domains = value.get("risk_domains")
+        if not isinstance(domains, list) or not all(isinstance(x, str) for x in domains):
+            ds.append(Diagnostic(f"metadata.{label}_domains", f"{label.title()} risk_domains must be a list of known domain strings."))
+            continue
+        if len(domains) != len(set(domains)):
+            ds.append(Diagnostic(f"metadata.{label}_domains", f"{label.title()} risk_domains must not contain duplicates."))
+        for domain in domains:
+            if domain not in RISK_DOMAINS:
+                ds.append(Diagnostic(f"metadata.{label}_domain", f"{label.title()} risk domain `{domain}` is unsupported."))
+    return ds, provisional, final
 
 
 def validate_plan(
@@ -565,20 +662,20 @@ def validate_plan(
 ) -> tuple[Plan | None, list[Diagnostic]]:
     plan, ds = parse_plan(text)
     if not plan:
-        return None, ds
-    final, provisional = plan.metadata.get("final"), plan.metadata.get("provisional")
-    if not isinstance(final, dict) or not isinstance(provisional, dict):
-        return plan, ds + [Diagnostic("metadata.shape", "Metadata needs provisional and final objects.")]
-    if plan.tier not in TIERS or not plan.domains <= RISK_DOMAINS:
-        ds.append(Diagnostic("metadata.classification", "Final tier and risk domains are invalid."))
-    if plan.tier in TIERS:
+        return None, _sorted_diagnostics(ds)
+    metadata_ds, provisional, final = _metadata_diagnostics(plan)
+    ds.extend(metadata_ds)
+    metadata_ok = not metadata_ds
+    if metadata_ok and final["intent"] != provisional["intent"]:
+        ds.append(Diagnostic("metadata.intent", "Final intent must match provisional intent."))
+    if metadata_ok and final["tier"] in TIERS and provisional["tier"] in TIERS and TIERS.index(final["tier"]) < TIERS.index(provisional["tier"]):
+        ds.append(Diagnostic("tier.downgrade", "Final tier cannot be below provisional tier."))
+    if metadata_ok and plan.tier in TIERS:
         for k in REQUIRED[plan.tier]:
             if not plan.records.get(k):
                 ds.append(Diagnostic("record.required", f"{plan.tier} plan requires at least one {k} record."))
-    if TIERS.index(plan.tier) < TIERS.index(str(provisional.get("tier", "tiny"))):
-        ds.append(Diagnostic("tier.downgrade", "Final tier cannot be below provisional tier."))
     dismissed = {r.fields.get("domain") for r in plan.records.get("X", ()) if r.fields.get("status") == "dismissed"}
-    if not set(provisional.get("risk_domains", [])) <= plan.domains | dismissed:
+    if metadata_ok and not set(provisional["risk_domains"]) <= plan.domains | dismissed:
         ds.append(
             Diagnostic("domain.removal", "Provisional domains require final inclusion or a grounded X-n dismissal.")
         )
@@ -590,7 +687,7 @@ def validate_plan(
             or not _concrete(dismissal.fields.get("reason", ""))
         ):
             ds.append(Diagnostic("domain.dismissal", f"{dismissal.id}: must dismiss a provisional domain with concrete F-n evidence.", dismissal.line))
-    if plan.tier in TIERS and TIERS.index(plan.tier) < TIERS.index(derive_minimum_tier(plan)):
+    if metadata_ok and plan.tier in TIERS and TIERS.index(plan.tier) < TIERS.index(derive_minimum_tier(plan)):
         ds.append(Diagnostic("tier.minimum", f"{derive_minimum_tier(plan)} is required by plan contents."))
     ids = plan.ids()
     for kind, rs in plan.records.items():
@@ -603,6 +700,8 @@ def validate_plan(
                 ds.append(Diagnostic("success.observable", f"{r.id}: given, when, then, and unchanged must be observable and concrete.", r.line))
             if kind == "D" and (not _concrete(r.fields.get("selected", "")) or not _concrete(r.fields.get("rejected", "")) or not _concrete(r.fields.get("drawback", ""))):
                 ds.append(Diagnostic("decision.concrete", f"{r.id}: selected, rejected, and drawback must be concrete repository-grounded statements.", r.line))
+            if kind in {"SC", "D", "CH", "T", "R"} and any(_deferred(value) for value in r.fields.values()):
+                ds.append(Diagnostic("record.deferred", f"{r.id}: material planning records must not defer a decision or verification detail.", r.line))
             if kind == "P":
                 disposition = r.fields.get("disposition")
                 if disposition not in VALID_DISPOSITIONS:
@@ -636,7 +735,7 @@ def validate_plan(
             excerpt.encode()
         ):
             ds.append(Diagnostic("fact.stale", f"{f.id}: fact fingerprints are stale.", f.line))
-        _fact_fields(ds, f, excerpt)
+        _fact_fields(ds, f, excerpt, "\n".join(source))
     for ch in plan.records.get("CH", ()):
         p = _resolve(repo_root, ch.fields.get("path", ""))
         status = ch.fields.get("status")
@@ -649,14 +748,17 @@ def validate_plan(
                 ds.append(Diagnostic("change.target", f"{ch.id}: existing target is absent or unsafe.", ch.line))
             elif ch.fields.get("anchor", "") not in p.read_text(encoding="utf-8", errors="replace"):
                 ds.append(Diagnostic("change.anchor", f"{ch.id}: anchor is absent.", ch.line))
-            if (
-                not evidence
-                or evidence.fields.get("path", "").replace("\\", "/") != ch.fields.get("path", "").replace("\\", "/")
-                or ch.fields.get("anchor", "") != evidence.fields.get("anchor", "")
-            ):
+            evidence_has_anchor = False
+            if evidence and p and evidence.fields.get("path", "").replace("\\", "/") == ch.fields.get("path", "").replace("\\", "/"):
+                try:
+                    start, end = map(int, evidence.fields.get("lines", "").split("-", 1))
+                    evidence_has_anchor = ch.fields.get("anchor", "") in "\n".join(p.read_text(encoding="utf-8", errors="replace").splitlines()[start - 1 : end])
+                except ValueError:
+                    pass
+            if not evidence_has_anchor:
                 ds.append(
                     Diagnostic(
-                        "change.evidence_anchor", f"{ch.id}: needs same-path, same-anchor F-n evidence.", ch.line
+                        "change.evidence_anchor", f"{ch.id}: needs same-path F-n evidence whose cited range contains the exact change anchor.", ch.line
                     )
                 )
         elif not p or p.exists() or not p.parent.exists() or not (ch.fields.get("directory-owner") or ch.fields.get("generator-owner")):
@@ -665,13 +767,22 @@ def validate_plan(
                     "change.new_path", f"{ch.id}: new target must be absent, contained, and have an owner.", ch.line
                 )
             )
-        elif ch.fields.get("generator-owner") and not _refs(ch.fields["generator-owner"]):
-            ds.append(Diagnostic("change.generator_owner", f"{ch.id}: generator owner must be F-n or CH-n.", ch.line))
+        elif ch.fields.get("generator-owner"):
+            owners = _refs(ch.fields["generator-owner"])
+            if not owners or not owners <= (plan.ids("F") | plan.ids("CH")):
+                ds.append(Diagnostic("change.generator_owner", f"{ch.id}: generator-owner must be an F-n or CH-n authoritative generator reference.", ch.line))
         if any(
             fact.fields.get("kind") == "generated-from" and fact.fields.get("path", "") == ch.fields.get("path", "")
             for fact in facts.values()
         ) and not ch.fields.get("generator-owner"):
             ds.append(Diagnostic("change.generated_output", f"{ch.id}: generated output requires a generator owner; edit the authoritative source.", ch.line))
+        change_words = re.findall(r"[A-Za-z0-9_/-]+", ch.fields.get("change", ""))
+        if len(change_words) < 6 or len(set(change_words)) < 5:
+            ds.append(Diagnostic("change.specificity", f"{ch.id}: change needs exact behavior, branches, errors, ordering, or side effects.", ch.line))
+    for boundary in plan.records.get("B", ()):
+        flow = boundary.fields.get("flow", "")
+        if flow.count("->") < 2 or not _concrete(boundary.fields.get("class", "")):
+            ds.append(Diagnostic("boundary.specificity", f"{boundary.id}: boundary traces need a concrete class and a three-stage flow.", boundary.line))
     expected_obligations = {d: set(OBLIGATIONS[d]) for d in plan.domains}
     seen_obligations: dict[str, set[str]] = defaultdict(set)
     for obligation_record in plan.records.get("O", ()):
@@ -688,8 +799,16 @@ def validate_plan(
     for d, needed in expected_obligations.items():
         for obligation_name in needed - seen_obligations[d]:
             ds.append(Diagnostic("obligation.required", f"{d}: missing obligation {obligation_name}."))
-    attacks = {r.id[2:]: r for r in plan.records.get("A", ())}
+    attack_records = plan.records.get("A", ())
+    attacks = {r.id[2:]: r for r in attack_records}
     needed_attacks = REQUIRED_ATTACKS | set().union(*(DOMAIN_ATTACKS.get(d, set()) for d in plan.domains))
+    recognized_attacks = REQUIRED_ATTACKS | set().union(*DOMAIN_ATTACKS.values())
+    for name, count in Counter(r.id[2:] for r in attack_records).items():
+        if count > 1:
+            ds.append(Diagnostic("attack.duplicate", f"A-{name}: attack names must be unique.", next(r.line for r in attack_records if r.id[2:] == name)))
+    for r in attack_records:
+        if r.id[2:] not in recognized_attacks:
+            ds.append(Diagnostic("attack.unknown", f"{r.id}: attack is not recognized by plan-contract v5.", r.line))
     for attack_name in needed_attacks - attacks.keys():
         ds.append(Diagnostic("attack.required", f"A-{attack_name} is required."))
     for r in attacks.values():
@@ -735,6 +854,12 @@ def validate_plan(
         for domain, word in domain_words.items():
             if domain in plan.domains and word not in bp.body.lower():
                 ds.append(Diagnostic("blueprint.domain", f"Blueprint must describe {domain} {word} behavior.", bp.line))
+    for test in plan.records.get("T", ()):
+        command = test.fields.get("command", "").strip()
+        if plan.tier != "tiny" and command in {"python -m pytest", "pytest", "npm test", "go test ./..."}:
+            ds.append(Diagnostic("verification.generic_command", f"{test.id}: standard and high-risk plans need a targeted verification command.", test.line))
+        if not all(_concrete(test.fields.get(field, "")) for field in ("given", "when", "then")):
+            ds.append(Diagnostic("verification.specificity", f"{test.id}: given, when, and then must be exact observable behavior.", test.line))
     traced = {r.criterion for r in plan.traceability}
     chs = set().union(*(set(r.changes) for r in plan.traceability), set())
     tests = set().union(*(set(r.tests) for r in plan.traceability), set())
@@ -759,6 +884,11 @@ def validate_plan(
         ds.append(Diagnostic("traceability.change", f"{ident} is not mapped in traceability."))
     for ident in plan.ids("T") - tests:
         ds.append(Diagnostic("traceability.test", f"{ident} is not mapped in traceability."))
+    # Facts earn their place by grounding another record; self-references are not evidence use.
+    used_facts = set().union(*(_refs(value) for record in plan.all_records() if record.id.split("-", 1)[0] != "F" for value in record.fields.values()))
+    for fact_id in plan.ids("F") - used_facts:
+        fact = facts[fact_id]
+        ds.append(Diagnostic("fact.unused", f"{fact_id}: evidence must ground a decision, change, propagation, boundary, or attack.", fact.line))
     if baseline is not None:
         current = snapshot(repo_root)
         if not isinstance(baseline, dict) or any(current.get(key) != baseline.get(key) for key in ("repository_id", "git", "git_head", "dirty", "tracked", "untracked")):
@@ -772,7 +902,7 @@ def validate_plan(
             ds.append(
                 Diagnostic("binding.stale", "A bound evidence, target, or baseline changed; regenerate the plan.")
             )
-    return plan, ds
+    return plan, _sorted_diagnostics(ds)
 
 
 def finalized_text(text: str, root: Path, baseline: dict[str, Any] | None = None) -> str:

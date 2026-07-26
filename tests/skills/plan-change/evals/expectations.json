@@ -1,0 +1,8 @@
+{
+  "tiny-boundary-bug": {"grounding": ["src/names.py", "normalize_name"], "propagation": ["Boundary Traces"], "decisions": ["blank"], "implementation": ["CH-", "normalize_name"], "verification": ["T-"], "forbidden": ["TBD"]},
+  "root-cause-decoy": {"grounding": ["src/worker.py", "src/config.py"], "propagation": ["Propagation Record"], "decisions": ["retry"], "implementation": ["CH-"], "verification": ["T-"], "forbidden": ["symptom-only"]},
+  "multi-layer-feature": {"grounding": ["src/route.py", "src/service.py", "src/responses.py"], "propagation": ["Boundary Traces", "Propagation Record"], "decisions": ["response"], "implementation": ["Execution Blueprint", "CH-"], "verification": ["T-"], "forbidden": ["TBD"]},
+  "hidden-consumer-refactor": {"grounding": ["src/parser.py", "src/cli.py"], "propagation": ["transitive-consumer", "Propagation Record"], "decisions": ["rename"], "implementation": ["Execution Blueprint", "CH-"], "verification": ["tests/test_cli.py"], "forbidden": ["TBD"]},
+  "public-contract-migration": {"grounding": ["src/schema.py", "src/producer.py", "src/consumer.py"], "propagation": ["public-contract", "compatibility"], "decisions": ["old", "new"], "implementation": ["Execution Blueprint", "CH-"], "verification": ["T-"], "forbidden": ["TBD"]},
+  "concurrent-external-effect": {"grounding": ["src/billing.py", "src/gateway.py"], "propagation": ["concurrency", "external"], "decisions": ["idempotency"], "implementation": ["Execution Blueprint", "CH-"], "verification": ["T-"], "forbidden": ["TBD"]}
+}
