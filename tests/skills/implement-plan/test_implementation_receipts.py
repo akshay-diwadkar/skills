@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -22,7 +23,7 @@ HELPERS = importlib.util.module_from_spec(HELPER_SPEC)
 HELPER_SPEC.loader.exec_module(HELPERS)
 
 sys.path.insert(0, str(IMPLEMENT_SCRIPTS))
-from check_implementation import validate_bundle  # noqa: E402
+from check_implementation import _implementation_binding_diagnostics, validate_bundle  # noqa: E402
 from implementation_contract import repository_state, scaffold_bundle, sha256_file  # noqa: E402
 
 FINALIZER = IMPLEMENT_SCRIPTS / "finalize_implementation.py"
@@ -155,3 +156,42 @@ def test_in_progress_bundle_cannot_receive_receipt(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "bundle.receipt_status" in result.stdout
     assert "validation_receipt" not in bundle.read_text(encoding="utf-8")
+
+
+def test_implementation_revalidates_every_binding_category(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test")
+    categories = {
+        "evidence": "evidence.py",
+        "targets": "target.py",
+        "generators": "generate.py",
+        "config": "config.toml",
+        "schemas": "schema.json",
+    }
+    binding: dict[str, Any] = {
+        "repository_id": str(repo.resolve()),
+        **{category: [] for category in categories},
+    }
+    for category, path in categories.items():
+        target = repo / path
+        target.write_text(f"{category}\n", encoding="utf-8")
+        binding[category].append({"path": path, "sha256": sha256_file(target)})
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "initial")
+    for path in categories.values():
+        (repo / path).write_text("stale\n", encoding="utf-8")
+    bundle = {"baseline": {"targets": []}, "changes": []}
+    codes = {
+        item.code
+        for item in _implementation_binding_diagnostics(SimpleNamespace(binding=binding), bundle, repo)
+    }
+    assert {
+        "bundle.binding_evidence_stale",
+        "bundle.binding_target_stale",
+        "bundle.binding_generator_stale",
+        "bundle.binding_config_stale",
+        "bundle.binding_schema_stale",
+    } <= codes

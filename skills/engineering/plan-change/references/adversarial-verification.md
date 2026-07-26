@@ -1,6 +1,6 @@
 # Adversarial Verification
 
-Attack the completed draft, repair findings in their owning changes/tests, and record each required attack as repaired, dismissed, or not applicable with evidence. Never invent findings to satisfy a count.
+Attack the completed draft, repair findings in their relevant owning changes/tests, and record each required attack as repaired, dismissed, or not applicable with evidence. Give every dismissal or non-applicability decision an attack-specific reason supported by attack-specific `F-n` evidence. Never copy generic reasons across attacks or invent findings to satisfy a count.
 
 ## Attacks
 

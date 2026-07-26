@@ -18,7 +18,7 @@ from implementation_contract import (
     repository_state,
     sha256_file,
 )
-from plan_runtime import binding_digest, plan_digest
+from plan_runtime import BINDING_CATEGORIES, binding_digest, plan_digest
 
 
 def _matches_type(value: object, expected: str) -> bool:
@@ -56,6 +56,44 @@ def _sha(value: object) -> bool:
     return isinstance(value, str) and (value == "" or re.fullmatch(r"[0-9a-f]{64}", value) is not None)
 
 
+def _implementation_binding_diagnostics(plan: Any, bundle: dict[str, Any], repo_root: Path) -> list[Diagnostic]:
+    if not plan.binding:
+        return []
+    diagnostics: list[Diagnostic] = []
+    state = repository_state(repo_root)
+    if state["repository_id"] != plan.binding.get("repository_id"):
+        diagnostics.append(Diagnostic("bundle.binding_repository_stale", "Current repository identity differs from the finalized binding."))
+    baseline_targets = {
+        item["path"]: item["before_sha256"] for item in bundle["baseline"]["targets"]
+    }
+    authorized_paths = {
+        path
+        for row in bundle["changes"]
+        for path in row["paths"]
+    }
+    for category in BINDING_CATEGORIES:
+        diagnostic_category = category.rstrip("s")
+        for item in plan.binding.get(category, []):
+            path = item.get("path", "")
+            expected_sha = item.get("sha256", "")
+            if path in authorized_paths:
+                if baseline_targets.get(path) != expected_sha:
+                    diagnostics.append(
+                        Diagnostic(
+                            f"bundle.binding_{diagnostic_category}_stale",
+                            f"Authorized bound {category} path has a stale baseline: {path}.",
+                        )
+                    )
+            elif sha256_file(repo_root / path) != expected_sha:
+                diagnostics.append(
+                    Diagnostic(
+                        f"bundle.binding_{diagnostic_category}_stale",
+                        f"Bound {category} path changed during implementation: {path}.",
+                    )
+                )
+    return diagnostics
+
+
 def validate_bundle(
     bundle: object, plan_text: str, repo_root: Path, *, require_receipt: bool = False
 ) -> list[Diagnostic]:
@@ -89,9 +127,9 @@ def validate_bundle(
         diagnostics.append(Diagnostic("bundle.plan_receipt", "Implementation requires a finalized v5 plan."))
     else:
         if plan.receipt.get("body") != plan_digest(plan_text):
-            diagnostics.append(Diagnostic("bundle.plan_receipt", "Finalized plan body receipt is stale."))
+            diagnostics.append(Diagnostic("bundle.binding_plan_body_stale", "Finalized plan body receipt is stale."))
         if plan.receipt.get("binding") != binding_digest(plan.binding):
-            diagnostics.append(Diagnostic("bundle.plan_receipt", "Finalized plan binding receipt is stale."))
+            diagnostics.append(Diagnostic("bundle.binding_receipt_stale", "Finalized plan binding receipt is stale."))
 
     blocking = {"bundle.required", "bundle.type", "bundle.schema_version", "bundle.run_id", "bundle.status", "bundle.row_type", "bundle.row_required"}
     if any(item.code in blocking for item in diagnostics):
@@ -116,6 +154,8 @@ def validate_bundle(
         diagnostics.extend(_row_diagnostics(row, "deviation", f"deviations[{index}]", contract))
     if any(item.code.startswith("bundle.row_") for item in diagnostics):
         return diagnostics
+
+    diagnostics.extend(_implementation_binding_diagnostics(plan, bundle, repo_root))
 
     bound_targets = {
         item["path"]: item["sha256"]

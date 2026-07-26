@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-from plan_runtime import _binding_diagnostics, _snapshot_diagnostics  # noqa: E402
+from plan_runtime import _binding_diagnostics, _snapshot_diagnostics, snapshot  # noqa: E402
 
 
 def test_snapshot_failures_are_itemized() -> None:
@@ -14,6 +15,7 @@ def test_snapshot_failures_are_itemized() -> None:
         "repository_id": "repo",
         "git": True,
         "git_head": "a",
+        "branch": "main",
         "dirty": {"dirty.py": "a"},
         "tracked": {"src.py": "a"},
         "untracked": {},
@@ -22,6 +24,7 @@ def test_snapshot_failures_are_itemized() -> None:
         "repository_id": "repo",
         "git": True,
         "git_head": "b",
+        "branch": "feature",
         "dirty": {"dirty.py": "b"},
         "tracked": {"src.py": "b"},
         "untracked": {"new.py": "c"},
@@ -29,6 +32,7 @@ def test_snapshot_failures_are_itemized() -> None:
     codes = {item.code for item in _snapshot_diagnostics(baseline, current)}
     assert codes == {
         "snapshot.head_changed",
+        "snapshot.branch_changed",
         "snapshot.dirty_changed",
         "snapshot.tracked_changed",
         "snapshot.untracked_changed",
@@ -63,3 +67,19 @@ def test_binding_failures_identify_each_collection() -> None:
         "binding.config_stale",
         "binding.schema_stale",
     }
+
+
+def test_same_head_branch_switch_is_detected_without_binding_branch(tmp_path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    (tmp_path / "tracked.txt").write_text("same\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "branch", "second"], cwd=tmp_path, check=True)
+    baseline = snapshot(tmp_path)
+    subprocess.run(["git", "switch", "second"], cwd=tmp_path, check=True, capture_output=True)
+    current = snapshot(tmp_path)
+    codes = {item.code for item in _snapshot_diagnostics(baseline, current)}
+    assert "snapshot.branch_changed" in codes
+    assert "snapshot.head_changed" not in codes

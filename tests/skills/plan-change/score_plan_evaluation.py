@@ -79,34 +79,38 @@ def score_expectations(plan_text: str, expectations: dict[str, Any]) -> tuple[fl
 
 
 def release_gate(runs: list[dict[str, Any]]) -> list[str]:
-    failures: list[str] = []
     if not runs:
         return ["evaluation.runs: evaluation report is empty"]
-    scores = [float(run.get("score", 0)) for run in runs]
-    if any(run.get("hard_failures") for run in runs):
-        failures.append("evaluation.hard_failures: zero required")
-    if median(scores) < 98:
-        failures.append("evaluation.median: minimum is 98")
-    if min(scores) < 95:
-        failures.append("evaluation.minimum: every run minimum is 95")
-    for run in runs:
-        for name, value in dict(run.get("dimension_scores", {})).items():
-            if float(value) < 90:
-                failures.append(f"evaluation.dimension: {name} below 90")
+    failures: list[str] = []
     pairs = {(str(run.get("model_label", "")), str(run.get("scenario", ""))) for run in runs}
-    for model_label, scenario in pairs:
+    for model_label, scenario in sorted(pairs):
+        label = f"{model_label}/{scenario}"
         pair_runs = [
             run for run in runs
             if run.get("model_label") == model_label and run.get("scenario") == scenario
         ]
+        scores = [float(run.get("score", 0)) for run in pair_runs]
+        if any(run.get("hard_failures") for run in pair_runs):
+            failures.append(f"evaluation.hard_failures: {label} requires zero")
+        if any(bool(run.get("repository_mutation")) for run in pair_runs):
+            failures.append(f"evaluation.repository_mutation: {label} requires zero")
+        if median(scores) < 98:
+            failures.append(f"evaluation.median: {label} minimum is 98")
+        if min(scores) < 95:
+            failures.append(f"evaluation.minimum: {label} every run minimum is 95")
+        for run in pair_runs:
+            for name, value in dict(run.get("dimension_scores", {})).items():
+                if float(value) < 90:
+                    failures.append(f"evaluation.dimension: {label} {name} below 90")
+        if any(run.get("downstream_status") == "failed" for run in pair_runs):
+            failures.append(f"evaluation.downstream: {label} every configured downstream run must pass")
         successful = [
             run for run in pair_runs
             if not run.get("hard_failures")
             and float(run.get("score", 0)) >= 95
+            and not run.get("repository_mutation")
             and run.get("downstream_status") != "failed"
         ]
         if len(successful) < 3:
-            failures.append(f"evaluation.pair_runs: {model_label}/{scenario} needs at least three successful runs")
-    if any(run.get("downstream_status") == "failed" for run in runs):
-        failures.append("evaluation.downstream: every configured downstream run must pass")
+            failures.append(f"evaluation.pair_runs: {label} needs at least three successful runs")
     return sorted(set(failures))

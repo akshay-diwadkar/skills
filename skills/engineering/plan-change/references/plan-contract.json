@@ -3,6 +3,14 @@
   "marker": "<!-- plan-contract: 5 -->",
   "intents": ["feature", "bug-fix", "refactor"],
   "tiers": ["tiny", "standard", "high-risk"],
+  "tier_signals": [
+    "transitive-consumers",
+    "shared-internal-interface",
+    "uncertain-root-cause",
+    "multiple-architectural-layers",
+    "mixed-sync-async-consumers",
+    "multiple-test-surfaces"
+  ],
   "risk_domains": [
     "public-contract",
     "durable-state",
@@ -36,21 +44,21 @@
     },
     "D": {"required": ["selected", "evidence", "rejected", "drawback"], "optional": [], "section": "Decisions"},
     "CH": {
-      "required": ["path", "anchor", "status", "evidence", "change"],
+      "required": ["path", "anchor", "status", "locality", "reversibility", "evidence", "change"],
       "optional": ["directory-owner", "generator-owner"],
       "section": "Implementation Specification"
     },
     "P": {"required": ["owner", "because", "surface", "disposition"], "optional": [], "section": "Propagation Record"},
     "B": {"required": ["class", "path", "flow"], "optional": [], "section": "Boundary Traces"},
     "O": {
-      "required": ["domain", "obligation", "status", "coverage", "evidence", "decision", "changes", "tests"],
-      "optional": [],
+      "required": ["domain", "obligation", "status", "coverage", "evidence"],
+      "optional": ["decision", "changes", "tests", "reason"],
       "section": "Domain Obligations"
     },
     "C": {"required": ["constraint"], "optional": ["evidence"], "section": "Decisions"},
     "R": {"required": ["severity", "owner", "tests", "risk"], "optional": [], "section": "Risks, Assumptions, and Attack"},
     "T": {"required": ["given", "when", "then", "command"], "optional": [], "section": "Verification"},
-    "A": {"required": ["status", "finding", "evidence", "resolution"], "optional": [], "section": "Risks, Assumptions, and Attack"},
+    "A": {"required": ["status", "finding", "evidence", "resolution"], "optional": ["reason"], "section": "Risks, Assumptions, and Attack"},
     "X": {"required": ["domain", "status", "evidence", "reason"], "optional": [], "section": "Risks, Assumptions, and Attack"}
   },
   "reference_fields": {
@@ -186,6 +194,57 @@
     "malformed-responses": ["malformed response", "invalid response"],
     "ambiguous-success": ["ambiguous success", "unknown outcome"],
     "irreversible-effects": ["irreversible", "compensation"]
+  },
+  "attack_aliases": {
+    "forgotten-propagation": ["propagation", "consumer", "caller", "re-export"],
+    "boundary-input": ["boundary input", "null", "empty", "invalid"],
+    "literal-implementation": ["literal implementation", "branch", "ordering", "side effect"],
+    "security": ["security", "authorization", "tenant"],
+    "authorization-bypass": ["authorization bypass", "permission", "tenant"],
+    "concurrency": ["concurrency", "race", "interleaving"],
+    "compatibility": ["compatibility", "old reader", "new reader"],
+    "migration-interruption": ["migration interruption", "interrupted migration", "resume"],
+    "rollback": ["rollback", "roll forward", "old version"],
+    "ambiguous-success": ["ambiguous success", "unknown outcome", "reconciliation"]
+  },
+  "obligation_test_groups": {
+    "security": [
+      ["principal", "tenant", "trust-boundary", "authorization-owner"],
+      ["validation-order", "denial-semantics", "enumeration-resistance"],
+      ["revocation", "audit-behavior", "cross-tenant-tests"]
+    ],
+    "concurrency": [
+      ["shared-state", "transaction-or-lock-boundary"],
+      ["idempotency-identity", "retries", "duplicate-delivery"],
+      ["cancellation", "ordering", "worst-interleaving"],
+      ["reconciliation"]
+    ],
+    "public-contract": [
+      ["current-shape", "proposed-shape", "defaults-and-nullability", "errors"],
+      ["old-writer-new-reader", "new-writer-old-reader", "generated-clients", "mixed-version-rollout", "compatibility-tests"]
+    ],
+    "durable-state": [
+      ["current-state", "target-state", "forward-migration"],
+      ["backward-compatibility", "partial-migration", "interrupted-migration", "rollback-or-roll-forward"],
+      ["queue-cache-index-effects", "data-verification", "deployment-order"]
+    ],
+    "migration": [
+      ["current-state", "target-state", "forward-migration"],
+      ["backward-compatibility", "partial-migration", "interrupted-migration", "rollback-or-roll-forward"],
+      ["queue-cache-index-effects", "data-verification", "deployment-order"]
+    ],
+    "external-integration": [
+      ["sdk-or-api-version", "authentication", "timeout", "rate-limits"],
+      ["retryable-errors", "non-retryable-errors", "malformed-responses"],
+      ["idempotency", "ambiguous-success", "irreversible-effects"],
+      ["reconciliation"]
+    ],
+    "irreversible-external-effect": [
+      ["sdk-or-api-version", "authentication", "timeout", "rate-limits"],
+      ["retryable-errors", "non-retryable-errors", "malformed-responses"],
+      ["idempotency", "ambiguous-success", "irreversible-effects"],
+      ["reconciliation"]
+    ]
   },
   "blueprint_concepts": {
     "security": [

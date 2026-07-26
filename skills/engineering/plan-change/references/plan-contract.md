@@ -9,6 +9,16 @@ repository evidence. The finalizer creates targeted bindings for evidence and
 existing change targets; unrelated changes are permitted when those bindings remain
 current. The receipt binds the exact plan body and binding JSON.
 
+Both classification passes record `tier_signals`. Any transitive consumer, shared
+internal interface, uncertain root cause, multiple architectural layers,
+sync-plus-async consumers, or multiple test surfaces requires at least `standard`.
+`tiny` requires one existing `local-production`, `reversible` change.
+
+Every final domain retains a complete obligation matrix. A satisfied obligation owns
+decision, change, and concept-specific test references. A `not-applicable` obligation
+instead owns a concrete `reason` and `F-n` evidence proving absence; contradictory
+facts, changes, blueprints, tests, or domain claims fail validation.
+
 Use `prepare_plan.py` to create the baseline, inventory, and draft in isolated
 storage. `check_plan.py` and `finalize_plan.py` require both the baseline and
 inventory. Every inventory candidate must be grounded by an `F-n` and reconciled
