@@ -13,10 +13,10 @@
     "high-risk": ["SC", "F", "D", "CH", "P", "B", "C", "R", "T", "A", "O", "blueprint"]
   },
   "record_schemas": {
-    "SC": {"required": ["given", "when", "then", "unchanged"]},
-    "D": {"required": ["selected", "evidence", "rejected", "drawback"]},
-    "CH": {"required": ["path", "anchor", "status", "evidence", "change"]},
-    "O": {"required": ["domain", "obligation", "status", "evidence", "decision", "changes", "tests"]},
+    "SC": {"required": ["given", "when", "then", "unchanged"], "section": "Outcome and Scope"},
+    "D": {"required": ["selected", "evidence", "rejected", "drawback"], "references": {"evidence": ["F", "C"]}},
+    "CH": {"required": ["path", "anchor", "status", "evidence", "change"], "references": {"evidence": ["F"]}},
+    "O": {"required": ["domain", "obligation", "status", "evidence", "decision", "changes", "tests"], "references": {"evidence": ["F"], "decision": ["D"], "changes": ["CH"], "tests": ["T"]}},
     "A": {"required": ["status", "finding", "evidence", "resolution"]}
   }
 }

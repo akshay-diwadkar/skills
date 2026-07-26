@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -42,6 +43,13 @@ def validate_bundle(
         diagnostics.append(
             Diagnostic("bundle.accounting", "Complete run must account for every declared CH and T exactly.")
         )
+    receipt = bundle.get("validation_receipt")
+    if require_receipt:
+        body = dict(bundle)
+        body.pop("validation_receipt", None)
+        expected = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if not isinstance(receipt, dict) or receipt.get("implementation_contract") != 2 or receipt.get("plan_contract") != 5 or receipt.get("sha256") != expected:
+            diagnostics.append(Diagnostic("bundle.receipt", "Implementation receipt is missing or does not match the bundle."))
     return diagnostics
 
 

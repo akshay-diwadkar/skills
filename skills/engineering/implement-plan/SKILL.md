@@ -2,7 +2,7 @@
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
 metadata:
-  implementation-contract: "1"
+  implementation-contract: "2"
   finalizer: "scripts/finalize_implementation.py"
   validation-required: "true"
 ---

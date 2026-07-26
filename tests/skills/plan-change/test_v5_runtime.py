@@ -20,7 +20,7 @@ def draft(repo: Path, *, tier: str = "tiny") -> str:
 ## Outcome and Scope
 - SC-1: given: blank input | when: normalize_name runs | then: stable normalized output | unchanged: nonblank normalization remains stable
 ## Evidence Ledger
-- F-1: kind: function-signature | path: src/names.py | lines: 1-1 | anchor: normalize_name | excerpt-sha256: {hashlib.sha256(excerpt).hexdigest()} | file-sha256: {hashlib.sha256(content).hexdigest()} | observation: planner-authored observation
+- F-1: kind: function-signature | path: src/names.py | lines: 1-1 | anchor: normalize_name | excerpt-sha256: {hashlib.sha256(excerpt).hexdigest()} | file-sha256: {hashlib.sha256(content).hexdigest()} | observation: planner-authored observation | parameters: raw: str | returns: str
 ## Decisions
 - D-1: selected: preserve local behavior | evidence: F-1 | rejected: rewrite interface | drawback: changes the existing local contract
 ## Implementation Specification
@@ -69,3 +69,49 @@ def test_generated_runtimes_are_exact_copies() -> None:
         assert (ROOT / "skills" / "engineering" / skill / "scripts" / "plan_runtime.py").read_text(
             encoding="utf-8"
         ) == source
+
+
+def test_required_records_and_typed_references_fail_closed(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
+    text = draft(tmp_path).replace("## Boundary Traces\n- B-1: class: API request | path: F-1 | flow: request -> normalize_name -> result\n", "## Boundary Traces\n")
+    text = text.replace("evidence: F-1 | rejected", "evidence: T-1 | rejected")
+    _, diagnostics = validate_plan(text, tmp_path)
+    assert {item.code for item in diagnostics} >= {"record.required", "reference.type"}
+
+
+def test_same_path_wrong_anchor_and_new_target_are_rejected(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "names.py").write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
+    text = draft(tmp_path).replace("anchor: normalize_name | status: existing", "anchor: other_name | status: existing")
+    _, diagnostics = validate_plan(text, tmp_path)
+    assert any(item.code == "change.evidence_anchor" for item in diagnostics)
+    text = draft(tmp_path).replace("status: existing", "status: new").replace("path: src/names.py", "path: ../escape.py")
+    _, diagnostics = validate_plan(text, tmp_path)
+    assert any(item.code == "change.new_path" for item in diagnostics)
+
+
+def test_baseline_detects_planner_mutation_but_binding_allows_unrelated_change(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    target = tmp_path / "src" / "names.py"
+    target.write_text("def normalize_name(raw: str) -> str:\n    return raw.strip()\n")
+    from plan_runtime import snapshot  # noqa: E402
+
+    baseline = snapshot(tmp_path)
+    target.write_text("changed\n")
+    _, diagnostics = validate_plan(draft(tmp_path), tmp_path, baseline=baseline)
+    assert any(item.code == "snapshot.mutation" for item in diagnostics)
+
+
+def test_every_scaffold_places_blueprints_inside_implementation_specification() -> None:
+    import importlib.util
+
+    path = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "plan_contract.py"
+    spec = importlib.util.spec_from_file_location("plan_scaffold_contract", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for tier in ("tiny", "standard", "high-risk"):
+        plan, diagnostics = module.render_scaffold(tier, "bug-fix", []) and __import__("plan_runtime").parse_plan(module.render_scaffold(tier, "bug-fix", []))
+        assert plan is not None
+        assert not [item for item in diagnostics if item.code == "blueprint.location"]

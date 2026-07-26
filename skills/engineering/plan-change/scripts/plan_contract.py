@@ -57,6 +57,7 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "",
         "## Decisions",
         "- D-1: selected: exact approach | evidence: F-1 | rejected: nearest alternative | drawback: concrete repository-grounded drawback",
+        *(["- C-1: constraint: preserve declared behavior | evidence: F-1"] if tier != "tiny" else []),
         "",
         "## Implementation Specification",
         "- CH-1: path: src/example.py | anchor: example | status: existing | evidence: F-1 | change: exact branches errors ordering and effects",
@@ -79,6 +80,7 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "- B-1: class: API request | path: F-1 | flow: request -> change -> result",
         "",
         "## Domain Obligations",
+        *(["- O-1: domain: REPLACE | obligation: REPLACE | status: satisfied | evidence: F-1 | decision: D-1 | changes: CH-1 | tests: T-1"] if tier == "high-risk" else []),
         "",
         "## Traceability",
         "| Criterion / constraint | Changes | Tests |",
@@ -92,15 +94,8 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
         "- A-forgotten-propagation: status: repaired | finding: propagation inventory reviewed | evidence: F-1 | resolution: CH-1, T-1",
         "- A-boundary-input: status: dismissed | finding: input boundary is unchanged | evidence: F-1 | resolution: F-1",
         "- A-literal-implementation: status: repaired | finding: implementation follows decision | evidence: F-1 | resolution: CH-1, T-1",
+        *(["- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named concrete risk"] if tier == "high-risk" else []),
     ]
-    if tier != "tiny":
-        rows[rows.index("## Traceability") : rows.index("## Traceability")] = [
-            "- C-1: constraint: preserve declared behavior"
-        ]
-    if tier == "high-risk":
-        rows[rows.index("## Traceability") : rows.index("## Traceability")] = [
-            "- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named risk"
-        ]
     if False:  # Blueprint is emitted inside Implementation Specification above.
         rows.extend(
             [
