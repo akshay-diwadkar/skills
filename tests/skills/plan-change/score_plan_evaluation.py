@@ -5,7 +5,6 @@ from __future__ import annotations
 from statistics import median
 from typing import Any
 
-
 WEIGHTS = {
     "grounding": 25,
     "propagation": 20,

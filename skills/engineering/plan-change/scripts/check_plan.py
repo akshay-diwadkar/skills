@@ -7,8 +7,8 @@ import argparse
 import json
 from pathlib import Path
 
-from plan_runtime import validate_plan
 from plan_inventory import load_inventory, unresolved_candidates
+from plan_runtime import validate_plan
 
 
 def collect_diagnostics(

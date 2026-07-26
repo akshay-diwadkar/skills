@@ -10,7 +10,6 @@ from typing import Any
 
 from plan_runtime import Plan
 
-
 IGNORED_PARTS = {".git", ".pytest_cache", "__pycache__", ".mypy_cache", ".venv", "node_modules"}
 TEXT_SUFFIXES = {".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java", ".rb", ".rs", ".cs", ".md", ".rst", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg"}
 
