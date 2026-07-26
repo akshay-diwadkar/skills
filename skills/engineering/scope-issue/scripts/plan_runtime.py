@@ -578,19 +578,42 @@ def _fact_fields(ds: list[Diagnostic], fact: Record, excerpt: str, source_text: 
         return
     if kind == "function-signature":
         functions = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
-        node = next((n for n in functions if n.name == fact.fields.get("anchor") and n.lineno <= int(fact.fields["lines"].split("-", 1)[1])), None)
+        start, end = map(int, fact.fields["lines"].split("-", 1))
+        node = next(
+            (
+                n
+                for n in functions
+                if n.name == fact.fields.get("anchor")
+                and start <= n.lineno <= end
+            ),
+            None,
+        )
         if node is None:
             ds.append(Diagnostic("fact.signature", f"{fact.id}: cited anchor is not a Python function in the stated range.", fact.line))
             return
-        claimed = [x.strip().split(":", 1)[0].split("=", 1)[0].strip() for x in fact.fields.get("parameters", "").split(",")]
-        actual = [x.arg for x in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)]
+        claimed = [x.strip() for x in fact.fields.get("parameters", "").split(",")]
+        positional = [*node.args.posonlyargs, *node.args.args]
+        defaults = [None] * (len(positional) - len(node.args.defaults)) + list(node.args.defaults)
+        actual = [
+            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
+            for arg, default in zip(positional, defaults)
+        ]
+        if node.args.vararg:
+            actual.append("*" + node.args.vararg.arg + (f": {ast.unparse(node.args.vararg.annotation)}" if node.args.vararg.annotation else ""))
+        actual.extend(
+            arg.arg + (f": {ast.unparse(arg.annotation)}" if arg.annotation else "") + (f" = {ast.unparse(default)}" if default else "")
+            for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults)
+        )
+        if node.args.kwarg:
+            actual.append("**" + node.args.kwarg.arg + (f": {ast.unparse(node.args.kwarg.annotation)}" if node.args.kwarg.annotation else ""))
         if claimed != actual:
-            ds.append(Diagnostic("fact.signature_parameters", f"{fact.id}: claimed parameter order does not match the Python function signature.", fact.line))
+            ds.append(Diagnostic("fact.signature_parameters", f"{fact.id}: claimed parameters do not exactly match the cited Python signature.", fact.line))
         actual_return = ast.unparse(node.returns) if node.returns is not None else "None"
         if fact.fields.get("returns", "").strip() != actual_return:
             ds.append(Diagnostic("fact.signature_returns", f"{fact.id}: claimed return annotation `{fact.fields.get('returns', '')}` does not match `{actual_return}`.", fact.line))
     else:
-        callers = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == fact.fields.get("caller")]
+        start, end = map(int, fact.fields["lines"].split("-", 1))
+        callers = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == fact.fields.get("caller") and start <= n.lineno <= end and (n.end_lineno is None or n.end_lineno <= end)]
         if not callers:
             ds.append(Diagnostic("fact.call_edge", f"{fact.id}: caller `{fact.fields.get('caller')}` does not exist.", fact.line))
         elif not any(isinstance(n, ast.Call) and ((isinstance(n.func, ast.Name) and n.func.id == fact.fields.get("callee")) or (isinstance(n.func, ast.Attribute) and n.func.attr == fact.fields.get("callee"))) for n in ast.walk(callers[0])):

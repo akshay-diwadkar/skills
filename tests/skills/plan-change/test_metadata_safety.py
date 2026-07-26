@@ -64,3 +64,6 @@ def test_python_signature_return_is_structurally_verified(tmp_path: Path) -> Non
 '''
     _plan_value, diagnostics = validate_plan(plan, tmp_path)
     assert any(item.code == "fact.signature_returns" for item in diagnostics)
+    wrong_range = plan.replace("lines: 1-2", "lines: 2-2")
+    _plan_value, diagnostics = validate_plan(wrong_range, tmp_path)
+    assert any(item.code == "fact.signature" for item in diagnostics)
