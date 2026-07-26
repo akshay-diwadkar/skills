@@ -39,7 +39,9 @@ def main() -> int:
     repository = "<!-- plan-repository: " + json.dumps(binding, sort_keys=True, separators=(",", ":")) + " -->"
     import re
 
-    text = re.sub(r"^<!-- plan-repository: .* -->$", repository, text, flags=re.MULTILINE)
+    # A binding may contain Windows paths.  A callable replacement prevents
+    # ``re.sub`` from treating their backslashes as replacement escapes.
+    text = re.sub(r"^<!-- plan-repository: .* -->$", lambda _match: repository, text, flags=re.MULTILINE)
     if repository not in text:
         text = text.replace("<!-- plan-contract: 4 -->", "<!-- plan-contract: 4 -->\n" + repository)
     finalized = finalized_text(text, binding)

@@ -8,23 +8,18 @@ SCRIPTS = REPO_ROOT / "skills" / "engineering" / "implement-plan" / "scripts"
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "implement-plan"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(DEV_DIR))
+sys.path.insert(0, str(REPO_ROOT / "tests"))
 
 from _plan_utils import bundle_digest  # noqa: E402
 from check_implementation import validate_bundle  # noqa: E402
 from implementation_contract import scaffold_bundle, sha256_file  # noqa: E402
-from test_implementation_contract import init_repo, v3_plan  # noqa: E402
+from test_implementation_contract import v4_repo_plan  # noqa: E402
+from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]  # noqa: E402
 
 
 def completed_run(tmp_path: Path) -> tuple[Path, Path, Path, dict]:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / ".gitignore").write_text(".scratch/\n", encoding="utf-8")
+    repo, plan_path = v4_repo_plan(tmp_path)
     source = repo / "src" / "names.py"
-    source.parent.mkdir()
-    source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
-    plan_path = repo / "plan.md"
-    plan_path.write_text(v3_plan(), encoding="utf-8")
-    init_repo(repo)
     output = repo / ".scratch" / "run" / "implementation.json"
     bundle = scaffold_bundle(repo, plan_path, output, "run-1")
     before = sha256_file(source)
@@ -107,18 +102,11 @@ def test_checker_requires_all_mechanical_policy_flags(tmp_path: Path) -> None:
 
 
 def test_checker_detects_modified_initial_user_path(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / ".gitignore").write_text(".scratch/\n", encoding="utf-8")
-    source = repo / "src" / "names.py"
-    source.parent.mkdir()
-    source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
+    repo, plan_path = v4_repo_plan(tmp_path)
     notes = repo / "notes.txt"
     notes.write_text("baseline\n", encoding="utf-8")
-    plan_path = repo / "plan.md"
-    plan_path.write_text(v3_plan(), encoding="utf-8")
-    init_repo(repo)
     notes.write_text("user work\n", encoding="utf-8")
+    plan_path.write_text(finalized_tiny_plan(repo), encoding="utf-8")
     bundle = scaffold_bundle(repo, plan_path, repo / ".scratch" / "run" / "implementation.json", "run-1")
     notes.write_text("overwritten\n", encoding="utf-8")
 
@@ -126,16 +114,10 @@ def test_checker_detects_modified_initial_user_path(tmp_path: Path) -> None:
 
 
 def test_checker_allows_blocked_dirty_target_when_no_edit_was_attempted(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / ".gitignore").write_text(".scratch/\n", encoding="utf-8")
+    repo, plan_path = v4_repo_plan(tmp_path)
     source = repo / "src" / "names.py"
-    source.parent.mkdir()
-    source.write_text("def normalize_name(value):\n    return value\n", encoding="utf-8")
-    plan_path = repo / "plan.md"
-    plan_path.write_text(v3_plan(), encoding="utf-8")
-    init_repo(repo)
     source.write_text("def normalize_name(value):\n    return value  # user\n", encoding="utf-8")
+    plan_path.write_text(finalized_tiny_plan(repo), encoding="utf-8")
     bundle = scaffold_bundle(repo, plan_path, repo / ".scratch" / "run" / "implementation.json", "run-1")
     bundle["status"] = "blocked"
     bundle["report"]["summary"] = "Blocked because the target is dirty."

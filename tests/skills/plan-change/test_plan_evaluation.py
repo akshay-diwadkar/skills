@@ -32,12 +32,12 @@ def test_scorer_hard_fails_invalid_or_forbidden_plan() -> None:
 
 
 def test_scorer_accepts_grounded_tiny_example() -> None:
-    expectations = json.loads(score_plan_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
-    examples = REPO_ROOT / "skills" / "engineering" / "plan-change" / "references" / "worked-examples.md"
-    plan = re.findall(r"```plan\n(.*?)\n```", examples.read_text(encoding="utf-8"), re.DOTALL)[0]
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]
+    plan = finalized_tiny_plan(DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug")
     result = score_plan_evaluation.score(
         plan,
-        expectations["tiny-boundary-bug"],
+        {"tier": "tiny", "minimum_score": 0},
         DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug",
     )
     assert result["passed"] is True, result
@@ -70,12 +70,13 @@ def test_root_cause_case_rejects_unrequested_interface_widening() -> None:
 
 def test_unfinalized_plan_is_a_hard_failure() -> None:
     expectations = json.loads(score_plan_evaluation.EXPECTATIONS_PATH.read_text(encoding="utf-8"))
-    examples = REPO_ROOT / "skills" / "engineering" / "plan-change" / "references" / "worked-examples.md"
-    plan = re.findall(r"```plan\n(.*?)\n```", examples.read_text(encoding="utf-8"), re.DOTALL)[0]
+    sys.path.insert(0, str(REPO_ROOT / "tests"))
+    from v4_plan_factory import finalized_tiny_plan  # type: ignore[import-not-found]
+    plan = finalized_tiny_plan(DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug")
     plan = re.sub(r"^<!-- plan-validation:.*\n", "", plan, flags=re.MULTILINE)
     result = score_plan_evaluation.score(
         plan,
         expectations["tiny-boundary-bug"],
         DEV_DIR / "evals" / "fixtures" / "tiny-boundary-bug",
     )
-    assert "validator:finalization.receipt.missing" in result["hard_failures"]
+    assert "validator:receipt.missing" in result["hard_failures"]

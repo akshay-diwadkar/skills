@@ -80,6 +80,8 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
     ]
     if tier != "tiny":
         lines.insert(lines.index("## Traceability"), "- C-1: preserved constraint | status: preserved.")
+    if tier == "high-risk":
+        lines.insert(lines.index("## Traceability"), "- R-1: P1 | risk: deployment or compatibility failure | owner: CH-1/T-1.")
     if contract["tiers"][tier]["blueprint_required"]:
         lines.extend(
             [
@@ -90,4 +92,9 @@ def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) ->
                 "```",
             ]
         )
+    for domain in domains:
+        for obligation in contract["domain_obligations"].get(domain, []):
+            lines.insert(lines.index("## Traceability"), f"- O-{domain}-{obligation}: required | evidence: F-1.")
+        for attack in contract["domain_attacks"].get(domain, []):
+            lines.append(f"- A-{attack}: assess applicability | evidence: F-1.")
     return "\n".join(lines) + "\n"

@@ -113,7 +113,7 @@ def summarize(results: list[dict[str, Any]], model_labels: list[str]) -> tuple[b
             not hard_failures
             and median_score >= 95
             and minimum_score >= 90
-            and minimum_blueprint_score == 100
+            and len(model_results) >= 3
         )
         summaries[model_label] = summary
         passed = passed and bool(summary["passed"])

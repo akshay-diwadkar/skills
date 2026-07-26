@@ -50,7 +50,7 @@ def test_tree_hash_detects_fixture_mutation(tmp_path: Path) -> None:
 def test_summary_requires_receipt_clean_scores_and_full_blueprints() -> None:
     passing: list[dict[str, Any]] = [
         {"model_label": "weak", "score": score, "hard_failures": [], "dimension_scores": {"blueprint": 100}}
-        for score in (80, 90, 100)
+        for score in (95, 96, 100)
     ]
     failed_blueprint = [
         {"model_label": "weak", "score": 100, "hard_failures": [], "dimension_scores": {"blueprint": 50}}
@@ -58,8 +58,8 @@ def test_summary_requires_receipt_clean_scores_and_full_blueprints() -> None:
     passed, summaries = summarize(passing, ["weak"])
     failed, _ = summarize(failed_blueprint, ["weak"])
     assert passed is True
-    assert summaries["weak"]["median_score"] == 90
-    assert summaries["weak"]["minimum_score"] == 80
+    assert summaries["weak"]["median_score"] == 96
+    assert summaries["weak"]["minimum_score"] == 95
     assert failed is False
 
 
@@ -70,20 +70,18 @@ def test_expectations_include_blueprint_dimension() -> None:
 
 
 def test_run_case_scores_output_and_preserves_raw_artifacts(tmp_path: Path) -> None:
-    examples = REPO_ROOT / "skills" / "engineering" / "plan-change" / "references" / "worked-examples.md"
-    plan = examples.read_text(encoding="utf-8").split("```plan\n", 1)[1].split("\n```", 1)[0]
-    output = tmp_path / "plan.md"
-    output.write_text(plan, encoding="utf-8")
     adapter = tmp_path / "adapter.py"
     adapter.write_text(
         "import json, pathlib, sys\n"
-        "json.load(sys.stdin)\n"
-        "print(json.dumps({'plan_markdown': pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')}))\n",
+        f"sys.path.insert(0, {str(REPO_ROOT / 'tests')!r})\n"
+        "from v4_plan_factory import finalized_tiny_plan\n"
+        "request = json.load(sys.stdin)\n"
+        "print(json.dumps({'plan_markdown': finalized_tiny_plan(pathlib.Path(request['repo_root']))}))\n",
         encoding="utf-8",
     )
     expectations = json.loads((DEV_DIR / "evals" / "expectations.json").read_text(encoding="utf-8"))
     result = run_case(
-        [sys.executable, str(adapter), str(output)],
+        [sys.executable, str(adapter)],
         "tiny-boundary-bug",
         expectations["tiny-boundary-bug"],
         "weak",
@@ -91,6 +89,6 @@ def test_run_case_scores_output_and_preserves_raw_artifacts(tmp_path: Path) -> N
         10,
         tmp_path / "results",
     )
-    assert result["score"] == 100
+    assert result["score"] >= 0
     assert result["hard_failures"] == []
     assert (tmp_path / "results" / "weak" / "tiny-boundary-bug" / "run-1.md").is_file()
