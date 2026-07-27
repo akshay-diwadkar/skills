@@ -13,6 +13,7 @@ Read only the sections matching the task. The common evidence sequence lives in 
 ## Bug Fix
 
 - Prove the symptom and deepest evidence-backed cause; identify tests that should have caught it.
+- For Python, JavaScript, TypeScript, or Kotlin, prefer a structurally verified branch, error, call, side-effect, or signature fact when it directly proves the defect.
 - Search analogous code for the same defect class and preserve adjacent valid behavior.
 - Reject symptom patches and unrequested input/return/interface widening.
 - Prefer pseudocode showing the defective and corrected branch when the cause is not a one-line guard.
@@ -21,7 +22,8 @@ Read only the sections matching the task. The common evidence sequence lives in 
 ## Refactor
 
 - State the behavior-preservation contract and measurable structural outcome.
-- Find direct and transitive consumers, re-exports, mocks, snapshots, generated artifacts, and extension points.
+- Find direct and transitive consumers, JS/TS re-exports, Kotlin forwarding
+  facades, mocks, snapshots, generated artifacts, and extension points.
 - Keep behavior changes separate and preserve a runnable tracer bullet between dependency-ordered steps.
 - Prefer a dependency table or Mermaid graph when symbol movement crosses modules.
 - Complete when each step is independently reviewable and rollback strands no consumer.

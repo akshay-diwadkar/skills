@@ -5,10 +5,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from plan_inventory import load_inventory, unresolved_candidates
-from plan_runtime import validate_plan
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = SKILL_ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+try:
+    from plan_inventory import load_inventory, unresolved_candidates
+    from plan_runtime import validate_plan
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        f"{Path(__file__).name}: missing required import '{exc.name}' under skill root '{SKILL_ROOT}'."
+    ) from None
 
 
 def collect_diagnostics(
@@ -42,7 +52,7 @@ def main() -> int:
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("path", nargs="?")
     args = parser.parse_args()
-    text = Path(args.path).read_text(encoding="utf-8") if args.path else __import__("sys").stdin.read()
+    text = Path(args.path).read_text(encoding="utf-8") if args.path else sys.stdin.read()
     try:
         baseline = json.loads(args.baseline.read_text(encoding="utf-8"))
         inventory = load_inventory(args.inventory.resolve())

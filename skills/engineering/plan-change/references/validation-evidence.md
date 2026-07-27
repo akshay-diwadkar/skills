@@ -1,8 +1,8 @@
 # Deterministic validation and score mapping
 
-This change does not run or claim a live model evaluation. These commands
-validate the checked-in guidance and worked example against the unchanged v5
-contract.
+This repository does not claim a live model score without configured adapters.
+The commands below validate checked-in guidance, worked examples, language
+parsers, and the provider-neutral decision-quality harness against v5.
 
 ## Reproduce the tiny worked example
 
@@ -92,10 +92,26 @@ Run:
 
 ```bash
 python -m pytest tests/skills/plan-change -q
+python -m pytest tests/skills/implement-plan tests/skills/scope-issue -q
 python tools/validation/validate_repository.py
 git diff --check
 git status --short
 ```
+
+The non-Python end-to-end cases invoke `prepare_plan.py`, `check_plan.py`,
+`finalize_plan.py`, and finalized `check_plan.py --require-finalized` from an
+unrelated working directory for TypeScript tiny/standard and Kotlin
+tiny/standard fixtures.
+
+## Decision-quality A/B evaluation
+
+Use `tests/skills/plan-change/evals/run_decision_quality_ab.py` with one
+provider-neutral JSON adapter and distinct weaker/stronger model labels. Each
+model receives the same repository and prompt under isolated `with-skill` and
+`without-skill` conditions. The report exposes binary schema/grounding validity
+from `check_plan.py`, held-out root-cause/minimal-fix/propagation scores, and
+paired deltas. No live score movement has been measured by this checked-in
+change.
 
 Implementation-pass output:
 

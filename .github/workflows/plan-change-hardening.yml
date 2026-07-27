@@ -18,7 +18,9 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install verification dependencies
-        run: python -m pip install mypy pytest pytest-subtests pyyaml jsonschema ruff
+        run: |
+          python -m pip install mypy pytest pytest-subtests pyyaml jsonschema ruff
+          python -m pip install -r skills/engineering/plan-change/requirements.txt
       - name: Ruff
         run: ruff check .
       - name: Mypy

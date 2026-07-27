@@ -8,9 +8,18 @@ import json
 import sys
 from pathlib import Path
 
-from check_plan import collect_diagnostics
-from plan_inventory import load_inventory
-from plan_runtime import finalized_text, parse_plan
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = SKILL_ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+try:
+    from check_plan import collect_diagnostics
+    from plan_inventory import load_inventory
+    from plan_runtime import finalized_text, parse_plan
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        f"{Path(__file__).name}: missing required import '{exc.name}' under skill root '{SKILL_ROOT}'."
+    ) from None
 
 
 def main() -> int:

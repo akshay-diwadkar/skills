@@ -14,10 +14,14 @@ from plan_runtime import Plan
 
 IGNORED_PARTS = {".git", ".pytest_cache", "__pycache__", ".mypy_cache", ".venv", "node_modules", ".agent"}
 TEXT_SUFFIXES = {
-    ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java", ".rb", ".rs", ".cs",
+    ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".kt", ".kts",
+    ".go", ".java", ".rb", ".rs", ".cs",
     ".md", ".rst", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
 }
-MANIFESTS = {"pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml", "build.gradle", "__init__.py"}
+MANIFESTS = {
+    "pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml",
+    "build.gradle", "build.gradle.kts", "__init__.py",
+}
 
 
 def _files(root: Path) -> list[Path]:
@@ -91,7 +95,7 @@ def _python_import_targets(root: Path, path: Path, text: str) -> set[Path]:
     return targets
 
 
-def _surface(path: Path, *, seed: bool) -> str:
+def _surface(path: Path, text: str, *, seed: bool) -> str:
     parts = {part.casefold() for part in path.parts}
     name = path.name.casefold()
     if "tests" in parts or name.startswith("test_"):
@@ -108,6 +112,10 @@ def _surface(path: Path, *, seed: bool) -> str:
         return "documentation-contract"
     if ".github" in parts or "deploy" in name:
         return "deployment-hook"
+    if path.suffix.lower() in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"} and re.search(
+        r"\bexport\s+(?:\{[^}]+\}|\*)\s+from\s+['\"]", text, re.DOTALL
+    ):
+        return "re-export"
     return "direct-caller" if seed else "transitive-consumer"
 
 
@@ -183,7 +191,7 @@ def build_inventory(repo_root: Path, request: str, anchors: list[str] | None = N
     candidates: list[dict[str, Any]] = [
         {
             "path": path.relative_to(root).as_posix(),
-            "surface": _surface(path.relative_to(root), seed=path in seeds),
+            "surface": _surface(path.relative_to(root), texts[path], seed=path in seeds),
             "anchor": ",".join(sorted(seeds.get(path, definitions[path]))) or path.stem,
             "provenance": sorted(provenance[path]),
         }
