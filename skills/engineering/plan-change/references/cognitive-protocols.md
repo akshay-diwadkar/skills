@@ -48,7 +48,7 @@ rg -n '__all__|export .*SYMBOL|from .* import .*SYMBOL|SYMBOL\s*=' \
   .
 
 # Fixtures, mocks, config/schema, generated output, deployment, and docs.
-rg -n -i --glob '*.{py,js,ts,json,yaml,yml,toml,md}' \
+rg -n -i --glob '*.{py,js,jsx,mjs,cjs,ts,tsx,mts,cts,kt,kts,json,yaml,yml,toml,md}' \
   'SYMBOL|CONFIG_KEY|fixture|mock|generated|deploy' .
 ```
 
@@ -57,5 +57,9 @@ inspect results rather than treating a textual match as proof. Assign each
 required update a `CH-n`. Ground every material result with `F-n`, then record
 each changed, test-only, generated, unchanged, or out-of-scope surface as a
 typed `P-n` disposition with its `CH-n` owner or `F-n` reason.
+
+For JavaScript and TypeScript, inspect native `export ... from` forwarding
+surfaces. Kotlin has no native module re-export, so inspect public forwarding
+functions, objects, and import aliases as facade consumers instead.
 
 Before finalization, scan for deferred language, missing else/error/default branches, unresolved nullability, tests without exact expectations, and backwards dependency ordering. Resolve every material gap.

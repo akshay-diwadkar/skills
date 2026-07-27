@@ -72,3 +72,25 @@ def test_inventory_fails_without_a_grounded_anchor(tmp_path: Path) -> None:
     (tmp_path / "notes.md").write_text("generic words only")
     with pytest.raises(ValueError, match="grounded"):
         build_inventory(tmp_path, "make it better")
+
+
+def test_inventory_indexes_typescript_re_exports_and_kotlin_consumers(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "parser.ts").write_text(
+        "export function parseValue(raw: string): string { return raw.trim(); }\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "src" / "index.ts").write_text(
+        'export { parseValue } from "./parser";\n', encoding="utf-8"
+    )
+    (tmp_path / "src" / "Consumer.kt").write_text(
+        "fun run(raw: String): String = parseValue(raw)\n", encoding="utf-8"
+    )
+    inventory = build_inventory(
+        tmp_path,
+        "Rename parseValue across forwarding surfaces",
+        ["src/parser.ts:parseValue"],
+    )
+    surfaces = {item["path"]: item["surface"] for item in inventory["candidates"]}
+    assert surfaces["src/index.ts"] == "re-export"
+    assert surfaces["src/Consumer.kt"] == "transitive-consumer"

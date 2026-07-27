@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -29,7 +30,7 @@ def test_glossary_is_required_before_prepare_plan() -> None:
     text = (
         ROOT / "skills" / "engineering" / "plan-change" / "SKILL.md"
     ).read_text(encoding="utf-8")
-    assert text.index("references/glossary.md") < text.index("python scripts/prepare_plan.py")
+    assert text.index("references/glossary.md") < text.index("scripts/prepare_plan.py")
 
 
 def test_inline_tiny_example_passes_check_plan(tmp_path: Path) -> None:
@@ -110,3 +111,24 @@ def test_every_configured_evaluation_has_fixture_and_structured_expectations() -
         <= set(expectations[name])
         for name in names
     )
+
+
+def test_non_python_worked_example_hashes_match_fixtures() -> None:
+    text = (
+        ROOT / "skills" / "engineering" / "plan-change" / "references" / "worked-examples.md"
+    ).read_text(encoding="utf-8")
+    fixture_root = ROOT / "tests" / "skills" / "plan-change" / "fixtures"
+    cases = [
+        ("typescript-tiny/src/names.ts", 1, 3),
+        ("typescript-standard/src/parser.ts", 1, 3),
+        ("typescript-standard/src/index.ts", 1, 1),
+        ("kotlin-tiny/src/Names.kt", 1, 3),
+        ("kotlin-standard/src/internal/Parser.kt", 3, 5),
+        ("kotlin-standard/src/api/ParserApi.kt", 1, 5),
+    ]
+    for relative, start, end in cases:
+        path = fixture_root / relative
+        lines = path.read_text(encoding="utf-8").splitlines()
+        excerpt = "\n".join(lines[start - 1 : end]) + "\n"
+        assert hashlib.sha256(excerpt.encode()).hexdigest() in text
+        assert hashlib.sha256(path.read_bytes()).hexdigest() in text

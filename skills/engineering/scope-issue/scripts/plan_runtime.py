@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import hashlib
+import importlib
 import json
 import re
 import subprocess
@@ -43,6 +44,124 @@ BLUEPRINT_CONCEPTS = {
 }
 BINDING_CATEGORIES = tuple(str(value) for value in CONTRACT["binding_categories"])
 ARTIFACT_TYPES = set(CONTRACT["artifact_types"])
+DIAGNOSTIC_HINTS: dict[str, str] = {
+    "contract.unsupported": "Regenerate the plan with the current v5 scaffold.",
+    "section.order": "Restore every canonical section exactly once and in scaffold order.",
+    "record.field": "Write each record field as a unique non-empty `key: value` segment separated by pipes.",
+    "record.section": "Move the record into the section assigned to its record family.",
+    "record.required": "Add the named record or required field using a concrete value.",
+    "record.unknown_field": "Remove the unsupported field or replace it with a field allowed by the v5 contract.",
+    "record.deferred": "Replace deferred language with the exact behavior, decision, or verification detail.",
+    "reference.duplicate": "Renumber the duplicate record so every ID is unique within the plan.",
+    "reference.required": "Replace filler text with at least one reference of the required record family.",
+    "reference.type": "Use only references from the record families allowed for this field.",
+    "reference.undefined": "Define the referenced record or correct the reference to an existing ID.",
+    "traceability.shape": "Use a three-column criterion, changes, and tests traceability row.",
+    "traceability.reference": "Map an existing SC/C ID to non-empty existing CH and T IDs.",
+    "traceability.criterion": "Add a traceability row for the named success criterion or constraint.",
+    "traceability.change": "Map the named change from at least one traceability row.",
+    "traceability.test": "Map the named test from at least one traceability row.",
+    "blueprint.location": "Move the execution blueprint inside Implementation Specification.",
+    "blueprint.required": "Add a literal execution blueprint owned by the relevant change records.",
+    "blueprint.invalid": "Give the blueprint an allowed type, purpose, body, and existing CH ownership.",
+    "blueprint.domain": "Align the blueprint domain list with the plan tier and final risk domains.",
+    "blueprint.domain_coverage": "Cover every final risk domain exactly once across the blueprint set.",
+    "blueprint.domain_concept": "Add the named missing domain concept to the relevant blueprint.",
+    "snapshot.malformed": "Re-run prepare_plan.py to create a valid planning baseline.",
+    "snapshot.repository_changed": "Return to the repository used by prepare_plan.py and regenerate the planning run.",
+    "snapshot.head_changed": "Rebase the plan on the current HEAD by re-running prepare_plan.py and re-grounding facts.",
+    "snapshot.branch_changed": "Switch back to the prepared branch or create a fresh planning run on this branch.",
+    "snapshot.dirty_changed": "Restore the prepared dirty state or regenerate and re-ground the plan.",
+    "snapshot.tracked_changed": "Recompute the planning run because tracked repository content changed.",
+    "snapshot.untracked_changed": "Restore the prepared untracked state or regenerate the planning run.",
+    "binding.malformed": "Re-run finalize_plan.py to create a valid repository binding.",
+    "binding.evidence_stale": "Re-open the evidence file, recompute hashes, and finalize the repaired plan again.",
+    "binding.target_stale": "Re-ground the changed target against its current content and finalize again.",
+    "binding.generator_stale": "Re-ground the authoritative generator and finalize again.",
+    "binding.config_stale": "Re-ground the configuration fact and finalize again.",
+    "binding.schema_stale": "Re-ground the schema fact and finalize again.",
+    "binding.dirty_stale": "Re-run finalization after reconciling the changed bound dirty path.",
+    "binding.metadata_stale": "Re-run finalization against the same repository and exact plan body.",
+    "metadata.shape": "Replace plan metadata with the scaffold's provisional and final JSON objects.",
+    "metadata.provisional": "Restore the provisional metadata object from the prepared scaffold.",
+    "metadata.final": "Restore the final metadata object and fill its supported classification values.",
+    "metadata.intent": "Make final intent equal the provisional intent.",
+    "metadata.high_risk_domains": "Add every applicable final risk domain to the high-risk metadata.",
+    "tier.downgrade": "Keep the final tier at or above the provisional tier.",
+    "tier.minimum": "Raise the tier to the minimum required by the plan contents.",
+    "tier.cli_mismatch": "Pass the same tier to the CLI that appears in final plan metadata.",
+    "domain.removal": "Retain each provisional domain or add a grounded X-n dismissal.",
+    "domain.dismissal": "Cite concrete F-n evidence and a specific reason for dismissing the domain.",
+    "success.observable": "Rewrite given, when, then, and unchanged as concrete observable behavior.",
+    "decision.concrete": "State a concrete selected approach, rejected alternative, and drawback.",
+    "propagation.disposition": "Use one of the contract's allowed propagation dispositions.",
+    "propagation.surface": "Name one auditable material surface from the v5 contract.",
+    "propagation.owner": "Assign the changed or test-only surface to an owning CH-n record.",
+    "propagation.reason": "Cite an F-n fact that proves why this surface is unchanged or out of scope.",
+    "inventory.unresolved": "Ground the candidate with an F-n and reconcile it through a matching P-n or CH-n.",
+    "fact.kind": "Replace the fact kind with a supported v5 fact kind.",
+    "fact.path": "Use an existing repository-relative file path that cannot escape the repository.",
+    "fact.lines": "Provide a valid inclusive `start-end` line range.",
+    "fact.anchor": "Move the range so it contains the exact anchor text.",
+    "fact.stale": "Recompute both hashes from the current file and exact inclusive range.",
+    "fact.structured_required": "Add the fact-kind-specific field named by the diagnostic.",
+    "fact.structured": "Correct the structural claim or cite the exact range containing that structure.",
+    "fact.parser_dependency": "Install the skill's pinned parser requirements and rerun validation.",
+    "fact.signature": "Cite the actual function declaration line and exact anchor.",
+    "fact.signature_parameters": "Copy the exact normalized parameter declaration from the cited function.",
+    "fact.signature_returns": "Copy the exact return annotation, or use `unannotated` when no annotation exists.",
+    "fact.unused": "Reference this fact from a decision, change, propagation, boundary, obligation, or attack.",
+    "change.locality": "Choose local-production, shared-production, or test-only based on the owned edit.",
+    "change.reversibility": "Choose reversible, conditional, or irreversible and describe the real rollback constraint.",
+    "change.status": "Mark the target as existing or new.",
+    "change.target": "Use an existing contained path or change the record to a correctly owned new target.",
+    "change.anchor": "Use an anchor that currently exists in the target file.",
+    "change.evidence_anchor": "Cite same-path F-n evidence whose range contains the exact change anchor.",
+    "change.new_path": "Give the absent contained path a semantic directory or generator owner.",
+    "change.directory_owner": "Reference an ancestor package manifest or directory-ownership fact.",
+    "change.generator_owner": "Reference the authoritative generator that declares this output.",
+    "change.generated_output": "Move the edit to the authoritative generator and reference it as generator-owner.",
+    "change.specificity": "Describe exact branches, errors, ordering, side effects, and observable behavior.",
+    "boundary.specificity": "Name the boundary class and provide a concrete three-stage arrow flow.",
+    "obligation.domain": "Use an obligation belonging to one of the plan's final risk domains.",
+    "obligation.duplicate": "Keep exactly one record for this domain obligation.",
+    "obligation.format": "For satisfied status, cite evidence, decision, changes, and tests without a reason field.",
+    "obligation.coverage": "Name the obligation explicitly in coverage and its owning change.",
+    "obligation.test_ownership": "Reference a T-n that verifies this specific obligation behavior.",
+    "obligation.not_applicable": "Give a concrete absence reason and F-n evidence without decision, change, or test owners.",
+    "obligation.not_applicable_evidence": "Make both the reason and cited fact explicitly prove the obligation is absent.",
+    "obligation.not_applicable_contradiction": "Remove the contradiction or mark the obligation satisfied with owners and tests.",
+    "obligation.status": "Use satisfied or not-applicable with the fields required for that status.",
+    "obligation.required": "Add the missing obligation record for the final risk domain.",
+    "attack.duplicate": "Keep one uniquely named record for each attack.",
+    "attack.unknown": "Use a required generic or final-domain attack name.",
+    "attack.required": "Add the named required attack and repair or ground its dismissal.",
+    "attack.format": "Provide concrete status, finding, evidence, and resolution fields.",
+    "attack.finding": "Replace the placeholder with a concrete failure mode and affected boundary.",
+    "attack.specificity": "Describe the named attack explicitly in the finding.",
+    "attack.ownership": "Reference both a relevant owning CH-n and T-n in the repaired resolution.",
+    "attack.reason": "Use an attack-specific dismissal reason, or remove reason from a repaired attack.",
+    "attack.dismissal": "Cite F-n evidence that specifically grounds this attack's dismissal.",
+    "attack.generic_reason": "Replace the copied reason with evidence specific to this attack.",
+    "verification.generic_command": "Use a targeted command naming the relevant test file or test selector.",
+    "verification.specificity": "Make given, when, and then exact and observably testable.",
+    "receipt.missing": "Run finalize_plan.py and validate its exact output with --require-finalized.",
+    "receipt.stale": "Run finalize_plan.py again after the last plan or binding change.",
+}
+for _metadata_label in ("provisional", "final"):
+    DIAGNOSTIC_HINTS.update(
+        {
+            f"metadata.{_metadata_label}_intent": "Use feature, bug-fix, or refactor for this metadata intent.",
+            f"metadata.{_metadata_label}_tier": "Use tiny, standard, or high-risk for this metadata tier.",
+            f"metadata.{_metadata_label}_domains": "Use a duplicate-free JSON list containing only supported risk domains.",
+            f"metadata.{_metadata_label}_domain": "Remove or replace the unsupported risk domain.",
+            f"metadata.{_metadata_label}_signals": "Use a duplicate-free JSON list containing only supported tier signals.",
+            f"metadata.{_metadata_label}_signal": "Remove or replace the unsupported tier signal.",
+        }
+    )
+for _marker_name in ("plan-metadata", "plan-repository"):
+    DIAGNOSTIC_HINTS[f"{_marker_name}.count"] = f"Keep exactly one valid {_marker_name} marker."
+    DIAGNOSTIC_HINTS[f"{_marker_name}.malformed"] = f"Replace {_marker_name} contents with a valid JSON object."
 ID = re.compile(r"\b(?:SC|F|D|CH|P|B|O|C|R|T|X)-[1-9]\d*\b")
 REC = re.compile(
     r"^\s*-\s+(?P<id>(?:SC|F|D|CH|P|B|O|C|R|T|X)-[1-9]\d*|A-(?:[1-9]\d*|[a-z][a-z-]*))\s*:\s*(?P<body>.+)$"
@@ -59,11 +178,22 @@ class Diagnostic:
     message: str
     line: int | None = None
 
+    @property
+    def hint(self) -> str:
+        return DIAGNOSTIC_HINTS.get(
+            self.code,
+            "Re-open the cited record and replace the invalid value with current repository-grounded data.",
+        )
+
     def __str__(self) -> str:
-        return f"Error [{self.code}]" + (f" on line {self.line}" if self.line else "") + f": {self.message}"
+        return (
+            f"Error [{self.code}]"
+            + (f" on line {self.line}" if self.line else "")
+            + f": {self.message} Likely fix: {self.hint}"
+        )
 
     def to_dict(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
+        return {**dataclasses.asdict(self), "hint": self.hint}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -539,6 +669,304 @@ def _structured_error(ds: list[Diagnostic], fact: Record, detail: str) -> None:
     ds.append(Diagnostic("fact.structured", f"{fact.id}: {detail}", fact.line))
 
 
+NON_PYTHON_STRUCTURAL_KINDS = {
+    "function-signature",
+    "class-signature",
+    "call-edge",
+    "external-call",
+    "branch",
+    "error",
+    "side-effect",
+}
+JAVASCRIPT_SUFFIXES = {".js", ".jsx", ".mjs", ".cjs"}
+TYPESCRIPT_SUFFIXES = {".ts", ".tsx", ".mts", ".cts"}
+KOTLIN_SUFFIXES = {".kt", ".kts"}
+
+
+def _node_text(node: Any, source: bytes) -> str:
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
+
+
+def _tree_nodes(root: Any) -> Iterable[Any]:
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        yield node
+        stack.extend(reversed(node.children))
+
+
+def _tree_end_line(node: Any) -> int:
+    row, column = node.end_point
+    return row if column == 0 and row > node.start_point[0] else row + 1
+
+
+def _tree_in_range(node: Any, start: int, end: int) -> bool:
+    return start <= node.start_point[0] + 1 and _tree_end_line(node) <= end
+
+
+def _normalized_code(value: str) -> str:
+    value = re.sub(r"\s+", " ", value.strip().rstrip(";"))
+    while value.startswith("(") and value.endswith(")"):
+        value = value[1:-1].strip()
+    return value
+
+
+def _tree_sitter_root(source_text: str, suffix: str) -> tuple[Any | None, str | None]:
+    if suffix in JAVASCRIPT_SUFFIXES:
+        grammar_module, factory = "tree_sitter_javascript", "language"
+    elif suffix in TYPESCRIPT_SUFFIXES:
+        grammar_module = "tree_sitter_typescript"
+        factory = "language_tsx" if suffix == ".tsx" else "language_typescript"
+    elif suffix in KOTLIN_SUFFIXES:
+        grammar_module, factory = "tree_sitter_kotlin", "language"
+    else:
+        return None, None
+    try:
+        tree_sitter = importlib.import_module("tree_sitter")
+        grammar = importlib.import_module(grammar_module)
+        language = tree_sitter.Language(getattr(grammar, factory)())
+        return tree_sitter.Parser(language).parse(source_text.encode("utf-8")).root_node, None
+    except ModuleNotFoundError as exc:
+        return None, f"missing parser dependency `{exc.name}`"
+    except (AttributeError, ImportError, OSError, TypeError, ValueError) as exc:
+        return None, f"parser initialization failed: {exc}"
+
+
+def _function_nodes(root: Any, source: bytes, language: str) -> list[dict[str, Any]]:
+    functions: list[dict[str, Any]] = []
+    for node in _tree_nodes(root):
+        declaration = node
+        callable_node = node
+        name_node = node.child_by_field_name("name")
+        if language == "ecma" and node.type == "variable_declarator":
+            value = node.child_by_field_name("value")
+            if value is None or value.type not in {"arrow_function", "function_expression"}:
+                continue
+            callable_node = value
+            name_node = node.child_by_field_name("name")
+        elif language == "ecma" and node.type not in {
+            "function_declaration",
+            "generator_function_declaration",
+            "method_definition",
+        }:
+            continue
+        elif language == "kotlin" and node.type != "function_declaration":
+            continue
+        if name_node is None:
+            continue
+        parameters = callable_node.child_by_field_name("parameters")
+        if parameters is None:
+            parameters = next(
+                (
+                    child
+                    for child in callable_node.children
+                    if child.type in {"formal_parameters", "function_value_parameters"}
+                ),
+                None,
+            )
+        if parameters is None:
+            continue
+        return_node = callable_node.child_by_field_name("return_type")
+        body = callable_node.child_by_field_name("body")
+        if body is None:
+            body = next(
+                (
+                    child
+                    for child in reversed(callable_node.children)
+                    if child.type in {"statement_block", "function_body"}
+                ),
+                None,
+            )
+        if language == "kotlin" and return_node is None and body is not None:
+            after_parameters = source[parameters.end_byte : body.start_byte].decode("utf-8", errors="replace").strip()
+            return_text = after_parameters[1:].strip() if after_parameters.startswith(":") else "unannotated"
+        else:
+            return_text = (
+                _node_text(return_node, source).removeprefix(":").strip()
+                if return_node is not None
+                else "unannotated"
+            )
+        header = source[declaration.start_byte : parameters.start_byte].decode("utf-8", errors="replace")
+        functions.append(
+            {
+                "node": callable_node,
+                "declaration": declaration,
+                "name": _node_text(name_node, source),
+                "parameters": _node_text(parameters, source)[1:-1].strip(),
+                "returns": return_text,
+                "async": bool(re.search(r"\b(?:async|suspend)\b", header)),
+            }
+        )
+    return functions
+
+
+def _call_name(node: Any, source: bytes, language: str) -> str:
+    if language == "ecma":
+        function = node.child_by_field_name("function")
+        return _node_text(function, source) if function is not None else ""
+    for child in node.named_children:
+        if child.type not in {"value_arguments", "type_arguments", "annotated_lambda"}:
+            return _node_text(child, source)
+    return ""
+
+
+def _class_nodes(root: Any, source: bytes, language: str) -> list[tuple[Any, str, str]]:
+    classes: list[tuple[Any, str, str]] = []
+    for node in _tree_nodes(root):
+        if node.type != "class_declaration":
+            continue
+        name = node.child_by_field_name("name")
+        if name is None:
+            continue
+        heritage_types = {"class_heritage"} if language == "ecma" else {"delegation_specifiers"}
+        heritage = next((child for child in node.children if child.type in heritage_types), None)
+        classes.append(
+            (
+                node,
+                _node_text(name, source),
+                _node_text(heritage, source).strip() if heritage is not None else "",
+            )
+        )
+    return classes
+
+
+def _non_python_fact_fields(
+    ds: list[Diagnostic],
+    fact: Record,
+    source_text: str,
+    source_path: Path,
+    start: int,
+    end: int,
+) -> None:
+    root, parser_error = _tree_sitter_root(source_text, source_path.suffix.lower())
+    if root is None:
+        if parser_error:
+            ds.append(Diagnostic("fact.parser_dependency", f"{fact.id}: {parser_error}.", fact.line))
+        return
+    if root.has_error:
+        _structured_error(ds, fact, "supported-language structured evidence contains syntax errors.")
+        return
+    source = source_text.encode("utf-8")
+    language = "kotlin" if source_path.suffix.lower() in KOTLIN_SUFFIXES else "ecma"
+    functions = _function_nodes(root, source, language)
+    kind = fact.fields["kind"]
+    if kind == "function-signature":
+        matches = [
+            function
+            for function in functions
+            if function["name"] == fact.fields.get("anchor")
+            and start <= function["declaration"].start_point[0] + 1 <= end
+        ]
+        if not matches:
+            _structured_error(ds, fact, "cited anchor is not a supported function in the stated range.")
+            return
+        function = matches[0]
+        async_claim = fact.fields.get("async")
+        if async_claim not in {"true", "false"} or (async_claim == "true") != function["async"]:
+            _structured_error(ds, fact, "async must exactly match async/suspend on the cited function.")
+        if _normalized_code(fact.fields["parameters"]) != _normalized_code(function["parameters"]):
+            ds.append(
+                Diagnostic(
+                    "fact.signature_parameters",
+                    f"{fact.id}: claimed parameters do not exactly match the function signature.",
+                    fact.line,
+                )
+            )
+        if _normalized_code(fact.fields["returns"]) != _normalized_code(function["returns"]):
+            ds.append(
+                Diagnostic(
+                    "fact.signature_returns",
+                    f"{fact.id}: claimed return annotation does not exactly match the function signature.",
+                    fact.line,
+                )
+            )
+        return
+    if kind == "class-signature":
+        class_matches = [
+            item
+            for item in _class_nodes(root, source, language)
+            if item[1] == fact.fields.get("anchor") and start <= item[0].start_point[0] + 1 <= end
+        ]
+        if not class_matches:
+            _structured_error(ds, fact, "cited anchor is not a supported class in the stated range.")
+        elif _normalized_code(fact.fields["bases"]) != _normalized_code(class_matches[0][2]):
+            _structured_error(ds, fact, "claimed bases do not match the cited class.")
+        return
+    calls = [
+        node
+        for node in _tree_nodes(root)
+        if node.type == "call_expression"
+        and _tree_in_range(node, start, end)
+        and _normalized_code(_call_name(node, source, language))
+        == _normalized_code(fact.fields.get("callee", ""))
+    ]
+    if kind in {"call-edge", "external-call"}:
+        if kind == "call-edge":
+            callers = [
+                function
+                for function in functions
+                if function["name"] == fact.fields.get("caller")
+                and start <= function["declaration"].start_point[0] + 1 <= end
+            ]
+            descendants = set(_tree_nodes(callers[0]["node"])) if callers else set()
+            if not callers or not any(call in descendants for call in calls):
+                _structured_error(ds, fact, "qualified caller/callee edge is not contained in the cited range.")
+        elif not calls:
+            _structured_error(ds, fact, "qualified external call is not contained in the cited range.")
+        return
+    if kind == "branch":
+        branch_types = (
+            {"if_expression", "while_statement", "do_while_statement", "when_entry"}
+            if language == "kotlin"
+            else {"if_statement", "while_statement", "do_statement", "ternary_expression"}
+        )
+        values: list[str] = []
+        for node in _tree_nodes(root):
+            if node.type not in branch_types:
+                continue
+            condition = node.child_by_field_name("condition")
+            if condition is None and node.type == "when_entry":
+                condition = next((child for child in node.named_children if child.type != "control_structure_body"), None)
+            if condition is not None and _tree_in_range(condition, start, end):
+                values.append(_node_text(condition, source))
+        claim = fact.fields["condition"]
+    elif kind == "error":
+        error_types = {"throw_expression"} if language == "kotlin" else {"throw_statement"}
+        values = [
+            re.sub(r"^throw\s+", "", _node_text(node, source)).strip().rstrip(";")
+            for node in _tree_nodes(root)
+            if node.type in error_types and _tree_in_range(node, start, end)
+        ]
+        claim = fact.fields["error"]
+    else:
+        def is_effect(node: Any) -> bool:
+            text = _normalized_code(_node_text(node, source))
+            if language == "kotlin":
+                return node.type in {"call_expression", "assignment"} or (
+                    node.type in {"prefix_expression", "postfix_expression"}
+                    and ("++" in text or "--" in text)
+                )
+            return node.type in {
+                "call_expression",
+                "assignment_expression",
+                "augmented_assignment_expression",
+                "update_expression",
+            } or (node.type == "unary_expression" and text.startswith("delete "))
+
+        values = [
+            _node_text(node, source)
+            for node in _tree_nodes(root)
+            if is_effect(node) and _tree_in_range(node, start, end)
+        ]
+        claim = fact.fields["effect"]
+    normalized_claim = _normalized_code(claim)
+    normalized_values = [_normalized_code(value) for value in values]
+    if normalized_claim not in normalized_values and not any(
+        normalized_claim in value for value in normalized_values
+    ):
+        _structured_error(ds, fact, f"claimed {kind} is not structurally contained in the cited range.")
+
+
 def _fact_fields(
     ds: list[Diagnostic],
     fact: Record,
@@ -554,6 +982,12 @@ def _fact_fields(
     if missing:
         return
     start, end = map(int, fact.fields["lines"].split("-", 1))
+    suffix = source_path.suffix.lower()
+    if kind in NON_PYTHON_STRUCTURAL_KINDS and suffix in (
+        JAVASCRIPT_SUFFIXES | TYPESCRIPT_SUFFIXES | KOTLIN_SUFFIXES
+    ):
+        _non_python_fact_fields(ds, fact, source_text, source_path, start, end)
+        return
     tree: ast.Module | None = None
     if source_path.suffix == ".py":
         try:
@@ -561,6 +995,8 @@ def _fact_fields(
         except SyntaxError:
             _structured_error(ds, fact, "Python structured evidence cannot be parsed.")
             return
+    elif kind in NON_PYTHON_STRUCTURAL_KINDS:
+        return
 
     if kind == "function-signature":
         if tree is None:
@@ -694,6 +1130,8 @@ def _fact_fields(
         return
 
     if kind == "schema-shape":
+        if tree is None and source_path.suffix != ".json":
+            return
         claimed_fields = {value.strip() for value in fact.fields["fields"].split(",") if value.strip()}
         actual_fields: set[str] = set()
         if tree is not None:
@@ -720,6 +1158,8 @@ def _fact_fields(
         return
 
     if kind == "config-key":
+        if source_path.suffix not in {".json", ".toml", ".ini", ".cfg", ".yaml", ".yml"}:
+            return
         key, config_expected = fact.fields["key"], fact.fields["value"]
         found = False
         if source_path.suffix == ".json":

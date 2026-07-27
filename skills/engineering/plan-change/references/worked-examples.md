@@ -76,6 +76,66 @@ src/parser.py:parse_value`. Ground the definition, re-export, CLI importer, and
 related test. Give each relevant candidate a `P` disposition, own every changed
 path with a `CH`, and use a `domains: none` interface blueprint.
 
+## TypeScript tiny bug fix
+
+The `typescript-tiny` fixture accepts an optional name but calls `trim`
+unconditionally. Its complete executable plan is hydrated by
+`test_scaffolds_end_to_end.py`; the key structurally verified fact is:
+
+```markdown
+- F-1: kind: call-edge | path: src/names.ts | lines: 1-3 | anchor: normalizeName | excerpt-sha256: 4b8db8bdb0e4f14ce60483811f3cf4699ea5c4669770647c8bb8fc56b67fd5db | file-sha256: 4b8db8bdb0e4f14ce60483811f3cf4699ea5c4669770647c8bb8fc56b67fd5db | observation: optional input reaches an unconditional string normalization call | caller: normalizeName | callee: name.trim
+```
+
+The tiny plan owns one local null/undefined guard, preserves trim-then-lowercase
+ordering, reconciles the direct-caller inventory entry, validates the draft,
+finalizes it, and validates the receipt.
+
+## TypeScript standard re-export propagation
+
+The `typescript-standard` fixture defines `parseValue`, re-exports it through
+`src/index.ts`, imports that public surface from `src/cli.ts`, and references it
+from a test. Prepare with `--tier standard --intent refactor --anchor
+src/parser.ts:parseValue`. Representative current facts are:
+
+```markdown
+- F-1: kind: function-signature | path: src/parser.ts | lines: 1-3 | anchor: parseValue | excerpt-sha256: 3dec50b40993b4638afd4be0cd170296c720a1c7d3d02d03a2920c7a6ffcd483 | file-sha256: 3dec50b40993b4638afd4be0cd170296c720a1c7d3d02d03a2920c7a6ffcd483 | observation: parseValue is the shared definition | parameters: raw: string | returns: string | async: false
+- F-2: kind: documentation-contract | path: src/index.ts | lines: 1-1 | anchor: parseValue | excerpt-sha256: 1cb7da4c83647f5672a5f49abb3679b5a0c3ead2232305771224d328aceaf611 | file-sha256: 1cb7da4c83647f5672a5f49abb3679b5a0c3ead2232305771224d328aceaf611 | observation: the package entry point re-exports parseValue
+- P-2: owner: CH-2 | because: F-2 | surface: re-export | disposition: changed
+```
+
+The complete plan also grounds and reconciles the CLI and test candidates,
+orders definition before re-export before consumers, and verifies unchanged
+trimming behavior.
+
+## Kotlin tiny nullable-input bug fix
+
+The `kotlin-tiny` fixture declares `String?` but dereferences it with `!!`.
+Kotlin nullability stays inside the existing `parameters` field; no v5 schema
+extension is required.
+
+```markdown
+- F-1: kind: call-edge | path: src/Names.kt | lines: 1-3 | anchor: normalizeName | excerpt-sha256: e52f4e44cf79e40aca5a99163a4f82f9b16edd880ac64b19b8476805d08f6367 | file-sha256: e52f4e44cf79e40aca5a99163a4f82f9b16edd880ac64b19b8476805d08f6367 | observation: nullable input reaches an unconditional normalization call | caller: normalizeName | callee: name!!.trim
+```
+
+The complete tiny plan adds the null branch before existing normalization and
+tests null, empty, and padded mixed-case inputs.
+
+## Kotlin standard facade propagation
+
+Kotlin has no native module re-export. The `kotlin-standard` fixture therefore
+uses a public forwarding facade in `src/api/ParserApi.kt`, plus a CLI consumer
+and test. Prepare with `--tier standard --intent refactor --anchor
+src/internal/Parser.kt:parseValue`.
+
+```markdown
+- F-1: kind: function-signature | path: src/internal/Parser.kt | lines: 3-5 | anchor: parseValue | excerpt-sha256: 8e340cd1f88670fe330ce81a55680c40417ccdeebb76b4098356dde9ba5ba375 | file-sha256: cd258db861c9cd5fcebbd6cb4a378757bd26e1ba8d7a2e282bfcdbadd27fcc43 | observation: parseValue is the internal shared definition | parameters: raw: String | returns: String | async: false
+- F-2: kind: documentation-contract | path: src/api/ParserApi.kt | lines: 1-5 | anchor: parseValue | excerpt-sha256: 964c91274301df4705b168dc3803e2602e6408746955dad838b81d55d30a2057 | file-sha256: 964c91274301df4705b168dc3803e2602e6408746955dad838b81d55d30a2057 | observation: the public facade forwards parseValue
+- P-2: owner: CH-2 | because: F-2 | surface: transitive-consumer | disposition: changed
+```
+
+The complete plan grounds every facade, CLI, and fixture candidate, updates
+them in dependency order, and preserves the parser result and error behavior.
+
 ## Security
 
 Prepare with `--tier high-risk --risk-domain security --anchor

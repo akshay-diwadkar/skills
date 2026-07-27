@@ -4,11 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-from plan_contract import INTENTS, render_scaffold
-from plan_inventory import build_inventory
-from plan_runtime import TIERS, snapshot
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = SKILL_ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+try:
+    from plan_contract import INTENTS, render_scaffold
+    from plan_inventory import build_inventory
+    from plan_runtime import TIERS, snapshot
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        f"{Path(__file__).name}: missing required import '{exc.name}' under skill root '{SKILL_ROOT}'."
+    ) from None
 
 
 def main() -> int:
