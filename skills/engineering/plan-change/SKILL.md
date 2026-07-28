@@ -67,7 +67,15 @@ Complete this step only when current behavior, root cause where applicable, call
 
 ## 3. Specify the Plan
 
-Fill the scaffold one record family at a time: `SC` outcome, `F` evidence, `D` decisions, `CH` changes, `P` propagation, `B` boundaries, domain obligations, traceability, `T` verification, and attacks. Use only current fingerprints. Mark an obligation `not-applicable` only with a concrete reason and repository-grounded evidence; map every satisfied obligation to a concept-specific test, sharing tests only across related obligations named by the test behavior.
+Before filling records, use the “Record field templates” quick-reference in
+`references/glossary.md` for exact field order and conditional fields. Fill the
+scaffold one record family at a time: `SC` outcome, `F` evidence, `D` decisions,
+`CH` changes, `P` propagation, `B` boundaries, domain obligations,
+traceability, `T` verification, and attacks. Use only current fingerprints.
+Mark an obligation `not-applicable` only with a concrete reason and
+repository-grounded evidence; map every satisfied obligation to a
+concept-specific test, sharing tests only across related obligations named by
+the test behavior.
 
 Read `references/worked-examples.md` before writing a standard or high-risk plan. For non-tiny work, include a literal execution blueprint that resolves branches, errors, ordering, side effects, and compatibility behavior. For every public/shared interface, state current and proposed shapes, defaults, errors, nullability, and old/new combinations.
 
@@ -92,6 +100,11 @@ python /absolute/skill-root/scripts/check_plan.py \
   --format json \
   /absolute/path/to/temporary-run/draft.md
 ```
+
+After every `check_plan.py` run, append a visible scratch-note tally line for
+each returned category (or `validation` when none is returned) in the form
+`attempt <n> for <diagnostic.category>: <pass/fail>`, numbering attempts
+separately per category.
 
 Count attempts separately for each diagnostic category. After three failed
 `check_plan.py` runs against the same category, stop guessing and re-read the

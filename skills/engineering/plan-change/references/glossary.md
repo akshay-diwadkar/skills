@@ -26,6 +26,26 @@ An execution blueprint is the literal branch, error, ordering, side-effect, and
 compatibility design for one or more `CH-n`; standard and high-risk plans require
 one, and high-risk blueprint domains must exactly cover final risk domains.
 
+## Record field templates
+
+Use fields in this order. A field marked optional is permitted by the contract
+but has no unconditional or validator-defined conditional requirement.
+
+```text
+SC-n: given: <setup> (required) | when: <action> (required) | then: <observable outcome> (required) | unchanged: <preserved behavior> (required)
+F-n: kind: <kind> (required) | path: <repository path> (required) | lines: <start>-<end> (required) | anchor: <exact anchor> (required) | excerpt-sha256: <hash> (required) | file-sha256: <hash> (required) | observation: <current fact> (required) | parameters: <exact parameters> (required if kind is function-signature) | returns: <exact return> (required if kind is function-signature) | async: <true|false> (required if kind is function-signature) | bases: <exact bases> (required if kind is class-signature) | fields: <exact fields> (required if kind is schema-shape) | key: <config key> (required if kind is config-key) | value: <config value> (required if kind is config-key) | condition: <exact condition> (required if kind is branch) | error: <exact error> (required if kind is error) | effect: <exact effect> (required if kind is side-effect) | caller: <qualified caller> (required if kind is call-edge) | callee: <qualified callee> (required if kind is call-edge or external-call) | generator: <generator path or anchor> (required if kind is generated-from) | output: <generated output> (required if kind is generated-from) | directory: <owned directory> (required if kind is directory-ownership)
+D-n: selected: <chosen approach> (required) | evidence: <F-n|C-n references> (required) | rejected: <rejected alternative> (required) | drawback: <selected approach drawback> (required)
+C-n: constraint: <non-negotiable limit> (required) | evidence: <F-n references> (optional)
+CH-n: path: <repository path> (required) | anchor: <exact anchor> (required) | status: <existing|new> (required) | locality: <local-production|shared-production|test-only> (required) | reversibility: <reversible|conditional|irreversible> (required) | evidence: <F-n references> (required) | change: <literal implementation behavior> (required) | directory-owner: <CH-n|F-n references> (one of directory-owner or generator-owner required if status is new) | generator-owner: <CH-n|F-n references> (one of directory-owner or generator-owner required if status is new)
+P-n: owner: <CH-n references> (required) | because: <F-n references> (required) | surface: <material surface> (required) | disposition: <changed|test-only|generated|unchanged|out-of-scope> (required)
+B-n: class: <concrete boundary class> (required) | path: <F-n references> (required) | flow: <stage one -> stage two -> stage three> (required)
+O-n: domain: <final risk domain> (required) | obligation: <domain obligation> (required) | status: <satisfied|not-applicable> (required) | coverage: <obligation-specific coverage> (required) | evidence: <F-n references> (required) | decision: <D-n references> (required if status is satisfied) | changes: <CH-n references> (required if status is satisfied) | tests: <T-n references> (required if status is satisfied) | reason: <grounded absence reason> (required if status is not-applicable; forbidden if satisfied)
+R-n: severity: <severity> (required) | owner: <CH-n references> (required) | tests: <T-n references> (required) | risk: <concrete failure mode> (required)
+T-n: given: <setup> (required) | when: <action> (required) | then: <observable expectation> (required) | command: <runnable command> (required)
+A-name: status: <repaired|dismissed|not-applicable> (required) | finding: <attack-specific finding> (required) | evidence: <F-n references> (required) | resolution: <CH-n|T-n|F-n|D-n references> (required) | reason: <attack-specific dismissal reason> (required if status is dismissed or not-applicable; forbidden if repaired)
+X-n: domain: <provisional risk domain> (required) | status: dismissed (required) | evidence: <F-n references> (required) | reason: <grounded dismissal reason> (required)
+```
+
 ## Classification fields
 
 | Term or value | Plain-English meaning |

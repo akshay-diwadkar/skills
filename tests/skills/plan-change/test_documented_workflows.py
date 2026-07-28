@@ -3,11 +3,23 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def _copy_fixture_with_lf(source: Path, destination: Path) -> Path:
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for path in destination.rglob("*"):
+        if path.is_file():
+            data = path.read_bytes()
+            path.write_bytes(data.replace(b"\r\n", b"\n"))
+    return destination
 
 
 def test_worked_examples_document_valid_finalization_order_and_all_families() -> None:
@@ -33,57 +45,103 @@ def test_glossary_is_required_before_prepare_plan() -> None:
     assert text.index("references/glossary.md") < text.index("scripts/prepare_plan.py")
 
 
-def test_inline_tiny_example_passes_check_plan(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("marker", "fixture_name", "tier", "intent", "anchor", "risk_domains", "request_text"),
+    [
+        (
+            "tiny-plan",
+            "tiny",
+            "tiny",
+            "bug-fix",
+            "src/names.py:normalize_name",
+            [],
+            "Fix normalize_name so None returns an empty string while preserving non-null normalization.",
+        ),
+        (
+            "standard-plan",
+            "typescript-standard",
+            "standard",
+            "refactor",
+            "src/parser.ts:parseValue",
+            [],
+            "Rename parseValue across its re-export and consumers while preserving parser behavior.",
+        ),
+        (
+            "high-risk-plan",
+            "standard",
+            "high-risk",
+            "bug-fix",
+            "src/flags.py:flags_for",
+            ["security"],
+            "Prevent cross-tenant feature-flag cache reuse while preserving same-tenant caching.",
+        ),
+    ],
+)
+def test_inline_worked_examples_pass_draft_and_finalized_validation(
+    tmp_path: Path,
+    marker: str,
+    fixture_name: str,
+    tier: str,
+    intent: str,
+    anchor: str,
+    risk_domains: list[str],
+    request_text: str,
+) -> None:
     skill = ROOT / "skills" / "engineering" / "plan-change"
-    fixture = ROOT / "tests" / "skills" / "plan-change" / "fixtures" / "tiny"
+    fixture_source = ROOT / "tests" / "skills" / "plan-change" / "fixtures" / fixture_name
+    fixture = (
+        fixture_source
+        if marker == "tiny-plan"
+        else _copy_fixture_with_lf(fixture_source, tmp_path / "fixture")
+    )
     text = (skill / "references" / "worked-examples.md").read_text(encoding="utf-8")
     match = re.search(
-        r"<!-- tiny-plan:start -->\n```markdown\n(.*?)\n```\n<!-- tiny-plan:end -->",
+        rf"<!-- {re.escape(marker)}:start -->\n```markdown\n(.*?)\n```\n<!-- {re.escape(marker)}:end -->",
         text,
         re.DOTALL,
     )
     assert match is not None
 
     request = tmp_path / "request.md"
-    request.write_text(
-        "Fix normalize_name so None returns an empty string while preserving non-null normalization.\n",
-        encoding="utf-8",
-    )
+    request.write_text(request_text + "\n", encoding="utf-8")
     run_dir = tmp_path / "run"
-    subprocess.run(
-        [
-            sys.executable,
-            str(skill / "scripts" / "prepare_plan.py"),
-            "--repo-root",
-            str(fixture),
-            "--request-file",
-            str(request),
-            "--run-dir",
-            str(run_dir),
-            "--tier",
-            "tiny",
-            "--intent",
-            "bug-fix",
-            "--anchor",
-            "src/names.py:normalize_name",
-        ],
-        check=True,
-    )
-    plan = tmp_path / "tiny-example.md"
-    plan.write_text(match.group(1) + "\n", encoding="utf-8")
+    prepare_command = [
+        sys.executable,
+        str(skill / "scripts" / "prepare_plan.py"),
+        "--repo-root",
+        str(fixture),
+        "--request-file",
+        str(request),
+        "--run-dir",
+        str(run_dir),
+        "--tier",
+        tier,
+        "--intent",
+        intent,
+        "--anchor",
+        anchor,
+    ]
+    for domain in risk_domains:
+        prepare_command.extend(["--risk-domain", domain])
+    subprocess.run(prepare_command, check=True)
 
-    result = subprocess.run(
+    plan = tmp_path / f"{marker}-example.md"
+    plan.write_text(match.group(1) + "\n", encoding="utf-8")
+    common = [
+        "--tier",
+        tier,
+        "--repo-root",
+        str(fixture),
+        "--baseline",
+        str(run_dir / "baseline.json"),
+        "--inventory",
+        str(run_dir / "inventory.json"),
+    ]
+    draft_result = subprocess.run(
         [
             sys.executable,
             str(skill / "scripts" / "check_plan.py"),
-            "--tier",
-            "tiny",
-            "--repo-root",
-            str(fixture),
-            "--baseline",
-            str(run_dir / "baseline.json"),
-            "--inventory",
-            str(run_dir / "inventory.json"),
+            *common,
             "--format",
             "json",
             str(plan),
@@ -91,12 +149,42 @@ def test_inline_tiny_example_passes_check_plan(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-    assert json.loads(result.stdout) == {
+    expected = {
         "valid": True,
         "contract_version": 5,
         "diagnostics": [],
     }
+    assert draft_result.returncode == 0, f"{draft_result.stdout}\n{draft_result.stderr}"
+    assert json.loads(draft_result.stdout) == expected
+
+    finalized_result = subprocess.run(
+        [
+            sys.executable,
+            str(skill / "scripts" / "finalize_plan.py"),
+            *common,
+            str(plan),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert finalized_result.returncode == 0, finalized_result.stderr
+    finalized = tmp_path / f"{marker}-finalized.md"
+    finalized.write_text(finalized_result.stdout, encoding="utf-8")
+    receipt_result = subprocess.run(
+        [
+            sys.executable,
+            str(skill / "scripts" / "check_plan.py"),
+            *common,
+            "--require-finalized",
+            "--format",
+            "json",
+            str(finalized),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert receipt_result.returncode == 0, f"{receipt_result.stdout}\n{receipt_result.stderr}"
+    assert json.loads(receipt_result.stdout) == expected
 
 
 def test_every_configured_evaluation_has_fixture_and_structured_expectations() -> None:
@@ -131,4 +219,5 @@ def test_non_python_worked_example_hashes_match_fixtures() -> None:
         lines = path.read_text(encoding="utf-8").splitlines()
         excerpt = "\n".join(lines[start - 1 : end]) + "\n"
         assert hashlib.sha256(excerpt.encode()).hexdigest() in text
-        assert hashlib.sha256(path.read_bytes()).hexdigest() in text
+        normalized_file = path.read_bytes().replace(b"\r\n", b"\n")
+        assert hashlib.sha256(normalized_file).hexdigest() in text
