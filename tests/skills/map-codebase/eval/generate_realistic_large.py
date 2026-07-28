@@ -53,7 +53,7 @@ def generate() -> None:
     services.mkdir(parents=True, exist_ok=True)
     (services / "__init__.py").write_text("", encoding="utf-8")
     (services / "invoice_service.py").write_text(
-        "from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP\n\n"
+        "from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal\n\n"
         "_SUPPORTED_ROUNDING = (ROUND_DOWN, ROUND_HALF_UP)\n\n"
         "def round_invoice_total(value: str) -> str:\n"
         "    \"\"\"Round an invoice total to two decimal places.\"\"\"\n"

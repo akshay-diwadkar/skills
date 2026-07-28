@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
 _SUPPORTED_ROUNDING = (ROUND_DOWN, ROUND_HALF_UP)
 
