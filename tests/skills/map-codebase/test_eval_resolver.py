@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from collections import Counter
 from pathlib import Path
 from types import ModuleType
@@ -92,3 +93,23 @@ def test_retrieval_metrics_credit_savings_only_to_correct_results() -> None:
     assert metrics["sample"]["correct"]["token_savings"] == 0.9
     assert metrics["sample"]["incorrect"]["token_savings"] == 0.0
     assert metrics["sample"]["incorrect"]["character_savings"] == 0.0
+
+
+def test_quality_check_does_not_reuse_stale_bytecode(tmp_path: Path) -> None:
+    module = _module()
+    subject = tmp_path / "subject.py"
+    subject.write_text("VALUE = 1\n", encoding="utf-8")
+    timestamp = subject.stat().st_mtime_ns
+
+    assert module._run_check(
+        tmp_path,
+        ["{python}", "-c", "import subject; assert subject.VALUE == 1"],
+    )
+    assert not (tmp_path / "__pycache__").exists()
+
+    subject.write_text("VALUE = 2\n", encoding="utf-8")
+    os.utime(subject, ns=(timestamp, timestamp))
+    assert module._run_check(
+        tmp_path,
+        ["{python}", "-c", "import subject; assert subject.VALUE == 2"],
+    )

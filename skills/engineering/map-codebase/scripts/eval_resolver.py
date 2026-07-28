@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import ast
+import importlib
 import json
 import re
 import shutil
@@ -14,8 +15,6 @@ import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
-
-import tiktoken
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
@@ -32,7 +31,7 @@ QUALITY_CASES_PATH = EVAL_DIR / "quality-cases.json"
 BASELINE_PATH = EVAL_DIR / "baseline.json"
 BENCHMARK_PATH = SKILL_DIR / "references" / "benchmark.md"
 ROLES = ("source", "test", "configuration")
-TOKENIZER = tiktoken.get_encoding("cl100k_base")
+TOKENIZER = importlib.import_module("tiktoken").get_encoding("cl100k_base")
 
 
 def load_json(path: Path) -> Any:
@@ -225,7 +224,14 @@ def _replace_once(path: Path, before: str, after: str) -> bool:
 
 
 def _run_check(root: Path, command: list[str]) -> bool:
-    resolved = [sys.executable if value == "{python}" else value for value in command]
+    resolved: list[str] = []
+    for value in command:
+        if value == "{python}":
+            # Quality setup and repair can preserve both source size and filesystem
+            # timestamp. Avoid a stale timestamp-based .pyc masking the repaired source.
+            resolved.extend((sys.executable, "-B"))
+        else:
+            resolved.append(value)
     return subprocess.run(resolved, cwd=root, capture_output=True, timeout=30, check=False).returncode == 0
 
 
