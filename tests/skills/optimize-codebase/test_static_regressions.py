@@ -19,7 +19,7 @@ sys.path.insert(0, str(OPTIMIZE_SCRIPTS))
 sys.path.insert(0, str(DEV_DIR))
 
 from check_optimization import validate  # noqa: E402
-from plan_inventory import build_inventory  # noqa: E402
+from plan_inventory import build_inventory  # type: ignore[import-not-found]  # noqa: E402
 from report_factory import valid_handoff, valid_report  # noqa: E402
 
 
