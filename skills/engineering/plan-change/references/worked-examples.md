@@ -17,6 +17,25 @@ draft, finalize it, and validate the receipt.
 `--require-finalized` cannot pass before step 5 because the binding and receipt do
 not yet exist.
 
+## Minimal Mermaid blueprint
+
+Use named repository actors and concrete calls; this is the expected level of
+detail for a small sequence blueprint:
+
+```mermaid
+sequenceDiagram
+    participant Caller as CLI caller
+    participant CLI as CLI run
+    participant Entry as Package entry point
+    participant Parser as Parser definition
+    Caller->>CLI: run(raw)
+    CLI->>Entry: parseInput(raw)
+    Entry->>Parser: forwarded parseInput(raw)
+    Parser-->>Entry: trimmed string
+    Entry-->>CLI: trimmed string
+    CLI-->>Caller: caller-visible result
+```
+
 ## Tiny local failure
 
 The fixture at `tests/skills/plan-change/fixtures/tiny/` contains
@@ -71,10 +90,68 @@ same extraction and validation on every test run.
 
 ## Standard propagation
 
-Prepare a parser rename with `--tier standard --anchor
-src/parser.py:parse_value`. Ground the definition, re-export, CLI importer, and
-related test. Give each relevant candidate a `P` disposition, own every changed
-path with a `CH`, and use a `domains: none` interface blueprint.
+This plan is prepared against `tests/skills/plan-change/fixtures/typescript-standard`
+with `--tier standard --intent refactor --anchor src/parser.ts:parseValue`.
+
+<!-- standard-plan:start -->
+```markdown
+# Rename the shared parser contract without changing parsing behavior
+<!-- plan-contract: 5 -->
+<!-- plan-metadata: {"provisional":{"intent":"refactor","risk_domains":[],"tier":"standard","tier_signals":["transitive-consumers","shared-internal-interface","multiple-test-surfaces"]},"final":{"intent":"refactor","risk_domains":[],"tier":"standard","tier_signals":["transitive-consumers","shared-internal-interface","multiple-test-surfaces"]}} -->
+
+## Outcome and Scope
+- SC-1: given: callers import parseValue through the package entry point | when: the shared parser is renamed to parseInput | then: the definition re-export CLI consumer and parser test all use parseInput | unchanged: whitespace trimming return values errors ordering and side effects remain identical
+
+## Evidence Ledger
+- F-1: kind: function-signature | path: src/parser.ts | lines: 1-3 | anchor: parseValue | excerpt-sha256: 3dec50b40993b4638afd4be0cd170296c720a1c7d3d02d03a2920c7a6ffcd483 | file-sha256: 3dec50b40993b4638afd4be0cd170296c720a1c7d3d02d03a2920c7a6ffcd483 | observation: parseValue is the shared parser definition and returns raw.trim without branches errors or side effects | parameters: raw: string | returns: string | async: false
+- F-2: kind: documentation-contract | path: src/index.ts | lines: 1-1 | anchor: parseValue | excerpt-sha256: 1cb7da4c83647f5672a5f49abb3679b5a0c3ead2232305771224d328aceaf611 | file-sha256: 1cb7da4c83647f5672a5f49abb3679b5a0c3ead2232305771224d328aceaf611 | observation: the package entry point re-exports parseValue from the parser module
+- F-3: kind: call-edge | path: src/cli.ts | lines: 1-5 | anchor: run | excerpt-sha256: d3d8dafada0e2ee56b7594e65b94274e3ec999d5e32c8a1a78c55ddd058d4bc3 | file-sha256: 0ffbbf3fca5200c8403fcad0f1b32ba5c2461c7a6acb660a2a2b497ad738d050 | observation: run imports the package entry point and forwards raw input to parseValue | caller: run | callee: parseValue
+- F-4: kind: test-behavior | path: tests/parser.test.ts | lines: 1-5 | anchor: parseValue | excerpt-sha256: e83eac4c21818d7bf7ecfd1e4b3920b1fdbeb98f57308a695c62c8bdfd76b309 | file-sha256: 1ba0df855517f05c2310cd2023b83a1b96ae14bb51a23e50dd52804380bd69d0 | observation: the parser test imports parseValue from the package root and expects padded input to return trimmed text
+
+## Decisions
+- D-1: selected: rename parseValue to parseInput in one dependency-ordered change across the definition forwarding export CLI and test | evidence: F-1, F-2, F-3, F-4 | rejected: keep parseValue as a permanent compatibility alias | drawback: every repository consumer must update in the same change
+- C-1: constraint: preserve the exact raw string parameter string return and trim-only behavior while changing only the shared symbol name | evidence: F-1
+
+## Implementation Specification
+- CH-1: path: src/parser.ts | anchor: parseValue | status: existing | locality: shared-production | reversibility: reversible | evidence: F-1 | change: rename the exported function to parseInput while preserving the raw string parameter string return synchronous execution trim call branch behavior errors ordering and absence of side effects
+- CH-2: path: src/index.ts | anchor: parseValue | status: existing | locality: shared-production | reversibility: reversible | evidence: F-2 | change: replace the parseValue re-export with parseInput after the definition rename and preserve the same parser module target
+- CH-3: path: src/cli.ts | anchor: run | status: existing | locality: shared-production | reversibility: reversible | evidence: F-3 | change: import parseInput from the package entry point and call it from run without changing input forwarding return values errors ordering or side effects
+- CH-4: path: tests/parser.test.ts | anchor: parseValue | status: existing | locality: test-only | reversibility: reversible | evidence: F-4 | change: update the package-root import and invocation to parseInput while retaining the padded-input fixture and exact trimmed-value expectation
+
+### Execution Blueprint: CH-1, CH-2, CH-3, CH-4 — dependency-ordered shared parser rename [type: dependency-table; domains: none]
+| Order | Surface | Literal action and invariant |
+|---|---|---|
+| 1 | parser definition | Rename the symbol; keep the synchronous raw-string-to-string interface and the single trim return with no new error or side effect. |
+| 2 | package re-export | Forward parseInput from the same module only after the definition exists. |
+| 3 | CLI consumer | Import the new package surface and preserve run input, return, and call ordering. |
+| 4 | parser test | Update the public import and invocation, then assert the unchanged trimmed result. |
+
+## Propagation Record
+- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed
+- P-2: owner: CH-2 | because: F-2 | surface: re-export | disposition: changed
+- P-3: owner: CH-3 | because: F-3 | surface: transitive-consumer | disposition: changed
+- P-4: owner: CH-4 | because: F-4 | surface: fixture | disposition: test-only
+
+## Boundary Traces
+- B-1: class: package parser input boundary | path: F-1, F-2, F-3 | flow: CLI run receives a raw string -> package entry point forwards parseInput to the parser definition -> caller receives the trimmed string
+
+## Domain Obligations
+
+## Traceability
+| Criterion / constraint | Changes | Tests |
+|---|---|---|
+| SC-1 | CH-1, CH-2, CH-3, CH-4 | T-1 |
+| C-1 | CH-1, CH-2, CH-3, CH-4 | T-1 |
+
+## Verification
+- T-1: given: package-root and CLI callers with padded empty and already-trimmed strings | when: the targeted parser and CLI tests run after the rename | then: propagation reaches the definition re-export transitive consumer and fixture while boundary inputs literal implementation branch error ordering side effect behavior and exact trimmed outputs remain unchanged | command: npm test -- parser
+
+## Risks, Assumptions, and Attack
+- A-forgotten-propagation: status: repaired | finding: propagation could leave the re-export or transitive CLI consumer using parseValue | evidence: F-2, F-3, F-4 | resolution: CH-2, CH-3, CH-4, T-1
+- A-boundary-input: status: repaired | finding: boundary input handling could stop trimming empty padded or already-trimmed strings during the rename | evidence: F-1, F-3 | resolution: CH-1, CH-3, T-1
+- A-literal-implementation: status: repaired | finding: literal implementation could add a branch error reordering or side effect instead of performing only a symbol rename | evidence: F-1 | resolution: CH-1, T-1
+```
+<!-- standard-plan:end -->
 
 ## TypeScript tiny bug fix
 
@@ -138,10 +215,76 @@ them in dependency order, and preserves the parser result and error behavior.
 
 ## Security
 
-Prepare with `--tier high-risk --risk-domain security --anchor
-src/auth.py:read_record`. The complete scaffold contains every security
-obligation, one obligation-specific test per row, and a blueprint covering
-principal identity, authorization ownership, and denial behavior.
+This plan is prepared against `tests/skills/plan-change/fixtures/standard`
+with `--tier high-risk --risk-domain security --intent bug-fix --anchor
+src/flags.py:flags_for`.
+
+<!-- high-risk-plan:start -->
+```markdown
+# Prevent cross-tenant feature-flag cache reuse
+<!-- plan-contract: 5 -->
+<!-- plan-metadata: {"provisional":{"intent":"bug-fix","risk_domains":["security"],"tier":"high-risk","tier_signals":[]},"final":{"intent":"bug-fix","risk_domains":["security"],"tier":"high-risk","tier_signals":[]}} -->
+
+## Outcome and Scope
+- SC-1: given: two tenants use the same user identifier | when: each tenant requests flags through flags_for | then: each request loads or reuses only that tenant and user pair's flags | unchanged: same-tenant repeated requests remain cached and load_flags output stays unchanged
+
+## Evidence Ledger
+- F-1: kind: function-signature | path: src/flags.py | lines: 8-11 | anchor: flags_for | excerpt-sha256: f2cbd4cbe45bbfd9b2bba64f624a673c38967d99a19f257a3376e00eac041e3e | file-sha256: 075b01ab30eb11a5dbd90814b99b496edda418990be0ab66399d5801a7ce2a7b | observation: flags_for accepts tenant and user identity but indexes the shared cache only by user_id before returning tenant-derived flags | parameters: tenant_id: str, user_id: str | returns: list[str] | async: false
+- F-2: kind: authorization-boundary | path: src/flags.py | lines: 1-11 | anchor: _cache | excerpt-sha256: 21b7e17e8ee8288ff4873acd337ad3b8f7c8437d6b04b42ebb527c98fd72da33 | file-sha256: 075b01ab30eb11a5dbd90814b99b496edda418990be0ab66399d5801a7ce2a7b | observation: the module-level shared cache crosses the tenant trust boundary because user_id alone can reuse another tenant's value; no denial or forbidden response, no revocation state, and no audit event or log side effect exists in this module
+- F-3: kind: call-edge | path: src/flags.py | lines: 8-11 | anchor: flags_for | excerpt-sha256: f2cbd4cbe45bbfd9b2bba64f624a673c38967d99a19f257a3376e00eac041e3e | file-sha256: 075b01ab30eb11a5dbd90814b99b496edda418990be0ab66399d5801a7ce2a7b | observation: a cache miss calls load_flags with both tenant_id and user_id before storing the result | caller: flags_for | callee: load_flags
+
+## Decisions
+- D-1: selected: key the shared cache by the ordered tenant_id and user_id pair and preserve load-on-miss behavior | evidence: F-1, F-2, F-3 | rejected: clear the entire cache before every lookup | drawback: composite keys retain one entry per tenant-user pair and therefore use more memory than user-only keys
+- C-1: constraint: tenant identity must participate in cache lookup storage and reuse before any cached flags cross the trust boundary | evidence: F-1, F-2
+
+## Implementation Specification
+- CH-1: path: src/flags.py | anchor: flags_for | status: existing | locality: shared-production | reversibility: reversible | evidence: F-1 | change: derive one ordered tuple key from tenant_id and user_id before lookup; use that same principal-and-tenant key for membership storage and return so flags_for remains the authorization owner for cache isolation, preserves validation order and load_flags calls only on misses, prevents cross-tenant enumeration and information leakage, and adds no branch errors logging or side effects
+
+### Execution Blueprint: CH-1 — tenant-scoped security cache lookup [type: pseudocode; domains: security]
+1. Treat `user_id` as the principal identity and `tenant_id` as the tenant trust-boundary component.
+2. Let `flags_for` remain the authorization owner: construct `(tenant_id, user_id)` before checking shared cache state.
+3. On a miss, call `load_flags(tenant_id, user_id)` once and store under that identical composite key; on a hit, return only that pair's value.
+4. No deny or forbidden response branch exists in this lookup-only API; tenant isolation prevents unauthorized reuse while return and error behavior stay unchanged.
+
+## Propagation Record
+- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed
+
+## Boundary Traces
+- B-1: class: tenant-scoped feature-flag authorization boundary | path: F-1, F-2, F-3 | flow: caller supplies tenant and principal identifiers -> flags_for checks the composite cache key and loads on a miss -> caller receives flags created for that same tenant-user pair
+
+## Domain Obligations
+- O-1: domain: security | obligation: principal | status: satisfied | coverage: user_id is the principal identity component of the composite cache key | evidence: F-1, F-2 | decision: D-1 | changes: CH-1 | tests: T-2
+- O-2: domain: security | obligation: tenant | status: satisfied | coverage: tenant_id is the tenant component that partitions cached flag values | evidence: F-1, F-2 | decision: D-1 | changes: CH-1 | tests: T-2
+- O-3: domain: security | obligation: trust-boundary | status: satisfied | coverage: the tenant trust boundary is enforced before shared cache reuse | evidence: F-2 | decision: D-1 | changes: CH-1 | tests: T-2
+- O-4: domain: security | obligation: authorization-owner | status: satisfied | coverage: flags_for remains the authorization owner for tenant-scoped cache isolation | evidence: F-1, F-2 | decision: D-1 | changes: CH-1 | tests: T-2
+- O-5: domain: security | obligation: validation-order | status: satisfied | coverage: validation order constructs tenant and principal identity before membership lookup storage or return | evidence: F-1, F-3 | decision: D-1 | changes: CH-1 | tests: T-3
+- O-6: domain: security | obligation: denial-semantics | status: not-applicable | coverage: denial semantics are absent from this lookup-only function | evidence: F-2 | reason: no denial or forbidden response exists because flags_for only returns cached or loaded flag strings
+- O-7: domain: security | obligation: enumeration-resistance | status: satisfied | coverage: enumeration resistance prevents a shared user identifier from exposing whether another tenant has cached flags | evidence: F-1, F-2 | decision: D-1 | changes: CH-1 | tests: T-3
+- O-8: domain: security | obligation: revocation | status: not-applicable | coverage: revocation state is absent from this in-memory flag cache | evidence: F-2 | reason: no revocation state or revoked-identity input exists in the module
+- O-9: domain: security | obligation: audit-behavior | status: not-applicable | coverage: audit behavior is absent from this cache-only module | evidence: F-2 | reason: no audit event or log side effect exists in flags_for or load_flags
+- O-10: domain: security | obligation: cross-tenant-tests | status: satisfied | coverage: cross-tenant tests use the same user identifier under two tenants and assert isolated cached values | evidence: F-1, F-2 | decision: D-1 | changes: CH-1 | tests: T-4
+
+## Traceability
+| Criterion / constraint | Changes | Tests |
+|---|---|---|
+| SC-1 | CH-1 | T-1, T-2, T-3, T-4 |
+| C-1 | CH-1 | T-2, T-3, T-4 |
+
+## Verification
+- T-1: given: empty and populated cache states for one tenant-user pair | when: flags_for runs twice for that pair | then: direct-caller propagation preserves boundary inputs and literal implementation ordering by loading once then returning the identical cached list without added errors logging or side effects | command: python -m pytest tests/test_flags.py -q
+- T-2: given: one principal user_id under two tenant identities across the shared trust boundary | when: flags_for resolves each pair | then: the authorization owner returns values containing only the requested tenant and principal identity | command: python -m pytest tests/test_flags.py -q
+- T-3: given: a tenant and principal pair absent from the cache | when: flags_for performs validation order and lookup | then: the composite identity is formed before membership so enumeration resistance prevents another tenant's cached state from being exposed and load_flags runs once before storage and return | command: python -m pytest tests/test_flags.py -q
+- T-4: given: tenant-a and tenant-b share one user_id | when: cross-tenant calls alternate and repeat | then: security isolation blocks authorization bypass and information leakage by returning tenant-a flags only to tenant-a and tenant-b flags only to tenant-b | command: python -m pytest tests/test_flags.py -q
+
+## Risks, Assumptions, and Attack
+- R-1: severity: high | owner: CH-1 | tests: T-4 | risk: a user-only cache hit returns feature flags derived for another tenant and crosses the authorization boundary
+- A-forgotten-propagation: status: repaired | finding: propagation could update cache storage but leave lookup or return keyed only by user_id | evidence: F-1, F-3 | resolution: CH-1, T-1
+- A-boundary-input: status: repaired | finding: boundary input pairs with equal user_id and different tenant_id currently collide in shared cache state | evidence: F-1, F-2 | resolution: CH-1, T-1
+- A-literal-implementation: status: repaired | finding: literal implementation could compute a composite key for membership but still store by user_id or reorder load-on-miss side effects | evidence: F-1, F-3 | resolution: CH-1, T-1
+- A-security: status: repaired | finding: the security boundary permits cross-tenant information leakage when equal user identifiers reuse one cache entry | evidence: F-1, F-2 | resolution: CH-1, T-4
+- A-authorization-bypass: status: repaired | finding: authorization bypass occurs because tenant permission context is absent from the current cache identity | evidence: F-1, F-2 | resolution: CH-1, T-4
+```
+<!-- high-risk-plan:end -->
 
 ## Concurrency
 

@@ -2,6 +2,15 @@
 
 Use these procedures while producing v5 records. Keep working notes out of the final plan.
 
+## Classification Examples
+
+| Situation and reasoning | Typed classification |
+|---|---|
+| A reversible function change has one definition and callers only in the same file, with no shared contract, schema, configuration, or propagation surface. | `tiny`; `tier_signals: []`; `risk_domains: []`. |
+| The same function is re-exported from `index.ts` and consumed through that package surface, so the edit reaches indirect consumers and a shared internal interface. | `standard`; `tier_signals: ["transitive-consumers", "shared-internal-interface"]`; `risk_domains: []`. |
+| A one-line edit changes an authentication or authorization check. Diff size does not reduce the security consequence. | `high-risk`; `risk_domains: ["security"]`; `tier_signals: []` unless another typed signal is present. The security domain itself forces high-risk treatment. |
+| A bug appears local, but evidence does not yet establish one deepest cause, so a local fix could treat only a symptom. | `standard` minimum; `tier_signals: ["uncertain-root-cause"]`; add any risk domain discovered during grounding. |
+
 ## Evidence and Root Cause
 
 1. Read the requested function, route, command, type, or behavior in full.
