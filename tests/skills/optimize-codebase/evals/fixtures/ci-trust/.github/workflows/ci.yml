@@ -1,6 +1,0 @@
-jobs:
-  quality:
-    steps:
-      - run: python -m pytest
-      - run: mypy src
-

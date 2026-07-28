@@ -13,19 +13,34 @@ from check_optimization import validate  # noqa: E402
 
 def test_every_worked_example_validates_against_its_fixture() -> None:
     text = EXAMPLES.read_text(encoding="utf-8")
-    matches = re.findall(
+    reports = re.findall(
         r"<!-- example: (?P<case>[^ ]+) -->\s*```optimization\n(?P<report>.*?)\n```",
         text,
         re.DOTALL,
     )
+    handoffs = {
+        case: handoff
+        for case, handoff in re.findall(
+            r"<!-- handoff: (?P<case>[^ ]+) -->\s*```request\n(?P<handoff>.*?)\n```",
+            text,
+            re.DOTALL,
+        )
+    }
 
-    assert len(matches) == 4
-    for case_id, report in matches:
+    assert len(reports) == 2
+    for case_id, report in reports:
         marker = re.search(
-            r"<!-- optimization-contract: 1; scope: (?P<scope>targeted|sweep); stage: (?P<stage>plan|implementation) -->",
+            r"<!-- optimization-contract: 2; path: (?P<path>fast|full); scope: (?P<scope>targeted|sweep); stage: (?P<stage>plan|implementation) -->",
             report,
         )
         assert marker is not None, case_id
-        fixture = DEV_DIR / "evals" / "fixtures" / case_id
-        diagnostics = validate(report + "\n", marker.group("scope"), marker.group("stage"), fixture)
+        fixture = DEV_DIR / "worked-example-fixtures" / case_id
+        diagnostics = validate(
+            report + "\n",
+            marker.group("path"),
+            marker.group("scope"),
+            marker.group("stage"),
+            fixture,
+            handoffs.get(case_id),
+        )
         assert diagnostics == [], (case_id, [item.to_dict() for item in diagnostics])

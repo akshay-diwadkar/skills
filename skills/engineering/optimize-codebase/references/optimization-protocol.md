@@ -1,74 +1,63 @@
-# Optimization Protocol
+# Optimization Evidence Protocol
 
-Use this protocol to do the legwork behind the seven gates in `SKILL.md`. The JSON contract owns artifact shape; this reference owns evidence collection and completion discipline.
-
-## Frame
-
-Record the repository and audited commit, dirty-worktree state, target workflow or sweep request, goal, metric, constraints, exclusions, protected behavior, risk tolerance, output destination, and plan/implementation authorization. Resolve repository facts locally. Ask only about product choices that materially change the optimization.
+This file is the canonical home for tracing, coverage, baseline, alignment, research, planning-evidence, and measurement anti-pattern rules used by the full path.
 
 ## Targeted Trace
 
-Trace input → validation → core logic → data access → external calls → transformations → output or side effects. Record entry points, callers, configuration, data shape and volume, concurrency, lifecycle, error handling, tests, observability, and deployment context. Stop tracing when every proposed leverage point can be tied to an existing `F-n` and the affected workflow is end-to-end understood.
+Trace input → validation → core logic → data access → external calls → transformations → observable output or side effects. Record entry points, callers, configuration, data shape and volume, frequency, concurrency, lifecycle, errors, tests, observability, and deployment context. Stop only when every proposed leverage point has an F-n and the affected workflow is understood end to end.
 
 ## Sweep Coverage
 
-1. Inventory subsystems from repository boundaries, entry points, manifests, deployment units, and build/test ownership.
-2. Select applicable passes: runtime, frontend/rendering, backend/API, database/data, build/test/CI, dependencies/tooling, architecture/maintainability, developer experience, framework/platform.
-3. Create the full subsystem/pass matrix before deep research.
-4. Triage each pair cheaply from code, configuration, tests, existing metrics, and history.
-5. Mark it `candidate`, `clean`, `rejected`, or `deferred`; every record needs local evidence.
-6. Deep-dive at most three highest-signal candidate surfaces in one wave. Use impact, current evidence, user priority, and risk to choose them.
-7. Give every deferral a priority and resume action. High-priority deferrals must appear in limitations. A sweep with any deferral is incomplete.
+1. Inventory subsystems from boundaries, entry points, manifests, deployment units, and build/test ownership.
+2. Select applicable passes: runtime, frontend/rendering, backend/API, database/data, build/test/CI, dependencies/tooling, architecture/maintainability, developer experience, and framework/platform.
+3. Create the complete subsystem/pass matrix before deep research.
+4. Triage each pair cheaply from code, configuration, tests, metrics, and history.
+5. Give every pair local evidence and one terminal status.
+6. Deep-dive at most three highest-signal candidate surfaces per wave.
+7. Give each deferral a priority, limitation, evidence, and concrete resume action.
 
-The matrix proves breadth; the wave limit protects depth. Never substitute a sample of interesting files for coverage.
+Any deferral makes the sweep incomplete. The matrix proves breadth; the wave limit protects depth.
 
 ## Baselines
 
-- Measure the workflow the user named, not a convenient proxy.
-- Reuse documented or CI commands. Record exact command, directory, relevant environment, representative workload, cache state, timestamp, raw observations, variance, limitations, and confidence.
-- Repeat noisy measurements and report raw values plus median. Separate cold and warm results when both matter.
-- Prefer read-only plans, safe fixtures, profiles, traces, bundle reports, and query plans before adding instrumentation.
-- For maintainability or DX, bounded static evidence may measure propagation count, duplicated policy, setup steps, feedback delay, or navigation cost.
-- A blocker must name the missing access/data/environment and a safe experiment. It caps promotion at `investigate`.
+Measure the workflow the user named, not a convenient proxy.
 
-Reject cold-versus-warm comparisons, single noisy runs, tiny fixtures used for production claims, unrelated microbenchmarks, percentage-only claims, or CI speed obtained by moving or hiding failures.
+- Reuse documented or CI commands.
+- Record the exact command or static method, working directory, relevant environment, representative workload, cache state, timestamp, raw observations, variance, limitations, and confidence.
+- Repeat noisy measurements, retain raw values, and report the median.
+- Separate cold and warm results when both matter; compare like with like.
+- Prefer read-only plans, safe fixtures, profiles, traces, bundle reports, query plans, and existing instrumentation.
+- For maintainability or developer experience, bounded-static evidence is a complete, explicitly delimited observation such as propagation count, duplicated policy branches, setup steps, feedback stages, or navigation hops. It supports only the stated non-runtime claim.
+- A blocked baseline names the missing access, data, or environment and a safe confirmation experiment. It caps the candidate at `investigate`.
+
+Never invent a performance number. Reject cold-versus-warm comparisons, a single noisy run, tiny fixtures used for production claims, unrelated microbenchmarks, percentage-only results, or CI speed obtained by moving, hiding, or skipping failures.
 
 ## Request-to-Baseline Alignment
 
-After tracing and baselining, maintain a temporary ledger:
+Maintain a temporary ledger:
 
-`request statement | repository or baseline evidence | optimization consequence | options | recommendation and reason | answer | status`
+`request statement | F/B evidence | optimization consequence | options | recommendation | answer | status`
 
-Record mismatched bottlenecks, proxy metrics, missing success thresholds, scope conflicts, hidden protected behavior, incompatible constraints, uncertain risk tolerance, and unclear candidate acceptance or stage authorization. A gap is blocking when its answer could change the target workflow, metric, scope, protected behavior, compatibility, constraints, risk, candidate eligibility, verification, rollback, or authorization. Discover repository facts locally and decide low-impact reversible details from precedent.
+Record mismatched bottlenecks, proxy metrics, missing thresholds, scope conflicts, hidden protected behavior, incompatible constraints, uncertain risk, and unclear acceptance or authorization. A gap is blocking if its answer can change the target, metric, scope, behavior, compatibility, risk, candidate, verification, rollback, or authorization.
 
-Ask up to three related blocking questions per round. Cite the request and relevant `F-n` or `B-n` evidence, explain the affected optimization decision, offer two to four mutually exclusive options when feasible, and mark the recommended option with a reason grounded in comparable measurement, behavior preservation, repository support, reversibility, and the smallest independently measurable mechanism.
+Resolve repository facts locally. Ask up to three related product questions per round, citing the request and relevant F/B evidence. Explain the consequence, offer mutually exclusive options when feasible, and recommend the smallest independently measurable, behavior-preserving, repository-supported, reversible mechanism.
 
-Record answers and re-run affected traces or baselines whenever the boundary or workload changes. Repeat until no blocking gap remains. Then recap the target workflow, measurable success, scope, protected behavior, constraints, exclusions, risk tolerance, baseline limitations, and plan/implementation authorization and require explicit confirmation. Corrections restart the loop; missing confirmation blocks a final approved report or implementation.
+Re-run affected traces and baselines after an answer changes the boundary or workload. When no blocking gap remains, recap the workflow, threshold, scope, protected behavior, constraints, exclusions, risk, baseline limitations, and stage authorization; require explicit confirmation. Fold confirmed outcomes into the canonical artifact and discard the ledger.
 
-Translate confirmed outcomes into existing brief, baseline, protected-behavior, candidate, verification, and authorization fields and discard the ledger. Alignment confirmation does not authorize implementation; implementation still requires the existing explicit execution gate.
+## Ecosystem Research
 
-## Candidate Construction
+Build a component/version/usage inventory only for B-n-selected components. Resolve installed version, configuration, execution mode, deployment target, direct/transitive ownership, and actual use. Consult a specific official source matching the resolved major version; prefer the same minor. Record only capabilities that address the leverage point and preserve required semantics.
 
-Each `C-n` owns one independently measurable mechanism. Compare configuration, supported native capability, duplicate-code removal, focused local code, boundary optimization, justified dependency addition, and justified upgrade only when each is plausible.
+Reject generic best practices, unsupported-version guidance, undirected configuration changes, and upgrades justified only by recency.
 
-Record:
+## Candidate Evidence and Planning
 
-- workflow and mechanism;
-- expected benefit and evidence references;
-- impact, confidence, effort, risk, verification strength, and blast radius;
-- behavior preservation and compatibility;
-- reversibility, independence, operational cost, and net-complexity effect;
-- exact verification, rollback, and confirmation experiment when needed;
-- deterministic band and all promotion-gate answers.
+Each C-n owns one independently measurable and independently reversible mechanism. Consider configuration, supported native capability, duplicate-code removal, focused local code, boundary optimization, justified dependency addition, and justified upgrade only when locally plausible. Merge symptoms sharing one mechanism; split mechanisms that can be measured or reverted separately.
 
-Do not bundle unrelated optimizations. Merge symptoms that share one mechanism; split candidates that can be measured or reverted independently.
+Plans identify dependency-ordered file and symbol areas, behavior invariants, compatibility, exact checks and expected results, rollout when applicable, rollback triggers/actions, and residual risks. No workflow, package feature, version, public behavior, metric, experiment, verification, rollout, or rollback choice may remain for the implementer.
 
-## Planning and Execution
-
-A plan states dependency-ordered file areas and symbols, behavioral invariants, compatibility, exact checks and expected results, rollout when applicable, rollback triggers/actions, and residual risks. It must leave no target, feature, metric, interface, verification, or rollback choice to the implementer.
-
-Implementation requires explicit authorization and a checker-passing report. Reconfirm the worktree, baseline, regression surface, selected candidate, and rollback before editing. Apply one candidate. Re-run the same workload and behavior checks. Preserve unrelated user changes. Treat inconclusive benefit as failed evidence unless another stated non-performance goal independently meets acceptance criteria.
+Before implementation, reconfirm worktree state, the baseline, regression surface, selected candidate, and rollback. Apply one candidate and rerun the same workload and behavior checks. Preserve unrelated user changes. Treat inconclusive benefit as failed evidence unless a separately stated non-performance acceptance criterion passes.
 
 ## Reconciliation
 
-Before finalizing, account for every subsystem/pass pair, candidate, rejection, deferral, baseline, research claim, verification, and protected behavior. Run the checker, repair findings, and name one handoff. Report skipped checks and live-evaluation limitations explicitly.
+Before finalizing, account for every coverage pair, baseline, research claim, candidate, rejection, deferral, verification, protected behavior, and handoff. Report skipped checks and measurement limitations explicitly.

@@ -1,95 +1,49 @@
 {
-  "contract_version": 1,
-  "scopes": [
-    "targeted",
-    "sweep"
-  ],
-  "stages": [
-    "plan",
-    "implementation"
-  ],
-  "base_sections": [
-    "Brief and Authorization",
-    "System and Coverage Map",
-    "Evidence and Baselines",
-    "Capability Research",
-    "Candidate Decisions",
-    "Recommended Plan",
-    "Verification, Rollback, and Residual Risk",
-    "Rejects, Deferrals, and Limitations"
-  ],
-  "stage_sections": {
-    "plan": [],
-    "implementation": [
-      "Execution Record",
-      "Before/After Verification"
+  "contract_version": 2,
+  "paths": ["fast", "full"],
+  "scopes": ["targeted", "sweep"],
+  "stages": ["plan", "implementation"],
+  "fast": {
+    "scope": "targeted",
+    "stage": "implementation",
+    "sections": ["Fast Path Decision"],
+    "record_prefixes": ["F", "B", "C"],
+    "exact_record_counts": {"F": 1, "B": 1, "C": 1},
+    "eligibility": [
+      "authorized", "targeted", "one-file", "one-symbol", "one-mechanism",
+      "behavior-clear", "compatibility-clear", "acceptance-clear", "rollback-clear",
+      "low-risk", "low-blast-radius", "high-confidence", "reversible",
+      "no-protected-domain", "no-overlapping-dirty-change"
     ]
   },
-  "record_prefixes": [
-    "F",
-    "CV",
-    "B",
-    "R",
-    "C",
-    "V",
-    "X",
-    "H",
-    "E"
-  ],
-  "base_required_prefixes": [
-    "F",
-    "CV",
-    "B",
-    "R",
-    "C",
-    "V",
-    "X",
-    "H"
-  ],
-  "implementation_required_prefixes": [
-    "E"
-  ],
-  "coverage_statuses": [
-    "candidate",
-    "clean",
-    "rejected",
-    "deferred"
-  ],
-  "coverage_priorities": [
-    "high",
-    "medium",
-    "low"
-  ],
-  "candidate_bands": [
-    "quick-win",
-    "strategic-win",
-    "investigate",
-    "rejected"
-  ],
-  "ratings": [
-    "high",
-    "medium",
-    "low"
-  ],
-  "verification_strengths": [
-    "strong",
-    "bounded",
-    "missing"
-  ],
+  "full": {
+    "base_sections": [
+      "Brief and Authorization", "System and Coverage Map", "Evidence and Baselines",
+      "Capability Research", "Candidate Decisions", "Recommended Plan",
+      "Verification, Rollback, and Residual Risk", "Rejects, Deferrals, and Limitations"
+    ],
+    "stage_sections": {
+      "plan": [],
+      "implementation": ["Execution Record", "Before/After Verification"]
+    },
+    "base_required_prefixes": ["F", "CV", "B", "R", "C", "V", "X", "H"],
+    "implementation_required_prefixes": ["E"]
+  },
+  "record_prefixes": ["F", "CV", "B", "R", "C", "V", "X", "H", "E"],
+  "coverage_statuses": ["candidate", "clean", "rejected", "deferred"],
+  "coverage_priorities": ["high", "medium", "low"],
+  "candidate_bands": ["quick-win", "strategic-win", "investigate", "rejected"],
+  "ratings": ["high", "medium", "low"],
+  "verification_strengths": ["strong", "bounded", "missing"],
   "promotion_gates": [
-    "target",
-    "baseline",
-    "behavior",
-    "compatibility",
-    "verification",
-    "rollback",
-    "operational-cost",
-    "decisions"
+    "target", "baseline", "behavior", "compatibility", "verification",
+    "rollback", "operational-cost", "decisions"
   ],
-  "handoff_states": [
-    "finish optimization",
-    "plan-change",
-    "implement-plan"
+  "protected_domains": [
+    "public-api", "schema", "persistence", "security-auth", "concurrency",
+    "external-effect", "deployment-release", "generated-output",
+    "dependency-version", "shared-configuration", "cross-module"
   ],
+  "handoff_states": ["finish optimization", "plan-change", "implement-plan"],
   "max_sweep_candidates_per_wave": 3
 }

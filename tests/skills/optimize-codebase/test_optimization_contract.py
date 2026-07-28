@@ -2,6 +2,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -9,38 +11,54 @@ sys.path.insert(0, str(SCRIPTS))
 from optimization_contract import load_contract, marker, render_scaffold, section_names  # noqa: E402
 
 
-def test_contract_declares_scopes_stages_and_exact_sections() -> None:
+def test_contract_declares_first_class_paths_and_exact_shapes() -> None:
     contract = load_contract()
 
-    assert contract["contract_version"] == 1
-    assert contract["scopes"] == ["targeted", "sweep"]
-    assert contract["stages"] == ["plan", "implementation"]
-    assert section_names("plan") == contract["base_sections"]
-    assert section_names("implementation")[-2:] == ["Execution Record", "Before/After Verification"]
+    assert contract["contract_version"] == 2
+    assert contract["paths"] == ["fast", "full"]
+    assert contract["fast"]["exact_record_counts"] == {"F": 1, "B": 1, "C": 1}
+    assert section_names("fast", "implementation") == ["Fast Path Decision"]
+    assert section_names("full", "implementation")[-2:] == ["Execution Record", "Before/After Verification"]
     assert contract["max_sweep_candidates_per_wave"] == 3
 
 
-def test_scaffold_contains_marker_records_and_stage_sections() -> None:
-    plan = render_scaffold("targeted", "plan")
-    implementation = render_scaffold("sweep", "implementation")
+def test_fast_scaffold_is_minimal_and_full_scaffold_retains_records() -> None:
+    fast = render_scaffold("fast", "targeted", "implementation")
+    full = render_scaffold("full", "sweep", "implementation")
 
-    assert marker("targeted", "plan") in plan
-    for prefix in ("F", "CV", "B", "R", "C", "V", "X", "H"):
-        assert f"- {prefix}-1:" in plan
-    assert "## Execution Record" not in plan
-    assert marker("sweep", "implementation") in implementation
-    assert "- E-1:" in implementation
-    assert "## Before/After Verification" in implementation
+    assert marker("fast", "targeted", "implementation") in fast
+    for prefix in ("F", "B", "C"):
+        assert fast.count(f"- {prefix}-1:") == 1
+    for forbidden in ("CV-1", "R-1", "V-1", "X-1", "H-1", "E-1"):
+        assert forbidden not in fast
+    assert marker("full", "sweep", "implementation") in full
+    for prefix in ("F", "CV", "B", "R", "C", "V", "X", "H", "E"):
+        assert f"- {prefix}-1:" in full
 
 
-def test_scaffold_cli_prints_requested_contract() -> None:
+def test_fast_contract_rejects_plan_or_sweep() -> None:
+    with pytest.raises(ValueError, match="targeted scope and implementation"):
+        render_scaffold("fast", "targeted", "plan")
+    with pytest.raises(ValueError, match="targeted scope and implementation"):
+        render_scaffold("fast", "sweep", "implementation")
+
+
+def test_scaffold_cli_requires_path_and_prints_requested_contract() -> None:
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS / "scaffold_optimization.py"), "--scope", "sweep", "--stage", "plan"],
+        [
+            sys.executable,
+            str(SCRIPTS / "scaffold_optimization.py"),
+            "--path",
+            "full",
+            "--scope",
+            "sweep",
+            "--stage",
+            "plan",
+        ],
         check=True,
         capture_output=True,
         text=True,
     )
 
-    assert marker("sweep", "plan") in result.stdout
+    assert marker("full", "sweep", "plan") in result.stdout
     assert "- Sweep status: incomplete" in result.stdout
-    assert "## Execution Record" not in result.stdout

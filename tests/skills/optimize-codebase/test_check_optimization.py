@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from pathlib import Path
 
@@ -8,118 +9,143 @@ sys.path.insert(0, str(DEV_DIR))
 sys.path.insert(0, str(SCRIPTS))
 
 from check_optimization import validate  # noqa: E402
-from report_factory import valid_report  # noqa: E402
+from report_factory import valid_fast_report, valid_handoff, valid_report  # noqa: E402
 
 
-def fixture_repo(tmp_path: Path) -> Path:
+def fixture_repo(tmp_path: Path, *, git: bool = False) -> Path:
     source = tmp_path / "src"
     source.mkdir()
     (source / "system.py").write_text("def current():\n    return 'stable'\n", encoding="utf-8")
+    if git:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.email", "tests@example.com"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "config", "user.name", "Tests"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "add", "src/system.py"], cwd=tmp_path, check=True)
+        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True)
     return tmp_path
 
 
-def codes(text: str, scope: str, stage: str, repo_root: Path) -> set[str]:
-    return {item.code for item in validate(text, scope, stage, repo_root)}
+def codes(
+    text: str,
+    execution_path: str,
+    scope: str,
+    stage: str,
+    repo_root: Path,
+    handoff: str | None = None,
+) -> set[str]:
+    return {item.code for item in validate(text, execution_path, scope, stage, repo_root, handoff)}
 
 
-def test_valid_reports_pass_every_scope_and_stage(tmp_path: Path) -> None:
+def test_valid_fast_and_full_reports_pass(tmp_path: Path) -> None:
+    repo = fixture_repo(tmp_path, git=True)
+    strategic = valid_report(strategic=True)
+
+    assert validate(valid_fast_report(), "fast", "targeted", "implementation", repo) == []
+    assert validate(valid_report(), "full", "targeted", "plan", repo) == []
+    assert validate(strategic, "full", "targeted", "plan", repo, valid_handoff(strategic)) == []
+    assert validate(valid_report(investigate=True), "full", "targeted", "plan", repo) == []
+    assert validate(valid_report(stage="implementation"), "full", "targeted", "implementation", repo) == []
+
+
+def test_fast_requires_exact_f_b_c_records(tmp_path: Path) -> None:
+    repo = fixture_repo(tmp_path, git=True)
+    text = valid_fast_report().replace(
+        "- C-1:",
+        "- F-2: `src/system.py:1` | anchor: `current` | observation: duplicate fact.\n- C-1:",
+    )
+
+    assert "fast.records.exact" in codes(text, "fast", "targeted", "implementation", repo)
+
+
+def test_fast_cannot_skip_baseline_evidence_or_verification(tmp_path: Path) -> None:
+    repo = fixture_repo(tmp_path, git=True)
+    missing_evidence = valid_fast_report().replace("evidence: F-1, B-1", "evidence: F-1")
+    missing_verify = valid_fast_report().replace("verify: python bench.py and python -m pytest", "verify: none")
+
+    assert "fast.evidence.invalid" in codes(missing_evidence, "fast", "targeted", "implementation", repo)
+    assert "fast.verify.missing" in codes(missing_verify, "fast", "targeted", "implementation", repo)
+
+
+def test_fast_rejects_non_quick_band_and_incomplete_eligibility(tmp_path: Path) -> None:
+    repo = fixture_repo(tmp_path, git=True)
+    wrong_band = valid_fast_report().replace("band: quick-win", "band: strategic-win")
+    incomplete = valid_fast_report().replace("no-protected-domain=yes", "no-protected-domain=no")
+
+    assert "fast.band.invalid" in codes(wrong_band, "fast", "targeted", "implementation", repo)
+    assert "fast.eligibility.incomplete" in codes(incomplete, "fast", "targeted", "implementation", repo)
+
+
+def test_fast_rejects_untracked_or_dirty_file(tmp_path: Path) -> None:
+    repo = fixture_repo(tmp_path, git=True)
+    (repo / "src" / "system.py").write_text("def current():\n    return 'changed'\n", encoding="utf-8")
+
+    assert "fast.fact.dirty" in codes(valid_fast_report(), "fast", "targeted", "implementation", repo)
+
+
+def test_full_rejects_invalid_fact_and_fabricated_static_claim(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
+    missing = valid_report().replace("src/system.py:1", "src/missing.py:9")
+    fabricated = valid_report(static=True).replace(
+        "three duplicated policy branches across one bounded change path",
+        "20% faster by inspection",
+    )
 
-    assert validate(valid_report(), "targeted", "plan", repo) == []
-    assert validate(valid_report("sweep"), "sweep", "plan", repo) == []
-    assert validate(valid_report(investigate=True), "targeted", "plan", repo) == []
-    assert validate(valid_report(stage="implementation"), "targeted", "implementation", repo) == []
-
-
-def test_checker_rejects_missing_or_invalid_fact_citations(tmp_path: Path) -> None:
-    text = valid_report().replace("src/system.py:1", "src/missing.py:9")
-
-    assert "fact.path.missing" in codes(text, "targeted", "plan", tmp_path)
+    assert "fact.path.missing" in codes(missing, "full", "targeted", "plan", repo)
+    assert "baseline.static.performance_claim" in codes(fabricated, "full", "targeted", "plan", repo)
 
 
-def test_checker_rejects_plan_stage_execution_and_missing_authorization(tmp_path: Path) -> None:
+def test_full_preserves_authorization_and_promotion_gates(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
-    text = valid_report().replace("- Authorization: plan-only", "- Authorization: explicit implementation — guessed")
-    text += "- E-1: candidate: C-1 | authorization: guessed | change: changed | result: done | regression: V-1\n"
+    unauthorized = valid_report().replace("- Authorization: plan-only", "- Authorization: explicit implementation — guessed")
+    medium_quick = valid_report().replace("confidence: high | effort: low", "confidence: medium | effort: low", 1)
 
-    findings = codes(text, "targeted", "plan", repo)
-    assert "authorization.plan_only" in findings
-    assert "execution.plan_forbidden" in findings
+    assert "authorization.plan_only" in codes(unauthorized, "full", "targeted", "plan", repo)
+    assert "candidate.quick_win.ineligible" in codes(medium_quick, "full", "targeted", "plan", repo)
 
 
-def test_checker_rejects_incomplete_sweep_matrix_and_excess_wave_depth(tmp_path: Path) -> None:
+def test_full_preserves_sweep_depth_and_deferral_gates(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
     text = valid_report("sweep").replace(
-        "- CV-4: subsystem: ci | pass: build-test-ci | status: deferred | evidence: F-1 | priority: high | resume: collect representative CI timing and cache evidence\n",
-        "",
+        "- CV-2: subsystem: app | pass: build-test-ci | status: clean",
+        "- CV-2: subsystem: app | pass: build-test-ci | status: candidate",
     ).replace(
         "- CV-3: subsystem: ci | pass: runtime | status: rejected",
         "- CV-3: subsystem: ci | pass: runtime | status: candidate",
     ).replace(
-        "- CV-2: subsystem: app | pass: build-test-ci | status: clean",
-        "- CV-2: subsystem: app | pass: build-test-ci | status: candidate",
-    )
-    text = text.replace(
-        "- CV-1: subsystem: app | pass: runtime | status: candidate",
-        "- CV-1: subsystem: app | pass: runtime | status: candidate\n- CV-5: subsystem: ci | pass: build-test-ci | status: candidate | evidence: F-1 | priority: high | resume: none",
+        "- CV-4: subsystem: ci | pass: build-test-ci | status: deferred",
+        "- CV-4: subsystem: ci | pass: build-test-ci | status: candidate",
     )
 
-    findings = codes(text, "sweep", "plan", repo)
-    assert "coverage.wave.limit" in findings
+    assert "coverage.wave.limit" in codes(text, "full", "sweep", "plan", repo, valid_handoff(text))
 
 
-def test_checker_rejects_unsupported_research_and_medium_confidence_quick_win(tmp_path: Path) -> None:
+def test_plan_change_requires_separate_handoff_and_rejects_it_elsewhere(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
-    text = valid_report().replace(
-        "component: not-applicable | version: not-applicable | source: not-applicable",
-        "component: framework | version: latest | source: https://example.com/latest",
-    ).replace("confidence: high | effort: low", "confidence: medium | effort: low", 1)
+    strategic = valid_report(strategic=True)
 
-    findings = codes(text, "targeted", "plan", repo)
-    assert "research.version.unresolved" in findings
-    assert "candidate.quick_win.ineligible" in findings
-
-
-def test_checker_rejects_broken_links_and_missing_rollback(tmp_path: Path) -> None:
-    repo = fixture_repo(tmp_path)
-    text = valid_report().replace("verify: V-1", "verify: V-9", 1).replace(
-        "rollback: restore the previous local implementation", "rollback: none", 1
+    assert "handoff.file.required" in codes(strategic, "full", "targeted", "plan", repo)
+    assert "handoff.file.unexpected" in codes(
+        valid_report(), "full", "targeted", "plan", repo, valid_handoff(strategic)
     )
 
-    findings = codes(text, "targeted", "plan", repo)
-    assert "record.reference.missing" in findings
-    assert "candidate.verification.missing" in findings
-    assert "candidate.rollback.missing" in findings
 
-
-def test_checker_requires_one_eligible_candidate_for_implementation(tmp_path: Path) -> None:
+def test_handoff_validates_fields_flags_and_real_run_anchors(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
-    text = valid_report(stage="implementation").replace("candidate: C-1 | authorization: user requested", "candidate: C-2 | authorization: user requested")
+    report = valid_report(strategic=True)
+    invalid_anchor = valid_handoff(report).replace("src/system.py:current", "src/system.py:invented")
+    invalid_risk = valid_handoff(report).replace("- Risk domains: none", "- Risk domains: made-up")
+    implicit = valid_handoff(report).replace("- Success criteria: Preserve output and reduce the named bounded cost.", "- Success criteria: TBD")
 
-    assert "execution.candidate.ineligible" in codes(text, "targeted", "implementation", repo)
+    assert "handoff.anchor.unbound" in codes(report, "full", "targeted", "plan", repo, invalid_anchor)
+    assert "handoff.risk_domain.invalid" in codes(report, "full", "targeted", "plan", repo, invalid_risk)
+    assert "handoff.field.missing" in codes(report, "full", "targeted", "plan", repo, implicit)
 
 
-def test_checker_enforces_deterministic_candidate_order(tmp_path: Path) -> None:
+def test_handoff_rejects_candidate_or_evidence_mismatch(tmp_path: Path) -> None:
     repo = fixture_repo(tmp_path)
-    text = valid_report()
-    lines = text.splitlines()
-    first = next(index for index, line in enumerate(lines) if line.startswith("- C-1:"))
-    second = next(index for index, line in enumerate(lines) if line.startswith("- C-2:"))
-    lines[first], lines[second] = lines[second], lines[first]
+    report = valid_report(strategic=True)
+    candidate = valid_handoff(report).replace("- Candidate: C-1", "- Candidate: C-2")
+    evidence = valid_handoff(report).replace("- Evidence: F-1, B-1, R-1", "- Evidence: F-1")
 
-    assert "candidate.order.invalid" in codes("\n".join(lines) + "\n", "targeted", "plan", repo)
-
-
-def test_checker_rejects_fabricated_static_and_percentage_only_measurements(tmp_path: Path) -> None:
-    repo = fixture_repo(tmp_path)
-    static_claim = valid_report(static=True).replace(
-        "three duplicated policy branches across one change path",
-        "20% faster by inspection",
-    )
-    percentage_only = valid_report().replace(
-        "median 40 ms across five warm runs",
-        "20% faster",
-    )
-
-    assert "baseline.static.performance_claim" in codes(static_claim, "targeted", "plan", repo)
-    assert "baseline.percentage_only" in codes(percentage_only, "targeted", "plan", repo)
+    assert "handoff.field.mismatch" in codes(report, "full", "targeted", "plan", repo, candidate)
+    assert "handoff.evidence.mismatch" in codes(report, "full", "targeted", "plan", repo, evidence)
