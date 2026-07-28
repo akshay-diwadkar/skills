@@ -46,8 +46,30 @@ CONFIG_EXTENSIONS = {".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"}
 CONFIG_PHRASES = {
     "ruff line length", "mypy strict", "pytest addopts", "package json script", "workflow trigger",
     "github actions matrix", "tool ruff", "tool pytest ini options", "eslint", "prettier", "tsconfig",
+    "package test script", "package lint script", "package build script", "npm test flag",
+    "compiler options", "typescript compiler strictness", "python linter configuration",
 }
-STRONG_CONFIG_TOKENS = {"ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow"}
+STRONG_CONFIG_TOKENS = {
+    "ruff", "mypy", "eslint", "prettier", "tsconfig", "addopts", "ini_options", "workflow",
+    "pyproject", "compileroptions",
+}
+PROTECTED_COMPOUND_TERMS = {
+    "JavaScript": "javascript",
+    "TypeScript": "typescript",
+    "GitHub": "github",
+    "GitLab": "gitlab",
+    "PostgreSQL": "postgresql",
+    "OAuth": "oauth",
+    "GraphQL": "graphql",
+    "WebSocket": "websocket",
+}
+PROTECTED_COMPOUND_PATTERN = re.compile(
+    r"\b(?:" + "|".join(sorted(map(re.escape, PROTECTED_COMPOUND_TERMS), key=len, reverse=True)) + r")\b",
+    flags=re.IGNORECASE,
+)
+WEAK_FILENAME_TERMS = frozenset({
+    "component", "config", "configuration", "service", "settings", "script", "test", "tests",
+})
 TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test", "assertion", "fixture", "rename test", "expected output"}
 IMPLEMENTATION_WORDS = {"implement", "add", "fix", "support", "prevent", "handle", "refactor", "caller", "behavior"}
 SYNONYM_GROUPS = (
@@ -101,7 +123,9 @@ INTENT_RULES: list[tuple[re.Pattern[str], PrimaryRole, int]] = [
         re.compile(
             r"\b(?:ruff|mypy|eslint|prettier|tsconfig|typescript configuration|workflow trigger|"
             r"github actions|addopts|ini options|package script|npm test flag|compiler options|"
-            r"linter configuration|line[- ]?length|permissions matrix)\b"
+            r"package (?:test|lint|build) (?:script|command)|javascript lint script|"
+            r"typescript (?:compiler strictness|compilation)|linter configuration|line[- ]?length|"
+            r"requests per minute|throttling settings|yaml workflow settings|permissions matrix)\b"
         ),
         "configuration",
         170,
@@ -138,8 +162,19 @@ class TaskIntent:
 
 
 def _literal_split(value: str) -> set[str]:
+    protected = PROTECTED_COMPOUND_PATTERN.sub(
+        lambda match: PROTECTED_COMPOUND_TERMS.get(
+            match.group(0),
+            next(
+                canonical
+                for term, canonical in PROTECTED_COMPOUND_TERMS.items()
+                if term.lower() == match.group(0).lower()
+            ),
+        ),
+        value,
+    )
     words = (
-        re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
+        re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", protected)
         .replace("_", " ")
         .replace("-", " ")
         .replace("/", " ")
@@ -316,8 +351,13 @@ def _fallback_search(output_prefix: str, value: str, *, is_regex: bool = False) 
 
 
 def _lexical(
-    files: list[dict[str, Any]], signals: dict[str, set[str]], weights: dict[str, float], freshness: str
+    files: list[dict[str, Any]],
+    signals: dict[str, set[str]],
+    weights: dict[str, float],
+    freshness: str,
+    configuration_keys: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
+    configuration_keys = configuration_keys or {}
     results = []
     for file in files:
         path = file["path"]
@@ -353,16 +393,34 @@ def _lexical(
                 weights["synonym_token"],
                 "synonym_token",
             )
-        if file["role"] == "configuration" and (file["path"] in signals["paths"] or signals["terms"] & STRONG_CONFIG_TOKENS):
+        config_key_terms = set().union(
+            *(_split(key) for key in configuration_keys.get(path, []))
+        ) if configuration_keys.get(path) else set()
+        config_matches = signals["terms"] & config_key_terms
+        if file["role"] == "configuration" and config_matches:
+            _add(
+                evidence,
+                f"configuration_key: {sorted(config_matches)[0]}",
+                weights["configuration"],
+                "configuration_key",
+            )
+        if file["role"] == "configuration" and (
+            file["path"] in signals["paths"] or signals["terms"] & STRONG_CONFIG_TOKENS
+        ):
             _add(evidence, f"configuration: {path}", weights["configuration"], "configuration")
         if file.get("generated"):
-            _add(evidence, "generated_penalty", weights["generated_penalty"], "generated")
+            _add(evidence, "generated_penalty", weights["generated_penalty"], "generated_penalty")
         if "vendor" in path.lower() or "node_modules" in path.lower():
-            _add(evidence, "vendor_penalty", weights["vendor_penalty"], "ownership")
+            _add(evidence, "vendor_penalty", weights["vendor_penalty"], "vendor_penalty")
         if not file.get("language") and file["role"] == "source":
-            _add(evidence, "unsupported_extractor_penalty", weights["unsupported_extractor_penalty"], "ownership")
+            _add(
+                evidence,
+                "unsupported_extractor_penalty",
+                weights["unsupported_extractor_penalty"],
+                "unsupported_extractor_penalty",
+            )
         if freshness != "fresh":
-            _add(evidence, "stale_knowledge_penalty", weights["stale_knowledge_penalty"], "freshness")
+            _add(evidence, "stale_knowledge_penalty", weights["stale_knowledge_penalty"], "stale_knowledge_penalty")
         score = sum(x[0] for x in evidence.values())
         if score > 0:
             results.append({"file": file, "score": score, "evidence": evidence})
@@ -386,12 +444,17 @@ def _rerank(
     for path, item in selected.items():
         ev = item["evidence"]
         for test in sorted(tests_by_target.get(path, [])):
-            _add(ev, f"tested_by: {test}", weights["related_test"], "test")
+            _add(ev, f"tested_by: {test}", weights["related_test"], "related_test")
         for importer in sorted(relationships.get("reverse_imports", {}).get(path, [])):
-            _add(ev, f"imported_by: {importer}", weights["reverse_import_relationship"], "import")
+            _add(
+                ev,
+                f"imported_by: {importer}",
+                weights["reverse_import_relationship"],
+                "reverse_import_relationship",
+            )
         for edge in relationships.get("imports", []):
             if edge["source"] == path:
-                _add(ev, f"imports: {edge['target']}", weights["import_relationship"], "import")
+                _add(ev, f"imports: {edge['target']}", weights["import_relationship"], "import_relationship")
         if Path(path).name.lower() in {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}:
             _add(ev, f"entry_point: {path}", weights["entry_point"], "entry_point")
         item["score"] = sum(x[0] for x in ev.values())
@@ -628,7 +691,12 @@ def _relationship_targets(
         if adjacent not in by_path:
             continue
         item = merged.setdefault(adjacent, {"file": by_path[adjacent], "evidence": {}})
-        _add(item["evidence"], evidence, config["weights"]["import_relationship"], "import")
+        _add(
+            item["evidence"],
+            evidence,
+            config["weights"]["import_relationship"],
+            "import_relationship",
+        )
     return _dedupe([_target(item, [], signals, root, task, config) for _, item in sorted(merged.items())])
 
 
@@ -644,7 +712,17 @@ def resolve_task(
     signals = _signals(task)
     by_path = {x["path"]: x for x in repo["files"]}
     intent = classify_task_intent(task, signals, repo["files"])
-    lexical_matches = _lexical(repo["files"], signals, config["weights"], freshness)
+    configuration_keys = {
+        item["path"]: item.get("keys", [])
+        for item in repo.get("configurations", [])
+    }
+    lexical_matches = _lexical(
+        repo["files"],
+        signals,
+        config["weights"],
+        freshness,
+        configuration_keys,
+    )
     literal_primary_matches = [
         item
         for item in lexical_matches
@@ -685,7 +763,30 @@ def resolve_task(
     margin = score - (primaries[1]["score"] if len(primaries) > 1 else 0)
     families = {family for weight, family in primaries[0]["evidence"].values() if weight > 0} if primaries else set()
     focused = bool(primary and primary[0]["start_line"])
-    high = freshness == "fresh" and focused and margin >= config["confidence_margin"] and len(families) >= 2
+    strong_labels: list[str] = []
+    if primaries:
+        evidence = primaries[0]["evidence"]
+        if any(label.startswith("exact_path:") and weight > 0 for label, (weight, _) in evidence.items()):
+            strong_labels.append("exact_path")
+        for label, (weight, _) in evidence.items():
+            if label.startswith("exact_symbol:") and weight > 0:
+                symbol = label.split(":", 1)[1].strip()
+                owners = sum(symbol in file.get("symbols", []) for file in repo["files"])
+                if owners == 1:
+                    strong_labels.append("exact_symbol")
+            if label.startswith("filename:") and weight > 0:
+                term = label.split(":", 1)[1].strip()
+                owners = sum(term in _literal_split(Path(file["path"]).stem) for file in repo["files"])
+                if owners == 1 and term not in WEAK_FILENAME_TERMS:
+                    strong_labels.append("filename")
+    has_strong_evidence = bool(strong_labels)
+    high = (
+        freshness == "fresh"
+        and focused
+        and margin >= config["confidence_margin"]
+        and len(families) >= 2
+        and has_strong_evidence
+    )
     level = "high" if high else "medium" if primary else "low"
     terms = sorted(signals["terms"])
     output_prefix = knowledge_output_prefix(root, directory)
@@ -725,6 +826,8 @@ def resolve_task(
             uncertainties.append("candidate score separation is below the configured confidence margin")
         if len(families) < 2:
             uncertainties.append("no direct test, import, or entry-point evidence separates candidates")
+        if not has_strong_evidence:
+            uncertainties.append("no exact symbol, exact path, or filename evidence supports high confidence")
         if high:
             reasons.append("top candidate exceeds the configured confidence margin")
     phases = {

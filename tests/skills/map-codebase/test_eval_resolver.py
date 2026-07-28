@@ -23,6 +23,7 @@ def test_fixture_manifest_has_thirty_cases_per_repository() -> None:
         "python-small": 30,
         "javascript-small": 30,
         "mixed-config": 30,
+        "realistic-large": 30,
     }
     for case in cases:
         assert set(case) in (
@@ -50,5 +51,44 @@ def test_metric_calculation_counts_owner_misses_by_role() -> None:
 
 def test_committed_baseline_covers_every_fixture_repository() -> None:
     baseline = json.loads((EVAL_DIR / "baseline.json").read_text(encoding="utf-8"))
-    assert set(baseline["repositories"]) == {"python-small", "javascript-small", "mixed-config"}
+    assert set(baseline["repositories"]) == {
+        "python-small",
+        "javascript-small",
+        "mixed-config",
+        "realistic-large",
+    }
     assert 0.0 <= baseline["overall"] <= 1.0
+
+
+def test_realistic_fixture_has_hundreds_of_files_and_cross_module_imports() -> None:
+    fixture = EVAL_DIR / "repos" / "realistic-large"
+    assert len([path for path in fixture.rglob("*") if path.is_file()]) >= 200
+    component = (fixture / "src" / "services" / "component_010.py").read_text(encoding="utf-8")
+    assert "from src.services.component_009 import services_value_009" in component
+
+
+def test_retrieval_metrics_credit_savings_only_to_correct_results() -> None:
+    module = _module()
+    metrics = module.calculate_retrieval_metrics(
+        [
+            {
+                "repo": "sample",
+                "correct": True,
+                "resolver_tokens": 10,
+                "grep_tokens": 100,
+                "resolver_characters": 40,
+                "grep_characters": 400,
+            },
+            {
+                "repo": "sample",
+                "correct": False,
+                "resolver_tokens": 1,
+                "grep_tokens": 100,
+                "resolver_characters": 4,
+                "grep_characters": 400,
+            },
+        ]
+    )
+    assert metrics["sample"]["correct"]["token_savings"] == 0.9
+    assert metrics["sample"]["incorrect"]["token_savings"] == 0.0
+    assert metrics["sample"]["incorrect"]["character_savings"] == 0.0

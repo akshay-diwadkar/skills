@@ -1,0 +1,35 @@
+[
+  {
+    "repo": "realistic-large",
+    "task": "Fix the JavaScript extractor to handle arrow function exports",
+    "path": "src/extractors/javascript_extractor.py",
+    "symbol": "extract_arrow_function_exports",
+    "setup_before": "return [line for line in source.splitlines() if \"export \" in line and \"=>\" in line]",
+    "setup_after": "return [line for line in source.splitlines() if line.startswith(\"export function\")]",
+    "repair_before": "return [line for line in source.splitlines() if line.startswith(\"export function\")]",
+    "repair_after": "return [line for line in source.splitlines() if \"export \" in line and \"=>\" in line]",
+    "test": ["{python}", "-c", "exec(open('tests/check_extractor.py', encoding='utf-8').read())"]
+  },
+  {
+    "repo": "realistic-large",
+    "task": "Fix invoice total rounding in round_invoice_total",
+    "path": "src/billing/invoice_service.py",
+    "symbol": "round_invoice_total",
+    "setup_before": "rounding=ROUND_HALF_UP",
+    "setup_after": "rounding=ROUND_DOWN",
+    "repair_before": "rounding=ROUND_DOWN",
+    "repair_after": "rounding=ROUND_HALF_UP",
+    "test": ["{python}", "-c", "exec(open('tests/check_invoice.py', encoding='utf-8').read())"]
+  },
+  {
+    "repo": "realistic-large",
+    "task": "Repair domain_value_007 in src/domain/component_007.py",
+    "path": "src/domain/component_007.py",
+    "symbol": "domain_value_007",
+    "setup_before": "return amount + 7",
+    "setup_after": "return amount - 7",
+    "repair_before": "return amount - 7",
+    "repair_after": "return amount + 7",
+    "test": ["{python}", "-c", "exec(open('tests/check_component_007.py', encoding='utf-8').read())"]
+  }
+]

@@ -19,11 +19,11 @@
 | --- | --- | --- | --- |
 | `python.py` | Python (`.py`) | Full AST extraction | Structured symbols, ranges, and imports provide the strongest ownership evidence. |
 | `javascript.py` | JavaScript, TypeScript, JSX, and TSX | Full dedicated extraction | Dedicated symbols and imports support normal path, symbol, and relationship ranking. |
-| `lexical.py` | Go, Rust, Java, C, and C++ | Lexical-only | Regex-discovered symbols and imports can miss complex or nested constructs, reducing resolver precision. |
+| `lexical.py` | Go, Rust, Java, C, and C++ | Full tree-sitter extraction | Required language grammars provide scope-aware symbols, full-body ranges, and imports. |
 | `configuration.py` | Repository configuration files | Configuration metadata and command extraction | Known keys and commands support configuration ownership; unrecognized structures fall back to text evidence. |
 <!-- END EXTRACTOR COVERAGE -->
 
-Lexical-only means deterministic regex-based symbol and import discovery rather than language-aware parsing. It has lower structural confidence, so complex declarations, nesting, and unusual syntax may produce weaker or missing resolver evidence.
+Install `requirements.txt` before indexing Go, Rust, Java, C, or C++. Missing tree-sitter grammars fail with an actionable error rather than silently returning point-line spans.
 
 ## Agent Mode Permissions
 
@@ -53,6 +53,7 @@ Lexical-only means deterministic regex-based symbol and import discovery rather 
 - Direct test maintenance is test-owned.
 - Configuration requests are configuration-owned.
 - Configuration ranges target ranked active keys rather than first textual matches.
+- Treat medium confidence as unresolved ownership. High confidence requires fresh focused context, score separation, multiple independent evidence families, and a unique exact-symbol, exact-path, or filename signal.
 
 ## Agent-Document Finalization
 

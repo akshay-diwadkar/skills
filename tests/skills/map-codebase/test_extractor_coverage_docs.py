@@ -36,8 +36,9 @@ def test_coverage_tables_match_extractor_modules_exactly() -> None:
         assert blocks[0].count(f"`{module}`") == 1
 
 
-def test_lexical_only_limit_is_explicit_in_both_documents() -> None:
+def test_tree_sitter_scope_coverage_is_explicit_in_both_documents() -> None:
     for document in DOCUMENTS:
         text = document.read_text(encoding="utf-8")
-        assert "Lexical-only means deterministic regex-based symbol and import discovery" in text
-        assert "lower structural confidence" in text
+        assert "Full tree-sitter extraction" in text
+        assert "scope-aware symbols, full-body ranges, and imports" in text
+        assert "Missing tree-sitter grammars fail with an actionable error" in text
