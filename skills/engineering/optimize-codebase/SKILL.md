@@ -45,15 +45,9 @@ The artifact contains exactly one `F-n`, one `B-n`, and one `C-n`. `C-1` must be
 
 ## Full Path Records
 
-- `F-n`: verified local fact with an existing `path:line`, exact symbol anchor, and observation.
-- `CV-n`: subsystem/pass coverage status, evidence, priority, and resume action.
-- `B-n`: measured, bounded-static, or blocked baseline.
-- `R-n`: version-matched official research tied to B-n, or explicit not-applicable research.
-- `C-n`: one independently measurable mechanism, its exact `path:symbol` anchors, promotion gates, and band.
-- `V-n`: exact proof method and expected observable result.
-- `X-n`: rejection or deferral with evidence and revisit condition.
-- `H-n`: exactly one next owner.
-- `E-n`: explicitly authorized action and result; implementation stage only.
+Before constructing any full-path record, read `references/glossary.md`
+completely. It defines record ownership, baseline and candidate vocabulary,
+literal-anchor identity, and the downstream meaning of every handoff state.
 
 Read `references/optimization-protocol.md` before collecting full-path evidence and `references/optimization-rubric.md` before constructing or classifying candidates. Read ecosystem and pattern references only after a B-n identifies the relevant component or pass.
 
