@@ -26,7 +26,7 @@ Resolver cost counts returned source ranges; an unfocused target counts as a ful
 
 | Repository | Outcome | Cases | Resolver tokens | Grep tokens | Token savings | Resolver chars | Grep chars | Char savings |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Overall | correct | 103 | 4859 | 215482 | 97.7% | 18937 | 940085 | 98.0% |
+| Overall | correct | 103 | 4585 | 212050 | 97.8% | 18096 | 913532 | 98.0% |
 | Overall | incorrect | 17 | 273 | 390 | 0.0% | 1243 | 1506 | 0.0% |
 | javascript-small | correct | 22 | 452 | 773 | 41.5% | 1683 | 2887 | 41.7% |
 | javascript-small | incorrect | 8 | 75 | 216 | 0.0% | 355 | 804 | 0.0% |
@@ -34,7 +34,7 @@ Resolver cost counts returned source ranges; an unfocused target counts as a ful
 | mixed-config | incorrect | 3 | 96 | 0 | 0.0% | 414 | 0 | 0.0% |
 | python-small | correct | 24 | 619 | 627 | 1.3% | 2446 | 2691 | 9.1% |
 | python-small | incorrect | 6 | 102 | 174 | 0.0% | 474 | 702 | 0.0% |
-| realistic-large | correct | 30 | 3146 | 213375 | 98.5% | 12327 | 931610 | 98.7% |
+| realistic-large | correct | 30 | 2872 | 209943 | 98.6% | 11486 | 905057 | 98.7% |
 | realistic-large | incorrect | 0 | 0 | 0 | 0.0% | 0 | 0 | 0.0% |
 
 ## Confidence Safety
@@ -47,8 +47,8 @@ This is a deterministic patch simulator, not a live LLM benchmark. It proves tha
 
 | Condition | Success | Rate | Tokens | Median tokens | Tokens/success | Characters | Failed-attempt tokens |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| resolver | 3/3 | 100.0% | 248 | 53 | 82.7 | 1044 | 0 |
-| grep | 3/3 | 100.0% | 20075 | 178 | 6691.7 | 87474 | 0 |
+| resolver | 3/3 | 100.0% | 215 | 53 | 71.7 | 945 | 0 |
+| grep | 3/3 | 100.0% | 20251 | 178 | 6750.3 | 86349 | 0 |
 
 Quality failures: none.
 
@@ -58,7 +58,7 @@ Quality failures: none.
 | --- | ---: | ---: |
 | Hit@1 | 0.667 | 0.858 |
 | Configuration recall | 0.278 | 1.000 |
-| Correct-resolution context tokens | Not measured | 4859 resolver vs. 215482 grep (97.7% savings) |
+| Correct-resolution context tokens | Not measured | 4585 resolver vs. 212050 grep (97.8% savings) |
 | Patch success | Not measured | 3/3 resolver vs. 3/3 grep |
 
 ## Misses

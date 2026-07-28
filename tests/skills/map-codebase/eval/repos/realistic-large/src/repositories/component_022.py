@@ -1,5 +1,6 @@
-from src.repositories.component_021 import repositories_value_021
+from src.repositories.component_021 import repositories_value_021  # noqa: F401
+
 
 def repositories_value_022(amount: int) -> int:
     """Return deterministic repositories component 022 output."""
-    return amount + 22 + (0 if repositories_value_021 else 0)
+    return amount + 22

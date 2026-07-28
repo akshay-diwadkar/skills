@@ -1,5 +1,6 @@
-from src.services.component_022 import services_value_022
+from src.services.component_022 import services_value_022  # noqa: F401
+
 
 def services_value_023(amount: int) -> int:
     """Return deterministic services component 023 output."""
-    return amount + 23 + (0 if services_value_022 else 0)
+    return amount + 23
