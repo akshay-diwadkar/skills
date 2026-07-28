@@ -1,0 +1,2 @@
+tests/skills/plan-change/fixtures/**/*.ts text eol=lf
+tests/skills/plan-change/fixtures/**/*.kt text eol=lf

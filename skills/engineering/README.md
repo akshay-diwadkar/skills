@@ -16,7 +16,7 @@ This directory contains all canonical engineering skills.
 
 | Skill | Status | Invocation | Summary |
 | --- | --- | --- | --- |
-| [design-codebase](./design-codebase/SKILL.md) | `stable` | `both` | Assess whether architectural change is justified and choose the smallest evidence-backed design, with an incremental behavior-preserving migration path. |
+| [design-codebase](./design-codebase/SKILL.md) | `stable` | `both` | Decide and justify a repository-grounded design, then hand one plan-ready request document to plan-change. |
 | [optimize-codebase](./optimize-codebase/SKILL.md) | `stable` | `both` | Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. |
 
 ## Utilities
