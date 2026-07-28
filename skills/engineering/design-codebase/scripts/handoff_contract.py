@@ -32,6 +32,24 @@ PLACEHOLDER_RE = re.compile(
     r"\b(?:TBD|TODO|FIXME|REPLACE(?:_[A-Z0-9_]+)?|INSERT HERE|AS NEEDED)\b|\{\{[^}\n]+\}\}",
     re.IGNORECASE,
 )
+WORD_RE = re.compile(r"[a-z0-9]+")
+TERM_STOPWORDS = {
+    "and",
+    "are",
+    "because",
+    "from",
+    "into",
+    "must",
+    "that",
+    "their",
+    "these",
+    "this",
+    "those",
+    "uses",
+    "using",
+    "while",
+    "with",
+}
 
 
 @dataclass(frozen=True)
@@ -304,6 +322,41 @@ def _normalized(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.casefold())
 
 
+def _meaningful_terms(value: str) -> set[str]:
+    without_citations = CITATION_RE.sub("", value)
+    return {
+        term
+        for term in WORD_RE.findall(without_citations.casefold())
+        if len(term) >= 4 and term not in TERM_STOPWORDS
+    }
+
+
+def _validate_depth_rationale(body: str) -> list[Diagnostic]:
+    design = _field_from_section(body, "Design")
+    hidden_details = _field_from_section(body, "Hidden details")
+    exposed_controls = _field_from_section(body, "Exposed controls")
+    rationale = _field_from_section(body, "Depth rationale")
+    fields = (design, hidden_details, exposed_controls, rationale)
+    rationale_terms = _meaningful_terms(rationale)
+    hidden_terms = _meaningful_terms(hidden_details)
+    exposed_terms = _meaningful_terms(exposed_controls)
+    rationale_without_citations = CITATION_RE.sub("", rationale)
+    restates_design = bool(design) and _normalized(rationale_without_citations) == _normalized(design)
+    if (
+        not all(_substantive(value) for value in fields)
+        or not rationale_terms.intersection(hidden_terms)
+        or not rationale_terms.intersection(exposed_terms)
+        or restates_design
+    ):
+        return [
+            Diagnostic(
+                "design.depth.unsubstantiated",
+                "Depth rationale must name a hidden detail and an exposed control without merely restating Design.",
+            )
+        ]
+    return []
+
+
 def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     chosen = _design(chosen_body)
@@ -431,6 +484,97 @@ def _validate_generality(body: str) -> list[Diagnostic]:
     return diagnostics
 
 
+def _validate_consolidation(body: str) -> list[Diagnostic]:
+    statements = re.split(r"(?<=[.!?])\s+", body)
+    not_applicable = [statement for statement in statements if "not applicable" in statement.casefold()]
+    if not_applicable:
+        if any(CITATION_RE.search(statement) for statement in not_applicable):
+            return []
+    else:
+        option = re.search(r"\b(?:consolidat\w*|combin\w*|merg\w*|co-?locat\w*)\b", body, re.IGNORECASE)
+        reason = re.search(r"\b(?:because|due to|rejected|therefore|but|while|so that)\b", body, re.IGNORECASE)
+        structural_reason = re.search(
+            r"\b(?:owners?|ownership|coupl\w*|boundar\w*)\b",
+            body,
+            re.IGNORECASE,
+        )
+        if option and reason and structural_reason:
+            return []
+    return [
+        Diagnostic(
+            "consolidation.reasoning.missing",
+            "Consolidation Considered requires a cited not-applicable statement or an option with ownership, coupling, or boundary reasoning.",
+        )
+    ]
+
+
+def _interface_table_terms(body: str) -> set[str]:
+    rows = [
+        line
+        for line in body.splitlines()
+        if line.strip().startswith("|")
+        and not re.fullmatch(r"\s*\|(?:\s*:?-+:?\s*\|)+\s*", line)
+    ]
+    return _meaningful_terms("\n".join(rows))
+
+
+def _validate_documentation(interface_body: str, documentation_body: str) -> list[Diagnostic]:
+    documentation_terms = _meaningful_terms(documentation_body)
+    if documentation_terms and documentation_terms <= _interface_table_terms(interface_body):
+        return [
+            Diagnostic(
+                "documentation.signature_restatement",
+                "Documentation Obligations must describe caller knowledge beyond the Target Interface Contract table.",
+            )
+        ]
+    return []
+
+
+def _design_term_coverage(question_body: str, design: StructuralDesign) -> float:
+    question_terms = _meaningful_terms(question_body)
+    coverages: list[float] = []
+    for value in (design.boundary, design.owner, design.core_abstraction):
+        terms = _meaningful_terms(value)
+        if terms:
+            coverages.append(len(question_terms.intersection(terms)) / len(terms))
+    return max(coverages, default=0.0)
+
+
+def _validate_planner_questions(chosen_body: str, questions_body: str) -> list[Diagnostic]:
+    statements = re.split(r"(?<=[.!?])\s+", questions_body)
+    explicit_none = [
+        statement
+        for statement in statements
+        if re.search(r"\b(?:none|no open questions?)\b", statement, re.IGNORECASE)
+    ]
+    if explicit_none and any(CITATION_RE.search(statement) for statement in explicit_none):
+        return []
+
+    scoped_to_planning = re.search(r"\b(?:ground\w*|reconcil\w*)\b", questions_body, re.IGNORECASE)
+    decision_language = re.search(
+        r"\b(?:should|whether|reconsider|re-decide|decide|choose|change)\b",
+        questions_body,
+        re.IGNORECASE,
+    )
+    chosen = _design(chosen_body)
+    redecides_design = bool(
+        decision_language
+        and chosen
+        and (
+            re.search(r"\b(?:boundary|owner|ownership|core abstraction)\b", questions_body, re.IGNORECASE)
+            or _design_term_coverage(questions_body, chosen) >= 0.6
+        )
+    )
+    if not scoped_to_planning or redecides_design:
+        return [
+            Diagnostic(
+                "planner_questions.redecides_design",
+                "Planner questions must be limited to grounding or reconciliation and must not reopen the chosen design.",
+            )
+        ]
+    return []
+
+
 def validate_handoff(text: str, repo_root: Path) -> tuple[ParsedHandoff, list[Diagnostic]]:
     """Parse and validate one design handoff against the current repository."""
     normalized = normalize_markdown(text)
@@ -469,6 +613,22 @@ def validate_handoff(text: str, repo_root: Path) -> tuple[ParsedHandoff, list[Di
             sections.get("Alternatives Considered", ""),
         )
     )
-    diagnostics.extend(_validate_interface(sections.get("Target Interface Contract", "")))
+    chosen_body = sections.get("Chosen Design & Depth Rationale", "")
+    interface_body = sections.get("Target Interface Contract", "")
+    diagnostics.extend(_validate_depth_rationale(chosen_body))
+    diagnostics.extend(_validate_interface(interface_body))
     diagnostics.extend(_validate_generality(sections.get("Generality Justification", "")))
+    diagnostics.extend(_validate_consolidation(sections.get("Consolidation Considered", "")))
+    diagnostics.extend(
+        _validate_documentation(
+            interface_body,
+            sections.get("Documentation Obligations", ""),
+        )
+    )
+    diagnostics.extend(
+        _validate_planner_questions(
+            chosen_body,
+            sections.get("Open Questions for the Planner", ""),
+        )
+    )
     return ParsedHandoff(sections=sections, evidence=evidence), diagnostics

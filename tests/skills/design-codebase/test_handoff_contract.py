@@ -62,6 +62,16 @@ def test_worked_example_is_valid(tmp_path: Path) -> None:
     assert codes(example(), make_repo(tmp_path)) == set()
 
 
+def test_worked_example_satisfies_section_specific_validation(tmp_path: Path) -> None:
+    new_diagnostics = {
+        "design.depth.unsubstantiated",
+        "consolidation.reasoning.missing",
+        "documentation.signature_restatement",
+        "planner_questions.redecides_design",
+    }
+    assert codes(example(), make_repo(tmp_path)).isdisjoint(new_diagnostics)
+
+
 @pytest.mark.parametrize(
     ("mutator", "expected"),
     [
@@ -198,6 +208,59 @@ def test_generality_requires_two_patterns_or_an_intentionally_narrow_decision(tm
         "This design is intentionally narrow because only checkout needs",
     )
     assert "generality.patterns.insufficient" not in codes(intentionally_narrow, repo)
+
+
+def test_depth_rationale_must_name_hidden_details_and_exposed_controls(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    restated_design = example().replace(
+        "One charge operation and three domain types hide four provider concepts already used by independent callers, "
+        "while callers retain every control that changes payment behavior. This has a higher functionality-to-interface "
+        "ratio than exposing the SDK request and exception families directly. [E-2] [E-3] [E-4]",
+        "Callers submit a domain-owned `ChargeRequest` to `PaymentGateway.charge`; the integration owner translates "
+        "provider requests, results, and exceptions. [E-2]",
+    )
+    assert "design.depth.unsubstantiated" in codes(restated_design, repo)
+
+
+def test_consolidation_requires_structural_reasoning(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    generic = example().replace(
+        "Consolidating checkout, subscription, and provider translation into the payment\n"
+        "service was evaluated because the current code changes together around provider\n"
+        "updates. It was rejected: provider translation is tightly coupled, but checkout\n"
+        "and subscription policy have different owners and lifecycles. The chosen\n"
+        "boundary consolidates only translation and error mapping. [E-2] [E-3]",
+        "The implementation organization was reviewed and the selected approach appears preferable for future work. "
+        "[E-2]",
+    )
+    assert "consolidation.reasoning.missing" in codes(generic, repo)
+
+
+def test_documentation_must_add_knowledge_beyond_interface_rows(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    signature_restatement = example().replace(
+        "Callers must know that the gateway owns provider timeout policy and error\n"
+        "translation, that an idempotency key identifies one logical charge attempt, and\n"
+        "that `PaymentUnavailable` does not prove the provider declined the charge.\n"
+        "These semantics are not fully expressed by the signature and must be scheduled\n"
+        "by `plan-change` as contract documentation. [E-2] [E-3]",
+        "`PaymentGateway.charge(request: ChargeRequest) -> PaymentResult` uses an optional payment token and "
+        "idempotency key, with `PaymentDeclined` and `PaymentUnavailable` as caller-visible errors. [E-2]",
+    )
+    assert "documentation.signature_restatement" in codes(signature_restatement, repo)
+
+
+def test_planner_questions_must_not_reopen_chosen_design(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    redecides_owner = example().replace(
+        "The design is complete. During grounding, the planner must reconcile the full\n"
+        "caller inventory and identify which existing characterization tests own the\n"
+        "provider-to-domain error mapping; those are implementation-scope questions, not\n"
+        "design choices. [E-3] [E-4]",
+        "During grounding, should Payments integration own the domain payment operations to provider integration "
+        "boundary, or should the planner choose another core abstraction? [E-2]",
+    )
+    assert "planner_questions.redecides_design" in codes(redecides_owner, repo)
 
 
 def test_handoff_requires_a_substantive_title(tmp_path: Path) -> None:
