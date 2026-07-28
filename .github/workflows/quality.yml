@@ -18,6 +18,7 @@ jobs:
         run: |
           python -m pip install ruff mypy pytest playwright jsonschema
           python -m pip install -r skills/engineering/plan-change/requirements.txt
+          python -m pip install -r skills/engineering/map-codebase/requirements.txt
       - name: Lint
         run: ruff check .
       - name: Type check

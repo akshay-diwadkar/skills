@@ -18,11 +18,11 @@ For a task such as fixing retry behavior, first run `status` against the reposit
 | --- | --- | --- | --- |
 | `python.py` | Python (`.py`) | Full AST extraction | Structured symbols, ranges, and imports provide the strongest ownership evidence. |
 | `javascript.py` | JavaScript, TypeScript, JSX, and TSX | Full dedicated extraction | Dedicated symbols and imports support normal path, symbol, and relationship ranking. |
-| `lexical.py` | Go, Rust, Java, C, and C++ | Lexical-only | Regex-discovered symbols and imports can miss complex or nested constructs, reducing resolver precision. |
+| `lexical.py` | Go, Rust, Java, C, and C++ | Full tree-sitter extraction | Required language grammars provide scope-aware symbols, full-body ranges, and imports. |
 | `configuration.py` | Repository configuration files | Configuration metadata and command extraction | Known keys and commands support configuration ownership; unrecognized structures fall back to text evidence. |
 <!-- END EXTRACTOR COVERAGE -->
 
-Lexical-only means deterministic regex-based symbol and import discovery rather than language-aware parsing. It has lower structural confidence, so complex declarations, nesting, and unusual syntax may produce weaker or missing resolver evidence.
+Install `requirements.txt` before indexing Go, Rust, Java, C, or C++. Missing tree-sitter grammars fail with an actionable error rather than silently returning point-line spans.
 
 ## Core Workflow
 
@@ -156,3 +156,4 @@ python scripts/cli.py generate-workflow --repo-root /absolute/path/to/repo \
 - Do not treat a stale instruction-file reference as a reason to block `status`, `resolve`, or source reads.
 - Do not force a write in plan or read-only mode when knowledge is missing; fall back to authoritative source.
 - Do not skip refresh after edits; stale knowledge silently reduces resolver accuracy.
+- Do not treat medium confidence as verified ownership; weak lexical, synonym, or relationship agreement cannot produce high confidence without a unique exact symbol, exact path, or unique filename signal.

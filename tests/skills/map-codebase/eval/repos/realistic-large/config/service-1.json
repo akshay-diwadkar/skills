@@ -1,0 +1,6 @@
+{
+  "service": {
+    "name": "component-1",
+    "timeout": 30
+  }
+}
