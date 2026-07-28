@@ -1,16 +1,14 @@
 # Ecosystem Leverage
 
-Use this reference after a baseline or bounded static leverage point names a relevant framework, package, runtime, database, build/test tool, CI system, or deployment platform. Local evidence selects what to research; ecosystem research does not create an optimization target.
+Use this reference after a baseline or bounded static leverage point names a relevant framework, package, runtime, database, build/test tool, CI system, or deployment platform.
 
 ## Contents
 
 - Ecosystem inventory
 - Capability matrix
 - Evidence order
-- Dependency rules
 - Optimization passes
 - Cross-component optimization
-- Compatibility and operational gates
 
 ## Ecosystem Inventory
 
@@ -62,15 +60,6 @@ Discard rows that cannot establish a target link or version support.
 5. Use authoritative platform guidance for deployment/runtime behavior.
 
 Record source URL, applicable version, access date when useful, and the claim it supports. Treat community material as a lead, not proof. Never apply latest-version documentation to an older major version without explicit compatibility evidence.
-
-## Dependency Rules
-
-- Prefer capabilities of an existing direct dependency when they fit required semantics and outperform alternatives under the rubric.
-- Do not preserve a package merely because it is already installed; include bundle/runtime, security, update, ownership, and conceptual costs.
-- Do not import transitive dependencies directly. If chosen, declare the dependency and accept compatibility ownership explicitly.
-- Add a dependency only when total custom code, concepts, operational burden, and verification cost decrease enough to justify it.
-- Upgrade only for a named capability, fix, compatibility need, or supported-runtime requirement. Isolate the migration from unrelated optimization work when possible.
-- Before replacing custom code, enumerate its required semantics: validation, error behavior, ordering, retries, auth, cancellation, observability, lifecycle, compatibility, and extension points.
 
 ## Optimization Passes
 
@@ -163,16 +152,3 @@ When build, test, and CI systems interact:
 - Check if test runner supports running only tests affected by changed files.
 - Check if the CI platform's native caching can replace custom cache scripts.
 - Check if the build output format is optimal for the deployment target.
-
-## Compatibility and Operational Gates
-
-Before recommending or implementing an ecosystem capability, answer:
-
-- Is it supported by the resolved version and enabled execution mode?
-- Do installed plugins, adapters, runtime versions, and deployment constraints support it?
-- Does it preserve required behavior and custom semantics?
-- What memory, CPU, storage, network, bundle, security, and maintenance costs does it add?
-- Can it be measured on the named workflow and observed in production or CI where relevant?
-- Can it be introduced incrementally and reverted without data or contract damage?
-
-Reject or defer the capability if any critical answer is unknown and cannot be confirmed before implementation.

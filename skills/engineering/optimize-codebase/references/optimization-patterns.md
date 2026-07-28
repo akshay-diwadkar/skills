@@ -4,33 +4,12 @@ Use these patterns and anti-patterns when selecting or rejecting strategies.
 
 ## Contents
 
-- Evidence and target isolation
 - Ecosystem-native adoption
 - Runtime, I/O, build, test, and CI patterns
 - Complexity and navigation patterns
 - Anti-patterns
 
 ## Patterns
-
-### Measure Before Changing
-
-Record the workflow, command, workload, environment, raw result, variance, and confidence before editing.
-
-### Isolate the Hot Path
-
-Trace the pain to the smallest code path, query, render loop, build phase, test group, or CI job that explains it.
-
-### Inventory Before Recommending
-
-Confirm the framework, resolved package version, plugins, configuration, runtime mode, and deployment target before applying ecosystem advice.
-
-### Configure Before Adding
-
-Check whether an existing runtime, framework, direct dependency, or tool already provides the required capability. Prefer a focused configuration change when it is supported, observable, and reversible.
-
-### Use Version-Matched Evidence
-
-Match official documentation to the resolved version or supported version range. When docs are ambiguous, inspect local types, metadata, source, changelog, or tests and lower confidence.
 
 ### Prefer Native Capabilities With Semantic Fit
 
