@@ -1,0 +1,2 @@
+before median: 40 ms
+after median: 42 ms
