@@ -404,18 +404,19 @@ def _candidates(records: dict[str, Record], stage: str, facts: dict[str, tuple[s
     high = {"high": 0, "medium": 1, "low": 2}
     low = {"low": 0, "medium": 1, "high": 2}
     verification = {"strong": 0, "bounded": 1, "missing": 2}
-    key = lambda record: (
-        band_rank.get(record.fields.get("band", ""), 9),
-        high.get(record.fields.get("impact", ""), 9),
-        high.get(record.fields.get("confidence", ""), 9),
-        verification.get(record.fields.get("verification-strength", ""), 9),
-        low.get(record.fields.get("effort", ""), 9),
-        low.get(record.fields.get("risk", ""), 9),
-        low.get(record.fields.get("blast-radius", ""), 9),
-        0 if record.fields.get("reversible") == "yes" else 1,
-        0 if record.fields.get("independent") == "yes" else 1,
-        int(record.identifier.split("-")[1]),
-    )
+    def key(record: Record) -> tuple[int, ...]:
+        return (
+            band_rank.get(record.fields.get("band", ""), 9),
+            high.get(record.fields.get("impact", ""), 9),
+            high.get(record.fields.get("confidence", ""), 9),
+            verification.get(record.fields.get("verification-strength", ""), 9),
+            low.get(record.fields.get("effort", ""), 9),
+            low.get(record.fields.get("risk", ""), 9),
+            low.get(record.fields.get("blast-radius", ""), 9),
+            0 if record.fields.get("reversible") == "yes" else 1,
+            0 if record.fields.get("independent") == "yes" else 1,
+            int(record.identifier.split("-")[1]),
+        )
     if [item.identifier for item in candidates] != [item.identifier for item in sorted(candidates, key=key)]:
         diagnostics.append(Diagnostic("candidate.order.invalid", "Candidates do not follow deterministic band and tie-break ordering."))
     for identifier, record in records.items():
