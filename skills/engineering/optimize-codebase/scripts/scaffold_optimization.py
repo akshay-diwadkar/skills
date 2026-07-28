@@ -11,10 +11,15 @@ from optimization_contract import load_contract, render_scaffold
 def main() -> int:
     contract = load_contract()
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--path", choices=tuple(contract["paths"]), required=True)
     parser.add_argument("--scope", choices=tuple(contract["scopes"]), required=True)
     parser.add_argument("--stage", choices=tuple(contract["stages"]), required=True)
     args = parser.parse_args()
-    print(render_scaffold(args.scope, args.stage), end="")
+    try:
+        report = render_scaffold(args.path, args.scope, args.stage)
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(report, end="")
     return 0
 
 

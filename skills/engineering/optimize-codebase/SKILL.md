@@ -1,156 +1,153 @@
 ---
 name: optimize-codebase
-description: Optimize a named bottleneck, workflow, or tooling pain with evidence-backed changes that preserve behavior — planning first, implementation only on explicit request. Also runs repository-wide optimization sweeps when asked. Use for performance, build, CI, dependency, or developer-experience targets; for finding unknown problems, use audit-codebase.
+description: Run a multi-gate, evidence-backed optimization process for a named performance, build, CI, dependency, maintainability, or developer-experience workflow. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery; implementation requires explicit authorization, with a strict Quick-Win fast path for already-authorized single-symbol changes.
 ---
 
 # Optimize Codebase
 
-Find the highest-leverage way to improve a named workflow without silently changing behavior. Use **targeted** scope for a known pain or finding. Use **sweep** scope only when the user explicitly asks for repository-wide optimization discovery.
+Select an execution path before producing an artifact. Evidence selects the leverage point; ecosystem documentation only validates an evidence-selected mechanism.
 
-Planning is mandatory. Implementation remains available only after the planning artifact validates and the user explicitly authorizes code changes. Prefer configuration and supported capabilities already present in the resolved stack over custom machinery, new dependencies, upgrades, or rewrites.
+## Resolve the Skill
 
-## Non-Negotiables
+- Set `skill-root` to the directory containing this file and `repo-root` to the absolute target repository.
+- Run bundled scripts with `skill-root` as the process working directory.
+- Pass absolute paths for repositories, reports, handoffs, run directories, and payloads.
+- Never write output relative to the installed skill directory.
+- Fail closed when either root is unresolved.
 
-1. Evidence selects the leverage point; documentation does not create one.
-2. Preserve APIs, outputs, errors, side effects, persistence, security, release gates, and operational promises unless the user names an authorized change.
-3. Establish a comparable baseline or bounded static evidence before researching an ecosystem solution.
-4. Never rank candidates with ordinal arithmetic. Apply the deterministic promotion gates in `references/optimization-rubric.md`.
-5. Sweep breadth is coverage-accounted and depth-bounded. Deferred work is visible and resumable.
-6. Never implement from an unvalidated report or execute more than one candidate at a time.
-7. Reconcile the requested workflow and success metric with tracing and baseline evidence, then obtain explicit confirmation before researching or selecting candidates.
+## Select the Path
 
-## Canonical Records
+Use `fast` only when every criterion below is already proved. Otherwise use `full`; do not ask the user to weaken a criterion.
 
-- `F-n` — verified local fact with an existing `path:line`, anchor, and observation.
-- `CV-n` — subsystem/pass coverage with terminal status, evidence, priority, and resume action.
-- `B-n` — raw baseline or bounded static/blocked measurement record.
-- `R-n` — version-matched official research tied to a `B-n`, or an explicit not-applicable record.
-- `C-n` — independently measurable candidate with promotion gates and deterministic band.
-- `V-n` — exact check and expected observable result.
-- `X-n` — rejection or deferral with evidence and revisit condition.
-- `H-n` — exactly one next owner.
-- `E-n` — explicitly authorized implementation action and result; implementation stage only.
+### Fast Path Detection
 
-## Skill Directory Resolution
+All criteria are mandatory:
 
-Execute bundled runtime commands with the active skill directory (the directory containing this `SKILL.md`) set as the process working directory:
-- On Claude Code: set `cwd` to `"${CLAUDE_SKILL_DIR}"` (or the active skill directory) if running from an external working directory.
-- On other platforms: execute commands with process `cwd` set to the active skill directory.
-- Resolve `skill-root` as the directory containing `SKILL.md` and `repo-root` as the absolute target repository path.
-- All non-script paths (target repository, plan, output, draft, payload, `.env`, issue JSON, run-dir) passed as arguments MUST be absolute paths.
-- Fail closed if `skill-root` or `repo-root` cannot be resolved.
-- Never write output or state files relative to the installed skill package directory.
+1. The current request explicitly authorizes implementation.
+2. Scope is targeted: exactly one existing tracked file and one named existing function or symbol.
+3. One independently measurable mechanism completely addresses the request.
+4. Protected behavior, compatibility, acceptance threshold, verification, and rollback are unambiguous.
+5. Confidence is high; effort, risk, and blast radius are low; the patch is independent and reversible.
+6. No public API, schema, persistence, security/auth, concurrency, external effect, deployment/release, generated output, dependency/version, shared configuration, or cross-module propagation can change.
+7. The cited file has no overlapping dirty-worktree change.
+8. One comparable measurement or complete bounded-static baseline exists, and the exact post-change verification is runnable.
 
-## Contract and Reference Routing
+Generate and fill the fast artifact:
 
-1. Read `references/optimization-protocol.md` before starting non-trivial work.
-2. `references/optimization-contract.json` is the executable source of truth for output sections, records, bands, and sweep limits. Do not recreate its grammar from memory.
-3. Generate the artifact before filling it from the active skill directory:
-   ```bash
-   python scripts/scaffold_optimization.py --scope targeted|sweep --stage plan|implementation
-   ```
-4. Read `references/optimization-rubric.md` before classifying candidates.
-5. Read `references/ecosystem-leverage.md` and `references/docs-research-protocol.md` only after a `B-n` or evidenced static leverage point names a relevant component.
-6. Read only the applicable pass in `references/optimization-patterns.md`. Read only the matching example in `references/worked-examples.md`.
-7. Validate from the active skill directory before finalizing:
-   ```bash
-   python scripts/check_optimization.py --scope targeted|sweep --stage plan|implementation --repo-root /absolute/path/to/repository /absolute/path/to/report.md
-   ```
+```bash
+python scripts/scaffold_optimization.py --path fast --scope targeted --stage implementation
+python scripts/check_optimization.py --path fast --scope targeted --stage implementation --repo-root /absolute/repo /absolute/report.md
+```
 
-## Eight Gates
+The artifact contains exactly one `F-n`, one `B-n`, and one `C-n`. `C-1` must be `quick-win`, affirm every contract eligibility key, cite only F-1/B-1, carry the exact `path:symbol`, and embed the mechanism, threshold, verification, expected result, and rollback. After it validates, apply only that mechanism, run the embedded verification, compare against B-1, and revert the introduced patch if behavior regresses or the result is neutral, worse, or inconclusive.
 
-Complete Gates 1-8 in order. If later evidence changes scope, stage, or the selected candidate, regenerate the scaffold and re-run every affected gate.
+**Completion criterion:** the authorized patch and verification are attributable to C-1, or the run has routed to `full`.
+
+## Full Path Records
+
+- `F-n`: verified local fact with an existing `path:line`, exact symbol anchor, and observation.
+- `CV-n`: subsystem/pass coverage status, evidence, priority, and resume action.
+- `B-n`: measured, bounded-static, or blocked baseline.
+- `R-n`: version-matched official research tied to B-n, or explicit not-applicable research.
+- `C-n`: one independently measurable mechanism, its exact `path:symbol` anchors, promotion gates, and band.
+- `V-n`: exact proof method and expected observable result.
+- `X-n`: rejection or deferral with evidence and revisit condition.
+- `H-n`: exactly one next owner.
+- `E-n`: explicitly authorized action and result; implementation stage only.
+
+Read `references/optimization-protocol.md` before collecting full-path evidence and `references/optimization-rubric.md` before constructing or classifying candidates. Read ecosystem and pattern references only after a B-n identifies the relevant component or pass.
+
+Generate the artifact before filling it:
+
+```bash
+python scripts/scaffold_optimization.py --path full --scope targeted|sweep --stage plan|implementation
+```
+
+## Full Path: Eight Gates
+
+Complete the gates in order. If later evidence changes scope, stage, or candidate selection, regenerate the scaffold and repeat every affected gate.
 
 ### Gate 1: Frame and Protect
 
-- Inspect repository guidance and worktree state before asking questions.
-- Record scope, stage, authorization, named workflow, observable goal, success metric, constraints, exclusions, and risk tolerance.
-- State protected behavior. Treat implementation as unauthorized unless the user explicitly requested edits.
-- Record blocking product choices rather than deciding them on the user's behalf.
+Inspect repository guidance and worktree state. Record scope, stage, authorization, workflow, goal, measurable success criteria, constraints, exclusions, risk tolerance, and protected behavior. Treat implementation as unauthorized unless the user explicitly requested edits.
 
-**Completion gate:** target and success are observable, authorization is exact, protected behavior is explicit, and no discoverable repository fact is being asked of the user.
+**Completion criterion:** the target and threshold are observable, authorization is exact, protected behavior is explicit, and every discoverable fact was resolved locally.
 
 ### Gate 2: Trace and Cover
 
-For targeted scope, trace the workflow from entry point through validation, core logic, I/O, external calls, transformations, and observable outcome. Record relevant data sizes, frequency, concurrency, and failure behavior.
+For targeted work, trace the named workflow end to end. For a sweep, inventory stable subsystems and applicable passes, create every subsystem/pass CV-n pair, triage breadth before depth, and deep-dive at most three candidate surfaces per wave. Every pair ends as `candidate`, `clean`, `rejected`, or `deferred`; every deferral is prioritized and resumable.
 
-For sweep scope:
+**Completion criterion:** the targeted path is grounded end to end, or the sweep matrix is exhaustive with no silent omissions.
 
-- Inventory stable subsystem IDs and applicable optimization passes.
-- Create exactly one `CV-n` for every subsystem/pass pair with `candidate`, `clean`, `rejected`, or `deferred` status.
-- Use a lightweight repository-wide pass first. Deep-dive at most three highest-signal candidate surfaces per wave.
-- Give every deferral a priority, limitation, evidence, and concrete resume action.
-- Mark the sweep `incomplete` while any coverage record is deferred.
+### Gate 3: Baseline
 
-**Completion gate:** the targeted path is end-to-end grounded, or the sweep matrix is complete with no silent omissions and no more than three candidate surfaces in the current wave.
+Apply the baseline protocol to the named workflow. Every candidate surface receives a B-n that measures it, supplies complete bounded-static evidence, or records an actionable blocker.
 
-### Gate 3: Baseline the Named Workflow
+**Completion criterion:** every B-n satisfies the canonical evidence and comparability rules.
 
-- Prefer existing commands, profiles, timings, query plans, bundle reports, CI data, dependency metadata, or change-propagation evidence.
-- Record command or method, directory, workload, environment, cache state, raw result, variance, limitations, and confidence.
-- Use bounded static evidence for maintainability or DX when timing is not the claimed benefit. Never invent a performance number.
-- If measurement is blocked, state why and cap the candidate at `investigate` until a safe confirmation experiment succeeds.
+### Gate 4: Align
 
-**Completion gate:** every candidate surface has a `B-n` that measures the named workflow, supplies bounded static evidence, or records an actionable blocker.
+Apply the request-to-baseline alignment protocol. Resolve every gap that could change the workflow, metric, scope, behavior, compatibility, constraints, risk, candidate eligibility, rollback, or authorization. Require explicit confirmation of the resolved brief; this confirmation does not itself authorize implementation.
 
-### Gate 4: Align Request and Baseline Evidence
+**Completion criterion:** no blocking gap remains and the resolved brief is explicitly confirmed.
 
-- Follow the request-to-baseline alignment protocol in `references/optimization-protocol.md`. Maintain a temporary gap ledger outside the optimization artifact.
-- Grill the user on every gap that could change the target workflow, success metric, scope, protected behavior, constraints, exclusions, risk tolerance, compatibility, candidate acceptance, or stage authorization. Ask up to three related questions per round with request/evidence, consequence, two to four options when feasible, and an evidence-backed recommendation.
-- Incorporate answers and re-run affected tracing or baselines until no blocking gap remains. Then recap the target, measurable success, scope, protected behavior, constraints, exclusions, risk tolerance, baseline limitations, and stage authorization and require explicit confirmation even when no mismatch was found.
-- Corrections restart alignment. Missing confirmation pauses the skill without a final approved report or implementation. Alignment confirmation does not authorize implementation or external effects.
-- Fold confirmed outcomes into existing brief, baseline, protected-behavior, candidate, and authorization fields and discard the ledger.
+### Gate 5: Research
 
-**Completion gate:** no blocking gap remains and the resolved optimization brief is explicitly confirmed.
+Research only components selected by B-n evidence. Resolve the actual version, configuration, runtime mode, deployment target, ownership, and usage. Use specific official documentation for the resolved version; local-code candidates use an explicit not-applicable R-n.
 
-### Gate 5: Research the Evidence-Selected Components
-
-- Build the relevant component/version/usage inventory only for components connected to a `B-n`.
-- Confirm resolved version, configuration, execution mode, deployment target, direct/transitive ownership, and actual use.
-- Consult specific official documentation matching the resolved major version; same minor is preferred.
-- Record only capabilities that address the evidenced leverage point and preserve required semantics.
-- Reject generic best practices, unsupported versions, undirected configuration deltas, and “upgrade because newer.”
-
-**Completion gate:** each ecosystem claim has local usage evidence, a version-matched URL, compatibility analysis, and a direct link to a baseline; local-code candidates carry an explicit not-applicable `R-n`.
+**Completion criterion:** every ecosystem claim has local usage evidence, version-matched documentation, compatibility analysis, and a B-n link.
 
 ### Gate 6: Compare and Classify
 
-- Generate at least two credible candidates when alternatives exist, including the smallest direct or configuration option.
-- Record impact, confidence, effort, risk, verification strength, blast radius, reversibility, independence, operational cost, expected benefit, verification, and rollback.
-- Apply every promotion gate from `references/optimization-rubric.md` literally.
-- Classify each candidate as `quick-win`, `strategic-win`, `investigate`, or `rejected` without arithmetic.
-- Keep rejected and deferred options as `X-n` records with revisit conditions.
+Construct independent candidates and apply every gate and ordering rule in `references/optimization-rubric.md`. Keep serious alternatives and their rejection or deferral evidence.
 
-**Completion gate:** every candidate has one deterministic band, all gate answers are evidenced, the selected option beats serious alternatives under the user's constraints, and ordering follows the rubric's tie-breaks.
+**Completion criterion:** every candidate has one deterministic band, selected anchors derive from cited F-n records, and the winner beats alternatives under the confirmed constraints.
 
-### Gate 7: Plan, Then Optionally Implement
+### Gate 7: Plan or Implement
 
-For plan stage, produce dependency-ordered changes with exact file areas, behavior guardrails, compatibility, tests, acceptance criteria, rollback, residual risk, and one `H-n`. Strategic Wins should hand off to `plan-change` when further implementation-level specification is needed.
+For plan stage, specify dependency-ordered changes, exact file/symbol areas, behavior guardrails, compatibility, tests, acceptance criteria, rollback, residual risk, and one H-n.
 
-For implementation stage:
+For full implementation stage:
 
-1. Require explicit authorization in the brief and `E-n`.
-2. Require a checker-passing plan whose selected candidate is an eligible Quick or Strategic Win.
-3. Confirm regression coverage and a comparable baseline before editing.
-4. Apply one independently measurable candidate as a minimal patch.
-5. Run focused behavior checks and the comparable baseline.
-6. Stop, narrow, or revert only the introduced patch when behavior regresses, compatibility fails, or benefit is inconclusive.
+1. Require explicit implementation authorization and E-n.
+2. Require a checker-passing plan with an eligible Quick or Strategic Win.
+3. Reconfirm the worktree, comparable baseline, regression surface, and rollback.
+4. Apply one independently measurable candidate.
+5. Run behavior checks and the comparable after-baseline.
+6. Stop and revert only the introduced patch when evidence or behavior fails.
 
-**Completion gate:** plan stage is decision-complete without edits, or implementation stage contains one authorized candidate with an attributable patch, comparable evidence, and rollback status.
+**Completion criterion:** the plan is decision-complete without edits, or one authorized candidate has an attributable patch, comparable before/after evidence, and rollback status.
 
 ### Gate 8: Validate and Handoff
 
-- Run `check_optimization.py` and repair every diagnostic.
-- Re-read citations, coverage, baselines, research/version claims, candidate gates, verification, rollback, authorization, deferrals, and residual risks after the last repair.
-- Emit exactly one `H-n`: `finish optimization`, `plan-change`, or `implement-plan`.
-- Report neutral, worse, or inconclusive results honestly; do not claim weaker-model reliability without a completed live evaluation.
+Run:
 
-**Completion gate:** the checker passes, no blocking decision is disguised as settled, sweep limitations are explicit, and exactly one next owner is named.
+```bash
+python scripts/check_optimization.py --path full --scope targeted|sweep --stage plan|implementation --repo-root /absolute/repo /absolute/report.md
+```
+
+Emit exactly one H-n: `finish optimization`, `plan-change`, or `implement-plan`.
+
+For `plan-change`, produce a separate file beginning with:
+
+```markdown
+# Plan-Change Request
+<!-- artifact: request.md; handoff-contract: 1 -->
+```
+
+Give it exactly the sections and fields in `references/handoff-contract.json`. Copy every literal `path:symbol` from the winning C-n and its cited F-n records. State plan-change `Tier`, `Intent`, `Risk domains`, and one `Anchor` line per anchor. Use `Risk domains: none` when `--risk-domain` must be omitted. Validate both artifacts:
+
+```bash
+python scripts/check_optimization.py --path full --scope targeted --stage plan --repo-root /absolute/repo --handoff-file /absolute/request.md /absolute/report.md
+```
+
+When no output path is available, emit the request as a distinct filename-marked payload so the caller can materialize its bytes unchanged; never substitute a section inside the optimization report.
+
+**Completion criterion:** the checker passes, every deferral and residual risk is visible, and exactly one next owner receives every required artifact.
 
 ## Handoff Boundaries
 
-- Use `audit-codebase` when bugs, risks, or architectural problems have not yet been proved.
-- Use `audit-codebase` for a concrete defect or regression that must be reproduced, audited, and isolated.
-- Use `plan-change` for a Strategic Win requiring exact implementation contracts and propagation.
-- Use `implement-plan` for an approved decision-complete plan, or retain this skill's implementation stage when the user explicitly requests the measured candidate directly.
-- Use `design-codebase` when the primary objective is structural redesign rather than measurable optimization.
+- Use `audit-codebase` when the problem or defect has not been proved.
+- Use `plan-change` for a Strategic Win needing implementation contracts and propagation analysis.
+- Use `implement-plan` for an approved decision-complete plan.
+- Use `design-codebase` when structural redesign, rather than measurable optimization, is primary.

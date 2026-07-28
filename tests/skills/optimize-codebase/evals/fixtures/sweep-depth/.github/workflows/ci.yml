@@ -1,5 +1,0 @@
-jobs:
-  test:
-    steps:
-      - run: python -m pytest
-

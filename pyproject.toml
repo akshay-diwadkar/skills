@@ -22,7 +22,7 @@ exclude = [
   "tests/skills/plan-change/evals/fixtures/",
   "tests/skills/implement-plan/evals/fixtures/",
   "tests/skills/design-codebase/evals/fixtures/",
-  "tests/skills/optimize-codebase/evals/fixtures/",
+  "tests/skills/optimize-codebase/worked-example-fixtures/",
   "tests/skills/audit-codebase/evals/fixtures/",
   "tests/skills/map-codebase/eval/repos/",
 ]

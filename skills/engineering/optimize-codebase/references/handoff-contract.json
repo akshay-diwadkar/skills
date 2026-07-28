@@ -1,0 +1,22 @@
+{
+  "contract_version": 1,
+  "title": "Plan-Change Request",
+  "sections": [
+    "Workflow and Success",
+    "Protected Behavior and Constraints",
+    "Winning Candidate",
+    "Grounded Anchors",
+    "Plan-Change Invocation"
+  ],
+  "tiers": ["tiny", "standard", "high-risk"],
+  "intents": ["feature", "bug-fix", "refactor"],
+  "risk_domains": [
+    "public-contract", "durable-state", "migration", "security", "concurrency",
+    "external-integration", "irreversible-external-effect"
+  ],
+  "required_metadata": [
+    "Workflow", "Goal", "Success criteria", "Protected behavior", "Constraints",
+    "Exclusions", "Candidate", "Band", "Mechanism", "Evidence", "Tier", "Intent",
+    "Risk domains"
+  ]
+}
