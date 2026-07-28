@@ -54,10 +54,4 @@ Reject generic best practices, unsupported-version guidance, undirected configur
 
 Each C-n owns one independently measurable and independently reversible mechanism. Consider configuration, supported native capability, duplicate-code removal, focused local code, boundary optimization, justified dependency addition, and justified upgrade only when locally plausible. Merge symptoms sharing one mechanism; split mechanisms that can be measured or reverted separately.
 
-Plans identify dependency-ordered file and symbol areas, behavior invariants, compatibility, exact checks and expected results, rollout when applicable, rollback triggers/actions, and residual risks. No workflow, package feature, version, public behavior, metric, experiment, verification, rollout, or rollback choice may remain for the implementer.
-
-Before implementation, reconfirm worktree state, the baseline, regression surface, selected candidate, and rollback. Apply one candidate and rerun the same workload and behavior checks. Preserve unrelated user changes. Treat inconclusive benefit as failed evidence unless a separately stated non-performance acceptance criterion passes.
-
-## Reconciliation
-
-Before finalizing, account for every coverage pair, baseline, research claim, candidate, rejection, deferral, verification, protected behavior, and handoff. Report skipped checks and measurement limitations explicitly.
+Treat inconclusive benefit as failed evidence unless a separately stated non-performance acceptance criterion passes.

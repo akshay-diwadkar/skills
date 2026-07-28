@@ -166,3 +166,18 @@ def test_generated_handoff_anchors_are_recovered_by_plan_change_inventory(tmp_pa
     inventory = build_inventory(repo, request, request_anchors)
 
     assert winning_anchors <= set(inventory["anchors"])
+
+
+def test_generated_handoff_stale_anchor_is_rejected_by_plan_change_inventory(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    source = "def renamed():\n    return 'stable'\n"
+    (repo / "src" / "system.py").write_text(source, encoding="utf-8")
+    report = valid_report(strategic=True)
+    request = valid_handoff(report)
+    request_anchors = re.findall(r"^- Anchor: `(?P<anchor>[^`]+)`$", request, re.MULTILINE)
+
+    assert request_anchors == ["src/system.py:current"]
+    assert "current" not in source
+    with pytest.raises(ValueError, match=r"anchor symbol is absent: src/system\.py:current"):
+        build_inventory(repo, request, request_anchors)
