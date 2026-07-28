@@ -27,6 +27,11 @@ CASES = [
     ("Verify incoming values", "validation", "ValidationOwner"),
     ("Insert a new record", "creation", "CreationOwner"),
     ("Modify the published contract", "revision", "RevisionOwner"),
+    ("Delay repeated attempts progressively", "backoff", "BackoffOwner"),
+    ("Stop immediate repeated requests", "backoff", "BackoffOwner"),
+    ("Reject invalid credentials", "authentication", "AuthenticationOwner"),
+    ("Harden sign in behavior", "authentication", "AuthenticationOwner"),
+    ("Prevent unauthenticated sessions", "authentication", "AuthenticationOwner"),
 ]
 
 
@@ -52,3 +57,19 @@ def test_non_literal_task_resolves_with_synonym_evidence(
     assert result["targets"][0]["path"] == expected_path
     assert result["targets"][0]["symbol"] == symbol
     assert any(item.startswith("synonym_token: ") for item in result["targets"][0]["evidence"])
+
+
+def test_authentication_synonym_focuses_javascript_symbol(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "authentication.js").write_text(
+        "export function authenticateUser() {\n  return true;\n}\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / ".agent" / "knowledge"
+    build_knowledge(tmp_path, output)
+
+    result = resolve_task(tmp_path, "Correct the login flow", output, phase=1)
+
+    assert result["targets"][0]["path"] == "src/authentication.js"
+    assert result["targets"][0]["symbol"] == "authenticateUser"

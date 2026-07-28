@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import Any
-
-try:
-    import tomllib  # Python 3.11+
-except ImportError:
-    try:
-        import tomli as tomllib  # type: ignore
-    except ImportError:
-        tomllib = None  # type: ignore
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "output_dir": ".agent/knowledge",
@@ -114,7 +107,7 @@ def load_config(repo_root: Path | str) -> dict[str, Any]:
     config_path = root / ".codebase-knowledge.toml"
     config = _deep_merge(DEFAULT_CONFIG, {})
 
-    if config_path.is_file() and tomllib:
+    if config_path.is_file():
         try:
             with config_path.open("rb") as f:
                 data = tomllib.load(f)

@@ -1,1 +1,36 @@
-{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","required":["schema_version","imports","calls","test_links","configuration_links","unresolved_imports","reverse_imports"],"properties":{"schema_version":{"const":"4.0"},"imports":{"type":"array"},"calls":{"type":"array"},"test_links":{"type":"array"},"configuration_links":{"type":"array"},"unresolved_imports":{"type":"array"},"reverse_imports":{"type":"object"}}}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "imports",
+    "calls",
+    "test_links",
+    "configuration_links",
+    "unresolved_imports",
+    "reverse_imports"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "4.0"
+    },
+    "imports": {
+      "type": "array"
+    },
+    "calls": {
+      "type": "array"
+    },
+    "test_links": {
+      "type": "array"
+    },
+    "configuration_links": {
+      "type": "array"
+    },
+    "unresolved_imports": {
+      "type": "array"
+    },
+    "reverse_imports": {
+      "type": "object"
+    }
+  }
+}

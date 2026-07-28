@@ -1,0 +1,122 @@
+[
+  {
+    "id": "tuning-trigger-orientation",
+    "split": "tuning",
+    "should_trigger": true,
+    "prompt": "I am new to this monorepo. Help me understand its structure and find where billing behavior lives."
+  },
+  {
+    "id": "tuning-trigger-where-implemented",
+    "split": "tuning",
+    "should_trigger": true,
+    "prompt": "Where is retry scheduling implemented in this codebase?"
+  },
+  {
+    "id": "tuning-trigger-owner",
+    "split": "tuning",
+    "should_trigger": true,
+    "prompt": "Which file or symbol handles OAuth callback validation?"
+  },
+  {
+    "id": "tuning-trigger-agent-docs",
+    "split": "tuning",
+    "should_trigger": true,
+    "prompt": "Build repository knowledge and link it from AGENTS.md and CLAUDE.md."
+  },
+  {
+    "id": "tuning-trigger-refresh",
+    "split": "tuning",
+    "should_trigger": true,
+    "prompt": "Refresh the machine-generated codebase map after this coherent change set."
+  },
+  {
+    "id": "tuning-no-trigger-known-function",
+    "split": "tuning",
+    "should_trigger": false,
+    "prompt": "Explain what parse_token does in src/auth.py."
+  },
+  {
+    "id": "tuning-no-trigger-todos",
+    "split": "tuning",
+    "should_trigger": false,
+    "prompt": "Search the repository for TODO comments and list them."
+  },
+  {
+    "id": "tuning-no-trigger-tests",
+    "split": "tuning",
+    "should_trigger": false,
+    "prompt": "Run the unit tests for src/payments.py and summarize the failures."
+  },
+  {
+    "id": "tuning-no-trigger-pr",
+    "split": "tuning",
+    "should_trigger": false,
+    "prompt": "Review pull request 42 for correctness and maintainability."
+  },
+  {
+    "id": "tuning-no-trigger-diagram",
+    "split": "tuning",
+    "should_trigger": false,
+    "prompt": "Draw an architecture diagram for the service described in docs/architecture.md."
+  },
+  {
+    "id": "heldout-trigger-large-repo",
+    "split": "heldout",
+    "should_trigger": true,
+    "prompt": "Help me get oriented in this large repository before I start changing it."
+  },
+  {
+    "id": "heldout-trigger-prechange-owner",
+    "split": "heldout",
+    "should_trigger": true,
+    "prompt": "Before editing, determine which component owns cache invalidation behavior."
+  },
+  {
+    "id": "heldout-trigger-structure",
+    "split": "heldout",
+    "should_trigger": true,
+    "prompt": "How is this unfamiliar codebase organized, and which subsystem owns request routing?"
+  },
+  {
+    "id": "heldout-trigger-claude",
+    "split": "heldout",
+    "should_trigger": true,
+    "prompt": "Set up CLAUDE.md with a reference to compact repository knowledge."
+  },
+  {
+    "id": "heldout-trigger-scheduled-refresh",
+    "split": "heldout",
+    "should_trigger": true,
+    "prompt": "Add the supported scheduled workflow for keeping repository knowledge fresh."
+  },
+  {
+    "id": "heldout-no-trigger-readme",
+    "split": "heldout",
+    "should_trigger": false,
+    "prompt": "Summarize the project README for a new contributor."
+  },
+  {
+    "id": "heldout-no-trigger-explicit-fix",
+    "split": "heldout",
+    "should_trigger": false,
+    "prompt": "Fix the off-by-one error in src/pagination.py line 84."
+  },
+  {
+    "id": "heldout-no-trigger-rename",
+    "split": "heldout",
+    "should_trigger": false,
+    "prompt": "Rename calculate_total to compute_total in src/cart.py and update its tests."
+  },
+  {
+    "id": "heldout-no-trigger-ci",
+    "split": "heldout",
+    "should_trigger": false,
+    "prompt": "List the failing GitHub Actions checks on the current pull request."
+  },
+  {
+    "id": "heldout-no-trigger-literal-search",
+    "split": "heldout",
+    "should_trigger": false,
+    "prompt": "Use ripgrep to find every occurrence of the exact string FEATURE_FLAG_X."
+  }
+]

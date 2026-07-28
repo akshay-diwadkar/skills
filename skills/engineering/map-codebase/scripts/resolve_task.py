@@ -62,6 +62,7 @@ PROTECTED_COMPOUND_TERMS = {
     "OAuth": "oauth",
     "GraphQL": "graphql",
     "WebSocket": "websocket",
+    "sign in": "signin",
 }
 PROTECTED_COMPOUND_PATTERN = re.compile(
     r"\b(?:" + "|".join(sorted(map(re.escape, PROTECTED_COMPOUND_TERMS), key=len, reverse=True)) + r")\b",
@@ -73,8 +74,27 @@ WEAK_FILENAME_TERMS = frozenset({
 TEST_PHRASES = {"failing assertion", "change the fixture", "update the regression test", "fix test", "assertion", "fixture", "rename test", "expected output"}
 IMPLEMENTATION_WORDS = {"implement", "add", "fix", "support", "prevent", "handle", "refactor", "caller", "behavior"}
 SYNONYM_GROUPS = (
-    frozenset({"retry", "retries", "backoff"}),
-    frozenset({"auth", "authentication", "login", "signin"}),
+    frozenset({
+        "retry",
+        "retries",
+        "backoff",
+        "attempt",
+        "attempts",
+        "repeat",
+        "repeated",
+        "repeating",
+    }),
+    frozenset({
+        "auth",
+        "authentication",
+        "authenticate",
+        "authenticated",
+        "unauthenticated",
+        "login",
+        "signin",
+        "credential",
+        "credentials",
+    }),
     frozenset({"config", "configuration", "settings", "options"}),
     frozenset({"error", "errors", "failure", "failures", "exception", "exceptions"}),
     frozenset({"cache", "caching", "memoization", "memoize"}),
@@ -233,8 +253,8 @@ def _signals(task: str) -> dict[str, set[str]]:
     return {
         "paths": {x.replace("\\", "/") for x in raw if "/" in x or re.search(r"\.[A-Za-z0-9]{1,5}$", x)},
         "symbols": {x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x},
-        "literal_terms": set().union(*(_literal_split(x) for x in raw)) if raw else set(),
-        "terms": set().union(*(_split(x) for x in raw)) if raw else set(),
+        "literal_terms": _literal_split(task),
+        "terms": _split(task),
     }
 
 

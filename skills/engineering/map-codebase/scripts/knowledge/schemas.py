@@ -8,17 +8,18 @@ from typing import Any
 
 try:
     import jsonschema
-except ImportError:
-    jsonschema = None
+except ImportError as exc:
+    requirements = Path(__file__).resolve().parents[2] / "requirements.txt"
+    raise RuntimeError(
+        f'Missing required dependency "jsonschema"; run '
+        f'python -m pip install -r "{requirements}"'
+    ) from exc
 SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
 
 def validate_schema_json(data: dict[str, Any], schema_name: str) -> list[str]:
     try:
-        if jsonschema:
-            jsonschema.validate(data, json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8")))
-        elif data.get("schema_version") != "4.0":
-            return [f"{schema_name}: schema_version must be 4.0"]
+        jsonschema.validate(data, json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8")))
     except Exception as exc:
         return [f"{schema_name}: {exc}"]
     return []

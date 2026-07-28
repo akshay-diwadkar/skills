@@ -1,43 +1,40 @@
 # Worked Resolver Walkthrough
 
-This walkthrough uses real output from this repository. The JSON blocks retain only the fields needed to demonstrate the workflow.
+Use this walkthrough when translating freshness output into the next bounded read operation. The JSON retains only fields needed for the decision.
 
-## 1. Check Freshness
+## 1. Check freshness
 
 ```bash
-python skills/engineering/map-codebase/scripts/cli.py status --repo-root . --format json
+python skills/engineering/map-codebase/scripts/cli.py status \
+  --repo-root . --format json
 ```
 
 ```json
 {
   "status": "partially-stale",
-  "reason": "4 repository changes.",
+  "reason": "2 repository changes.",
   "changed_files": [
     "skills/engineering/map-codebase/SKILL.md",
-    "skills/engineering/map-codebase/references/example-walkthrough.md",
-    "skills/engineering/map-codebase/references/integration-guide.md",
-    "skills/engineering/map-codebase/references/knowledge-contract.md"
+    "skills/engineering/map-codebase/scripts/resolve_task.py"
   ],
   "requires_full_rebuild": false,
-  "revision_changed": false,
   "repository_metadata_changed": true,
-  "current_revision": "c96b5dc0f49771faeb89137e63be689ae56b1d74",
   "detection_mode": "git-diff"
 }
 ```
 
-## 2. Refresh the Reported Delta
+`partially-stale` supplies a safe delta, so refresh those paths rather than rebuilding everything.
+
+## 2. Refresh the reported delta
 
 ```bash
 python skills/engineering/map-codebase/scripts/cli.py refresh \
   --repo-root . \
   --changed-file skills/engineering/map-codebase/SKILL.md \
-  --changed-file skills/engineering/map-codebase/references/example-walkthrough.md \
-  --changed-file skills/engineering/map-codebase/references/integration-guide.md \
-  --changed-file skills/engineering/map-codebase/references/knowledge-contract.md
+  --changed-file skills/engineering/map-codebase/scripts/resolve_task.py
 ```
 
-## 3. Resolve Phase 1
+## 3. Resolve phase 1
 
 ```bash
 python skills/engineering/map-codebase/scripts/cli.py resolve \
@@ -59,14 +56,8 @@ python skills/engineering/map-codebase/scripts/cli.py resolve \
   },
   "confidence": {
     "level": "high",
-    "score": 80.0,
     "reasons": [
       "exact symbol matched classify_task_intent",
-      "direct test relationship points to tests/skills/map-codebase/test_finalization_lifecycle.py",
-      "direct test relationship points to tests/skills/map-codebase/test_release_regressions.py",
-      "direct test relationship points to tests/skills/map-codebase/test_resolve_task.py",
-      "direct test relationship points to tests/skills/map-codebase/test_resolver_engine.py",
-      "direct test relationship points to tests/skills/map-codebase/test_resolver_integrity.py",
       "top candidate exceeds the configured confidence margin"
     ],
     "uncertainties": []
@@ -75,8 +66,6 @@ python skills/engineering/map-codebase/scripts/cli.py resolve \
     {
       "path": "skills/engineering/map-codebase/scripts/resolve_task.py",
       "symbol": "classify_task_intent",
-      "start_line": 122,
-      "end_line": 190,
       "role": "source",
       "question": "Does classify_task_intent own the requested behavior?"
     }
@@ -90,4 +79,4 @@ python skills/engineering/map-codebase/scripts/cli.py resolve \
 }
 ```
 
-Read the returned source range, answer the phase question, and stop unless an expansion trigger applies.
+Read the returned symbol from authoritative source. Stop after its ownership and contract are verified unless an expansion trigger applies.

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import ast
-import importlib
 import json
 import re
 import shutil
@@ -31,7 +30,6 @@ QUALITY_CASES_PATH = EVAL_DIR / "quality-cases.json"
 BASELINE_PATH = EVAL_DIR / "baseline.json"
 BENCHMARK_PATH = SKILL_DIR / "references" / "benchmark.md"
 ROLES = ("source", "test", "configuration")
-TOKENIZER = importlib.import_module("tiktoken").get_encoding("cl100k_base")
 
 
 def load_json(path: Path) -> Any:
@@ -46,7 +44,11 @@ def owner_matches(case: dict[str, Any], target: dict[str, Any] | None) -> bool:
 
 
 def _measure(text: str) -> dict[str, int]:
-    return {"tokens": len(TOKENIZER.encode(text)), "characters": len(text)}
+    byte_count = len(text.encode("utf-8"))
+    return {
+        "estimated_tokens": (byte_count + 3) // 4 if byte_count else 0,
+        "characters": len(text),
+    }
 
 
 def _target_text(root: Path, target: dict[str, Any]) -> str:
@@ -146,19 +148,19 @@ def calculate_retrieval_metrics(outcomes: list[dict[str, Any]]) -> dict[str, Any
         groups = {}
         for label, correct in (("correct", True), ("incorrect", False)):
             group = [item for item in selected if bool(item["correct"]) is correct]
-            resolver_tokens = sum(item["resolver_tokens"] for item in group)
-            grep_tokens = sum(item["grep_tokens"] for item in group)
+            resolver_estimated_tokens = sum(item["resolver_estimated_tokens"] for item in group)
+            grep_estimated_tokens = sum(item["grep_estimated_tokens"] for item in group)
             resolver_characters = sum(item["resolver_characters"] for item in group)
             grep_characters = sum(item["grep_characters"] for item in group)
             groups[label] = {
                 "cases": len(group),
-                "resolver_tokens": resolver_tokens,
-                "grep_tokens": grep_tokens,
+                "resolver_estimated_tokens": resolver_estimated_tokens,
+                "grep_estimated_tokens": grep_estimated_tokens,
                 "resolver_characters": resolver_characters,
                 "grep_characters": grep_characters,
-                "token_savings": (
-                    1 - resolver_tokens / grep_tokens
-                    if correct and grep_tokens
+                "estimated_token_savings": (
+                    1 - resolver_estimated_tokens / grep_estimated_tokens
+                    if correct and grep_estimated_tokens
                     else 0.0
                 ),
                 "character_savings": (
@@ -201,9 +203,9 @@ def evaluate_cases(cases: list[dict[str, Any]]) -> tuple[dict[str, Any], list[di
                         "predicted_path": target.get("path") if target else None,
                         "predicted_symbol": target.get("symbol") if target else None,
                         "predicted_role": target.get("role") if target else None,
-                        "resolver_tokens": resolver_cost["tokens"],
+                        "resolver_estimated_tokens": resolver_cost["estimated_tokens"],
                         "resolver_characters": resolver_cost["characters"],
-                        "grep_tokens": grep_cost["tokens"],
+                        "grep_estimated_tokens": grep_cost["estimated_tokens"],
                         "grep_characters": grep_cost["characters"],
                     }
                 )
@@ -293,7 +295,7 @@ def _simulate_quality_condition(
         "task": case["task"],
         "success": bool(correct_owner and correct_symbol and tests_pass),
         "applied_path": applied_path,
-        "tokens": cost["tokens"],
+        "estimated_tokens": cost["estimated_tokens"],
         "characters": cost["characters"],
     }
 
@@ -336,15 +338,17 @@ def evaluate_quality(cases: list[dict[str, Any]]) -> tuple[dict[str, Any], list[
             "successes": len(successes),
             "total": len(selected),
             "success_rate": len(successes) / len(selected) if selected else 0.0,
-            "tokens": sum(item["tokens"] for item in selected),
+            "estimated_tokens": sum(item["estimated_tokens"] for item in selected),
             "characters": sum(item["characters"] for item in selected),
-            "median_tokens": statistics.median(item["tokens"] for item in selected) if selected else 0,
-            "tokens_per_success": (
-                sum(item["tokens"] for item in selected) / len(successes)
+            "median_estimated_tokens": (
+                statistics.median(item["estimated_tokens"] for item in selected) if selected else 0
+            ),
+            "estimated_tokens_per_success": (
+                sum(item["estimated_tokens"] for item in selected) / len(successes)
                 if successes
                 else 0.0
             ),
-            "failed_tokens": sum(item["tokens"] for item in failures),
+            "failed_estimated_tokens": sum(item["estimated_tokens"] for item in failures),
         }
     return metrics, outcomes
 
@@ -359,7 +363,7 @@ def render_benchmark(
         "# Resolver Benchmark",
         "",
         "Generated by `python scripts/eval_resolver.py` from committed fixtures. "
-        "Token counts use `cl100k_base`; characters are exact Unicode code points.",
+        "Estimated tokens use `ceil(UTF-8 bytes / 4)`; characters are exact Unicode code points.",
         "",
         "## Hit@1",
         "",
@@ -394,7 +398,7 @@ def render_benchmark(
             "The baseline counts grep output plus every matching indexed file opened in full. "
             "Incorrect resolutions receive zero credited savings.",
             "",
-            "| Repository | Outcome | Cases | Resolver tokens | Grep tokens | Token savings | Resolver chars | Grep chars | Char savings |",
+            "| Repository | Outcome | Cases | Resolver estimated tokens | Grep estimated tokens | Estimated-token savings | Resolver chars | Grep chars | Char savings |",
             "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
@@ -402,8 +406,8 @@ def render_benchmark(
         for label in ("correct", "incorrect"):
             values = groups[label]
             lines.append(
-                f"| {repository} | {label} | {values['cases']} | {values['resolver_tokens']} | "
-                f"{values['grep_tokens']} | {values['token_savings']:.1%} | "
+                f"| {repository} | {label} | {values['cases']} | {values['resolver_estimated_tokens']} | "
+                f"{values['grep_estimated_tokens']} | {values['estimated_token_savings']:.1%} | "
                 f"{values['resolver_characters']} | {values['grep_characters']} | "
                 f"{values['character_savings']:.1%} |"
             )
@@ -421,7 +425,7 @@ def render_benchmark(
             "context contains enough information to make the expected scoped edit and pass existing tests; "
             "it does not measure model generalization.",
             "",
-            "| Condition | Success | Rate | Tokens | Median tokens | Tokens/success | Characters | Failed-attempt tokens |",
+            "| Condition | Success | Rate | Estimated tokens | Median estimated tokens | Estimated tokens/success | Characters | Failed-attempt estimated tokens |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
@@ -429,8 +433,9 @@ def render_benchmark(
         values = quality[condition]
         lines.append(
             f"| {condition} | {values['successes']}/{values['total']} | {values['success_rate']:.1%} | "
-            f"{values['tokens']} | {values['median_tokens']:.0f} | {values['tokens_per_success']:.1f} | "
-            f"{values['characters']} | {values['failed_tokens']} |"
+            f"{values['estimated_tokens']} | {values['median_estimated_tokens']:.0f} | "
+            f"{values['estimated_tokens_per_success']:.1f} | "
+            f"{values['characters']} | {values['failed_estimated_tokens']} |"
         )
     failed_quality = [item for item in quality_outcomes if not item["success"]]
     lines.extend(["", "Quality failures: " + ("none." if not failed_quality else "")])
@@ -447,9 +452,12 @@ def render_benchmark(
             "| --- | ---: | ---: |",
             f"| Hit@1 | 0.667 | {metrics['hit_at_1']:.3f} |",
             f"| Configuration recall | 0.278 | {metrics['roles']['configuration']['recall']:.3f} |",
-            "| Correct-resolution context tokens | Not measured | "
-            f"{correct_cost['resolver_tokens']} resolver vs. {correct_cost['grep_tokens']} grep "
-            f"({correct_cost['token_savings']:.1%} savings) |",
+            "| JavaScript Hit@1 | 0.733 | "
+            f"{metrics['repositories']['javascript-small']['hit_at_1']:.3f} |",
+            "| Correct-resolution estimated context tokens | Not measured | "
+            f"{correct_cost['resolver_estimated_tokens']} resolver vs. "
+            f"{correct_cost['grep_estimated_tokens']} grep "
+            f"({correct_cost['estimated_token_savings']:.1%} savings) |",
             "| Patch success | Not measured | "
             f"{quality['resolver']['successes']}/{quality['resolver']['total']} resolver vs. "
             f"{quality['grep']['successes']}/{quality['grep']['total']} grep |",
@@ -488,6 +496,9 @@ def baseline_failures(
         actual = metrics["repositories"][repository]["hit_at_1"]
         if actual < floor:
             failures.append(f"{repository} hit@1 {actual:.3f} is below committed baseline {floor:.3f}")
+    javascript_hit = metrics["repositories"]["javascript-small"]["hit_at_1"]
+    if javascript_hit < 0.85:
+        failures.append(f"javascript-small hit@1 {javascript_hit:.3f} is below required 0.850")
     if outcomes is None or quality is None:
         return failures
     legacy = [item for item in outcomes if item["repo"] != "realistic-large"]
@@ -503,18 +514,18 @@ def baseline_failures(
     if metrics["incorrect_high_confidence"]:
         failures.append(f"{metrics['incorrect_high_confidence']} incorrect resolution(s) were high confidence")
     correct = metrics["retrieval"]["Overall"]["correct"]
-    if correct["token_savings"] < 0.5 or correct["character_savings"] < 0.5:
+    if correct["estimated_token_savings"] < 0.5 or correct["character_savings"] < 0.5:
         failures.append("aggregate correct-resolution savings are below 50%")
     for repository, groups in metrics["retrieval"].items():
         if repository != "Overall" and groups["correct"]["cases"]:
-            if groups["correct"]["resolver_tokens"] >= groups["correct"]["grep_tokens"]:
-                failures.append(f"{repository} resolver tokens are not below grep tokens")
+            if groups["correct"]["resolver_estimated_tokens"] >= groups["correct"]["grep_estimated_tokens"]:
+                failures.append(f"{repository} resolver estimated tokens are not below grep estimated tokens")
             if groups["correct"]["resolver_characters"] >= groups["correct"]["grep_characters"]:
                 failures.append(f"{repository} resolver characters are not below grep characters")
     if quality["resolver"]["success_rate"] < quality["grep"]["success_rate"]:
         failures.append("resolver patch success is below grep patch success")
-    if quality["resolver"]["tokens"] >= quality["grep"]["tokens"]:
-        failures.append("resolver patch tokens are not below grep patch tokens")
+    if quality["resolver"]["estimated_tokens"] >= quality["grep"]["estimated_tokens"]:
+        failures.append("resolver patch estimated tokens are not below grep patch estimated tokens")
     return failures
 
 

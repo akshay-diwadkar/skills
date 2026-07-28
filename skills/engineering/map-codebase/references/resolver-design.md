@@ -1,37 +1,46 @@
-# Deterministic Resolver Pipeline Design
+# Deterministic Resolver Design
 
-The resolver operates in 7 distinct deterministic stages without relying on LLM hallucination for candidate path selection.
+Use this reference when changing ownership classification, candidate evidence, scoring, confidence, symbol focusing, or phase construction.
 
-## Pipeline Stages
+## Pipeline
 
+```text
+task
+  -> signal extraction
+  -> ownership classification
+  -> lexical candidates
+  -> relationship reranking
+  -> symbol/range focusing
+  -> confidence
+  -> bounded read phases
 ```
-[Task String] ──> [A: Signal Extractor] ──> [B: Intent Classifier]
-                                                     │
-                                                     ▼
-[Read Plan] <── [G: Read Plan] <── [F: Expansion] <── [C: Candidates] ──> [D: Scorer] ──> [E: Confidence]
-```
 
-### Stage A: Signal Extraction
-Extracts exact paths, symbols, filenames, error strings, domain nouns, and action verbs from natural language task input.
+### 1. Signal extraction
 
-### Stage B: Intent Classification
-Identifies task categories (`feature`, `bug`, `refactor`, `security`, `test`, `config`, `migration`, etc.) to adjust scoring weights dynamically.
+The resolver extracts explicit paths, explicit symbols, literal terms, stemmed forms, and configured synonyms. Protected compounds such as `JavaScript`, `TypeScript`, and `sign in` are normalized before camel-case and punctuation splitting.
 
-### Stage C: Candidate Generation
-Uses lexical indexing, AST symbols, imports, source-test mapping, entry-point links, and config references to build candidate set. Excludes vendor/generated code.
+### 2. Ownership classification
 
-### Stage D: Explainable Scoring
-Computes score per candidate using weighted evidence:
-`score = exact_symbol (10.0) + exact_path (10.0) + filename (7.0) + subsystem (5.0) + entry_point (5.0) + test_rel (4.0) + config_rel (4.0) + keyword (2.0) - vendor (-10.0) - generated (-8.0)`
-Every score includes explicit reason strings.
+Ownership is one of `source`, `test`, or `configuration`. Exact indexed paths and symbols decide first. Otherwise a deterministic scored rule table classifies task phrasing. Source owns mixed implementation tasks, while directly requested test maintenance and configuration work retain their own roles.
 
-### Stage E: Confidence Estimation
-Calculates confidence (`high`, `medium`, `low`) based on signal agreement, top score margin, and index freshness.
+### 3. Lexical candidates
 
-### Stage F: Progressive Expansion
-- `high`: Primary targets + direct tests + direct configs.
-- `medium`: 1st-order dependencies + adjacent tests.
-- `low`: Subsystem neighbors + extra entry points + targeted grep.
+Indexed path, filename, subsystem, symbol, synonym, configuration-key, generated, vendor, and freshness evidence produces an initial shortlist. Every contribution uses the weights in `knowledge.config.DEFAULT_CONFIG`; the design has no second hard-coded scoring table.
 
-### Stage G: Source Read Plan
-Outputs ordered step-by-step reading plan with rationale and explicit skip list.
+### 4. Relationship reranking
+
+Only direct indexed neighbors may expand the shortlist. Directional test links, imports, reverse imports, and entry-point evidence adjust scores. Vendor, generated, unsupported-extractor, and stale-knowledge penalties remain explicit evidence.
+
+### 5. Symbol and range focusing
+
+The resolver loads only symbol shards needed by shortlisted paths. Exact or expanded task terms focus source targets to matching symbols. Configuration targets instead rank active structural keys and return bounded TOML, INI, YAML, JSON, or Make ranges.
+
+### 6. Confidence
+
+No target yields low confidence. A positive target normally yields medium confidence. High confidence additionally requires fresh knowledge, a focused range, configured score separation, multiple positive evidence families, and a unique exact path, exact symbol, or non-weak filename signal. Synonym or relationship evidence alone cannot produce high confidence.
+
+### 7. Bounded read phases
+
+Phase 1 returns likely primary owners. Phase 2 returns direct tests or explicitly represented secondary configuration/test constraints. Phase 3 returns directional one-hop impacts. Consumers request phase 2 or 3 only when the preceding phase exposes an expansion trigger; confidence does not automatically expand the response.
+
+Each phase includes its question, stop condition, and expansion triggers. `--phase all` exists for debugging and human inspection rather than normal agent navigation.
