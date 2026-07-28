@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +11,15 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def _copy_fixture_with_lf(source: Path, destination: Path) -> Path:
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for path in destination.rglob("*"):
+        if path.is_file():
+            data = path.read_bytes()
+            path.write_bytes(data.replace(b"\r\n", b"\n"))
+    return destination
 
 
 def test_worked_examples_document_valid_finalization_order_and_all_families() -> None:
@@ -78,7 +88,12 @@ def test_inline_worked_examples_pass_draft_and_finalized_validation(
     request_text: str,
 ) -> None:
     skill = ROOT / "skills" / "engineering" / "plan-change"
-    fixture = ROOT / "tests" / "skills" / "plan-change" / "fixtures" / fixture_name
+    fixture_source = ROOT / "tests" / "skills" / "plan-change" / "fixtures" / fixture_name
+    fixture = (
+        fixture_source
+        if marker == "tiny-plan"
+        else _copy_fixture_with_lf(fixture_source, tmp_path / "fixture")
+    )
     text = (skill / "references" / "worked-examples.md").read_text(encoding="utf-8")
     match = re.search(
         rf"<!-- {re.escape(marker)}:start -->\n```markdown\n(.*?)\n```\n<!-- {re.escape(marker)}:end -->",
@@ -204,4 +219,5 @@ def test_non_python_worked_example_hashes_match_fixtures() -> None:
         lines = path.read_text(encoding="utf-8").splitlines()
         excerpt = "\n".join(lines[start - 1 : end]) + "\n"
         assert hashlib.sha256(excerpt.encode()).hexdigest() in text
-        assert hashlib.sha256(path.read_bytes()).hexdigest() in text
+        normalized_file = path.read_bytes().replace(b"\r\n", b"\n")
+        assert hashlib.sha256(normalized_file).hexdigest() in text
