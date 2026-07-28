@@ -53,7 +53,7 @@ The repository features 8 canonical engineering skills organized into **Workflow
 ### 📐 Disciplines
 | Skill | Invocation | Description |
 | :--- | :---: | :--- |
-| **[design-codebase](skills/engineering/design-codebase/SKILL.md)** | `both` | Evaluate architectural changes and specify minimal, evidence-backed designs with safe migration paths. |
+| **[design-codebase](skills/engineering/design-codebase/SKILL.md)** | `both` | Decide and justify a repository-grounded design, then hand one plan-ready request document to plan-change. |
 | **[optimize-codebase](skills/engineering/optimize-codebase/SKILL.md)** | `both` | Measure, benchmark, and resolve named performance bottlenecks without introducing behavior regressions. |
 
 ### 🔍 Utilities
