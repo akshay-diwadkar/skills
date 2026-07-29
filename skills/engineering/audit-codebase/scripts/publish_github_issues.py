@@ -145,29 +145,35 @@ class GhClient:
     def list_open_issues(self, repo: str) -> list[dict[str, object]]:
         cmd = [
             "gh",
-            "issue",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "open",
-            "--json",
-            "title,html_url",
-            "--limit",
-            "1000",
+            "api",
+            "--method",
+            "GET",
+            "--paginate",
+            "--slurp",
+            f"repos/{repo}/issues?state=open&per_page=100",
         ]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             parsed = json.loads(result.stdout)
             if not isinstance(parsed, list):
-                raise GhError("gh issue list returned a non-array response")
-            return parsed
+                raise GhError("gh api returned a non-array paginated response")
+
+            issues: list[dict[str, object]] = []
+            for page in parsed:
+                if not isinstance(page, list):
+                    raise GhError("gh api returned a non-array issue page")
+                for issue in page:
+                    if not isinstance(issue, dict):
+                        raise GhError("gh api returned invalid issue metadata")
+                    if "pull_request" not in issue:
+                        issues.append(issue)
+            return issues
         except subprocess.CalledProcessError as exc:
             raise GhError(f"gh issue list failed: {exc.stderr}") from exc
         except FileNotFoundError as exc:
             raise GhError("gh cli is not installed") from exc
         except json.JSONDecodeError as exc:
-            raise GhError(f"failed to parse gh issue list output: {exc}") from exc
+            raise GhError(f"failed to parse gh api issue output: {exc}") from exc
 
     def create_issue(self, repo: str, title: str, body: str, labels: list[str]) -> dict[str, object]:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
@@ -205,6 +211,7 @@ def publish_issues(
     extra_labels: list[str],
     publish: bool,
     skip_duplicates: bool,
+    continue_on_error: bool = True,
 ) -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
     open_issues: list[dict[str, object]] = []
@@ -236,7 +243,14 @@ def publish_issues(
 
         if client is None:
             raise ConfigError("a gh client is required when --publish is used")
-        created = client.create_issue(repo, issue.title, body, labels)
+        try:
+            created = client.create_issue(repo, issue.title, body, labels)
+        except GhError as exc:
+            results.append({"status": "failed", "title": issue.title, "error": str(exc)})
+            print(f"ERROR: {issue.title}: {exc}", file=sys.stderr)
+            if not continue_on_error:
+                raise
+            continue
         url = created.get("html_url", "")
         print(f"CREATED: {issue.title} {url}".rstrip())
         results.append({"status": "created", "title": issue.title, "url": url})
@@ -254,6 +268,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--label", action="append", default=[], help="Extra label to add to every issue.")
     parser.add_argument("--no-skip-duplicates", action="store_true", help="Do not skip matching open titles.")
+    error_mode = parser.add_mutually_exclusive_group()
+    error_mode.add_argument(
+        "--continue-on-error",
+        dest="continue_on_error",
+        action="store_true",
+        default=True,
+        help="Continue publishing after an individual issue fails. This is the default.",
+    )
+    error_mode.add_argument(
+        "--no-continue-on-error",
+        "--fail-fast",
+        dest="continue_on_error",
+        action="store_false",
+        help="Stop publishing after the first issue creation failure.",
+    )
     parser.add_argument("--env", help="Optional .env path for labels and duplicate settings.")
     return parser
 
@@ -269,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
             config.get("GITHUB_SKIP_DUPLICATES"), default=True
         )
         client: IssueClient | None = GhClient() if args.publish else None
-        publish_issues(
+        results = publish_issues(
             issues=issues,
             client=client,
             repo=repo,
@@ -277,8 +306,16 @@ def main(argv: list[str] | None = None) -> int:
             extra_labels=args.label or [],
             publish=args.publish,
             skip_duplicates=skip_duplicates,
+            continue_on_error=args.continue_on_error,
         )
-        return 0
+        counts = {
+            status: sum(result.get("status") == status for result in results)
+            for status in ("created", "skipped", "failed")
+        }
+        print(
+            f"SUMMARY: created={counts['created']} skipped={counts['skipped']} failed={counts['failed']}"
+        )
+        return 1 if counts["failed"] else 0
     except ConfigError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

@@ -41,9 +41,10 @@ def valid_issue() -> dict[str, object]:
 
 
 class FakeClient:
-    def __init__(self, open_issues=None, create_error=None):
+    def __init__(self, open_issues=None, create_error=None, create_errors=None):
         self.open_issues = open_issues or []
         self.create_error = create_error
+        self.create_errors = create_errors or {}
         self.created = []
 
     def list_open_issues(self, repo):
@@ -52,6 +53,8 @@ class FakeClient:
     def create_issue(self, repo, title, body, labels):
         if self.create_error:
             raise self.create_error
+        if title in self.create_errors:
+            raise self.create_errors[title]
         issue = {"html_url": f"https://github.com/{repo}/issues/{len(self.created) + 1}"}
         self.created.append((repo, title, body, labels))
         return issue
@@ -223,7 +226,112 @@ class PublishGitHubIssuesTests(unittest.TestCase):
                 extra_labels=[],
                 publish=True,
                 skip_duplicates=False,
+                continue_on_error=False,
             )
+
+    def test_continue_on_error_reports_mixed_results_and_failure_exit(self):
+        created_issue = valid_issue()
+        created_issue["title"] = "Create this issue"
+        failed_issue = valid_issue()
+        failed_issue["title"] = "Fail this issue"
+        duplicate_issue = valid_issue()
+        duplicate_issue["title"] = "Skip this duplicate"
+        client = FakeClient(
+            open_issues=[
+                {
+                    "title": "Skip this duplicate",
+                    "html_url": "https://github.com/owner/repo/issues/10",
+                }
+            ],
+            create_errors={"Fail this issue": publisher.GhError("simulated failure")},
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            issue_file = self.write_json(
+                Path(temp_dir),
+                [created_issue, failed_issue, duplicate_issue],
+            )
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            captured_results = []
+            original_publish_issues = publisher.publish_issues
+
+            def capture_results(**kwargs):
+                results = original_publish_issues(**kwargs)
+                captured_results.extend(results)
+                return results
+
+            with (
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+                mock.patch.dict(os.environ, {}, clear=True),
+                mock.patch.object(publisher, "GhClient", return_value=client),
+                mock.patch.object(publisher, "publish_issues", side_effect=capture_results),
+            ):
+                code = publisher.main(
+                    [
+                        "--input",
+                        str(issue_file),
+                        "--github-repo-url",
+                        "owner/repo",
+                        "--publish",
+                        "--continue-on-error",
+                    ]
+                )
+
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            [result["status"] for result in captured_results],
+            ["created", "failed", "skipped"],
+        )
+        self.assertEqual(
+            captured_results[1],
+            {
+                "status": "failed",
+                "title": "Fail this issue",
+                "error": "simulated failure",
+            },
+        )
+        self.assertEqual([created[1] for created in client.created], ["Create this issue"])
+        self.assertIn("ERROR: Fail this issue: simulated failure", stderr.getvalue())
+        self.assertIn("SUMMARY: created=1 skipped=1 failed=1", stdout.getvalue())
+
+    @mock.patch("subprocess.run")
+    def test_list_open_issues_paginates_and_excludes_pull_requests(self, run):
+        run.return_value = mock.Mock(
+            stdout=json.dumps(
+                [
+                    [
+                        {
+                            "title": "First page issue",
+                            "html_url": "https://github.com/owner/repo/issues/1",
+                        },
+                        {
+                            "title": "First page pull request",
+                            "html_url": "https://github.com/owner/repo/pull/2",
+                            "pull_request": {"url": "https://api.github.com/repos/owner/repo/pulls/2"},
+                        },
+                    ],
+                    [
+                        {
+                            "title": "Later page issue",
+                            "html_url": "https://github.com/owner/repo/issues/1001",
+                        }
+                    ],
+                ]
+            )
+        )
+
+        issues = publisher.GhClient().list_open_issues("owner/repo")
+
+        self.assertEqual(
+            [issue["title"] for issue in issues],
+            ["First page issue", "Later page issue"],
+        )
+        command = run.call_args.args[0]
+        self.assertIn("--paginate", command)
+        self.assertIn("--slurp", command)
+        self.assertIn("per_page=100", command[-1])
 
 
 if __name__ == "__main__":
