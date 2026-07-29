@@ -66,6 +66,8 @@ jobs:
           cache: pip
       - name: Install benchmark dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install --yes ripgrep
           python -m pip install pytest
           python -m pip install -r skills/engineering/map-codebase/requirements.txt
       - name: Run representative deterministic benchmark

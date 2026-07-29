@@ -181,7 +181,10 @@ def test_generator_and_fixture_catalog_have_no_drift() -> None:
         check=False,
     )
     assert generated.returncode == 0, generated.stdout + generated.stderr
-    assert AUDIT_PATH.read_text(encoding="utf-8") == render_audit()
+    rendered = render_audit()
+    assert AUDIT_PATH.read_text(encoding="utf-8") == rendered
+    assert "decision-quality-hidden-consumer" not in rendered
+    assert "decision-quality-null-guard" not in rendered
 
 
 def test_external_symlink_escape_is_rejected(tmp_path: Path) -> None:

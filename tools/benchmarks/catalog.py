@@ -52,6 +52,8 @@ def build_entries() -> list[dict[str, Any]]:
         ]
         for fixture in sorted(fixtures):
             meaningful, total = _counts(fixture)
+            if total == 0:
+                continue
             entries.append(
                 {
                     **{
