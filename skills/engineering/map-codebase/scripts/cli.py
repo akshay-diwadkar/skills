@@ -128,6 +128,7 @@ def _main() -> int:
     p_build.add_argument("--output", "--knowledge-dir", help="Output knowledge directory")
     p_build.add_argument("--quiet", action="store_true", help="Suppress output")
     p_build.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
+    p_build.add_argument("--dry-run", action="store_true", help="Show what would be indexed without writing")
 
     # status
     p_status = subparsers.add_parser("status", help="Check knowledge freshness status.")
@@ -144,6 +145,17 @@ def _main() -> int:
     p_resolve.add_argument("--format", choices=["json", "human"], default="human", help="Output format")
     p_resolve.add_argument(
         "--phase", choices=["1", "2", "3", "all"], default="1", help="Return only the requested read phase"
+    )
+    p_resolve.add_argument(
+        "--compact", action="store_true", help="Return minimal output: targets, confidence, and phase only"
+    )
+    p_resolve.add_argument(
+        "--budget", type=int, default=0, help="Max tokens for returned targets (0 = unlimited)"
+    )
+    p_resolve.add_argument(
+        "--record-analytics",
+        action="store_true",
+        help="Append a local analytics event (writes to the knowledge directory)",
     )
 
     # refresh
@@ -188,7 +200,7 @@ def _main() -> int:
     from finalize_knowledge import build_and_finalize, refresh_and_finalize
     from link_agent_docs import ensure_agent_docs
     from refresh_knowledge import check_freshness
-    from resolve_task import format_human, resolve_task
+    from resolve_task import compact_result, format_human, resolve_task
     from scaffold_github_workflow import scaffold_github_workflow
     from validate_knowledge import validate_knowledge
 
@@ -196,7 +208,21 @@ def _main() -> int:
 
     if args.command == "build":
         out = Path(args.output) if args.output else None
-        res = build_and_finalize(repo_root, out)
+        if getattr(args, "dry_run", False):
+            from knowledge.config import load_config, resolve_knowledge_directory
+            from knowledge.discovery import discover_files
+            config = load_config(repo_root)
+            kdir = resolve_knowledge_directory(repo_root, out, config)
+            included, generated, ignored = discover_files(repo_root, config, kdir)
+            res = {
+                "_meta": {"command": "build", "dry_run": True},
+                "status": "dry-run",
+                "files_to_index": len(included),
+                "files_excluded": len(set(generated) | set(ignored)),
+                "sample_files": sorted(included)[:20],
+            }
+        else:
+            res = build_and_finalize(repo_root, out)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         elif not getattr(args, "quiet", False):
@@ -223,7 +249,16 @@ def _main() -> int:
             return 1
         out = Path(args.output) if args.output else None
         selected_phase = args.phase if args.phase == "all" else int(args.phase)
-        res = resolve_task(repo_root, t_str, out, selected_phase)
+        res = resolve_task(
+            repo_root,
+            t_str,
+            out,
+            selected_phase,
+            budget=getattr(args, "budget", 0),
+            record_analytics=getattr(args, "record_analytics", False),
+        )
+        if getattr(args, "compact", False):
+            res = compact_result(res)
         if getattr(args, "format", "human") == "json":
             print(json.dumps(res, indent=2))
         else:
@@ -300,7 +335,10 @@ def main() -> int:
     try:
         return _main()
     except (ValueError, FileNotFoundError, json.JSONDecodeError, OSError, RuntimeError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        msg = str(exc)
+        print(f"Error: {msg}", file=sys.stderr)
+        if "missing" in msg.lower() and "build" not in msg.lower():
+            print("  → Try: python scripts/cli.py build --repo-root <repo>", file=sys.stderr)
         return 1
 
 

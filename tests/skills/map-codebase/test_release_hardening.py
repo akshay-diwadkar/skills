@@ -1,4 +1,4 @@
-"""Release-focused coverage for the v4 knowledge lifecycle."""
+"""Release-focused coverage for the v5 knowledge lifecycle."""
 
 import json
 import os

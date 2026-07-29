@@ -14,6 +14,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
+from build_knowledge import _symbol_index_payload
 from refresh_knowledge import check_freshness
 
 
@@ -29,11 +30,20 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         repo = json.loads((out / "repo-map.json").read_text(encoding="utf-8"))
         rel = json.loads((out / "relationships.json").read_text(encoding="utf-8"))
         catalog = json.loads((out / "symbols.json").read_text(encoding="utf-8"))
+        symbol_index = json.loads((out / "symbol-index.json").read_text(encoding="utf-8"))
     except Exception as exc:
         return {"status": "invalid", "errors": [str(exc)], "warnings": []}
     errors = []
     symbols = []
-    expected_files = {"manifest.json", "repo-map.json", "relationships.json", "symbols.json", "symbols"}
+    required_files = {
+        "manifest.json",
+        "repo-map.json",
+        "relationships.json",
+        "symbols.json",
+        "symbols",
+        "symbol-index.json",
+    }
+    expected_files = required_files | {"analytics.jsonl"}
     for shard in catalog.get("shards", []):
         try:
             shard_path = out / shard["path"]
@@ -51,16 +61,26 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         (repo, "repo-map.schema.json"),
         (rel, "relationships.schema.json"),
         (catalog, "symbols.schema.json"),
+        (symbol_index, "symbol-index.schema.json"),
     ]:
         errors.extend(validate_schema_json(data, schema))
     errors.extend(validate_semantic_graph(root, repo, rel, symbols, manifest))
     if len(symbols) != catalog.get("symbol_count"):
         errors.append("Symbol catalog count does not match shards")
-    for name, payload in [("repo-map.json", repo), ("relationships.json", rel), ("symbols.json", catalog)]:
+    if symbol_index != _symbol_index_payload(symbols):
+        errors.append("Symbol index does not match symbol shards")
+    for name, payload in [
+        ("repo-map.json", repo),
+        ("relationships.json", rel),
+        ("symbols.json", catalog),
+        ("symbol-index.json", symbol_index),
+    ]:
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         if manifest.get("artifact_hashes", {}).get(name) != digest:
             errors.append(f"Artifact hash mismatch: {name}")
     actual = {item.name for item in out.iterdir()} if out.is_dir() else set()
+    if required_files - actual:
+        errors.append(f"Missing knowledge artifacts: {', '.join(sorted(required_files - actual))}")
     if actual - expected_files:
         errors.append(f"Unexpected knowledge artifacts: {', '.join(sorted(actual - expected_files))}")
     shard_dir = out / "symbols"

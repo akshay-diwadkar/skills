@@ -7,7 +7,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, _config_hash, _digest, get_git_info
+from build_knowledge import (
+    EXTRACTOR_VERSION,
+    SCHEMA_VERSION,
+    _config_hash,
+    _digest,
+    _symbol_index_payload,
+    get_git_info,
+)
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import (
     discover_files,
@@ -22,7 +29,7 @@ from knowledge.indexing import classify_and_extract, is_repository_wide_config, 
 from knowledge.schemas import validate_schema_json
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
-REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
+REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json", "symbol-index.json"]
 
 
 def _git(root: Path, *args: str) -> str | None:
@@ -81,25 +88,66 @@ def _inventory_changes(root: Path, config: dict[str, Any], manifest: dict[str, A
     return sorted(path for path in set(old) | set(current) if old.get(path) != current.get(path))
 
 
+def _status_result(payload: dict[str, Any]) -> dict[str, Any]:
+    return {"_meta": {"command": "status"}, **payload}
+
+
 def _invalid(reason: str) -> dict[str, Any]:
-    return {"status": "invalid", "reason": reason, "changed_files": [], "requires_full_rebuild": True}
+    return _status_result({
+        "status": "invalid",
+        "reason": reason,
+        "changed_files": [],
+        "requires_full_rebuild": True,
+        "staleness_detail": {
+            "files_changed": 0,
+            "files_total": 0,
+            "percent_affected": 0.0,
+            "recommendation": "rebuild",
+        },
+    })
 
 
-def _load_root_artifacts(out: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]] | dict[str, Any]:
+def _load_root_artifacts(
+    out: Path,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]] | dict[str, Any]:
     if any(not (out / name).is_file() for name in REQUIRED):
-        return {"status": "missing", "reason": "Required machine knowledge artifacts are missing.", "changed_files": [], "requires_full_rebuild": True}
+        return _status_result({
+            "status": "missing",
+            "reason": "Required machine knowledge artifacts are missing.",
+            "changed_files": [],
+            "requires_full_rebuild": True,
+            "staleness_detail": {
+                "files_changed": 0,
+                "files_total": 0,
+                "percent_affected": 0.0,
+                "recommendation": "rebuild",
+            },
+        })
     try:
-        manifest, repo, catalog, relationships = [json.loads((out / name).read_text(encoding="utf-8")) for name in REQUIRED]
+        manifest, repo, catalog, relationships, symbol_index = [
+            json.loads((out / name).read_text(encoding="utf-8")) for name in REQUIRED
+        ]
     except Exception as exc:
         return _invalid(f"Invalid root JSON: {exc}")
     for payload, schema, name in zip(
-        (manifest, repo, catalog, relationships),
-        ("manifest.schema.json", "repo-map.schema.json", "symbols.schema.json", "relationships.schema.json"),
+        (manifest, repo, catalog, relationships, symbol_index),
+        (
+            "manifest.schema.json",
+            "repo-map.schema.json",
+            "symbols.schema.json",
+            "relationships.schema.json",
+            "symbol-index.schema.json",
+        ),
         REQUIRED,
     ):
         if validate_schema_json(payload, schema):
             return _invalid(f"Root schema mismatch: {name}")
-    for name, payload in (("repo-map.json", repo), ("symbols.json", catalog), ("relationships.json", relationships)):
+    for name, payload in (
+        ("repo-map.json", repo),
+        ("symbols.json", catalog),
+        ("relationships.json", relationships),
+        ("symbol-index.json", symbol_index),
+    ):
         if manifest.get("artifact_hashes", {}).get(name) != _digest(payload):
             return _invalid(f"Artifact hash mismatch: {name}")
     for shard in catalog.get("shards", []):
@@ -108,7 +156,7 @@ def _load_root_artifacts(out: Path) -> tuple[dict[str, Any], dict[str, Any], dic
             return _invalid(f"Symbol shard missing: {shard.get('path', '')}")
         if hashlib.sha256(path.read_bytes()).hexdigest() != shard.get("hash"):
             return _invalid(f"Shard hash mismatch: {shard.get('path', '')}")
-    return manifest, repo, catalog, relationships
+    return manifest, repo, catalog, relationships, symbol_index
 
 
 def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
@@ -118,25 +166,43 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     loaded = _load_root_artifacts(out)
     if not isinstance(loaded, tuple):
         return loaded
-    manifest, _repo, _catalog, _relationships = loaded
+    manifest, _repo, _catalog, _relationships, _symbol_index = loaded
+    indexed_total = len(manifest.get("indexed_paths", []))
     if manifest.get("schema_version") != SCHEMA_VERSION or manifest.get("extractor_version") != EXTRACTOR_VERSION or manifest.get("config_hash") != _config_hash(config):
-        return {"status": "stale", "reason": "Schema, extractor, or indexing configuration changed.", "changed_files": [], "requires_full_rebuild": True}
+        return _status_result({
+            "status": "stale",
+            "reason": "Schema, extractor, or indexing configuration changed.",
+            "changed_files": [],
+            "requires_full_rebuild": True,
+            "staleness_detail": {
+                "files_changed": 0,
+                "files_total": indexed_total,
+                "percent_affected": 0.0,
+                "recommendation": "rebuild",
+            },
+        })
     state = _git_changes(root, manifest["repository"].get("revision", ""), config["include_untracked"], out)
     if state is None:
         fallback_changes = _inventory_changes(root, config, manifest, out)
-        return {
+        return _status_result({
             "status": "fresh" if not fallback_changes else "partially-stale",
             "reason": "Git unavailable; used inventory fallback.",
             "changed_files": fallback_changes,
             "requires_full_rebuild": False,
             "revision_changed": False,
             "detection_mode": "filesystem-inventory",
-        }
+            "staleness_detail": {
+                "files_changed": len(fallback_changes),
+                "files_total": indexed_total,
+                "percent_affected": round(100 * len(fallback_changes) / max(indexed_total, 1), 1),
+                "recommendation": "refresh" if fallback_changes else "none",
+            },
+        })
     candidates, current_revision, detection_mode = state
     if detection_mode == "git-inventory-recovery":
         recovery_changes = _inventory_changes(root, config, manifest, out)
         metadata = _repository_metadata(root, config, out)
-        return {
+        return _status_result({
             "status": "fresh" if not recovery_changes else "partially-stale",
             "reason": "Recorded revision cannot be diffed; used inventory recovery.",
             "changed_files": recovery_changes,
@@ -145,7 +211,13 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
             "repository_metadata_changed": metadata != manifest.get("repository", {}),
             "current_revision": current_revision,
             "detection_mode": detection_mode,
-        }
+            "staleness_detail": {
+                "files_changed": len(recovery_changes),
+                "files_total": indexed_total,
+                "percent_affected": round(100 * len(recovery_changes) / max(indexed_total, 1), 1),
+                "recommendation": "rebuild" if recovery_changes else "none",
+            },
+        })
     tracked = git_tracked_paths(root)
     old = manifest.get("file_hashes", {})
     changes: set[str] = set()
@@ -168,20 +240,27 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     metadata = _repository_metadata(root, config, out)
     revision_changed = current_revision != manifest["repository"].get("revision")
     repository_metadata_changed = metadata != manifest.get("repository", {})
-    return {
-        "status": "fresh" if not changes else "partially-stale",
+    sorted_changes = sorted(changes)
+    return _status_result({
+        "status": "fresh" if not sorted_changes else "partially-stale",
         "reason": (
             "Updated repository revision without indexed content changes."
-            if revision_changed and not changes
-            else ("No relevant repository changes" if not changes else f"{len(changes)} repository changes.")
+            if revision_changed and not sorted_changes
+            else ("No relevant repository changes" if not sorted_changes else f"{len(sorted_changes)} repository changes.")
         ),
-        "changed_files": sorted(changes),
+        "changed_files": sorted_changes,
         "requires_full_rebuild": False,
         "revision_changed": revision_changed,
         "repository_metadata_changed": repository_metadata_changed,
         "current_revision": current_revision,
         "detection_mode": detection_mode,
-    }
+        "staleness_detail": {
+            "files_changed": len(sorted_changes),
+            "files_total": indexed_total,
+            "percent_affected": round(100 * len(sorted_changes) / max(indexed_total, 1), 1),
+            "recommendation": "refresh" if sorted_changes else "none",
+        },
+    })
 
 
 def _normalise(root: Path, output: Path, paths: list[str]) -> list[str]:
@@ -256,7 +335,7 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     loaded = _load_root_artifacts(out)
     if not isinstance(loaded, tuple):
         raise ValueError(loaded["reason"])
-    manifest, old_repo, catalog, _ = loaded
+    manifest, old_repo, catalog, _, _symbol_index = loaded
     files = {item["path"]: item for item in old_repo["files"]}
     configs = {item["path"]: item for item in old_repo.get("configurations", [])}
     shards = {item["id"]: item for item in catalog["shards"]}
@@ -301,7 +380,16 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
         "symbol_count": sum(item["count"] for item in shards.values()),
         "shards": [shards[key] for key in sorted(shards)],
     }
-    artifacts = {"repo-map.json": repo, "relationships.json": relationships, "symbols.json": catalog}
+    all_symbols = []
+    for shard in catalog["shards"]:
+        all_symbols.extend(json.loads((out / shard["path"]).read_text(encoding="utf-8"))["symbols"])
+    symbol_index = _symbol_index_payload(all_symbols)
+    artifacts = {
+        "repo-map.json": repo,
+        "relationships.json": relationships,
+        "symbols.json": catalog,
+        "symbol-index.json": symbol_index,
+    }
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))
     metadata = _repository_metadata(root, config, out)
