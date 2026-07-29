@@ -8,7 +8,7 @@ Token counts use the repository's offline `cl100k_base` implementation. Incorrec
 
 | Condition | Hit@1 | Hit@3 | MRR | Macro role F1 | Owner precision | Owner recall | Tokens |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| resolver | 0.806 | 0.972 | 0.884 | 0.901 | 0.364 | 0.780 | 6760 |
+| resolver | 0.806 | 0.972 | 0.884 | 0.901 | 0.364 | 0.780 | 6743 |
 | ripgrep | 0.389 | 0.556 | 0.463 | 0.342 | 0.183 | 0.440 | 7859 |
 | inventory | 0.222 | 0.278 | 0.245 | 0.189 | 0.100 | 0.240 | 622598 |
 

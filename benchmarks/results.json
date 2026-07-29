@@ -138,9 +138,9 @@
     "resolver": {
       "abstention_precision": 1.0,
       "abstention_recall": 1.0,
-      "bytes": 28337,
+      "bytes": 28243,
       "cases": 40,
-      "characters": 28337,
+      "characters": 28243,
       "hit_at_1": 0.8055555555555556,
       "hit_at_3": 0.9722222222222222,
       "incorrect_high_confidence": 0,
@@ -174,7 +174,7 @@
           "tp": 4
         }
       },
-      "tokens": 6760
+      "tokens": 6743
     },
     "ripgrep": {
       "abstention_precision": 0.0,
@@ -3811,8 +3811,8 @@
     },
     {
       "abstained": false,
-      "bytes": 846,
-      "characters": 846,
+      "bytes": 747,
+      "characters": 747,
       "condition": "resolver",
       "expected_abstain": false,
       "expected_all": [
@@ -3830,27 +3830,27 @@
       "predicted_all": [
         "src/catalog/price_service.py",
         "src/catalog/price_repository.py",
-        "src/catalog/coupon_service.py"
+        "src/catalog/price_model.py"
       ],
       "predicted_primary": [
         "src/catalog/price_service.py",
         "src/catalog/price_repository.py",
-        "src/catalog/coupon_service.py"
+        "src/catalog/price_model.py"
       ],
       "predicted_primary_roles": {
-        "src/catalog/coupon_service.py": "source",
+        "src/catalog/price_model.py": "source",
         "src/catalog/price_repository.py": "source",
         "src/catalog/price_service.py": "source"
       },
       "predicted_roles": {
-        "src/catalog/coupon_service.py": "source",
+        "src/catalog/price_model.py": "source",
         "src/catalog/price_repository.py": "source",
         "src/catalog/price_service.py": "source"
       },
       "prompt": "Catalog price labels retain inconsistent casing and whitespace before downstream lookup. Locate the application service.",
       "reciprocal_rank": 1.0,
       "task_id": "catalog-price-normalization",
-      "tokens": 200
+      "tokens": 186
     },
     {
       "abstained": false,
@@ -4456,8 +4456,8 @@
     },
     {
       "abstained": false,
-      "bytes": 997,
-      "characters": 997,
+      "bytes": 1002,
+      "characters": 1002,
       "condition": "resolver",
       "expected_abstain": false,
       "expected_all": [
@@ -4475,27 +4475,27 @@
       "predicted_all": [
         "src/notifications/delivery_handler.py",
         "src/notifications/webhook_handler.py",
-        "src/notifications/digest_handler.py"
+        "src/notifications/delivery_service.py"
       ],
       "predicted_primary": [
         "src/notifications/delivery_handler.py",
         "src/notifications/webhook_handler.py",
-        "src/notifications/digest_handler.py"
+        "src/notifications/delivery_service.py"
       ],
       "predicted_primary_roles": {
         "src/notifications/delivery_handler.py": "source",
-        "src/notifications/digest_handler.py": "source",
+        "src/notifications/delivery_service.py": "source",
         "src/notifications/webhook_handler.py": "source"
       },
       "predicted_roles": {
         "src/notifications/delivery_handler.py": "source",
-        "src/notifications/digest_handler.py": "source",
+        "src/notifications/delivery_service.py": "source",
         "src/notifications/webhook_handler.py": "source"
       },
       "prompt": "Delivery diagnostics cannot identify which notification boundary normalized a webhook. Find the handler owner.",
       "reciprocal_rank": 0.5,
       "task_id": "notification-webhook-boundary",
-      "tokens": 221
+      "tokens": 218
     },
     {
       "abstained": false,
