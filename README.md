@@ -118,6 +118,12 @@ python tools/validation/validate_repository.py
 python -m pytest -q
 ```
 
+Benchmark fixtures, methodology, limitations, frozen baselines, and the
+cross-skill migration matrix are documented in
+[`benchmarks/`](benchmarks/README.md). Pull requests run the representative
+deterministic profile; the complete Tier C comparison runs on pushes to `main`
+and by manual dispatch.
+
 ---
 
 ## 📄 License

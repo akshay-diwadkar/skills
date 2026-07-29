@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "flag_key": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "flag_key",
+    "environment",
+    "enabled"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "reporting",
+  "timeout_seconds": 10
+}

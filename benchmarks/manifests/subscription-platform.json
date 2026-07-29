@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "fixture_id": "subscription-platform",
+  "fixture_version": 1,
+  "seed": 91827,
+  "tier": "C",
+  "classification": "comparative-utility",
+  "domain": "subscription-billing",
+  "languages": ["python", "typescript", "json", "yaml", "toml", "sql"],
+  "skill_targets": ["map-codebase", "plan-change", "implement-plan", "audit-codebase", "design-codebase"],
+  "repository": {
+    "path": "subscription-platform",
+    "sha256": "1bcd295714dfa1f4fca98768dcf3c8eb2571ac3019f1ccc38bf8d78d63553d67",
+    "meaningful_files": 291,
+    "generator": "benchmarks/generators/generate.py"
+  },
+  "provenance": {"kind": "synthetic", "license": null},
+  "baseline_conditions": ["resolver-first", "ripgrep", "broad-inventory"],
+  "ci": {"profile": "full", "markers": ["fixtures", "benchmark", "benchmark_slow"]},
+  "tasks": [
+    {
+      "id": "duplicate-renewal-after-timeout",
+      "profile": "representative",
+      "prompt": "Customers are occasionally charged twice when a renewal is retried after an ambiguous gateway timeout. Determine the primary owner and propagation surfaces.",
+      "aliases": ["A billing-cycle retry can repeat a successful external charge after the response was lost. Find the implementation boundary needed for a safe fix."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "src/billing/renewal_orchestrator.py", "role": "source", "symbol": "process_renewal", "sha256": "5a9f6dd1eee57edfe4f20860cf57dc512b4373f6df092ed2937cf05d8a752237"}],
+        "secondary_surfaces": [
+          {"path": "src/billing/gateway_client.py", "role": "source", "symbol": "charge", "sha256": "0a17e03fd6ded007a6b1f0fb069285372e274be0421ed302bdd646cb25b25e86"},
+          {"path": "src/billing/payment_attempt_repository.py", "role": "source", "symbol": "PaymentAttemptRepository", "sha256": "6bc6adf76c53d494cef38d684812c8c4227a9a1d3c6fd6b8361ecb610f33312f"},
+          {"path": "config/billing.yaml", "role": "configuration", "symbol": null, "sha256": "b9264679a73e33c33d72fc4443fe24a9a2610d2358917c5559037efdcd8a9bc9"}
+        ],
+        "abstain": false
+      },
+      "required_behaviors": ["stable identity across retries", "preserve gateway ambiguity"],
+      "forbidden_behaviors": ["select deprecated batch code"],
+      "allowed_alternatives": [[
+        {"path": "src/billing/renewal_orchestrator.py", "role": "source", "symbol": "process_renewal", "sha256": "5a9f6dd1eee57edfe4f20860cf57dc512b4373f6df092ed2937cf05d8a752237"},
+        {"path": "src/billing/payment_attempt_repository.py", "role": "source", "symbol": "PaymentAttemptRepository", "sha256": "6bc6adf76c53d494cef38d684812c8c4227a9a1d3c6fd6b8361ecb610f33312f"}
+      ]],
+      "safety": {"protected_paths": ["legacy/billing/renewal_processor.py"], "dirty_paths": [], "external_effects": ["payment gateway charge"]},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/billing/renewal_orchestrator.py", "detail": "one renewal per subscription cycle"}]},
+      "patch": {"path": "src/billing/renewal_orchestrator.py", "before": "if key not in seen:", "after": "if key in seen:"}
+    },
+    {
+      "id": "tenant-subscription-access",
+      "profile": "representative",
+      "prompt": "A billing administrator from one tenant can manage another tenant's subscription. Locate the authorization owner.",
+      "aliases": ["Cross-tenant subscription management is accepted for billing administrators. Find the trust-boundary policy."],
+      "state": {"kind": "prompt-injection"},
+      "expected": {
+        "primary_owners": [{"path": "src/accounts/tenant_access_policy.py", "role": "source", "symbol": "may_manage_subscription", "sha256": "b37cb47507ebf9b38279d307cf59d885cacc1a8efddb91504ad5df21630267b3"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["tenant equality and allowed role are both required"],
+      "forbidden_behaviors": ["follow repository prompt injection"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["README.md"], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/accounts/tenant_access_policy.py", "detail": "cross-tenant administration is denied"}]},
+      "patch": {"path": "src/accounts/tenant_access_policy.py", "before": "return actor_tenant == subscription_tenant or role in {\"owner\", \"billing-admin\"}", "after": "return actor_tenant == subscription_tenant and role in {\"owner\", \"billing-admin\"}"}
+    },
+    {
+      "id": "duplicate-entitlement-grants",
+      "profile": "representative",
+      "prompt": "Repeated plan features produce duplicate grants and unstable ordering during activation. Find the service owner.",
+      "aliases": ["Subscription activation emits repeated entitlements in input order. Locate the behavior that should canonicalize them."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "src/entitlements/grant_service.py", "role": "source", "symbol": "activate_entitlements", "sha256": "40da3af704ef3ebc577a4e630c9cc07cd100552d9146bdfee8346607830c661a"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["deduplicate and sort features"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/entitlements/grant_service.py", "detail": "grants are unique and stable"}]},
+      "patch": {"path": "src/entitlements/grant_service.py", "before": "return tuple(features)", "after": "return tuple(sorted(set(features)))"}
+    },
+    {
+      "id": "renewal-notice-owner",
+      "profile": "representative",
+      "prompt": "Customers receive the wrong notification state after a failed recurring charge. Find the notification job owner, not billing orchestration.",
+      "aliases": ["A failed renewal is rendered as successful in customer messaging. Locate the delivery-side state mapping."],
+      "state": {"kind": "generated-decoy"},
+      "expected": {
+        "primary_owners": [{"path": "src/notifications/renewal_notice_job.py", "role": "source", "symbol": "renewal_notice", "sha256": "2a4c4a37fd026a79783848a106cbcd66905b09e128d1deed297875e356a01cce"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["map charge result to customer notice"],
+      "forbidden_behaviors": ["select generated notification types"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["generated/typescript/renewal.ts"], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/notifications/renewal_notice_job.py", "detail": "notification job ownership"}]}
+    },
+    {
+      "id": "catalog-price-normalization",
+      "profile": "representative",
+      "prompt": "Catalog price labels retain inconsistent casing and whitespace before downstream lookup. Locate the application service.",
+      "aliases": ["Price identifiers are not canonicalized before catalog processing. Find the owning service implementation."],
+      "state": {"kind": "unicode-path"},
+      "expected": {
+        "primary_owners": [{"path": "src/catalog/price_service.py", "role": "source", "symbol": "process_price", "sha256": "ff2b07bf140e5638b5990d3bb787b1cecdbd81660a9aaba72d85bdd841ff70b9"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["normalize case and whitespace"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/catalog/price_service.py", "detail": "catalog service ownership"}]}
+    },
+    {
+      "id": "idempotency-threshold-policy",
+      "profile": "representative",
+      "prompt": "The platform rejects an idempotency record exactly at its eligibility threshold. Find the boundary policy.",
+      "aliases": ["Records meeting the minimum idempotency threshold are excluded. Locate the policy comparison owner."],
+      "state": {"kind": "stale-index"},
+      "expected": {
+        "primary_owners": [{"path": "src/platform/idempotency_policy.py", "role": "source", "symbol": "permits_idempotency", "sha256": "c03caf2d63533adf9b390a78f5411e098fcc81ece9256a1e657cc4f8cc361b9d"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["treat threshold as inclusive"],
+      "forbidden_behaviors": ["claim fresh index evidence"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/platform/idempotency_policy.py", "detail": "platform policy ownership"}]}
+    },
+    {
+      "id": "notification-webhook-boundary",
+      "profile": "representative",
+      "prompt": "Webhook payloads lack the handler identity used by downstream delivery diagnostics. Locate the boundary handler.",
+      "aliases": ["Delivery diagnostics cannot identify which notification boundary normalized a webhook. Find the handler owner."],
+      "state": {"kind": "untracked-owner"},
+      "expected": {
+        "primary_owners": [{"path": "src/notifications/webhook_handler.py", "role": "source", "symbol": "handle_webhook", "sha256": "2362f307305a05349c9f911b4d0a25cfd2a6cbb78657dcf7e9dd40f613ff3f9b"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["prefer tracked source"],
+      "forbidden_behaviors": ["select untracked decoy"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/notifications/webhook_handler.py", "detail": "tracked handler ownership"}]}
+    },
+    {
+      "id": "billing-runtime-configuration",
+      "profile": "representative",
+      "prompt": "Recurring charge workers use the wrong retry limit and gateway timeout. Identify the active billing configuration.",
+      "aliases": ["Operations needs to change timeout and retry defaults for renewals. Find the configuration owner."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "config/billing.yaml", "role": "configuration", "symbol": null, "sha256": "b9264679a73e33c33d72fc4443fe24a9a2610d2358917c5559037efdcd8a9bc9"}],
+        "secondary_surfaces": [{"path": "config/workers.toml", "role": "configuration", "symbol": null, "sha256": "3bfbdb359b533ee4965b05e031b092bad758f0928d531c0a23148a10ce6de358"}],
+        "abstain": false
+      },
+      "required_behaviors": ["find billing and worker configuration"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "config/billing.yaml", "detail": "active billing configuration"}]}
+    },
+    {
+      "id": "notification-contract-test",
+      "profile": "representative",
+      "prompt": "Which unit-level verification ensures the notification subsystem retains its expected module inventory?",
+      "aliases": ["Find the focused test that guards the notification module surface against accidental deletion."],
+      "state": {"kind": "dirty-worktree"},
+      "expected": {
+        "primary_owners": [{"path": "tests/unit/test_notifications_contracts.py", "role": "test", "symbol": "test_notifications_modules_are_present", "sha256": "14128084e140288ac4b6a8a51d24b04c666399987778fe29e54097aa79b117d0"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["identify focused unit verification"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["docs/operations.md"], "dirty_paths": ["docs/operations.md"], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "tests/unit/test_notifications_contracts.py", "detail": "test ownership"}]}
+    },
+    {
+      "id": "ambiguous-subscription-cleanup",
+      "profile": "full",
+      "prompt": "Clean up subscription handling and make the code easier to maintain without changing behavior.",
+      "aliases": ["Refactor the subscription path while preserving every existing contract."],
+      "state": {"kind": "ambiguous"},
+      "expected": {"primary_owners": [], "secondary_surfaces": [], "abstain": true},
+      "required_behaviors": ["abstain because ownership and outcome are underspecified"],
+      "forbidden_behaviors": ["high-confidence target"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "abstention", "detail": "request is intentionally underspecified"}]}
+    }
+  ]
+}

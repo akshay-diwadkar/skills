@@ -36,5 +36,3 @@ jobs:
         run: python -m pytest tests/skills/scope-issue -q
       - name: Installed skill execution
         run: python -m pytest tests/integration/test_installed_skill_execution.py -q
-      - name: Full suite
-        run: python -m pytest -q

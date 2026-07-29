@@ -7,6 +7,13 @@ if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
 from build_knowledge import build_knowledge
+from knowledge.indexing import role
+
+
+def test_json_under_configuration_directory_has_configuration_role() -> None:
+    assert role("config/runtime.json") == "configuration"
+    assert role("settings/worker.json") == "configuration"
+    assert role("src/payload.json") == "source"
 
 
 def test_build_knowledge_artifacts(sample_repo: Path):

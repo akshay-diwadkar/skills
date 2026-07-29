@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "catalog",
+  "timeout_seconds": 6
+}

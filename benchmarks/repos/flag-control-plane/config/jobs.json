@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "jobs",
+  "timeout_seconds": 9
+}

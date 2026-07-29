@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "fixture_id": "flag-control-plane",
+  "fixture_version": 1,
+  "seed": 73184,
+  "tier": "B",
+  "classification": "comparative-utility",
+  "domain": "feature-flag-platform",
+  "languages": ["python", "typescript", "json", "yaml", "sql"],
+  "skill_targets": ["map-codebase"],
+  "repository": {
+    "path": "flag-control-plane",
+    "sha256": "5deaf6c07fedaca50699373c21846d0c8b84747fe1eb1cb09e36e8b3ce96f200",
+    "meaningful_files": 122,
+    "generator": "benchmarks/generators/generate.py"
+  },
+  "provenance": {"kind": "synthetic", "license": null},
+  "baseline_conditions": ["resolver-first", "ripgrep", "broad-inventory"],
+  "ci": {"profile": "representative", "markers": ["fixtures", "benchmark"]},
+  "tasks": [
+    {
+      "id": "segment-attribute-matching",
+      "profile": "representative",
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "aliases": ["Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "src/evaluation/segment_matcher.py", "role": "source", "symbol": "matches_segment", "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676"}],
+        "secondary_surfaces": [{"path": "src/api/evaluation_routes.py", "role": "source", "symbol": "evaluate", "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43"}],
+        "abstain": false
+      },
+      "required_behaviors": ["all required attributes must match"],
+      "forbidden_behaviors": ["accept a partial match"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["README.md"], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/evaluation/segment_matcher.py", "detail": "partial segment matches are rejected"}]},
+      "patch": {"path": "src/evaluation/segment_matcher.py", "before": "return any(attributes.get(key) == value for key, value in required.items())", "after": "return all(attributes.get(key) == value for key, value in required.items())"}
+    },
+    {
+      "id": "progressive-rollout-cap",
+      "profile": "representative",
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "aliases": ["Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "src/rollouts/progressive_rollout.py", "role": "source", "symbol": "rollout_percentage", "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3"}],
+        "secondary_surfaces": [{"path": "tests/unit/test_rollouts_contracts.py", "role": "test", "symbol": "test_rollouts_modules_are_present", "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413"}],
+        "abstain": false
+      },
+      "required_behaviors": ["cap advancement at the maximum"],
+      "forbidden_behaviors": ["reduce the configured maximum"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["config/rollouts.json"], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/rollouts/progressive_rollout.py", "detail": "advancement never exceeds maximum"}]},
+      "patch": {"path": "src/rollouts/progressive_rollout.py", "before": "return max(start + increment, maximum)", "after": "return min(start + increment, maximum)"}
+    },
+    {
+      "id": "prerequisite-threshold",
+      "profile": "representative",
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "aliases": ["Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison."],
+      "state": {"kind": "generated-decoy"},
+      "expected": {
+        "primary_owners": [{"path": "src/evaluation/prerequisite_policy.py", "role": "source", "symbol": "permits_prerequisite", "sha256": "0708a040f72a7ef224fe747487cbba3ffc3a6872ad64cabaf3ad7e0be639ee5c"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["include the exact threshold"],
+      "forbidden_behaviors": ["edit generated TypeScript"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["generated/typescript/prerequisite.ts"], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/evaluation/prerequisite_policy.py", "detail": "threshold equality is permitted"}]},
+      "patch": {"path": "src/evaluation/prerequisite_policy.py", "before": "return current > threshold", "after": "return current >= threshold"}
+    },
+    {
+      "id": "scheduled-rollout-owner",
+      "profile": "representative",
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "aliases": ["Release schedule names are not normalized consistently before use. Locate the responsible service."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "src/rollouts/scheduled_service.py", "role": "source", "symbol": "process_scheduled", "sha256": "97f2e9ce9b1ee1f26fbb98891a215bb1d08f19bd6d9d8305d6e9d4a590c99450"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["normalize scheduled release labels"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/rollouts/scheduled_service.py", "detail": "service ownership"}]}
+    },
+    {
+      "id": "reconciliation-job-owner",
+      "profile": "representative",
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "aliases": ["The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store."],
+      "state": {"kind": "dirty-worktree"},
+      "expected": {
+        "primary_owners": [{"path": "src/jobs/reconciliation_service.py", "role": "source", "symbol": "process_reconciliation", "sha256": "5169e07ed8f82f55fc69bbd973dc2f41e5056a06e73a6da63e6a0da59f38fd36"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["preserve unrelated dirty documentation"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": ["docs/operations.md"], "dirty_paths": ["docs/operations.md"], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/jobs/reconciliation_service.py", "detail": "job source ownership"}]}
+    },
+    {
+      "id": "audit-persistence-owner",
+      "profile": "representative",
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "aliases": ["The control plane cannot retrieve a previously stored audit record. Locate the repository boundary."],
+      "state": {"kind": "untracked-owner"},
+      "expected": {
+        "primary_owners": [{"path": "src/persistence/audit_repository.py", "role": "source", "symbol": "PersistenceAuditRepository", "sha256": "b782c912d8242f426ea7667e2d24ad42db34c3e84f09726585ca7feea4167067"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["prefer tracked repository ownership"],
+      "forbidden_behaviors": ["select an untracked decoy"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/persistence/audit_repository.py", "detail": "tracked persistence owner"}]}
+    },
+    {
+      "id": "rollout-configuration-owner",
+      "profile": "representative",
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "aliases": ["Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code."],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "config/rollouts.json", "role": "configuration", "symbol": null, "sha256": "5924c7ac06f10e2780836edc7028ee0a92764b34ea1c6932c462b203335e6743"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["identify active rollout configuration"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "config/rollouts.json", "detail": "configuration ownership"}]}
+    },
+    {
+      "id": "job-configuration-owner",
+      "profile": "representative",
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "aliases": ["Worker scheduling defaults do not match operations expectations. Find the relevant configuration file."],
+      "state": {"kind": "stale-index"},
+      "expected": {
+        "primary_owners": [{"path": "config/jobs.json", "role": "configuration", "symbol": null, "sha256": "0a9cd6230ff37c9632f5a1d58b3994afedf616715de720de62fbdd8811a53c85"}],
+        "secondary_surfaces": [],
+        "abstain": false
+      },
+      "required_behaviors": ["lower confidence for stale knowledge"],
+      "forbidden_behaviors": ["claim fresh evidence"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "config/jobs.json", "detail": "configuration ownership"}]}
+    },
+    {
+      "id": "schema-contract-test-owner",
+      "profile": "representative",
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "aliases": ["Which test prevents contract schema artifacts from disappearing from the checkout?"],
+      "state": {"kind": "clean"},
+      "expected": {
+        "primary_owners": [{"path": "tests/contract/test_schema_inventory.py", "role": "test", "symbol": "test_contract_schemas_are_committed", "sha256": "e4d3296dd180f5baf2ca7a84cd70c9a8225e5c072ac20fc0aa04ff6c2deecfcb"}],
+        "secondary_surfaces": [{"path": "schemas/flag-event.json", "role": "configuration", "symbol": null, "sha256": "e224b4b02d050e7ff13522e30c81fa910df24d731ed0050859911eb90ad9342d"}],
+        "abstain": false
+      },
+      "required_behaviors": ["find test and schema surfaces"],
+      "forbidden_behaviors": [],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "tests/contract/test_schema_inventory.py", "detail": "contract test ownership"}]}
+    },
+    {
+      "id": "ambiguous-admin-request",
+      "profile": "full",
+      "prompt": "Improve the administrative flag workflow without changing its public behavior.",
+      "aliases": ["Clean up the control-plane administration path while keeping all contracts stable."],
+      "state": {"kind": "ambiguous"},
+      "expected": {"primary_owners": [], "secondary_surfaces": [], "abstain": true},
+      "required_behaviors": ["abstain because ownership is underspecified"],
+      "forbidden_behaviors": ["high-confidence target"],
+      "allowed_alternatives": [],
+      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
+      "verification": {"commands": [], "oracles": [{"kind": "abstention", "detail": "request is intentionally underspecified"}]}
+    }
+  ]
+}

@@ -1,0 +1,2670 @@
+{
+  "all_gates_pass": true,
+  "benchmark_command": "python tests/skills/map-codebase/run_benchmark.py --profile representative --check",
+  "conditions": {
+    "inventory": "tracked eligible repository content with lexical path ranking",
+    "resolver": "resolver phases and emitted fallback evidence",
+    "ripgrep": "git ls-files plus independent ripgrep ranking and three full files"
+  },
+  "fixture_hashes": {
+    "flag-control-plane": "5deaf6c07fedaca50699373c21846d0c8b84747fe1eb1cb09e36e8b3ce96f200"
+  },
+  "fixture_versions": {
+    "flag-control-plane": 1
+  },
+  "frozen_pre_tuning_baseline": {
+    "captured_before_resolver_changes": true,
+    "command": "python tests/skills/map-codebase/run_benchmark.py --profile representative --output .scratch/representative-results.json",
+    "condition": "resolver-pre-tuning",
+    "fixture_versions": {
+      "flag-control-plane": 1
+    },
+    "metrics": {
+      "hit_at_1": 0.16666666666666666,
+      "hit_at_3": 0.16666666666666666,
+      "macro_role_f1": 0.1486,
+      "mrr": 0.16666666666666666
+    },
+    "notes": [
+      "This compact frozen record was captured after fixture version 1 was frozen and before resolver tuning.",
+      "Patch results from that exploratory run are excluded because the private-oracle subprocess lacked the materialized repository on PYTHONPATH."
+    ],
+    "report_schema_version": 1
+  },
+  "gates": {
+    "abstention_precision": true,
+    "abstention_recall": true,
+    "confidence_safety": true,
+    "hit_at_1": true,
+    "hit_at_3": true,
+    "inventory_token_efficiency": true,
+    "latency_budgets": true,
+    "legacy_smoke_no_regression": true,
+    "macro_role_f1": true,
+    "mrr": true,
+    "patch_noninferiority": true,
+    "strict_utility_win": true
+  },
+  "latency_budgets": {
+    "build_median_under_30_seconds": true,
+    "build_samples": 9,
+    "refresh_median_under_15_seconds": true,
+    "refresh_samples": 1,
+    "resolver_p95_under_2_seconds": true,
+    "resolver_samples": 18
+  },
+  "legacy_smoke": {
+    "passes": true,
+    "repositories": {
+      "javascript-small": {
+        "baseline": 0.9333333333,
+        "cases": 30,
+        "correct": 30,
+        "hit_at_1": 1.0,
+        "passes": true
+      },
+      "mixed-config": {
+        "baseline": 0.9,
+        "cases": 30,
+        "correct": 27,
+        "hit_at_1": 0.9,
+        "passes": true
+      },
+      "python-small": {
+        "baseline": 0.9,
+        "cases": 30,
+        "correct": 29,
+        "hit_at_1": 0.9666666666666667,
+        "passes": true
+      },
+      "realistic-large": {
+        "baseline": 1.0,
+        "cases": 30,
+        "correct": 30,
+        "hit_at_1": 1.0,
+        "passes": true
+      }
+    }
+  },
+  "limitations": [
+    "Fixtures are synthetic and do not establish live-model generalization.",
+    "Patch results are deterministic context-sufficiency simulations using canonical transforms.",
+    "Committed latency output records stable budget outcomes rather than machine-specific raw samples."
+  ],
+  "metrics": {
+    "inventory": {
+      "abstention_precision": 1.0,
+      "abstention_recall": 1.0,
+      "bytes": 686146,
+      "cases": 18,
+      "characters": 686146,
+      "hit_at_1": 0.16666666666666666,
+      "hit_at_3": 0.2222222222222222,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.24786324786324784,
+      "mrr": 0.18518518518518517,
+      "owner_precision": 0.09259259259259259,
+      "owner_recall": 0.20833333333333334,
+      "roles": {
+        "configuration": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "source": {
+          "f1": 0.07692307692307691,
+          "fn": 11,
+          "fp": 13,
+          "precision": 0.07142857142857142,
+          "recall": 0.08333333333333333,
+          "tp": 1
+        },
+        "test": {
+          "f1": 0.6666666666666666,
+          "fn": 0,
+          "fp": 2,
+          "precision": 0.5,
+          "recall": 1.0,
+          "tp": 2
+        }
+      },
+      "tokens": 158432
+    },
+    "resolver": {
+      "abstention_precision": 1.0,
+      "abstention_recall": 1.0,
+      "bytes": 13880,
+      "cases": 18,
+      "characters": 13880,
+      "hit_at_1": 0.8888888888888888,
+      "hit_at_3": 1.0,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.9444444444444445,
+      "mrr": 0.9444444444444444,
+      "owner_precision": 0.37735849056603776,
+      "owner_recall": 0.8333333333333334,
+      "roles": {
+        "configuration": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 4
+        },
+        "source": {
+          "f1": 0.8333333333333334,
+          "fn": 2,
+          "fp": 2,
+          "precision": 0.8333333333333334,
+          "recall": 0.8333333333333334,
+          "tp": 10
+        },
+        "test": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 2
+        }
+      },
+      "tokens": 3266
+    },
+    "ripgrep": {
+      "abstention_precision": 1.0,
+      "abstention_recall": 1.0,
+      "bytes": 14373,
+      "cases": 18,
+      "characters": 14373,
+      "hit_at_1": 0.3888888888888889,
+      "hit_at_3": 0.5555555555555556,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.35042735042735035,
+      "mrr": 0.45370370370370366,
+      "owner_precision": 0.2037037037037037,
+      "owner_recall": 0.4583333333333333,
+      "roles": {
+        "configuration": {
+          "f1": 0.0,
+          "fn": 4,
+          "fp": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "source": {
+          "f1": 0.3846153846153846,
+          "fn": 7,
+          "fp": 9,
+          "precision": 0.35714285714285715,
+          "recall": 0.4166666666666667,
+          "tp": 5
+        },
+        "test": {
+          "f1": 0.6666666666666666,
+          "fn": 0,
+          "fp": 2,
+          "precision": 0.5,
+          "recall": 1.0,
+          "tp": 2
+        }
+      },
+      "tokens": 3236
+    }
+  },
+  "outcomes": [
+    {
+      "abstained": false,
+      "bytes": 1244,
+      "characters": 1244,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 4,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/constraint_policy.py",
+        "src/evaluation/constraint_service.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/constraint_policy.py",
+        "src/evaluation/constraint_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/constraint_service.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/constraint_service.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 266
+    },
+    {
+      "abstained": false,
+      "bytes": 1041,
+      "characters": 1041,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/api/evaluation_routes.py",
+        "src/api/flag_repository.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/api/evaluation_routes.py",
+        "src/api/flag_repository.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/api/flag_repository.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/api/flag_repository.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 242
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "README.md",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary": [
+        "README.md",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "docs/jobs.md": "source"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "docs/jobs.md": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 1213,
+      "characters": 1213,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 4,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/segment_policy.py",
+        "src/evaluation/segment_service.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/segment_policy.py",
+        "src/evaluation/segment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/evaluation/segment_matcher.py": "source",
+        "src/evaluation/segment_policy.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/evaluation/segment_matcher.py": "source",
+        "src/evaluation/segment_policy.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 264
+    },
+    {
+      "abstained": false,
+      "bytes": 806,
+      "characters": 806,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/evaluation/segment_service.py",
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_service.py",
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 178
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py",
+        "src/evaluation/segment_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py",
+        "src/evaluation/segment_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_policy.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 963,
+      "characters": 963,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/scheduled_policy.py",
+        "src/rollouts/scheduled_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/scheduled_policy.py",
+        "src/rollouts/scheduled_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 219
+    },
+    {
+      "abstained": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 942,
+      "characters": 942,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/percentage_policy.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/percentage_policy.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/percentage_policy.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/percentage_policy.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 1.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 212
+    },
+    {
+      "abstained": false,
+      "bytes": 1016,
+      "characters": 1016,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/percentage_service.py",
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/percentage_service.py",
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/percentage_service.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/percentage_service.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 221
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py",
+        "scripts/verify_scheduled.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py",
+        "scripts/verify_scheduled.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.5,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "abstained": false,
+      "bytes": 921,
+      "characters": 921,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/persistence/flag_policy.py": "source",
+        "src/persistence/flag_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/persistence/flag_policy.py": "source",
+        "src/persistence/flag_repository.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 217
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 906,
+      "characters": 906,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/evaluation_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/constraint_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/evaluation_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/constraint_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 0.5,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "abstained": false,
+      "bytes": 976,
+      "characters": 976,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/prerequisite_service.py",
+        "src/api/evaluation_policy.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/prerequisite_service.py",
+        "src/api/evaluation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/evaluation/prerequisite_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/evaluation/prerequisite_service.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 1.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 203
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/api/evaluation_policy.py",
+        "src/evaluation/context_policy.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/api/evaluation_policy.py",
+        "src/evaluation/context_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/context_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/context_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 1.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 951,
+      "characters": 951,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 951,
+      "characters": 951,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 218
+    },
+    {
+      "abstained": false,
+      "bytes": 935,
+      "characters": 935,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 212
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/api/flag_service.py",
+        "src/api/admin_service.py",
+        "src/jobs/cleanup_service.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_service.py",
+        "src/api/admin_service.py",
+        "src/jobs/cleanup_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 0.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 199
+    },
+    {
+      "abstained": false,
+      "bytes": 954,
+      "characters": 954,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 211
+    },
+    {
+      "abstained": false,
+      "bytes": 38156,
+      "characters": 38156,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_reconciliation.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_reconciliation.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_reconciliation.py": "source",
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_reconciliation.py": "source",
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 199
+    },
+    {
+      "abstained": false,
+      "bytes": 830,
+      "characters": 830,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_service.py",
+        "src/jobs/reconciliation_service.py",
+        "generated/typescript/audit.ts"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_service.py",
+        "src/jobs/reconciliation_service.py",
+        "generated/typescript/audit.ts"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/jobs/reconciliation_service.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/jobs/reconciliation_service.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 0.5,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 178
+    },
+    {
+      "abstained": false,
+      "bytes": 38156,
+      "characters": 38156,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 0.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 985,
+      "characters": 985,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/revision_repository.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/revision_repository.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 1.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 244
+    },
+    {
+      "abstained": false,
+      "bytes": 996,
+      "characters": 996,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_repository.py",
+        "src/persistence/flag_service.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_repository.py",
+        "src/persistence/flag_service.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 233
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_model.py",
+        "src/persistence/audit_model.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_model.py",
+        "src/persistence/audit_model.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/flag_model.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/flag_model.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 889,
+      "characters": 889,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/environment_repository.py",
+        "src/persistence/revision_repository.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/environment_repository.py",
+        "src/persistence/revision_repository.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/environment_repository.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/environment_repository.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 1.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 229
+    },
+    {
+      "abstained": false,
+      "bytes": 791,
+      "characters": 791,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/audit_service.py",
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_service.py",
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_policy.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_policy.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 171
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 374,
+      "characters": 374,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/rollouts.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary": [
+        "config/rollouts.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/rollouts.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/rollouts.json": "configuration"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 112
+    },
+    {
+      "abstained": false,
+      "bytes": 885,
+      "characters": 885,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_service.py",
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_service.py",
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 214
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 270,
+      "characters": 270,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 2,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/rollouts.json",
+        "pyproject.toml"
+      ],
+      "predicted_primary": [
+        "config/rollouts.json",
+        "pyproject.toml"
+      ],
+      "predicted_primary_roles": {
+        "config/rollouts.json": "configuration",
+        "pyproject.toml": "configuration"
+      },
+      "predicted_roles": {
+        "config/rollouts.json": "configuration",
+        "pyproject.toml": "configuration"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 1.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 82
+    },
+    {
+      "abstained": false,
+      "bytes": 361,
+      "characters": 361,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary_roles": {
+        "docs/api.md": "source",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "docs/api.md": "source",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 72
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 367,
+      "characters": 367,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/jobs.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary": [
+        "config/jobs.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/jobs.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/jobs.json": "configuration"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 1.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 110
+    },
+    {
+      "abstained": false,
+      "bytes": 412,
+      "characters": 412,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/jobs.md",
+        "config/jobs.json"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/jobs.md",
+        "config/jobs.json"
+      ],
+      "predicted_primary_roles": {
+        "config/jobs.json": "configuration",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "config/jobs.json": "configuration",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "job-configuration-owner",
+      "tokens": 91
+    },
+    {
+      "abstained": false,
+      "bytes": 38161,
+      "characters": 38161,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 229,
+      "characters": 229,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 1,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/jobs.json"
+      ],
+      "predicted_primary": [
+        "config/jobs.json"
+      ],
+      "predicted_primary_roles": {
+        "config/jobs.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/jobs.json": "configuration"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 1.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 63
+    },
+    {
+      "abstained": false,
+      "bytes": 565,
+      "characters": 565,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/operations.md": "source",
+        "src/api/evaluation_routes.py": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "docs/operations.md": "source",
+        "src/api/evaluation_routes.py": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 113
+    },
+    {
+      "abstained": false,
+      "bytes": 38161,
+      "characters": 38161,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/operations.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/operations.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 531,
+      "characters": 531,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 132
+    },
+    {
+      "abstained": false,
+      "bytes": 506,
+      "characters": 506,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 124
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "schemas/flag-event.json",
+        "generated/typescript/flag.ts"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "schemas/flag-event.json",
+        "generated/typescript/flag.ts"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/flag.ts": "source",
+        "schemas/flag-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "generated/typescript/flag.ts": "source",
+        "schemas/flag-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 443,
+      "characters": 443,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 109
+    },
+    {
+      "abstained": false,
+      "bytes": 506,
+      "characters": 506,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 124
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 8800
+    }
+  ],
+  "patch_outcomes": [
+    {
+      "applied": true,
+      "bytes": 1244,
+      "characters": 1244,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 266
+    },
+    {
+      "applied": true,
+      "bytes": 1041,
+      "characters": 1041,
+      "condition": "ripgrep",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 242
+    },
+    {
+      "applied": true,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "applied": true,
+      "bytes": 963,
+      "characters": 963,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 219
+    },
+    {
+      "applied": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "success": false,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 216
+    },
+    {
+      "applied": true,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "applied": true,
+      "bytes": 873,
+      "characters": 873,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "applied": false,
+      "bytes": 921,
+      "characters": 921,
+      "condition": "ripgrep",
+      "success": false,
+      "task_id": "prerequisite-threshold",
+      "tokens": 217
+    },
+    {
+      "applied": true,
+      "bytes": 38107,
+      "characters": 38107,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    }
+  ],
+  "patch_simulation": {
+    "inventory": {
+      "bytes": 114323,
+      "characters": 114323,
+      "failed_attempt_tokens": 0,
+      "success_rate": 1.0,
+      "successes": 3,
+      "tokens": 26400,
+      "tokens_per_success": 8800.0,
+      "total": 3
+    },
+    "resolver": {
+      "bytes": 3080,
+      "characters": 3080,
+      "failed_attempt_tokens": 0,
+      "success_rate": 1.0,
+      "successes": 3,
+      "tokens": 681,
+      "tokens_per_success": 227.0,
+      "total": 3
+    },
+    "ripgrep": {
+      "bytes": 2898,
+      "characters": 2898,
+      "failed_attempt_tokens": 433,
+      "success_rate": 0.3333333333333333,
+      "successes": 1,
+      "tokens": 675,
+      "tokens_per_success": 675.0,
+      "total": 3
+    }
+  },
+  "profile": "representative",
+  "report_schema_version": 1
+}

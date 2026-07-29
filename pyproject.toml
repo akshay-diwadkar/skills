@@ -34,6 +34,11 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
+markers = [
+  "fixtures: benchmark fixture integrity, regeneration, leakage, and oracle checks",
+  "benchmark: deterministic comparative benchmark checks",
+  "benchmark_slow: Tier C and homogeneous stress benchmark execution",
+]
 testpaths = [
   "tests",
 ]

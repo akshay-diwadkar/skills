@@ -1,0 +1,4 @@
+billing:
+  gateway_timeout_seconds: 8
+  retry_limit: 3
+  idempotency_scope: subscription-cycle

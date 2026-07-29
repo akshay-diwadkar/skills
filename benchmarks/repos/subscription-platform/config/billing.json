@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "billing",
+  "timeout_seconds": 7
+}

@@ -25,13 +25,13 @@ jobs:
         run: python tools/validation/run_mypy.py
       - name: Repository validation
         run: python tools/validation/validate_repository.py
-      - name: Resolver benchmark
-        working-directory: skills/engineering/map-codebase
+      - name: Fixture lifecycle
         run: |
-          python scripts/eval_resolver.py
-          git diff --exit-code -- references/benchmark.md
+          python -m tools.benchmarks validate
+          python -m tools.benchmarks regenerate --check
+          python -m tools.benchmarks audit --check
       - name: Test
-        run: python -m pytest -q
+        run: python -m pytest -m "not benchmark_slow" -q
 
   cross-platform:
     name: Cross-Platform Runtime (${{ matrix.os }}, Python ${{ matrix.python-version }})

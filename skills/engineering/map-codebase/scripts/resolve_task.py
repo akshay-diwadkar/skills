@@ -40,6 +40,19 @@ STOPWORDS = {
     "file",
     "error",
     "issue",
+    "a",
+    "an",
+    "are",
+    "is",
+    "its",
+    "own",
+    "owned",
+    "owner",
+    "owns",
+    "determine",
+    "identify",
+    "locate",
+    "implementation",
 }
 CONFIG_NAMES = {"pyproject.toml", "package.json", "makefile", "gnumakefile", "tsconfig.json"}
 CONFIG_EXTENSIONS = {".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"}
@@ -98,7 +111,8 @@ SYNONYM_GROUPS = (
     frozenset({"config", "configuration", "settings", "options"}),
     frozenset({"error", "errors", "failure", "failures", "exception", "exceptions"}),
     frozenset({"cache", "caching", "memoization", "memoize"}),
-    frozenset({"search", "searching", "find", "lookup"}),
+    frozenset({"search", "searching", "find", "lookup", "fetch", "retrieve", "retrieval"}),
+    frozenset({"store", "storage", "persist", "persistence", "adapter"}),
     frozenset({"permission", "permissions", "access", "authorization", "authorize"}),
     frozenset({"throttle", "throttling", "ratelimit", "ratelimits"}),
     frozenset({"delete", "deletion", "remove", "removal"}),
@@ -109,6 +123,24 @@ SYNONYM_GROUPS = (
     frozenset({"validate", "validation", "verify", "verification", "check", "checks"}),
     frozenset({"create", "creation", "add", "addition", "insert"}),
     frozenset({"update", "revision", "modify", "modification"}),
+    frozenset({"gradual", "progressive", "percentage", "rollout"}),
+    frozenset({"cap", "ceiling", "maximum", "limit"}),
+    frozenset({"schedule", "scheduled", "scheduling"}),
+    frozenset({"activate", "activated", "activation"}),
+    frozenset({
+        "deduplicate",
+        "duplicate",
+        "duplicates",
+        "idempotency",
+        "idempotent",
+        "once",
+        "replay",
+        "replayed",
+        "seen",
+        "set",
+        "twice",
+        "unique",
+    }),
 )
 TOKEN_SYNONYMS = {
     token: group - {token}
@@ -137,6 +169,14 @@ INTENT_RULES: list[tuple[re.Pattern[str], PrimaryRole, int]] = [
         ),
         "test",
         190,
+    ),
+    (
+        re.compile(
+            r"\b(?:(?:unit|integration|contract)[- ]level verification|"
+            r"verification\b.{0,40}\b(?:behavior|contract|inventory|modules?))\b"
+        ),
+        "test",
+        185,
     ),
     (re.compile(r"\b(?:add|create|write)\b.{0,40}\b(?:regression )?tests?\b"), "test", 180),
     (
@@ -217,6 +257,7 @@ def _stems(token: str) -> set[str]:
     if len(token) > 4 and token.endswith("ed"):
         base = token[:-2]
         stems.add(base)
+        stems.add(base + "e")
         if len(base) > 2 and base[-1] == base[-2]:
             stems.add(base[:-1])
     if len(token) > 4 and token.endswith("es"):
@@ -228,7 +269,7 @@ def _stems(token: str) -> set[str]:
 
 def _split(value: str) -> set[str]:
     """Split text into literal, stemmed, and explicitly synonymous token forms."""
-    literal = _literal_split(value)
+    literal = {token for token in _literal_split(value) if token not in STOPWORDS}
     stemmed = set().union(*(_stems(token) for token in literal)) if literal else set()
     expanded = set(stemmed)
     for token in sorted(stemmed):
@@ -250,12 +291,41 @@ def _transformed_pair(task_tokens: set[str], candidate_tokens: set[str]) -> tupl
 
 def _signals(task: str) -> dict[str, set[str]]:
     raw = re.findall(r"[A-Za-z_][A-Za-z0-9_./:-]*", task)
+    excluded_literal: set[str] = set()
+    for match in re.finditer(
+        r"\b(?:instead of|rather than)\s+(?:the\s+)?([^.,;]+)",
+        task,
+        flags=re.IGNORECASE,
+    ):
+        excluded_literal.update(_literal_split(match.group(1)))
+    excluded_terms = (
+        set().union(*(_split(term) for term in excluded_literal))
+        if excluded_literal
+        else set()
+    )
+    literal_terms = _literal_split(task) - excluded_literal
+    terms = _split(task) - excluded_terms
+    if "find" in literal_terms and len(literal_terms) > 3:
+        literal_terms.remove("find")
+        terms -= _split("find")
     return {
         "paths": {x.replace("\\", "/") for x in raw if "/" in x or re.search(r"\.[A-Za-z0-9]{1,5}$", x)},
         "symbols": {x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x},
-        "literal_terms": _literal_split(task),
-        "terms": _split(task),
+        "literal_terms": literal_terms,
+        "terms": terms,
     }
+
+
+def _is_underspecified_refactor(task: str) -> bool:
+    lowered = task.casefold()
+    broad_action = re.search(r"\b(?:clean up|improve|refactor)\b", lowered)
+    preservation_only = re.search(
+        r"\b(?:without changing (?:its )?(?:public )?behavio[u]?r|"
+        r"preserv(?:e|ing) (?:every |all )?(?:existing )?contracts?|"
+        r"keeping all contracts stable)\b",
+        lowered,
+    )
+    return bool(broad_action and preservation_only)
 
 
 def _role_order(roles: list[str]) -> list[PrimaryRole]:
@@ -376,8 +446,12 @@ def _lexical(
     weights: dict[str, float],
     freshness: str,
     configuration_keys: dict[str, list[str]] | None = None,
+    descriptions: dict[str, set[str]] | None = None,
+    source_terms: dict[str, set[str]] | None = None,
 ) -> list[dict[str, Any]]:
     configuration_keys = configuration_keys or {}
+    descriptions = descriptions or {}
+    source_terms = source_terms or {}
     results = []
     for file in files:
         path = file["path"]
@@ -390,12 +464,117 @@ def _lexical(
             _add(evidence, f"exact_symbol: {exact[0]}", weights["exact_symbol"], "identifier")
         path_stem_terms = _literal_split(Path(path).stem)
         matched = signals["literal_terms"] & path_stem_terms
-        if matched:
-            _add(evidence, f"filename: {sorted(matched)[0]}", weights["filename"], "path")
+        expanded_filename_matches = {
+            term
+            for term in path_stem_terms
+            if _split(term) & signals["terms"]
+        }
+        if matched or expanded_filename_matches:
+            filename_matches = matched or expanded_filename_matches
+            _add(
+                evidence,
+                f"filename: {sorted(filename_matches)[0]}",
+                weights["filename"],
+                "path",
+            )
+            if len(expanded_filename_matches) > 1:
+                _add(
+                    evidence,
+                    f"filename_coverage: {','.join(sorted(expanded_filename_matches))}",
+                    weights["filename"] * 3 * (len(expanded_filename_matches) - 1),
+                    "path",
+                )
+        role_hints = {
+            "model": {"model", "schema", "shape"},
+            "repository": {"adapter", "lookup", "persistence", "repository", "storage", "store"},
+            "service": {
+                "activate",
+                "activated",
+                "application",
+                "behavior",
+                "implementation",
+                "normalize",
+                "normalization",
+                "process",
+                "produce",
+                "service",
+            },
+            "policy": {"comparison", "policy", "rule", "threshold"},
+            "handler": {"delivery", "handler", "payload"},
+            "matcher": {"match", "matches", "matching", "matcher", "targeting"},
+            "orchestrator": {
+                "billing",
+                "cycle",
+                "orchestrator",
+                "primary",
+                "propagation",
+                "retries",
+                "retry",
+                "workflow",
+            },
+        }
+        stem = Path(path).stem.casefold()
+        for suffix, hints in role_hints.items():
+            if stem.endswith("_" + suffix) and signals["terms"] & hints:
+                multiplier = 3 if suffix == "orchestrator" else 1
+                _add(
+                    evidence,
+                    f"filename_role: {suffix}",
+                    weights["filename"] * multiplier,
+                    "path",
+                )
         symbol_terms = set().union(*(_literal_split(x) for x in names)) if names else set()
-        matched = signals["literal_terms"] & symbol_terms
+        matched = {
+            term
+            for term in symbol_terms
+            if _split(term) & signals["terms"]
+        }
         if matched:
             _add(evidence, f"symbol_token: {sorted(matched)[0]}", weights["symbol_token"], "identifier")
+            if len(matched) > 1:
+                _add(
+                    evidence,
+                    f"symbol_coverage: {','.join(sorted(matched))}",
+                    weights["symbol_token"] * (min(3, len(matched)) - 1),
+                    "identifier",
+                )
+        description_matches = {
+            term
+            for term in descriptions.get(path, set())
+            if _split(term) & signals["terms"]
+        }
+        if description_matches:
+            _add(
+                evidence,
+                f"description: {','.join(sorted(description_matches)[:3])}",
+                weights["symbol_token"] * min(2, len(description_matches)),
+                "description",
+            )
+        source_matches = {
+            term
+            for term in source_terms.get(path, set())
+            if _split(term) & signals["terms"]
+        }
+        if source_matches:
+            _add(
+                evidence,
+                f"source_token: {','.join(sorted(source_matches)[:2])}",
+                weights["symbol_token"] * min(2, len(source_matches)),
+                "source_token",
+            )
+        semantic_concepts = (
+            expanded_filename_matches
+            | matched
+            | description_matches
+            | source_matches
+        )
+        if len(semantic_concepts) > 1:
+            _add(
+                evidence,
+                f"semantic_coverage: {','.join(sorted(semantic_concepts)[:4])}",
+                weights["filename"] * 2 * (min(4, len(semantic_concepts)) - 1),
+                "semantic_coverage",
+            )
         subsystem_terms = _literal_split(file["subsystem"])
         matched = signals["literal_terms"] & subsystem_terms
         if matched:
@@ -413,10 +592,18 @@ def _lexical(
                 weights["synonym_token"],
                 "synonym_token",
             )
-        config_key_terms = set().union(
-            *(_split(key) for key in configuration_keys.get(path, []))
-        ) if configuration_keys.get(path) else set()
-        config_matches = signals["terms"] & config_key_terms
+        config_key_terms = (
+            set().union(
+                *(_literal_split(key) for key in configuration_keys.get(path, []))
+            )
+            if configuration_keys.get(path)
+            else set()
+        )
+        config_matches = {
+            term
+            for term in config_key_terms
+            if _split(term) & signals["terms"]
+        }
         if file["role"] == "configuration" and config_matches:
             _add(
                 evidence,
@@ -424,6 +611,13 @@ def _lexical(
                 weights["configuration"],
                 "configuration_key",
             )
+            if len(config_matches) > 1:
+                _add(
+                    evidence,
+                    f"configuration_coverage: {','.join(sorted(config_matches))}",
+                    weights["configuration"] * (min(3, len(config_matches)) - 1),
+                    "configuration_key",
+                )
         if file["role"] == "configuration" and (
             file["path"] in signals["paths"] or signals["terms"] & STRONG_CONFIG_TOKENS
         ):
@@ -647,9 +841,30 @@ def _focused_text_range(root: Path, path: str, task: str, config: dict[str, Any]
 def _target(
     candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: dict[str, set[str]], root: Path, task: str, config: dict[str, Any]
 ) -> dict[str, Any]:
-    match = next((x for x in symbols if x["name"] in signals["symbols"]), None) or next(
-        (x for x in symbols if _split(x["name"]) & signals["terms"]), None
+    def symbol_relevance(symbol: dict[str, Any]) -> tuple[int, int]:
+        exact = symbol["name"] in signals["symbols"]
+        name_matches = _split(symbol["name"]) & signals["terms"]
+        docstring_matches = _split(str(symbol.get("docstring", ""))) & signals["terms"]
+        behavioral = bool(
+            re.match(
+                r"^(?:activate|apply|execute|handle|match|may|permit|process|resolve|run|validate)",
+                symbol["name"],
+            )
+        )
+        score = (
+            (100 if exact else 0)
+            + len(name_matches) * 10
+            + min(2, len(docstring_matches)) * 3
+            + (15 if behavioral else 0)
+        )
+        return score, -int(symbol["line_start"])
+
+    ranked_symbols = sorted(
+        (symbol for symbol in symbols if symbol_relevance(symbol)[0] > 0),
+        key=symbol_relevance,
+        reverse=True,
     )
+    match = ranked_symbols[0] if ranked_symbols else None
     file = candidate["file"]
     start_line = match["line_start"] if match else None
     end_line = match["line_end"] if match else None
@@ -736,12 +951,49 @@ def resolve_task(
         item["path"]: item.get("keys", [])
         for item in repo.get("configurations", [])
     }
+    indexed_symbols = _symbols(directory, catalog, set(by_path))
+    descriptions = {
+        path: (
+            set().union(*(_literal_split(str(symbol.get("docstring", ""))) for symbol in symbols))
+            if symbols
+            else set()
+        )
+        for path, symbols in indexed_symbols.items()
+    }
     lexical_matches = _lexical(
         repo["files"],
         signals,
         config["weights"],
         freshness,
         configuration_keys,
+        descriptions,
+    )
+    content_candidates = {item["file"]["path"] for item in lexical_matches[:24]}
+    source_terms = {
+        path: _literal_split(
+            (root / path).read_text(encoding="utf-8", errors="ignore")
+        )
+        for path in content_candidates
+    }
+    rescored_candidates = _lexical(
+        [by_path[path] for path in sorted(content_candidates)],
+        signals,
+        config["weights"],
+        freshness,
+        configuration_keys,
+        descriptions,
+        source_terms,
+    )
+    rescored_by_path = {
+        item["file"]["path"]: item
+        for item in rescored_candidates
+    }
+    lexical_matches = sorted(
+        (
+            rescored_by_path.get(item["file"]["path"], item)
+            for item in lexical_matches
+        ),
+        key=lambda item: (-item["score"], item["file"]["path"]),
     )
     literal_primary_matches = [
         item
@@ -750,7 +1002,12 @@ def resolve_task(
         and any(weight > 0 and family != "synonym_token" for weight, family in item["evidence"].values())
     ]
     primary_lexical = (literal_primary_matches or lexical_matches)[:8]
-    lexical = lexical_matches[:8]
+    lexical = list(
+        {
+            item["file"]["path"]: item
+            for item in [*primary_lexical, *lexical_matches[:8]]
+        }.values()
+    )
     ranked = _rerank(lexical, relationships, by_path, config["weights"])
     lexical_paths = {item["file"]["path"] for item in primary_lexical}
     primaries = [
@@ -759,7 +1016,16 @@ def resolve_task(
         and item["file"]["role"] == intent.primary_role
         and has_positive_evidence(item)
     ][:3]
-    symbol_map = _symbols(directory, catalog, {x["file"]["path"] for x in primaries})
+    exact_symbol_primaries = [
+        item
+        for item in primaries
+        if any(label.startswith("exact_symbol:") for label in item["evidence"])
+    ]
+    if exact_symbol_primaries:
+        primaries = exact_symbol_primaries
+    if _is_underspecified_refactor(task):
+        primaries = []
+    symbol_map = {path: indexed_symbols[path] for path in {x["file"]["path"] for x in primaries}}
     primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}
     tests = _dedupe(
@@ -781,7 +1047,15 @@ def resolve_task(
     impacts = _relationship_targets(primary_paths, relationships, by_path, root, task, signals, config)
     score = primaries[0]["score"] if primaries else 0
     margin = score - (primaries[1]["score"] if len(primaries) > 1 else 0)
-    families = {family for weight, family in primaries[0]["evidence"].values() if weight > 0} if primaries else set()
+    families = (
+        {
+            family
+            for weight, family in primaries[0]["evidence"].values()
+            if weight > 0
+        }
+        if primaries
+        else set()
+    )
     focused = bool(primary and primary[0]["start_line"])
     strong_labels: list[str] = []
     if primaries:
@@ -806,6 +1080,7 @@ def resolve_task(
         and margin >= config["confidence_margin"]
         and len(families) >= 2
         and has_strong_evidence
+        and "exact_symbol" not in strong_labels
     )
     level = "high" if high else "medium" if primary else "low"
     terms = sorted(signals["terms"])
