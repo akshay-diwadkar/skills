@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "manual_hash", "bundle_hash", "language_pass", "semantic_pass", "receipt"],
+  "properties": {
+    "contract_version": {"const": "manualize-1"},
+    "manual_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "bundle_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "language_pass": {"const": true},
+    "semantic_pass": {"const": true},
+    "receipt": {"const": "validated"}
+  }
+}

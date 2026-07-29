@@ -1,0 +1,22 @@
+[
+  {
+    "id": "compressed-actions",
+    "text": "Install the package, restart the service, and verify the status.",
+    "expected": ["MTE-SENT-001"]
+  },
+  {
+    "id": "vague-reference",
+    "text": "Restart it.",
+    "expected": ["MTE-REF-001"]
+  },
+  {
+    "id": "synonym-drift",
+    "text": "Restart the daemon.",
+    "expected": ["MTE-TERM-001"]
+  },
+  {
+    "id": "safe-single-action",
+    "text": "Restart the service.",
+    "expected": []
+  }
+]

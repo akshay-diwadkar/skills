@@ -1,17 +1,17 @@
-# Engineering Skills
+# Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
-[![Skills Suite](https://img.shields.io/badge/Skills-8%20Canonical-brightgreen.svg)](#-skill-catalog)
+[![Skills Suite](https://img.shields.io/badge/Skills-9%20Canonical-brightgreen.svg)](#-skill-catalog)
 
-> **Production-grade, evidence-backed engineering skills built for autonomous AI coding agents and human software engineers.**
+> **Production-grade, evidence-backed engineering and technical communication skills for autonomous AI agents and human practitioners.**
 
 ---
 
 ## 💡 Overview
 
-This repository provides a standardized, self-contained suite of **Engineering Skills** designed to augment AI coding assistants (such as **Google Antigravity**, **Cursor**, **Claude Code**, and **Windsurf**) as well as human developers. 
+This repository provides a standardized, self-contained suite of **Engineering and Technical Communication Skills** designed to augment AI coding assistants (such as **Google Antigravity**, **Cursor**, **Claude Code**, and **Windsurf**) as well as human practitioners.
 
 Each skill delivers repository-grounded workflows, opinionated guidelines, bundled scripts, and test suites that ensure high precision, minimal hallucination, and deterministic engineering outcomes.
 
@@ -39,7 +39,14 @@ flowchart TD
 
 ## 🎯 Skill Catalog
 
-The repository features 8 canonical engineering skills organized into **Workflows**, **Disciplines**, and **Utilities**:
+The repository features 9 canonical skills organized by domain:
+
+### Technical Communication
+| Skill | Invocation | Description |
+| :--- | :---: | :--- |
+| **[manualize](skills/technical-communication/manualize/SKILL.md)** | `both` | Write or audit source-grounded technical manuals with deterministic language, semantic, and receipt validation. |
+
+### Engineering
 
 ### 🛠️ Workflows
 | Skill | Invocation | Description |
@@ -92,6 +99,12 @@ Once installed, simply request tasks in your AI assistant's chat interface (such
 
 # Example: Triggering the scope-issue skill
 "Scope open issue #42 and build an implementation blueprint."
+
+# Example: Triggering the manualize write operation
+"Write a strict installation runbook from these source files."
+
+# Example: Triggering the manualize audit operation
+"Audit this manual for MTE-1 violations and source drift without rewriting it."
 ```
 
 

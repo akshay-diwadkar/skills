@@ -10,16 +10,18 @@ sys.path.insert(0, str(REPO_ROOT / "tools" / "validation"))
 import run_mypy  # noqa: E402
 import validate_repository as validator  # noqa: E402
 
-CANONICAL_SKILL_NAMES = {
-    "audit-codebase",
-    "design-codebase",
-    "diagram-codebase",
-    "implement-plan",
-    "map-codebase",
-    "optimize-codebase",
-    "plan-change",
-    "scope-issue",
+CANONICAL_SKILLS = {
+    ("engineering", "audit-codebase"),
+    ("engineering", "design-codebase"),
+    ("engineering", "diagram-codebase"),
+    ("engineering", "implement-plan"),
+    ("engineering", "map-codebase"),
+    ("engineering", "optimize-codebase"),
+    ("engineering", "plan-change"),
+    ("engineering", "scope-issue"),
+    ("technical-communication", "manualize"),
 }
+CANONICAL_SKILL_NAMES = {name for _, name in CANONICAL_SKILLS}
 
 
 def test_repository_validation_passes() -> None:
@@ -28,7 +30,7 @@ def test_repository_validation_passes() -> None:
 
 def test_skill_discovery_matches_expected_directories() -> None:
     skills = validator.discover_skills()
-    assert {skill.name for skill in skills} == CANONICAL_SKILL_NAMES
+    assert {(skill.parent.name, skill.name) for skill in skills} == CANONICAL_SKILLS
 
 
 def test_skill_metadata_and_tracked_references_use_canonical_names_only() -> None:
@@ -84,4 +86,6 @@ def test_pipeline_readmes_and_skill_changelog_are_supported_resources() -> None:
 
 
 def test_mypy_scopes_are_discovered_from_skill_directories() -> None:
-    assert {name for name, _, _ in run_mypy.discover_skill_scopes()} == {skill.name for skill in validator.discover_skills()}
+    assert {name for name, _, _ in run_mypy.discover_skill_scopes()} == {
+        f"{skill.parent.name}/{skill.name}" for skill in validator.discover_skills()
+    }

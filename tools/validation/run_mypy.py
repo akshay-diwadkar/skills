@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILLS_ROOT = ROOT / "skills" / "engineering"
+SKILLS_ROOT = ROOT / "skills"
 
 
 def run_mypy_group(label: str, targets: list[Path], extra_paths: list[Path] | None = None) -> bool:
@@ -29,11 +29,12 @@ def run_mypy_group(label: str, targets: list[Path], extra_paths: list[Path] | No
 def discover_skill_scopes() -> list[tuple[str, list[Path], list[Path]]]:
     return [
         (
-            skill_dir.name,
+            f"{skill_dir.parent.name}/{skill_dir.name}",
             [skill_dir, ROOT / "tests" / "skills" / skill_dir.name],
             [skill_dir / "scripts"],
         )
-        for skill_dir in sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
+        for domain_dir in sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
+        for skill_dir in sorted(path for path in domain_dir.iterdir() if path.is_dir())
     ]
 
 
