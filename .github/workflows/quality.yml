@@ -16,7 +16,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          python -m pip install ruff mypy pytest playwright jsonschema
+          python -m pip install ruff mypy pytest playwright
           python -m pip install -r skills/engineering/plan-change/requirements.txt
           python -m pip install -r skills/engineering/map-codebase/requirements.txt
       - name: Lint
@@ -48,7 +48,24 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install pytest jsonschema
+          python -m pip install pytest
           python -m pip install -r skills/engineering/plan-change/requirements.txt
       - name: Run installed skill execution tests
         run: python -m pytest tests/integration/test_installed_skill_execution.py -v
+
+  map-codebase-clean-install:
+    name: Map Codebase Clean Install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test harness and runtime requirements
+        run: |
+          python -m pip install pytest
+          python -m pip install -r skills/engineering/map-codebase/requirements.txt
+      - name: Check runtime prerequisites
+        run: python skills/engineering/map-codebase/scripts/cli.py doctor --repo-root .
+      - name: Run map-codebase suite
+        run: python -m pytest tests/skills/map-codebase -q

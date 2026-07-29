@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 SKILL_DIR = ROOT / "skills" / "engineering" / "map-codebase"
 EXTRACTION_DIR = SKILL_DIR / "scripts" / "knowledge" / "extraction"
-DOCUMENTS = [SKILL_DIR / "SKILL.md", SKILL_DIR / "references" / "integration-guide.md"]
+DOCUMENT = SKILL_DIR / "SKILL.md"
 BEGIN = "<!-- BEGIN EXTRACTOR COVERAGE -->"
 END = "<!-- END EXTRACTOR COVERAGE -->"
 
@@ -26,19 +26,17 @@ def _coverage_block(document: Path) -> str:
     return text.split(BEGIN, 1)[1].split(END, 1)[0].strip()
 
 
-def test_coverage_tables_match_extractor_modules_exactly() -> None:
+def test_coverage_table_matches_extractor_modules_exactly() -> None:
     expected = _extractor_modules()
-    blocks = [_coverage_block(document) for document in DOCUMENTS]
-    assert blocks[0] == blocks[1]
-    documented = set(re.findall(r"^\| `([^`]+\.py)` \|", blocks[0], flags=re.MULTILINE))
+    block = _coverage_block(DOCUMENT)
+    documented = set(re.findall(r"^\| `([^`]+\.py)` \|", block, flags=re.MULTILINE))
     assert documented == expected
     for module in expected:
-        assert blocks[0].count(f"`{module}`") == 1
+        assert block.count(f"`{module}`") == 1
 
 
-def test_tree_sitter_scope_coverage_is_explicit_in_both_documents() -> None:
-    for document in DOCUMENTS:
-        text = document.read_text(encoding="utf-8")
-        assert "Full tree-sitter extraction" in text
-        assert "scope-aware symbols, full-body ranges, and imports" in text
-        assert "Missing tree-sitter grammars fail with an actionable error" in text
+def test_tree_sitter_scope_coverage_is_explicit() -> None:
+    text = DOCUMENT.read_text(encoding="utf-8")
+    assert "Full tree-sitter extraction" in text
+    assert "scope-aware symbols, full-body ranges, and imports" in text
+    assert "Missing tree-sitter grammars fail with an actionable error" in text

@@ -1,1 +1,57 @@
-{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","required":["task","phase","knowledge_freshness","task_terms","confidence","fallback_searches"],"properties":{"task":{"type":"string"},"phase":{"oneOf":[{"type":"integer","minimum":1,"maximum":3},{"const":"all"}]},"knowledge_freshness":{"type":"string"},"task_terms":{"type":"array"},"confidence":{"type":"object"},"targets":{"type":"array","maxItems":3},"question":{"type":"string"},"stop_condition":{"type":"string"},"expansion_triggers":{"type":"array"},"phases":{"type":"array"},"fallback_searches":{"type":"array"}}}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "task",
+    "phase",
+    "knowledge_freshness",
+    "task_terms",
+    "confidence",
+    "fallback_searches"
+  ],
+  "properties": {
+    "task": {
+      "type": "string"
+    },
+    "phase": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        {
+          "const": "all"
+        }
+      ]
+    },
+    "knowledge_freshness": {
+      "type": "string"
+    },
+    "task_terms": {
+      "type": "array"
+    },
+    "confidence": {
+      "type": "object"
+    },
+    "targets": {
+      "type": "array",
+      "maxItems": 3
+    },
+    "question": {
+      "type": "string"
+    },
+    "stop_condition": {
+      "type": "string"
+    },
+    "expansion_triggers": {
+      "type": "array"
+    },
+    "phases": {
+      "type": "array"
+    },
+    "fallback_searches": {
+      "type": "array"
+    }
+  }
+}

@@ -1,15 +1,11 @@
 ---
 name: map-codebase
-description: Build and use compact repository knowledge for resolver-first code navigation. Use when starting coding work in an unfamiliar or large repository, locating likely implementation ownership, or refreshing repository knowledge after a coherent change set.
+description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
 ---
 
 # Map Codebase
 
 Use compact machine-only repository knowledge to reduce exploration overhead while preserving source as authoritative.
-
-## Quick Start
-
-For a task such as fixing retry behavior, first run `status` against the repository root to learn whether the existing knowledge is usable. Resolve the task at phase 1 and use the returned owner instead of broadly searching the repository. Read only that target and enough authoritative source to verify its contract. Implement the requested change once ownership is confirmed. After the coherent change set, run `refresh` with the changed files so the knowledge matches the source again. Finish with `validate` and the repository's normal verification commands.
 
 ## Extractor Coverage
 
@@ -23,6 +19,8 @@ For a task such as fixing retry behavior, first run `status` against the reposit
 <!-- END EXTRACTOR COVERAGE -->
 
 Install `requirements.txt` before indexing Go, Rust, Java, C, or C++. Missing tree-sitter grammars fail with an actionable error rather than silently returning point-line spans.
+
+Read [Resolver Benchmark](references/benchmark.md) when evaluating measured accuracy, retrieval cost, or known miss patterns.
 
 ## Core Workflow
 
@@ -64,6 +62,8 @@ Install `requirements.txt` before indexing Go, Rust, Java, C, or C++. Missing tr
 
 See [Worked Example](references/example-walkthrough.md) for an actual `partially-stale` status, its refresh command, and a phase-1 resolver result.
 
+Read [Knowledge Contract](references/knowledge-contract.md) when exact freshness, rollback, untracked-file, or artifact semantics matter.
+
 ## Task Ownership Rules
 
 - Every task has one deterministic primary owner and may have optional secondary constraints.
@@ -82,6 +82,7 @@ See [Worked Example](references/example-walkthrough.md) for an actual `partially
 
 ## Repository Scope and Untracked Files
 
+- Safe, non-ignored untracked files are included by default.
 - `include_untracked = false` applies uniformly to build, status, refresh, and explicit `--changed-file` paths.
 - The resolved knowledge directory is always excluded from repository metadata.
 - The exclusion applies to the default directory and a custom `--output` directory.
@@ -96,6 +97,8 @@ See [Worked Example](references/example-walkthrough.md) for an actual `partially
 - Do not preload repository maps or symbol shards.
 - Read only the source targets returned for the active phase.
 - The resolver loads selected symbol shards internally.
+
+Read [Resolver Design](references/resolver-design.md) when changing scoring, ownership classification, symbol focusing, confidence, or phase construction.
 
 ## CLI Errors
 

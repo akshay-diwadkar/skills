@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import socket
+import urllib.request
 from collections import Counter
 from pathlib import Path
 from types import ModuleType
@@ -59,6 +61,7 @@ def test_committed_baseline_covers_every_fixture_repository() -> None:
         "realistic-large",
     }
     assert 0.0 <= baseline["overall"] <= 1.0
+    assert baseline["repositories"]["javascript-small"] >= 0.85
 
 
 def test_realistic_fixture_has_hundreds_of_files_and_cross_module_imports() -> None:
@@ -75,24 +78,38 @@ def test_retrieval_metrics_credit_savings_only_to_correct_results() -> None:
             {
                 "repo": "sample",
                 "correct": True,
-                "resolver_tokens": 10,
-                "grep_tokens": 100,
+                "resolver_estimated_tokens": 10,
+                "grep_estimated_tokens": 100,
                 "resolver_characters": 40,
                 "grep_characters": 400,
             },
             {
                 "repo": "sample",
                 "correct": False,
-                "resolver_tokens": 1,
-                "grep_tokens": 100,
+                "resolver_estimated_tokens": 1,
+                "grep_estimated_tokens": 100,
                 "resolver_characters": 4,
                 "grep_characters": 400,
             },
         ]
     )
-    assert metrics["sample"]["correct"]["token_savings"] == 0.9
-    assert metrics["sample"]["incorrect"]["token_savings"] == 0.0
+    assert metrics["sample"]["correct"]["estimated_token_savings"] == 0.9
+    assert metrics["sample"]["incorrect"]["estimated_token_savings"] == 0.0
     assert metrics["sample"]["incorrect"]["character_savings"] == 0.0
+
+
+def test_estimated_tokens_are_deterministic_and_network_independent(
+    monkeypatch,
+) -> None:
+    def block_network(*_args, **_kwargs):
+        raise AssertionError("benchmark token estimation must not use the network")
+
+    monkeypatch.setattr(socket, "create_connection", block_network)
+    monkeypatch.setattr(urllib.request, "urlopen", block_network)
+    module = _module()
+
+    assert module._measure("") == {"estimated_tokens": 0, "characters": 0}
+    assert module._measure("abcde") == {"estimated_tokens": 2, "characters": 5}
 
 
 def test_quality_check_does_not_reuse_stale_bytecode(tmp_path: Path) -> None:
