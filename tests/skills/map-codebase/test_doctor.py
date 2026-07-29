@@ -27,7 +27,7 @@ def test_doctor_reports_success_with_compatible_dependencies(tmp_path: Path, cap
     output = capsys.readouterr().out
     assert status == 0
     assert "[OK] Repository root:" in output
-    assert "[OK] Dependencies: 10 requirement(s) installed" in output
+    assert "[OK] Dependencies: 11 requirement(s) installed" in output
 
 
 def test_doctor_reports_invalid_repository_path_without_traceback(tmp_path: Path, capsys) -> None:
