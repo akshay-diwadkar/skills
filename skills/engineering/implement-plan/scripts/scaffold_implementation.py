@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import uuid
 from pathlib import Path
 
@@ -30,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
     args.output.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
+    for warning in bundle["warnings"]:
+        print(f"Warning [{warning['code']}]: {warning['message']}", file=sys.stderr)
     print(args.output)
     return 0
 

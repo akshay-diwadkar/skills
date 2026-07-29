@@ -19,6 +19,7 @@ Use these decisions exactly. The canonical Mechanical Propagation Gate and Non-D
 - Keep a completed slice only when it is independently correct, has no orphaned symbols, and passes its focused verification.
 - Reverse dependent work only through exact agent-hunk evidence whose after-context still matches.
 - If hunk ownership or context is uncertain, leave the file untouched and request direction.
+- Treat `unified_diff` as review metadata only. A missing or inaccurate diff never overrides authoritative before/after hashes.
 
 ## Omitted Caller or Fixture
 
@@ -43,6 +44,8 @@ Use these decisions exactly. The canonical Mechanical Propagation Gate and Non-D
 
 - A plan test failure belongs to its owning `CH-n` unless the test diverges from `T-n`.
 - An existing failure is pre-existing only when the same baseline command failed before editing.
+- Apply the same rule to quality checks using the identical configured tool and command plus baseline evidence.
+- Missing, stale, failed, unknown-baseline, or unavailable quality evidence blocks completion.
 - Without a matching baseline result, use `unknown-baseline`; do not fix unrelated code to make the suite green.
 - Unexpected resource exhaustion or duration: narrow the check, investigate a change-caused loop/query/recursion risk, and report remaining limits honestly.
 

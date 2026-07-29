@@ -6,6 +6,21 @@
     "preserved": [],
     "verification_commands": ["python -m pytest -q"],
     "expected_bundle_status": "complete",
+    "required_structural_checks": [
+      {
+        "id": "nullable-normalize-signature",
+        "type": "python-function-signature",
+        "path": "src/names.py",
+        "name": "normalize_name",
+        "parameters": ["value: str | None"],
+        "returns": "str"
+      },
+      {
+        "id": "names-no-generic-except",
+        "type": "python-no-generic-except",
+        "paths": ["src/names.py"]
+      }
+    ],
     "required_report": ["CH-1", "T-1", "complete"],
     "forbidden_report": ["not tested"]
   },
@@ -17,6 +32,29 @@
     "dirty_setup": [{"path": "notes.txt", "append": "user-owned note\n"}],
     "verification_commands": ["python -m pytest -q"],
     "expected_bundle_status": "complete",
+    "required_structural_checks": [
+      {
+        "id": "format-name-signature",
+        "type": "python-function-signature",
+        "path": "src/api.py",
+        "name": "format_name",
+        "parameters": ["value: str"],
+        "returns": "str"
+      },
+      {
+        "id": "display-name-signature",
+        "type": "python-function-signature",
+        "path": "src/caller.py",
+        "name": "display_name",
+        "parameters": ["value: str"],
+        "returns": "str"
+      },
+      {
+        "id": "api-no-generic-except",
+        "type": "python-no-generic-except",
+        "paths": ["src/api.py", "src/caller.py"]
+      }
+    ],
     "required_report": ["mechanical-propagation", "CH-1", "plan gap"],
     "forbidden_report": ["scope unchanged"]
   },
@@ -88,6 +126,21 @@
     "preserved": [],
     "verification_commands": ["python -m pytest -q"],
     "expected_bundle_status": "complete",
+    "required_structural_checks": [
+      {
+        "id": "parse-value-signature",
+        "type": "python-function-signature",
+        "path": "src/parser.py",
+        "name": "parse_value",
+        "parameters": ["value: str"],
+        "returns": "int"
+      },
+      {
+        "id": "parser-no-generic-except",
+        "type": "python-no-generic-except",
+        "paths": ["src/parser.py"]
+      }
+    ],
     "required_report": ["invalid", "empty", "T-1"],
     "forbidden_report": ["happy path only"]
   },

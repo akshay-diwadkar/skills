@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from check_implementation import validate_bundle
+from implementation_contract import plan_contract_version
 
 
 def main() -> int:
@@ -21,7 +22,8 @@ def main() -> int:
     if not isinstance(bundle, dict) or bundle.get("status") != "complete":
         print("Error [bundle.receipt_status]: Only a complete implementation bundle may receive a validation receipt.")
         return 1
-    diagnostics = validate_bundle(bundle, args.plan.read_text(encoding="utf-8"), args.repo_root)
+    plan_text = args.plan.read_text(encoding="utf-8")
+    diagnostics = validate_bundle(bundle, plan_text, args.repo_root)
     if diagnostics:
         for item in diagnostics:
             print(item)
@@ -30,7 +32,7 @@ def main() -> int:
     receipt_body.pop("validation_receipt", None)
     bundle["validation_receipt"] = {
         "implementation_contract": 3,
-        "plan_contract": 5,
+        "plan_contract": plan_contract_version(plan_text),
         "sha256": hashlib.sha256(json.dumps(receipt_body, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
     }
     args.bundle.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
