@@ -26,8 +26,39 @@ LANGUAGES = {
     ".java": "Java",
     ".c": "C",
     ".cpp": "C++",
+    ".cs": "C#",
 }
 ENTRY_NAMES = {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}
+
+
+# ---------------------------------------------------------------------------
+# Extractor registry: suffix -> extraction function
+# Each extractor has signature:
+#   (full_path: Path, rel_str: str, content: str, subsystem: str)
+#     -> tuple[list[ExtractedSymbol], list[str], str, list[str]]
+# ---------------------------------------------------------------------------
+_EXTRACTORS: dict[str, Any] = {}
+
+
+def register_extractor(suffixes: list[str], func: Any) -> None:
+    """Register an extraction function for one or more file suffixes."""
+    for suffix in suffixes:
+        _EXTRACTORS[suffix] = func
+
+
+def _get_extractor(suffix: str) -> Any | None:
+    """Look up the registered extractor for a file suffix."""
+    return _EXTRACTORS.get(suffix)
+
+
+# Register built-in extractors
+register_extractor([".py"], extract_python_file)
+register_extractor([".js", ".jsx", ".ts", ".tsx"], extract_javascript_file)
+register_extractor([".go", ".rs", ".java", ".c", ".cpp"], extract_lexical_file)
+
+from knowledge.extraction.csharp import extract_csharp_file
+
+register_extractor([".cs"], extract_csharp_file)
 
 
 def shard_id(path: str) -> str:
@@ -103,12 +134,9 @@ def classify_and_extract(
     extracted: list[Any] = []
     imports: list[str] = []
     unknowns: list[str] = []
-    if suffix == ".py":
-        extracted, imports, _, unknowns = extract_python_file(full, path, content, subsystem)
-    elif suffix in {".js", ".jsx", ".ts", ".tsx"}:
-        extracted, imports, _, unknowns = extract_javascript_file(full, path, content, subsystem)
-    elif suffix in {".go", ".rs", ".java", ".c", ".cpp"}:
-        extracted, imports, _, unknowns = extract_lexical_file(full, path, content, subsystem)
+    extractor = _get_extractor(suffix)
+    if extractor is not None:
+        extracted, imports, _, unknowns = extractor(full, path, content, subsystem)
     symbols = [
         {
             "name": item.name,
@@ -185,7 +213,7 @@ def project(
     for file in files:
         subsystems.setdefault(file["subsystem"], []).append(file["path"])
     repo = {
-        "schema_version": "4.0",
+        "schema_version": "5.0",
         "repository": {"root": ".", "languages": sorted({f["language"] for f in files if f["language"]})},
         "subsystems": [{"name": key, "paths": sorted(value)} for key, value in sorted(subsystems.items())],
         "directories": [{"path": key, "file_count": len(value)} for key, value in sorted(subsystems.items())],
@@ -205,7 +233,7 @@ def project(
         "unknowns": sorted({f"{file['path']}: {item}" for file in files for item in file.get("unknowns", [])})[:20],
     }
     relationships = {
-        "schema_version": "4.0",
+        "schema_version": "5.0",
         "imports": sorted(imports, key=lambda x: (x["source"], x["target"])),
         "calls": [],
         "test_links": sorted(tests, key=lambda x: (x["source"], x["target"])),

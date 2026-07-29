@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "required": [
+    "_meta",
     "task",
     "phase",
     "knowledge_freshness",
@@ -10,6 +11,10 @@
     "fallback_searches"
   ],
   "properties": {
+    "_meta": {
+      "type": "object",
+      "required": ["command", "schema", "docs"]
+    },
     "task": {
       "type": "string"
     },
@@ -52,6 +57,12 @@
     },
     "fallback_searches": {
       "type": "array"
+    },
+    "tokens_saved_estimate": {
+      "type": "object"
+    },
+    "budget_detail": {
+      "type": "object"
     }
   }
 }

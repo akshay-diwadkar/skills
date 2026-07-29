@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from tokenizer import count_tokens
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -404,24 +406,35 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
     return TaskIntent(primary, tuple(secondary), tuple(reasons))
 
 
-def _load(root: Path, out: Path | str | None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+def _load(
+    root: Path,
+    out: Path | str | None,
+) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
     directory = resolve_knowledge_directory(root, out, load_config(root))
-    names = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json"]
+    names = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json", "symbol-index.json"]
     if any(not (directory / x).is_file() for x in names):
-        raise FileNotFoundError("Knowledge artifacts missing; run build first.")
-    manifest, repo, catalog, relationships = [json.loads((directory / x).read_text()) for x in names]
+        raise FileNotFoundError(
+            "Knowledge artifacts missing at "
+            f"{directory}\n"
+            f"  → Run: python scripts/cli.py build --repo-root {root}\n"
+            "  → Or:  Inspect source directly (knowledge is optional)"
+        )
+    manifest, repo, catalog, relationships, symbol_index = [
+        json.loads((directory / x).read_text(encoding="utf-8")) for x in names
+    ]
     errors = sum(
         (
             validate_schema_json(manifest, "manifest.schema.json"),
             validate_schema_json(repo, "repo-map.schema.json"),
             validate_schema_json(catalog, "symbols.schema.json"),
             validate_schema_json(relationships, "relationships.schema.json"),
+            validate_schema_json(symbol_index, "symbol-index.schema.json"),
         ),
         [],
     )
     if errors:
         raise ValueError(f"Invalid knowledge artifacts: {errors}")
-    return directory, manifest, repo, catalog, relationships
+    return directory, manifest, repo, catalog, relationships, symbol_index
 
 
 def _add(evidence: dict[str, tuple[float, str]], key: str, weight: float, family: str) -> None:
@@ -686,6 +699,16 @@ def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[
     return answer
 
 
+def _exact_symbol_paths(symbol_index: dict[str, Any], signals: dict[str, set[str]]) -> set[str]:
+    """Return exact symbol owners without loading symbol shards."""
+    candidates = signals["symbols"] | signals["literal_terms"]
+    return {
+        entry["file"]
+        for candidate in candidates
+        for entry in symbol_index.get("symbols", {}).get(candidate.casefold(), [])
+    }
+
+
 def _configuration_key_candidates(task: str) -> list[str]:
     """Extract ordered key-shaped candidates without treating prose as keys."""
     quoted = re.findall(r"['\"]([^'\"]+)['\"]", task)
@@ -935,13 +958,83 @@ def _relationship_targets(
     return _dedupe([_target(item, [], signals, root, task, config) for _, item in sorted(merged.items())])
 
 
+def _estimate_tokens_saved(root: Path, repo: dict[str, Any], targets: list[dict[str, Any]]) -> dict[str, Any]:
+    """Estimate tokens saved by returning only targets instead of all files."""
+    all_files = repo.get("files", [])
+    total_files = len(all_files)
+
+    # Estimate average tokens per file from a sample (up to 20 files)
+    sample_paths = [f["path"] for f in all_files[:20]]
+    sample_tokens = []
+    for path in sample_paths:
+        try:
+            content = (root / path).read_text(encoding="utf-8", errors="ignore")
+            sample_tokens.append(count_tokens(content))
+        except OSError:
+            continue
+    avg_tokens = sum(sample_tokens) // max(len(sample_tokens), 1)
+
+    target_tokens = sum(_target_tokens(root, target) for target in targets)
+
+    total_estimated = avg_tokens * total_files
+    return {
+        "target_tokens": target_tokens,
+        "total_estimated_tokens": total_estimated,
+        "tokens_saved": max(0, total_estimated - target_tokens),
+        "reduction_percent": round(100 * (1 - target_tokens / max(total_estimated, 1)), 1),
+    }
+
+
+def _target_tokens(root: Path, target: dict[str, Any]) -> int:
+    """Count only the source range represented by one resolver target."""
+    try:
+        lines = (root / target["path"]).read_text(encoding="utf-8", errors="ignore").splitlines(keepends=True)
+    except OSError:
+        return 0
+    start = max(int(target.get("start_line") or 1), 1)
+    end = min(int(target.get("end_line") or len(lines)), len(lines))
+    return count_tokens("".join(lines[start - 1:end])) if end >= start else 0
+
+
+def _apply_budget(
+    root: Path,
+    phases: dict[int, dict[str, Any]],
+    phase: int | str,
+    budget: int,
+) -> dict[str, Any] | None:
+    if budget < 0:
+        raise ValueError("budget must be zero or a positive integer")
+    if budget == 0:
+        return None
+    used = 0
+    excluded: list[dict[str, Any]] = []
+    selected = (1, 2, 3) if phase == "all" else (int(phase),)
+    for key in selected:
+        retained = []
+        for target in phases[key]["targets"]:
+            tokens = _target_tokens(root, target)
+            if used + tokens <= budget:
+                retained.append(target)
+                used += tokens
+            else:
+                excluded.append({"phase": key, "path": target["path"], "tokens": tokens})
+        phases[key]["targets"] = retained
+    return {
+        "limit": budget,
+        "used": used,
+        "excluded_targets": excluded,
+    }
+
+
 def resolve_task(
-    repo_root: Path | str, task: str, knowledge_dir: Path | str | None = None, phase: int | str = 1
+    repo_root: Path | str, task: str, knowledge_dir: Path | str | None = None, phase: int | str = 1,
+    budget: int = 0,
+    record_analytics: bool = False,
 ) -> dict[str, Any]:
     if phase not in {1, 2, 3, "all"}:
         raise ValueError("phase must be 1, 2, 3, or all")
     root = Path(repo_root).resolve()
-    directory, _, repo, catalog, relationships = _load(root, knowledge_dir)
+    directory, _, repo, catalog, relationships, symbol_index = _load(root, knowledge_dir)
     config = load_config(root)
     freshness = check_freshness(root, directory)["status"]
     signals = _signals(task)
@@ -951,7 +1044,18 @@ def resolve_task(
         item["path"]: item.get("keys", [])
         for item in repo.get("configurations", [])
     }
-    indexed_symbols = _symbols(directory, catalog, set(by_path))
+    lexical_matches = _lexical(
+        repo["files"],
+        signals,
+        config["weights"],
+        freshness,
+        configuration_keys,
+        {},
+    )
+    content_candidates = {
+        item["file"]["path"] for item in lexical_matches[:24]
+    } | _exact_symbol_paths(symbol_index, signals)
+    indexed_symbols = _symbols(directory, catalog, content_candidates)
     descriptions = {
         path: (
             set().union(*(_literal_split(str(symbol.get("docstring", ""))) for symbol in symbols))
@@ -960,15 +1064,6 @@ def resolve_task(
         )
         for path, symbols in indexed_symbols.items()
     }
-    lexical_matches = _lexical(
-        repo["files"],
-        signals,
-        config["weights"],
-        freshness,
-        configuration_keys,
-        descriptions,
-    )
-    content_candidates = {item["file"]["path"] for item in lexical_matches[:24]}
     source_terms = {
         path: _literal_split(
             (root / path).read_text(encoding="utf-8", errors="ignore")
@@ -1025,7 +1120,11 @@ def resolve_task(
         primaries = exact_symbol_primaries
     if _is_underspecified_refactor(task):
         primaries = []
-    symbol_map = {path: indexed_symbols[path] for path in {x["file"]["path"] for x in primaries}}
+    primary_symbol_paths = {x["file"]["path"] for x in primaries}
+    missing_symbol_paths = primary_symbol_paths - set(indexed_symbols)
+    if missing_symbol_paths:
+        indexed_symbols.update(_symbols(directory, catalog, missing_symbol_paths))
+    symbol_map = {path: indexed_symbols[path] for path in primary_symbol_paths}
     primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
     primary_paths = {x["path"] for x in primary}
     tests = _dedupe(
@@ -1125,7 +1224,7 @@ def resolve_task(
             uncertainties.append("no exact symbol, exact path, or filename evidence supports high confidence")
         if high:
             reasons.append("top candidate exceeds the configured confidence margin")
-    phases = {
+    phases: dict[int, dict[str, Any]] = {
         1: {
             "targets": primary,
             "question": "Which likely task owner owns the requested behavior or constraint?",
@@ -1154,7 +1253,20 @@ def resolve_task(
             "expansion_triggers": ["cross-subsystem behavior is observed"],
         },
     }
+    budget_detail = _apply_budget(root, phases, phase, budget)
+    if budget_detail and budget_detail["excluded_targets"]:
+        uncertainties.append(
+            f"{len(budget_detail['excluded_targets'])} owner or constraint target(s) were excluded by the token budget"
+        )
+    selected_targets: list[dict[str, Any]] = (
+        phases[int(phase)]["targets"] if phase != "all" else phases[1]["targets"]
+    )
     payload = {
+        "_meta": {
+            "command": "resolve",
+            "schema": "resolver-result.schema.json",
+            "docs": "references/resolver-design.md",
+        },
         "task": task,
         "phase": phase,
         "knowledge_freshness": freshness,
@@ -1165,8 +1277,11 @@ def resolve_task(
             "reasons": list(intent.reasons),
         },
         "confidence": {"level": level, "score": round(score, 3), "reasons": reasons, "uncertainties": uncertainties},
+        "tokens_saved_estimate": _estimate_tokens_saved(root, repo, selected_targets),
         "fallback_searches": fallback,
     }
+    if budget_detail is not None:
+        payload["budget_detail"] = budget_detail
     payload.update(
         {"phases": [{"phase": key, **value} for key, value in phases.items()]}
         if phase == "all"
@@ -1175,6 +1290,26 @@ def resolve_task(
     errors = validate_schema_json(payload, "resolver-result.schema.json")
     if errors:
         raise ValueError(f"Invalid resolver result: {errors}")
+
+    if record_analytics:
+        try:
+            from analytics import record_session
+
+            returned_targets = (
+                [target for phase_payload in payload["phases"] for target in phase_payload["targets"]]
+                if phase == "all"
+                else payload["targets"]
+            )
+            record_session(directory, "resolve", {
+                "task": task,
+                "phase": phase,
+                "confidence": level,
+                "targets_returned": len(returned_targets),
+                "tokens_saved": payload.get("tokens_saved_estimate", {}).get("tokens_saved", 0),
+            })
+        except Exception:
+            pass
+
     return payload
 
 
@@ -1187,6 +1322,34 @@ def format_human(result: dict[str, Any]) -> str:
             *[f"- `{x['path']}:{x['start_line'] or '?'}-{x['end_line'] or '?'}` {x['symbol'] or ''}" for x in targets],
         ]
     )
+
+
+def compact_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Strip scoring breakdowns to return minimal agent-facing output."""
+    compact: dict[str, Any] = {
+        "task": result["task"],
+        "phase": result["phase"],
+        "confidence": result["confidence"]["level"],
+    }
+    if result.get("phase") == "all":
+        compact["phases"] = [
+            {
+                "phase": p["phase"],
+                "targets": [t["path"] for t in p.get("targets", [])],
+            }
+            for p in result.get("phases", [])
+        ]
+    else:
+        compact["targets"] = [t["path"] for t in result.get("targets", [])]
+        if result.get("stop_condition"):
+            compact["stop_condition"] = result["stop_condition"]
+    if result.get("fallback_searches"):
+        compact["fallback_searches"] = result["fallback_searches"]
+    if result.get("tokens_saved_estimate"):
+        compact["tokens_saved_estimate"] = result["tokens_saved_estimate"]
+    if result.get("budget_detail"):
+        compact["budget_detail"] = result["budget_detail"]
+    return compact
 
 
 if __name__ == "__main__":

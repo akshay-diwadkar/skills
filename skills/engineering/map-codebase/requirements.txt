@@ -7,5 +7,6 @@ tree-sitter-java>=0.21,<0.26
 tree-sitter-rust>=0.21,<0.26
 tree-sitter-c>=0.21,<0.26
 tree-sitter-cpp>=0.21,<0.26
+tree-sitter-c-sharp>=0.21,<0.26
 jsonschema>=4,<5
 tiktoken>=0.7,<1

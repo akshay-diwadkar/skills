@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "4.0"
+      "const": "5.0"
     },
     "imports": {
       "type": "array"

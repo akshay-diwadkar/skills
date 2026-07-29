@@ -36,7 +36,7 @@ def test_build_knowledge_artifacts(sample_repo: Path):
     assert not (sample_repo / ".github" / "workflows" / "refresh-codebase-knowledge.yml").exists()
 
     index_data = json.loads((out_dir / "repo-map.json").read_text(encoding="utf-8"))
-    assert index_data["schema_version"] == "4.0"
+    assert index_data["schema_version"] == "5.0"
     assert len(index_data["files"]) > 0
 
     # Verify vendor code is excluded

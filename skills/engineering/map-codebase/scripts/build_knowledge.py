@@ -24,8 +24,8 @@ from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
-SCHEMA_VERSION = "4.0"
-EXTRACTOR_VERSION = "4.1.0"
+SCHEMA_VERSION = "5.0"
+EXTRACTOR_VERSION = "5.0.0"
 
 
 def _digest(value: Any) -> str:
@@ -96,6 +96,22 @@ def _write_shards(out: Path, symbols: list[dict[str, Any]]) -> dict[str, Any]:
     return {"schema_version": SCHEMA_VERSION, "symbol_count": len(symbols), "shards": shards}
 
 
+def _symbol_index_payload(symbols: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return an inverted symbol index with deterministic entries."""
+    index: dict[str, list[dict[str, Any]]] = {}
+    for sym in symbols:
+        entry = {"file": sym["path"], "line": sym["line_start"], "kind": sym["kind"]}
+        index.setdefault(sym["name"].lower(), []).append(entry)
+    for sym in symbols:
+        qname = sym.get("qualified_name", "").lower()
+        if qname and qname != sym["name"].lower():
+            entry = {"file": sym["path"], "line": sym["line_start"], "kind": sym["kind"]}
+            index.setdefault(qname, []).append(entry)
+    for key in index:
+        index[key] = sorted(index[key], key=lambda x: (x["file"], x["line"]))
+    return {"schema_version": SCHEMA_VERSION, "symbols": dict(sorted(index.items()))}
+
+
 def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
     root = Path(repo_root).resolve()
     config = load_config(root)
@@ -108,8 +124,14 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
     symbols = []
     configs = []
     commands = []
+    skipped_errors: list[tuple[str, str]] = []
     for path in included:
-        item, _, reason = classify_and_extract(root, path, config)
+        try:
+            item, _, reason = classify_and_extract(root, path, config)
+        except (OSError, TimeoutError) as exc:
+            skipped_errors.append((path, str(exc)))
+            ignored.append(path)
+            continue
         if item is None:
             ignored.append(path)
             continue
@@ -118,10 +140,19 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
         if item.configuration:
             configs.append(item.configuration)
         commands.extend(item.commands)
+    if skipped_errors:
+        detail = "; ".join(f"{path}: {reason}" for path, reason in skipped_errors)
+        print(f"Warning: {len(skipped_errors)} file(s) skipped after I/O or timeout failures: {detail}", file=sys.stderr)
     repo, relationships = project(files, configs, commands)
     repo["ignored_paths"] = sorted(set(ignored))
     catalog = _write_shards(out, symbols)
-    artifacts = {"repo-map.json": repo, "relationships.json": relationships, "symbols.json": catalog}
+    symbol_index = _symbol_index_payload(symbols)
+    artifacts = {
+        "repo-map.json": repo,
+        "relationships.json": relationships,
+        "symbols.json": catalog,
+        "symbol-index.json": symbol_index,
+    }
     hashes = {name: _digest(data) for name, data in artifacts.items()}
     file_hashes = {f["path"]: f["hash"] for f in files}
     revision, branch, dirty, untracked = get_git_info(root, config, out)
@@ -151,6 +182,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
             validate_schema_json(manifest, "manifest.schema.json"),
             validate_schema_json(repo, "repo-map.schema.json"),
             validate_schema_json(catalog, "symbols.schema.json"),
+            validate_schema_json(symbol_index, "symbol-index.schema.json"),
             validate_schema_json(relationships, "relationships.schema.json"),
             validate_semantic_graph(root, repo, relationships, symbols, manifest),
         ),
@@ -165,6 +197,7 @@ def build_knowledge(repo_root: Path | str, output_dir: Path | str | None = None)
         if old.exists():
             old.unlink()
     return {
+        "_meta": {"command": "build"},
         "status": "success",
         "output_dir": str(out),
         "files_indexed": len(files),
