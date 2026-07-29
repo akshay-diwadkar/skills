@@ -31,6 +31,8 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
+    assert "version: 1.1.0" in text
+    assert "--verify-evidence" in text
 
 
 def test_template_is_the_single_shape_source() -> None:
@@ -48,3 +50,22 @@ def test_template_is_the_single_shape_source() -> None:
     assert template.count("## Evidence Ledger") == 1
     for heading in expected:
         assert template.count(f"## {heading}") == 1
+
+
+def test_pipeline_documentation_and_changelog_are_present() -> None:
+    readme = (SKILL / "README.md").read_text(encoding="utf-8")
+    assert "scope-issue" in readme
+    assert "design-codebase" in readme
+    assert "prepare_plan.py" in readme
+    assert "--request-file" in readme
+    assert "request_sha256" in readme
+    for limitation in ("authenticate", "evidence freshness", "Git commit", "correct and complete"):
+        assert limitation in readme
+
+    for skill_name in ("plan-change", "scope-issue"):
+        cross_link = ROOT / "skills" / "engineering" / skill_name / "README.md"
+        assert "../design-codebase/README.md" in cross_link.read_text(encoding="utf-8")
+
+    changelog = (SKILL / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## 1.1.0 - 2026-07-29" in changelog
+    assert "SHA-256" in changelog

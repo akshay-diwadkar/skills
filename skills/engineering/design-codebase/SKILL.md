@@ -1,6 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
+version: 1.1.0
 ---
 
 # Design Codebase
@@ -67,13 +68,16 @@ Record only evidence that supports a design claim. Use the ledger syntax in
 `references/handoff-template.md`; cite repository locations precisely and
 distinguish repository, request, runtime, and external evidence. Complete the
 gate when every material design claim can cite a defined `[E-n]` record.
+Local evidence may include an exact line-range `sha256`; finalization computes
+it when omitted.
 
 ### Gate 3: Compare Structural Choices
 
 Describe the current structure, a chosen structure, and at least one genuinely
 distinct alternative. Give each design a boundary, owner, and core abstraction.
 Reject parameter-only alternatives. Complete the gate only when one alternative
-changes the core abstraction and also changes boundary or ownership.
+changes the core abstraction and also changes boundary or ownership, and that
+alternative cites evidence not cited by the chosen design rationale.
 
 ### Gate 4: Choose Design Depth
 
@@ -121,5 +125,15 @@ python scripts/finalize_assessment.py \
 ```
 
 The finalizer emits exactly one document, `/absolute/path/to/output/handoff.md`.
-Submit that file as the sole primary artifact and direct `plan-change` to use it
-as `prepare_plan.py --request-file`.
+It verifies supplied evidence hashes and backfills every missing local hash.
+Before handoff, verify the finalized evidence bindings:
+
+```bash
+python scripts/check_assessment.py \
+  --repo-root /absolute/path/to/repository \
+  --verify-evidence \
+  /absolute/path/to/output/handoff.md
+```
+
+Submit `handoff.md` as the sole primary artifact and direct `plan-change` to
+use it as `prepare_plan.py --request-file`.

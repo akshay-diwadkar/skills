@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -146,6 +147,74 @@ def test_evidence_identifiers_and_local_locators_are_validated(tmp_path: Path) -
     )
 
 
+def test_evidence_hashes_bind_exact_current_line_ranges(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    assert codes(example(), repo) == set()
+
+    stale = example().replace(
+        "383f9a66d5763c7a293a22f6388a418a7fba3f8979b35aa7c31fb404d0372c19",
+        "0" * 64,
+    )
+    _parsed, diagnostics = validate_handoff(stale, repo)
+    mismatch = next(item for item in diagnostics if item.code == "evidence.sha256.mismatch")
+    assert "evidence is stale" in mismatch.message
+    assert "payments/service.py:1-7" in mismatch.message
+
+    malformed = example().replace(
+        "383f9a66d5763c7a293a22f6388a418a7fba3f8979b35aa7c31fb404d0372c19",
+        "A" * 64,
+    )
+    assert "evidence.sha256.invalid" in codes(malformed, repo)
+
+    non_local = example().replace(
+        "locator: user-request | claim:",
+        f"locator: user-request | sha256: {'0' * 64} | claim:",
+    )
+    assert "evidence.sha256.unsupported" in codes(non_local, repo)
+
+
+def test_evidence_hashes_are_optional_until_complete_verification(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    without_hashes = example()
+    for digest in (
+        "383f9a66d5763c7a293a22f6388a418a7fba3f8979b35aa7c31fb404d0372c19",
+        "dcf982001e19cb93ac5b5bbf888233b985f8a933b53623ad2f71b3f1153f7e0d",
+        "e5315c9858912d0b35c027fc7f9927dcb1cd0f266bc29b7f6d2d10cf3ac69e29",
+    ):
+        without_hashes = without_hashes.replace(f" | sha256: {digest}", "")
+
+    assert codes(without_hashes, repo) == set()
+    _parsed, diagnostics = validate_handoff(
+        without_hashes,
+        repo,
+        require_evidence_hashes=True,
+    )
+    assert [item.code for item in diagnostics].count("evidence.sha256.missing") == 3
+
+
+def test_evidence_hash_matches_plan_change_hash_excerpt(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    parsed, diagnostics = validate_handoff(example(), repo)
+    assert diagnostics == []
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "hash_excerpt.py"),
+            "--path",
+            str(repo / "payments" / "service.py"),
+            "--start-line",
+            "1",
+            "--end-line",
+            "7",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    excerpt_hash = result.stdout.splitlines()[0].partition(": ")[2]
+    assert parsed.evidence["E-2"].sha256 == excerpt_hash
+
+
 def test_alternative_must_change_abstraction_and_boundary_or_owner(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     chosen_core = "PaymentGateway protocol using ChargeRequest, PaymentResult, and domain payment errors"
@@ -165,6 +234,29 @@ def test_alternative_must_change_abstraction_and_boundary_or_owner(tmp_path: Pat
     )
     assert "alternative.structural.none" in codes(parameter_variant, repo)
     assert "alternative.structural.none" not in codes(example(), repo)
+
+
+def test_fake_distinct_alternative_requires_distinct_evidence(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fake_distinct = (
+        example()
+        .replace(
+            "Checkout and subscription flows call concrete functions owned by the payment service module",
+            "Provider integration boundary for domain payment operations",
+        )
+        .replace("- Owner: Payment service", "- Owner: Payment integration team")
+        .replace(
+            "Concrete payment-service module functions over provider SDK values",
+            "Gateway protocol composed of charge request, result, and stable payment errors",
+        )
+        .replace(
+            "less coherent boundary. [E-2] [E-3]",
+            "less coherent boundary. [E-2] [E-4]",
+        )
+    )
+    result_codes = codes(fake_distinct, repo)
+    assert "alternative.structural.none" not in result_codes
+    assert "alternative.no_distinct_evidence" in result_codes
 
 
 @pytest.mark.parametrize("direction", ["shrink", "flat", "grow"])
@@ -215,7 +307,7 @@ def test_depth_rationale_must_name_hidden_details_and_exposed_controls(tmp_path:
     restated_design = example().replace(
         "One charge operation and three domain types hide four provider concepts already used by independent callers, "
         "while callers retain every control that changes payment behavior. This has a higher functionality-to-interface "
-        "ratio than exposing the SDK request and exception families directly. [E-2] [E-3] [E-4]",
+        "ratio than exposing the SDK request and exception families directly. [E-2] [E-4]",
         "Callers submit a domain-owned `ChargeRequest` to `PaymentGateway.charge`; the integration owner translates "
         "provider requests, results, and exceptions. [E-2]",
     )
