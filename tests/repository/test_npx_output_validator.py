@@ -21,6 +21,14 @@ def test_accepts_expected_grouped_output() -> None:
     assert validator.validate_output(_valid_output()) == []
 
 
+def test_accepts_cli_tree_prefixes() -> None:
+    output = "\n".join(
+        f"│    {line}" if line in set().union(*validator.EXPECTED_GROUPS.values()) else line
+        for line in _valid_output().splitlines()
+    )
+    assert validator.validate_output(output) == []
+
+
 def test_rejects_fallback_group_and_wrong_membership() -> None:
     output = _valid_output().replace("Technical Communication Skills", "General")
     errors = validator.validate_output(output)

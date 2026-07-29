@@ -33,7 +33,7 @@ def read_output_text(path: Path) -> str:
 
 def normalized_lines(text: str) -> list[str]:
     clean = ANSI_ESCAPE_RE.sub("", text).replace("\r", "\n")
-    return [line.strip().lstrip("|").strip() for line in clean.splitlines() if line.strip()]
+    return [line.strip().lstrip("|│").strip() for line in clean.splitlines() if line.strip()]
 
 
 def validate_output(text: str) -> list[str]:
