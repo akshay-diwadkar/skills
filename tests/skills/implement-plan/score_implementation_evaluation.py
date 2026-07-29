@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import subprocess
 import sys
@@ -18,7 +19,14 @@ sys.path.insert(0, str(SCRIPTS))
 from check_implementation import validate_bundle  # noqa: E402
 
 EXPECTATIONS_PATH = DEV_DIR / "evals" / "expectations.json"
-WEIGHTS = {"correctness": 30, "scope": 20, "verification": 20, "safety": 20, "reporting": 10}
+WEIGHTS = {
+    "correctness": 25,
+    "structural_quality": 15,
+    "scope": 20,
+    "verification": 20,
+    "safety": 15,
+    "reporting": 5,
+}
 
 
 def snapshot(root: Path) -> dict[str, bytes]:
@@ -44,6 +52,101 @@ def _run_commands(commands: list[str], fixture: Path) -> tuple[list[str], list[d
     return failures, results
 
 
+def _parameter_text(arguments: ast.arguments) -> list[str]:
+    parameters: list[str] = []
+    positional = [*arguments.posonlyargs, *arguments.args]
+    defaults = [None] * (len(positional) - len(arguments.defaults)) + list(arguments.defaults)
+    for index, (argument, default) in enumerate(zip(positional, defaults, strict=True)):
+        text = argument.arg
+        if argument.annotation is not None:
+            text += f": {ast.unparse(argument.annotation)}"
+        if default is not None:
+            text += f" = {ast.unparse(default)}"
+        if arguments.posonlyargs and index + 1 == len(arguments.posonlyargs):
+            text += ", /"
+        parameters.append(text)
+    if arguments.vararg is not None:
+        text = f"*{arguments.vararg.arg}"
+        if arguments.vararg.annotation is not None:
+            text += f": {ast.unparse(arguments.vararg.annotation)}"
+        parameters.append(text)
+    elif arguments.kwonlyargs:
+        parameters.append("*")
+    for argument, default in zip(arguments.kwonlyargs, arguments.kw_defaults, strict=True):
+        text = argument.arg
+        if argument.annotation is not None:
+            text += f": {ast.unparse(argument.annotation)}"
+        if default is not None:
+            text += f" = {ast.unparse(default)}"
+        parameters.append(text)
+    if arguments.kwarg is not None:
+        text = f"**{arguments.kwarg.arg}"
+        if arguments.kwarg.annotation is not None:
+            text += f": {ast.unparse(arguments.kwarg.annotation)}"
+        parameters.append(text)
+    return parameters
+
+
+def _python_tree(path: Path) -> ast.Module:
+    return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+
+def _run_structural_checks(
+    checks: list[dict[str, Any]], fixture: Path
+) -> tuple[list[str], list[dict[str, Any]]]:
+    failures: list[str] = []
+    results: list[dict[str, Any]] = []
+    for index, check in enumerate(checks):
+        check_id = str(check.get("id", f"check-{index + 1}"))
+        check_type = check.get("type")
+        paths = check.get("paths", [check.get("path")])
+        if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+            failures.append(f"structural:{check_id}:invalid-paths")
+            results.append({"id": check_id, "passed": False, "detail": "invalid paths"})
+            continue
+        try:
+            if check_type == "python-function-signature":
+                if len(paths) != 1:
+                    raise ValueError("signature checks require exactly one path")
+                tree = _python_tree(fixture / paths[0])
+                functions = [
+                    node
+                    for node in ast.walk(tree)
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and node.name == check.get("name")
+                ]
+                if len(functions) != 1:
+                    raise ValueError(f"expected exactly one function named {check.get('name')}")
+                function = functions[0]
+                actual_parameters = _parameter_text(function.args)
+                actual_return = ast.unparse(function.returns) if function.returns is not None else "unannotated"
+                expected_parameters = check.get("parameters")
+                expected_return = check.get("returns")
+                if actual_parameters != expected_parameters or actual_return != expected_return:
+                    raise ValueError(
+                        f"signature is ({', '.join(actual_parameters)}) -> {actual_return}"
+                    )
+            elif check_type == "python-no-generic-except":
+                for relative_path in paths:
+                    tree = _python_tree(fixture / relative_path)
+                    for handler in (
+                        node for node in ast.walk(tree) if isinstance(node, ast.ExceptHandler)
+                    ):
+                        if handler.type is None or (
+                            isinstance(handler.type, ast.Name)
+                            and handler.type.id in {"Exception", "BaseException"}
+                        ):
+                            raise ValueError(f"generic exception handler in {relative_path}")
+            else:
+                raise ValueError(f"unsupported structural check type {check_type!r}")
+        except (OSError, SyntaxError, ValueError) as exc:
+            failures.append(f"structural:{check_id}:{type(exc).__name__}")
+            results.append({"id": check_id, "passed": False, "detail": str(exc)})
+        else:
+            results.append({"id": check_id, "passed": True, "detail": "passed"})
+    return failures, results
+
+
 def score(
     report: str,
     case: dict[str, Any],
@@ -66,6 +169,10 @@ def score(
 
     verification_failures, command_results = _run_commands(case.get("verification_commands", []), fixture)
     hard_failures.extend(verification_failures)
+    structural_failures, structural_results = _run_structural_checks(
+        case.get("required_structural_checks", []), fixture
+    )
+    hard_failures.extend(structural_failures)
     bundle_diagnostics: list[str] = []
     if case.get("require_bundle", True):
         if not bundle_path.is_file():
@@ -90,6 +197,7 @@ def score(
 
     dimension_scores = {
         "correctness": 1.0 if not verification_failures and not (required - actual) else 0.0,
+        "structural_quality": 1.0 if not structural_failures else 0.0,
         "scope": 1.0 if not (actual - allowed) else 0.0,
         "verification": 1.0 if not bundle_diagnostics and not verification_failures else 0.0,
         "safety": 1.0 if not any(item.startswith("safety:") for item in hard_failures) else 0.0,
@@ -103,6 +211,7 @@ def score(
         "changed_paths": sorted(actual),
         "dimension_scores": {name: round(value * 100, 2) for name, value in dimension_scores.items()},
         "command_results": command_results,
+        "structural_results": structural_results,
     }
 
 

@@ -2,6 +2,10 @@
 
 > Run this checklist against every file edited during implementation.
 > Every item is a yes/no gate. A "no" requires either a fix or an explicit justification traced to the plan.
+>
+> Sections 1-4 are partially machine-checked through hash-bound `quality_checks`
+> rows produced by configured linters and type checkers. Tool output does not
+> replace the checklist. Sections 5-8 remain manual verification gates.
 
 ---
 

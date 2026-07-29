@@ -23,15 +23,17 @@ Read these files completely before editing:
 ## Non-Negotiables
 
 - Identify and snapshot the exact approved plan before editing.
-  - Require finalized `plan-contract: 5` metadata, the complete typed record graph, targeted repository binding, and a v5 finalizer receipt. Reject every other version and do not translate it.
+  - Require a finalized supported or deprecated plan contract, the complete typed record graph, targeted repository binding, and its matching finalizer receipt. Reject unlisted versions and do not translate them.
 - Refuse a plan when the parser reports ambiguity, unfinalized status, receipt mismatch, or a material repository contradiction.
 - Never use an implementation interview to reinterpret, repair, or extend approved product intent. Record semantic gaps and route them to `plan-change`; ask only for execution-state authorization already permitted by this contract.
+- Accept plan versions listed by the implementation contract as supported or deprecated. Deprecated versions scaffold with a non-blocking `bundle.plan_contract_deprecated` warning; every unlisted version is rejected.
 - Create an implementation-run bundle in confirmed ignored storage or an OS temporary directory.
 - Preserve unrelated dirty paths byte-for-byte. Never edit a dirty target without explicit user authorization.
 - Recheck a target against the last recorded snapshot before every edit; stop on concurrent changes.
 - Apply planned changes in dependency order and implement every specified branch, error, side effect, execution blueprint, and test.
 - Allow unplanned edits only under the Mechanical Propagation Gate in the canonical protocol.
 - Attribute a failure as pre-existing only when the exact check failed in the recorded pre-edit baseline; otherwise use `unknown-baseline`.
+- Record configured lint and type checks in `quality_checks` with exact changed-path hashes. Missing, stale, failed, or unavailable quality evidence blocks completion.
 - Reverse only positively identified agent-owned hunks whose current context still matches. Never perform automatic whole-file, worktree, or branch restoration.
 - Run `finalize_implementation.py` to stamp a SHA-256 validation receipt into the bundle before claiming completion.
 
@@ -51,10 +53,12 @@ Execute bundled runtime commands with the active skill directory (the directory 
 
 Save conversational plans verbatim to the run directory. Parse the plan with `implementation_contract.parse_plan`.
 
-- Require `<!-- plan-contract: 5 -->`, strict classification metadata, the complete typed record graph, a valid targeted repository binding, and a v5 receipt. Revalidate bound evidence and targets before creating the run bundle.
+- Require a listed plan-contract marker, strict classification metadata, the complete typed record graph, a valid targeted repository binding, and the matching receipt. Revalidate bound evidence and targets before creating the run bundle.
 - Stop with field-specific diagnostics when parsing or receipt validation fails. Reject all v1/v2/legacy plans. Do not reinterpret the plan.
 
 If inspection exposes a semantic contradiction or a choice affecting product behavior, failure semantics, contracts, persistence, dependencies, migration, or external effects, stop and hand the evidence back to `plan-change`. Dirty-target incorporation and explicitly scoped unsafe/external-operation authorization remain execution questions; their answers do not revise the plan.
+
+When `plan-change` raises its contract version, update this skill in three releases: add the new version to `supported_plan_contract_versions` while retaining its parser, move the previous version to `deprecated_plan_contract_versions` for one release, then remove the deprecated version and parser. Keep the two lists disjoint.
 
 ### 2. Scaffold and Inspect
 
@@ -84,9 +88,12 @@ For each `CH-n`:
 2. Verify the target still matches the last snapshot.
 3. Apply the smallest edit following the nearest repository analogue and execution blueprint logic.
 4. Record a `planned` change with its `CH-n`, paths, anchors, before/after hashes, and evidence.
-5. Run the narrowest useful smoke check and record its evidence.
+5. After recording authoritative hashes, run `scripts/record_change_diff.py` for the change row. The resulting optional `unified_diff` is review metadata only.
+6. Run the narrowest useful smoke check and record its evidence.
 
 If an omitted caller, fixture, or compatibility edit appears, apply the Mechanical Propagation Gate before touching it.
+
+Scaffolding stores immutable before-copies under `snapshots/` beside the bundle, including empty snapshots for new targets. Generate diffs only from those copies. Never use a diff to replace or override before/after hashes.
 
 ### 4. Implement Tests
 
@@ -100,8 +107,16 @@ Run, in order:
 
 1. Every plan `T-n` command.
 2. Regression tests for affected modules.
-3. Configured type and lint checks for changed surfaces.
+3. Every configured type and lint check for each touched language. Record tool, command, exit code, status, evidence, checklist sections, covered paths, and their current SHA-256 hashes in `quality_checks`.
 4. Every additional plan-specified command.
+
+Classify a nonzero quality result as `pre-existing-failure` only when the identical tool and command has a nonzero, evidenced row in `baseline.quality_checks`. Use `unknown-baseline` otherwise. If no configured tool exists, record a `skipped` row with exit code 127 and the missing prerequisite; `bundle.quality_tool_unavailable` remains blocking.
+
+Scale record ceremony from the finalized tier without relaxing integrity:
+
+- Tiny may aggregate planned work into one change row and needs at least one successful plan-test command.
+- Standard and High-Risk require one independent planned row per `CH-n` plus a distinct successful affected-module regression row. Regression rows use `kind: regression` and empty `t_ids`; they never satisfy plan-test accounting.
+- Keep deviations and residual risks as arrays. Leave them empty when none exist; never fabricate records to satisfy a tier.
 
 Reconcile actual workspace status against the initial bundle. Every new changed path must be covered by a `planned` or `mechanical-propagation` record. Initial unrelated dirty paths must retain their original hashes.
 
