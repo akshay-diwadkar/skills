@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "accounts",
+  "timeout_seconds": 5
+}

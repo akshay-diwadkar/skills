@@ -1,0 +1,5509 @@
+{
+  "all_gates_pass": true,
+  "benchmark_command": "python tests/skills/map-codebase/run_benchmark.py --profile full --check",
+  "conditions": {
+    "inventory": "tracked eligible repository content with lexical path ranking",
+    "resolver": "resolver phases and emitted fallback evidence",
+    "ripgrep": "git ls-files plus independent ripgrep ranking and three full files"
+  },
+  "fixture_hashes": {
+    "flag-control-plane": "21d96088476429845edd9b1d139f19a16b72afe6eea2a7d60e0ccfbdc5e48b1c",
+    "subscription-platform": "de5f27a00c923675244c4b28d1db2d5cbd279d6ca72862774daa122b4ba8b041"
+  },
+  "fixture_versions": {
+    "flag-control-plane": 1,
+    "subscription-platform": 1
+  },
+  "frozen_pre_tuning_baseline": {
+    "captured_before_resolver_changes": true,
+    "command": "python tests/skills/map-codebase/run_benchmark.py --profile representative --output .scratch/representative-results.json",
+    "condition": "resolver-pre-tuning",
+    "fixture_versions": {
+      "flag-control-plane": 1
+    },
+    "metrics": {
+      "hit_at_1": 0.16666666666666666,
+      "hit_at_3": 0.16666666666666666,
+      "macro_role_f1": 0.1486,
+      "mrr": 0.16666666666666666
+    },
+    "notes": [
+      "This compact frozen record was captured after fixture version 1 was frozen and before resolver tuning.",
+      "Patch results from that exploratory run are excluded because the private-oracle subprocess lacked the materialized repository on PYTHONPATH."
+    ],
+    "report_schema_version": 1
+  },
+  "gates": {
+    "abstention_precision": true,
+    "abstention_recall": true,
+    "confidence_safety": true,
+    "hit_at_1": true,
+    "hit_at_3": true,
+    "inventory_token_efficiency": true,
+    "latency_budgets": true,
+    "legacy_smoke_no_regression": true,
+    "macro_role_f1": true,
+    "mrr": true,
+    "patch_noninferiority": true,
+    "strict_utility_win": true
+  },
+  "latency_budgets": {
+    "build_median_under_30_seconds": true,
+    "build_samples": 20,
+    "refresh_median_under_15_seconds": true,
+    "refresh_samples": 2,
+    "resolver_p95_under_2_seconds": true,
+    "resolver_samples": 40
+  },
+  "legacy_smoke": {
+    "passes": true,
+    "repositories": {
+      "javascript-small": {
+        "baseline": 0.9333333333,
+        "cases": 30,
+        "correct": 30,
+        "hit_at_1": 1.0,
+        "passes": true
+      },
+      "mixed-config": {
+        "baseline": 0.9,
+        "cases": 30,
+        "correct": 27,
+        "hit_at_1": 0.9,
+        "passes": true
+      },
+      "python-small": {
+        "baseline": 0.9,
+        "cases": 30,
+        "correct": 29,
+        "hit_at_1": 0.9666666666666667,
+        "passes": true
+      },
+      "realistic-large": {
+        "baseline": 1.0,
+        "cases": 30,
+        "correct": 30,
+        "hit_at_1": 1.0,
+        "passes": true
+      }
+    }
+  },
+  "limitations": [
+    "Fixtures are synthetic and do not establish live-model generalization.",
+    "Patch results are deterministic context-sufficiency simulations using canonical transforms.",
+    "Committed latency output records stable budget outcomes rather than machine-specific raw samples."
+  ],
+  "metrics": {
+    "inventory": {
+      "abstention_precision": 0.0,
+      "abstention_recall": 0.0,
+      "bytes": 2698840,
+      "cases": 40,
+      "characters": 2698840,
+      "hit_at_1": 0.2222222222222222,
+      "hit_at_3": 0.2777777777777778,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.18900873138161275,
+      "mrr": 0.24537037037037035,
+      "owner_precision": 0.1,
+      "owner_recall": 0.24,
+      "roles": {
+        "configuration": {
+          "f1": 0.0,
+          "fn": 6,
+          "fp": 2,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "source": {
+          "f1": 0.20338983050847456,
+          "fn": 22,
+          "fp": 25,
+          "precision": 0.1935483870967742,
+          "recall": 0.21428571428571427,
+          "tp": 6
+        },
+        "test": {
+          "f1": 0.36363636363636365,
+          "fn": 2,
+          "fp": 5,
+          "precision": 0.2857142857142857,
+          "recall": 0.5,
+          "tp": 2
+        }
+      },
+      "tokens": 622598
+    },
+    "resolver": {
+      "abstention_precision": 1.0,
+      "abstention_recall": 1.0,
+      "bytes": 28337,
+      "cases": 40,
+      "characters": 28337,
+      "hit_at_1": 0.8055555555555556,
+      "hit_at_3": 0.9722222222222222,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.9012345679012346,
+      "mrr": 0.8842592592592592,
+      "owner_precision": 0.3644859813084112,
+      "owner_recall": 0.78,
+      "roles": {
+        "configuration": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 6
+        },
+        "source": {
+          "f1": 0.7037037037037038,
+          "fn": 9,
+          "fp": 7,
+          "precision": 0.7307692307692307,
+          "recall": 0.6785714285714286,
+          "tp": 19
+        },
+        "test": {
+          "f1": 1.0,
+          "fn": 0,
+          "fp": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 4
+        }
+      },
+      "tokens": 6760
+    },
+    "ripgrep": {
+      "abstention_precision": 0.0,
+      "abstention_recall": 0.0,
+      "bytes": 34336,
+      "cases": 40,
+      "characters": 34336,
+      "hit_at_1": 0.3888888888888889,
+      "hit_at_3": 0.5555555555555556,
+      "incorrect_high_confidence": 0,
+      "macro_role_f1": 0.34244080145719485,
+      "mrr": 0.4629629629629629,
+      "owner_precision": 0.18333333333333332,
+      "owner_recall": 0.44,
+      "roles": {
+        "configuration": {
+          "f1": 0.0,
+          "fn": 6,
+          "fp": 2,
+          "precision": 0.0,
+          "recall": 0.0,
+          "tp": 0
+        },
+        "source": {
+          "f1": 0.360655737704918,
+          "fn": 17,
+          "fp": 22,
+          "precision": 0.3333333333333333,
+          "recall": 0.39285714285714285,
+          "tp": 11
+        },
+        "test": {
+          "f1": 0.6666666666666665,
+          "fn": 1,
+          "fp": 2,
+          "precision": 0.6,
+          "recall": 0.75,
+          "tp": 3
+        }
+      },
+      "tokens": 7859
+    }
+  },
+  "outcomes": [
+    {
+      "abstained": false,
+      "bytes": 1244,
+      "characters": 1244,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 4,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/constraint_policy.py",
+        "src/evaluation/constraint_service.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/constraint_policy.py",
+        "src/evaluation/constraint_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/constraint_service.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/constraint_service.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 266
+    },
+    {
+      "abstained": false,
+      "bytes": 1041,
+      "characters": 1041,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/api/evaluation_routes.py",
+        "src/api/flag_repository.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/api/evaluation_routes.py",
+        "src/api/flag_repository.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/api/flag_repository.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/api/flag_repository.py": "source",
+        "src/evaluation/segment_matcher.py": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 242
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "README.md",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary": [
+        "README.md",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "docs/jobs.md": "source"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "docs/jobs.md": "source"
+      },
+      "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 1213,
+      "characters": 1213,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 4,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/segment_policy.py",
+        "src/evaluation/segment_service.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_matcher.py",
+        "src/evaluation/segment_policy.py",
+        "src/evaluation/segment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/evaluation/segment_matcher.py": "source",
+        "src/evaluation/segment_policy.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_routes.py": "source",
+        "src/evaluation/segment_matcher.py": "source",
+        "src/evaluation/segment_policy.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 264
+    },
+    {
+      "abstained": false,
+      "bytes": 806,
+      "characters": 806,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/evaluation/segment_service.py",
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/segment_service.py",
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_service.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 178
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/api/evaluation_routes.py",
+        "src/evaluation/segment_matcher.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/segment_matcher.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py",
+        "src/evaluation/segment_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/segment.ts",
+        "src/evaluation/segment_model.py",
+        "src/evaluation/segment_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/segment.ts": "source",
+        "src/evaluation/segment_model.py": "source",
+        "src/evaluation/segment_policy.py": "source"
+      },
+      "prompt": "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 963,
+      "characters": 963,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/scheduled_policy.py",
+        "src/rollouts/scheduled_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/scheduled_policy.py",
+        "src/rollouts/scheduled_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 219
+    },
+    {
+      "abstained": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 942,
+      "characters": 942,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/percentage_policy.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/progressive_rollout.py",
+        "src/rollouts/percentage_policy.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/percentage_policy.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/percentage_policy.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 1.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 212
+    },
+    {
+      "abstained": false,
+      "bytes": 1016,
+      "characters": 1016,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/percentage_service.py",
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/percentage_service.py",
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/percentage_service.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/percentage_service.py": "source",
+        "src/rollouts/progressive_rollout.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 221
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/progressive_rollout.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/progressive_rollout.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py",
+        "scripts/verify_scheduled.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py",
+        "scripts/verify_scheduled.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source"
+      },
+      "prompt": "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.5,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "abstained": false,
+      "bytes": 921,
+      "characters": 921,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/persistence/flag_policy.py": "source",
+        "src/persistence/flag_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/persistence/flag_policy.py": "source",
+        "src/persistence/flag_repository.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 217
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_policy.py",
+        "src/persistence/flag_policy.py",
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 906,
+      "characters": 906,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/api/evaluation_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/constraint_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/evaluation_policy.py",
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/constraint_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/constraint_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 0.5,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "abstained": false,
+      "bytes": 976,
+      "characters": 976,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/prerequisite_service.py",
+        "src/api/evaluation_policy.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/evaluation/prerequisite_service.py",
+        "src/api/evaluation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/evaluation/prerequisite_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source",
+        "src/evaluation/prerequisite_service.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 1.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 203
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "expected_primary": [
+        "src/evaluation/prerequisite_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/api/evaluation_policy.py",
+        "src/evaluation/context_policy.py"
+      ],
+      "predicted_primary": [
+        "src/evaluation/prerequisite_policy.py",
+        "src/api/evaluation_policy.py",
+        "src/evaluation/context_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/context_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/evaluation_policy.py": "source",
+        "src/evaluation/context_policy.py": "source",
+        "src/evaluation/prerequisite_policy.py": "source"
+      },
+      "prompt": "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison.",
+      "reciprocal_rank": 1.0,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 951,
+      "characters": 951,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 216
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_scheduled.py",
+        "src/rollouts/scheduled_model.py",
+        "src/rollouts/scheduled_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_scheduled.py": "source",
+        "src/rollouts/scheduled_model.py": "source",
+        "src/rollouts/scheduled_policy.py": "source"
+      },
+      "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 951,
+      "characters": 951,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/admin_service.py",
+        "src/api/environment_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/environment_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 218
+    },
+    {
+      "abstained": false,
+      "bytes": 935,
+      "characters": 935,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary": [
+        "src/rollouts/scheduled_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/rollouts/scheduled_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 212
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "expected_primary": [
+        "src/rollouts/scheduled_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/api/flag_service.py",
+        "src/api/admin_service.py",
+        "src/jobs/cleanup_service.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_service.py",
+        "src/api/admin_service.py",
+        "src/jobs/cleanup_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "prompt": "Release schedule names are not normalized consistently before use. Locate the responsible service.",
+      "reciprocal_rank": 0.0,
+      "task_id": "scheduled-rollout-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 199
+    },
+    {
+      "abstained": false,
+      "bytes": 954,
+      "characters": 954,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 211
+    },
+    {
+      "abstained": false,
+      "bytes": 38156,
+      "characters": 38156,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "scripts/verify_reconciliation.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary": [
+        "scripts/verify_reconciliation.py",
+        "src/jobs/reconciliation_model.py",
+        "src/jobs/reconciliation_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_reconciliation.py": "source",
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_reconciliation.py": "source",
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source"
+      },
+      "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
+      "reciprocal_rank": 0.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 874,
+      "characters": 874,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/reconciliation_service.py",
+        "src/jobs/reconciliation_policy.py",
+        "src/jobs/reconciliation_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/reconciliation_model.py": "source",
+        "src/jobs/reconciliation_policy.py": "source",
+        "src/jobs/reconciliation_service.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 1.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 199
+    },
+    {
+      "abstained": false,
+      "bytes": 830,
+      "characters": 830,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_service.py",
+        "src/jobs/reconciliation_service.py",
+        "generated/typescript/audit.ts"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_service.py",
+        "src/jobs/reconciliation_service.py",
+        "generated/typescript/audit.ts"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/jobs/reconciliation_service.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/jobs/reconciliation_service.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 0.5,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 178
+    },
+    {
+      "abstained": false,
+      "bytes": 38156,
+      "characters": 38156,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "expected_primary": [
+        "src/jobs/reconciliation_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "prompt": "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store.",
+      "reciprocal_rank": 0.0,
+      "task_id": "reconciliation-job-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 985,
+      "characters": 985,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/revision_repository.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/revision_repository.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 1.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 244
+    },
+    {
+      "abstained": false,
+      "bytes": 996,
+      "characters": 996,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_repository.py",
+        "src/persistence/flag_service.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_repository.py",
+        "src/persistence/flag_service.py",
+        "src/persistence/audit_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 233
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_model.py",
+        "src/persistence/audit_model.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_model.py",
+        "src/persistence/audit_model.py",
+        "src/persistence/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/flag_model.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/flag_model.py": "source",
+        "src/persistence/flag_policy.py": "source"
+      },
+      "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 889,
+      "characters": 889,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/environment_repository.py",
+        "src/persistence/revision_repository.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_repository.py",
+        "src/persistence/environment_repository.py",
+        "src/persistence/revision_repository.py"
+      ],
+      "predicted_primary_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/environment_repository.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "predicted_roles": {
+        "src/persistence/audit_repository.py": "source",
+        "src/persistence/environment_repository.py": "source",
+        "src/persistence/revision_repository.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 1.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 229
+    },
+    {
+      "abstained": false,
+      "bytes": 791,
+      "characters": 791,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/audit_service.py",
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/audit_service.py",
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_policy.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_policy.py": "source",
+        "src/persistence/audit_service.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 171
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/persistence/audit_repository.py"
+      ],
+      "expected_primary": [
+        "src/persistence/audit_repository.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary": [
+        "generated/typescript/audit.ts",
+        "src/persistence/audit_model.py",
+        "src/persistence/audit_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "predicted_roles": {
+        "generated/typescript/audit.ts": "source",
+        "src/persistence/audit_model.py": "source",
+        "src/persistence/audit_policy.py": "source"
+      },
+      "prompt": "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary.",
+      "reciprocal_rank": 0.0,
+      "task_id": "audit-persistence-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 374,
+      "characters": 374,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/rollouts.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary": [
+        "config/rollouts.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/rollouts.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/rollouts.json": "configuration"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 112
+    },
+    {
+      "abstained": false,
+      "bytes": 885,
+      "characters": 885,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_service.py",
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_service.py",
+        "src/jobs/rollout_model.py",
+        "src/jobs/rollout_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/jobs/rollout_model.py": "source",
+        "src/jobs/rollout_policy.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 214
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/rollout_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/rollout_service.py",
+        "src/api/flag_service.py",
+        "src/api/admin_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/admin_service.py": "source",
+        "src/api/flag_service.py": "source",
+        "src/jobs/rollout_service.py": "source"
+      },
+      "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 270,
+      "characters": 270,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 2,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/rollouts.json",
+        "pyproject.toml"
+      ],
+      "predicted_primary": [
+        "config/rollouts.json",
+        "pyproject.toml"
+      ],
+      "predicted_primary_roles": {
+        "config/rollouts.json": "configuration",
+        "pyproject.toml": "configuration"
+      },
+      "predicted_roles": {
+        "config/rollouts.json": "configuration",
+        "pyproject.toml": "configuration"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 1.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 82
+    },
+    {
+      "abstained": false,
+      "bytes": 361,
+      "characters": 361,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/api.md",
+        "docs/jobs.md"
+      ],
+      "predicted_primary_roles": {
+        "docs/api.md": "source",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "docs/api.md": "source",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 72
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/rollouts.json"
+      ],
+      "expected_primary": [
+        "config/rollouts.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code.",
+      "reciprocal_rank": 0.0,
+      "task_id": "rollout-configuration-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 367,
+      "characters": 367,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/jobs.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary": [
+        "config/jobs.json",
+        "config/api.json",
+        "config/evaluation.json"
+      ],
+      "predicted_primary_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/jobs.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/api.json": "configuration",
+        "config/evaluation.json": "configuration",
+        "config/jobs.json": "configuration"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 1.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 110
+    },
+    {
+      "abstained": false,
+      "bytes": 412,
+      "characters": 412,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/jobs.md",
+        "config/jobs.json"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "docs/jobs.md",
+        "config/jobs.json"
+      ],
+      "predicted_primary_roles": {
+        "config/jobs.json": "configuration",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "config/jobs.json": "configuration",
+        "docs/jobs.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "job-configuration-owner",
+      "tokens": 91
+    },
+    {
+      "abstained": false,
+      "bytes": 38161,
+      "characters": 38161,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary": [
+        "tests/integration/test_configuration_inventory.py",
+        "README.md",
+        "docs/api.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/api.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 229,
+      "characters": 229,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 1,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/jobs.json"
+      ],
+      "predicted_primary": [
+        "config/jobs.json"
+      ],
+      "predicted_primary_roles": {
+        "config/jobs.json": "configuration"
+      },
+      "predicted_roles": {
+        "config/jobs.json": "configuration"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 1.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 63
+    },
+    {
+      "abstained": false,
+      "bytes": 565,
+      "characters": 565,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "src/api/evaluation_routes.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/operations.md": "source",
+        "src/api/evaluation_routes.py": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "docs/operations.md": "source",
+        "src/api/evaluation_routes.py": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 113
+    },
+    {
+      "abstained": false,
+      "bytes": 38161,
+      "characters": 38161,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/jobs.json"
+      ],
+      "expected_primary": [
+        "config/jobs.json"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary": [
+        "docs/operations.md",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/operations.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/operations.md": "source",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file.",
+      "reciprocal_rank": 0.0,
+      "task_id": "job-configuration-owner",
+      "tokens": 8808
+    },
+    {
+      "abstained": false,
+      "bytes": 531,
+      "characters": 531,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 132
+    },
+    {
+      "abstained": false,
+      "bytes": 506,
+      "characters": 506,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 124
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "schemas/flag-event.json",
+        "generated/typescript/flag.ts"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "schemas/flag-event.json",
+        "generated/typescript/flag.ts"
+      ],
+      "predicted_primary_roles": {
+        "generated/typescript/flag.ts": "source",
+        "schemas/flag-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "generated/typescript/flag.ts": "source",
+        "schemas/flag-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 443,
+      "characters": 443,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_evaluation_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_evaluation_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 109
+    },
+    {
+      "abstained": false,
+      "bytes": 506,
+      "characters": 506,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 124
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "schemas/flag-event.json",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "expected_primary": [
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test"
+      },
+      "prompt": "Which test prevents contract schema artifacts from disappearing from the checkout?",
+      "reciprocal_rank": 1.0,
+      "task_id": "schema-contract-test-owner",
+      "tokens": 8800
+    },
+    {
+      "abstained": true,
+      "bytes": 198,
+      "characters": 198,
+      "condition": "resolver",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 0,
+      "owner_true_positive": 0,
+      "predicted_all": [],
+      "predicted_primary": [],
+      "predicted_primary_roles": {},
+      "predicted_roles": {},
+      "prompt": "Improve the administrative flag workflow without changing its public behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 61
+    },
+    {
+      "abstained": false,
+      "bytes": 968,
+      "characters": 968,
+      "condition": "ripgrep",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_service.py",
+        "src/persistence/flag_service.py"
+      ],
+      "predicted_primary": [
+        "src/persistence/flag_repository.py",
+        "src/api/flag_service.py",
+        "src/persistence/flag_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/api/flag_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/api/flag_service.py": "source",
+        "src/persistence/flag_repository.py": "source",
+        "src/persistence/flag_service.py": "source"
+      },
+      "prompt": "Improve the administrative flag workflow without changing its public behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 231
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/api/flag_model.py",
+        "scripts/verify_flag.py",
+        "src/api/flag_policy.py"
+      ],
+      "predicted_primary": [
+        "src/api/flag_model.py",
+        "scripts/verify_flag.py",
+        "src/api/flag_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_flag.py": "source",
+        "src/api/flag_model.py": "source",
+        "src/api/flag_policy.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_flag.py": "source",
+        "src/api/flag_model.py": "source",
+        "src/api/flag_policy.py": "source"
+      },
+      "prompt": "Improve the administrative flag workflow without changing its public behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 8800
+    },
+    {
+      "abstained": true,
+      "bytes": 199,
+      "characters": 199,
+      "condition": "resolver",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 0,
+      "owner_true_positive": 0,
+      "predicted_all": [],
+      "predicted_primary": [],
+      "predicted_primary_roles": {},
+      "predicted_roles": {},
+      "prompt": "Clean up the control-plane administration path while keeping all contracts stable.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 60
+    },
+    {
+      "abstained": false,
+      "bytes": 701,
+      "characters": 701,
+      "condition": "ripgrep",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/jobs/cleanup_model.py",
+        "src/jobs/cleanup_service.py",
+        "scripts/verify_flag.py"
+      ],
+      "predicted_primary": [
+        "src/jobs/cleanup_model.py",
+        "src/jobs/cleanup_service.py",
+        "scripts/verify_flag.py"
+      ],
+      "predicted_primary_roles": {
+        "scripts/verify_flag.py": "source",
+        "src/jobs/cleanup_model.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "predicted_roles": {
+        "scripts/verify_flag.py": "source",
+        "src/jobs/cleanup_model.py": "source",
+        "src/jobs/cleanup_service.py": "source"
+      },
+      "prompt": "Clean up the control-plane administration path while keeping all contracts stable.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 167
+    },
+    {
+      "abstained": false,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/unit/test_api_contracts.py",
+        "tests/unit/test_jobs_contracts.py",
+        "tests/unit/test_rollouts_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test",
+        "tests/unit/test_rollouts_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/unit/test_api_contracts.py": "test",
+        "tests/unit/test_jobs_contracts.py": "test",
+        "tests/unit/test_rollouts_contracts.py": "test"
+      },
+      "prompt": "Clean up the control-plane administration path while keeping all contracts stable.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-admin-request",
+      "tokens": 8800
+    },
+    {
+      "abstained": false,
+      "bytes": 603,
+      "characters": 603,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/gateway_client.py",
+        "legacy/billing/renewal_processor.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/gateway_client.py",
+        "legacy/billing/renewal_processor.py"
+      ],
+      "predicted_primary_roles": {
+        "legacy/billing/renewal_processor.py": "source",
+        "src/billing/gateway_client.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "predicted_roles": {
+        "legacy/billing/renewal_processor.py": "source",
+        "src/billing/gateway_client.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "prompt": "Customers are occasionally charged twice when a renewal is retried after an ambiguous gateway timeout. Determine the primary owner and propagation surfaces.",
+      "reciprocal_rank": 1.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 149
+    },
+    {
+      "abstained": false,
+      "bytes": 1224,
+      "characters": 1224,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/gateway_handler.py",
+        "src/billing/gateway_service.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/gateway_handler.py",
+        "src/billing/gateway_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/gateway_handler.py": "source",
+        "src/billing/gateway_service.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/gateway_handler.py": "source",
+        "src/billing/gateway_service.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "prompt": "Customers are occasionally charged twice when a renewal is retried after an ambiguous gateway timeout. Determine the primary owner and propagation surfaces.",
+      "reciprocal_rank": 1.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 282
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/billing/gateway_model.py",
+        "src/billing/renewal_model.py",
+        "src/billing/gateway_client.py"
+      ],
+      "predicted_primary": [
+        "src/billing/gateway_model.py",
+        "src/billing/renewal_model.py",
+        "src/billing/gateway_client.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/gateway_client.py": "source",
+        "src/billing/gateway_model.py": "source",
+        "src/billing/renewal_model.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/gateway_client.py": "source",
+        "src/billing/gateway_model.py": "source",
+        "src/billing/renewal_model.py": "source"
+      },
+      "prompt": "Customers are occasionally charged twice when a renewal is retried after an ambiguous gateway timeout. Determine the primary owner and propagation surfaces.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 848,
+      "characters": 848,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/attempt_handler.py",
+        "src/billing/attempt_policy.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/attempt_handler.py",
+        "src/billing/attempt_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/attempt_handler.py": "source",
+        "src/billing/attempt_policy.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/attempt_handler.py": "source",
+        "src/billing/attempt_policy.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "prompt": "A billing-cycle retry can repeat a successful external charge after the response was lost. Find the implementation boundary needed for a safe fix.",
+      "reciprocal_rank": 1.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 205
+    },
+    {
+      "abstained": false,
+      "bytes": 835,
+      "characters": 835,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/billing/gateway_client.py",
+        "src/notifications/renewal_notice_job.py",
+        "docs/operations.md"
+      ],
+      "predicted_primary": [
+        "src/billing/gateway_client.py",
+        "src/notifications/renewal_notice_job.py",
+        "docs/operations.md"
+      ],
+      "predicted_primary_roles": {
+        "docs/operations.md": "source",
+        "src/billing/gateway_client.py": "source",
+        "src/notifications/renewal_notice_job.py": "source"
+      },
+      "predicted_roles": {
+        "docs/operations.md": "source",
+        "src/billing/gateway_client.py": "source",
+        "src/notifications/renewal_notice_job.py": "source"
+      },
+      "prompt": "A billing-cycle retry can repeat a successful external charge after the response was lost. Find the implementation boundary needed for a safe fix.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 195
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "src/billing/gateway_client.py",
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "expected_primary": [
+        "src/billing/payment_attempt_repository.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 4,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "README.md",
+        "pyproject.toml",
+        "docs/billing.md"
+      ],
+      "predicted_primary": [
+        "README.md",
+        "pyproject.toml",
+        "docs/billing.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "docs/billing.md": "source",
+        "pyproject.toml": "configuration"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "docs/billing.md": "source",
+        "pyproject.toml": "configuration"
+      },
+      "prompt": "A billing-cycle retry can repeat a successful external charge after the response was lost. Find the implementation boundary needed for a safe fix.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 811,
+      "characters": 811,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/tenant_access_policy.py",
+        "src/billing/renewal_orchestrator.py",
+        "src/accounts/tenant_handler.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/tenant_access_policy.py",
+        "src/billing/renewal_orchestrator.py",
+        "src/accounts/tenant_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_handler.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_handler.py": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "prompt": "A billing administrator from one tenant can manage another tenant's subscription. Locate the authorization owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "tenant-subscription-access",
+      "tokens": 199
+    },
+    {
+      "abstained": false,
+      "bytes": 897,
+      "characters": 897,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/tenant_handler.py",
+        "src/accounts/tenant_access_policy.py",
+        "src/accounts/tenant_service.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/tenant_handler.py",
+        "src/accounts/tenant_access_policy.py",
+        "src/accounts/tenant_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_handler.py": "source",
+        "src/accounts/tenant_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_handler.py": "source",
+        "src/accounts/tenant_service.py": "source"
+      },
+      "prompt": "A billing administrator from one tenant can manage another tenant's subscription. Locate the authorization owner.",
+      "reciprocal_rank": 0.5,
+      "task_id": "tenant-subscription-access",
+      "tokens": 201
+    },
+    {
+      "abstained": false,
+      "bytes": 96902,
+      "characters": 96902,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/billing.md",
+        "config/billing.json",
+        "config/billing.yaml"
+      ],
+      "predicted_primary": [
+        "docs/billing.md",
+        "config/billing.json",
+        "config/billing.yaml"
+      ],
+      "predicted_primary_roles": {
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration",
+        "docs/billing.md": "source"
+      },
+      "predicted_roles": {
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration",
+        "docs/billing.md": "source"
+      },
+      "prompt": "A billing administrator from one tenant can manage another tenant's subscription. Locate the authorization owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "tenant-subscription-access",
+      "tokens": 22342
+    },
+    {
+      "abstained": false,
+      "bytes": 831,
+      "characters": 831,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/tenant_policy.py",
+        "src/accounts/tenant_access_policy.py",
+        "src/billing/attempt_policy.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/tenant_policy.py",
+        "src/accounts/tenant_access_policy.py",
+        "src/billing/attempt_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_policy.py": "source",
+        "src/billing/attempt_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/tenant_access_policy.py": "source",
+        "src/accounts/tenant_policy.py": "source",
+        "src/billing/attempt_policy.py": "source"
+      },
+      "prompt": "Cross-tenant subscription management is accepted for billing administrators. Find the trust-boundary policy.",
+      "reciprocal_rank": 0.5,
+      "task_id": "tenant-subscription-access",
+      "tokens": 190
+    },
+    {
+      "abstained": false,
+      "bytes": 706,
+      "characters": 706,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/billing.md",
+        "schemas/subscription-event.json",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary": [
+        "docs/billing.md",
+        "schemas/subscription-event.json",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/billing.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/unit/test_billing_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "docs/billing.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/unit/test_billing_contracts.py": "test"
+      },
+      "prompt": "Cross-tenant subscription management is accepted for billing administrators. Find the trust-boundary policy.",
+      "reciprocal_rank": 0.0,
+      "task_id": "tenant-subscription-access",
+      "tokens": 184
+    },
+    {
+      "abstained": false,
+      "bytes": 96902,
+      "characters": 96902,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "expected_primary": [
+        "src/accounts/tenant_access_policy.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/billing/credit_policy.py",
+        "src/billing/ledger_policy.py",
+        "src/billing/refund_policy.py"
+      ],
+      "predicted_primary": [
+        "src/billing/credit_policy.py",
+        "src/billing/ledger_policy.py",
+        "src/billing/refund_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/credit_policy.py": "source",
+        "src/billing/ledger_policy.py": "source",
+        "src/billing/refund_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/credit_policy.py": "source",
+        "src/billing/ledger_policy.py": "source",
+        "src/billing/refund_policy.py": "source"
+      },
+      "prompt": "Cross-tenant subscription management is accepted for billing administrators. Find the trust-boundary policy.",
+      "reciprocal_rank": 0.0,
+      "task_id": "tenant-subscription-access",
+      "tokens": 22342
+    },
+    {
+      "abstained": false,
+      "bytes": 902,
+      "characters": 902,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/entitlements/grant_service.py",
+        "src/billing/attempt_service.py",
+        "src/catalog/plan_service.py"
+      ],
+      "predicted_primary": [
+        "src/entitlements/grant_service.py",
+        "src/billing/attempt_service.py",
+        "src/catalog/plan_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/attempt_service.py": "source",
+        "src/catalog/plan_service.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/attempt_service.py": "source",
+        "src/catalog/plan_service.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "prompt": "Repeated plan features produce duplicate grants and unstable ordering during activation. Find the service owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 206
+    },
+    {
+      "abstained": false,
+      "bytes": 900,
+      "characters": 900,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/catalog/plan_handler.py",
+        "src/catalog/plan_service.py",
+        "src/catalog/plan_model.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/plan_handler.py",
+        "src/catalog/plan_service.py",
+        "src/catalog/plan_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/plan_handler.py": "source",
+        "src/catalog/plan_model.py": "source",
+        "src/catalog/plan_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/plan_handler.py": "source",
+        "src/catalog/plan_model.py": "source",
+        "src/catalog/plan_service.py": "source"
+      },
+      "prompt": "Repeated plan features produce duplicate grants and unstable ordering during activation. Find the service owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 211
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/catalog/plan_service.py",
+        "src/catalog/plan_model.py",
+        "src/catalog/plan_policy.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/plan_service.py",
+        "src/catalog/plan_model.py",
+        "src/catalog/plan_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/plan_model.py": "source",
+        "src/catalog/plan_policy.py": "source",
+        "src/catalog/plan_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/plan_model.py": "source",
+        "src/catalog/plan_policy.py": "source",
+        "src/catalog/plan_service.py": "source"
+      },
+      "prompt": "Repeated plan features produce duplicate grants and unstable ordering during activation. Find the service owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 886,
+      "characters": 886,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/billing/renewal_orchestrator.py",
+        "src/entitlements/grant_service.py",
+        "src/billing/payment_attempt_repository.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_orchestrator.py",
+        "src/entitlements/grant_service.py",
+        "src/billing/payment_attempt_repository.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/payment_attempt_repository.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/payment_attempt_repository.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "prompt": "Subscription activation emits repeated entitlements in input order. Locate the behavior that should canonicalize them.",
+      "reciprocal_rank": 0.5,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 214
+    },
+    {
+      "abstained": false,
+      "bytes": 736,
+      "characters": 736,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/entitlements.md",
+        "schemas/subscription-event.json",
+        "tests/unit/test_entitlements_contracts.py"
+      ],
+      "predicted_primary": [
+        "docs/entitlements.md",
+        "schemas/subscription-event.json",
+        "tests/unit/test_entitlements_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/entitlements.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/unit/test_entitlements_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "docs/entitlements.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/unit/test_entitlements_contracts.py": "test"
+      },
+      "prompt": "Subscription activation emits repeated entitlements in input order. Locate the behavior that should canonicalize them.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 195
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/entitlements/grant_service.py"
+      ],
+      "expected_primary": [
+        "src/entitlements/grant_service.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/entitlements.md",
+        "config/entitlements.json",
+        "src/entitlements/__init__.py"
+      ],
+      "predicted_primary": [
+        "docs/entitlements.md",
+        "config/entitlements.json",
+        "src/entitlements/__init__.py"
+      ],
+      "predicted_primary_roles": {
+        "config/entitlements.json": "configuration",
+        "docs/entitlements.md": "source",
+        "src/entitlements/__init__.py": "source"
+      },
+      "predicted_roles": {
+        "config/entitlements.json": "configuration",
+        "docs/entitlements.md": "source",
+        "src/entitlements/__init__.py": "source"
+      },
+      "prompt": "Subscription activation emits repeated entitlements in input order. Locate the behavior that should canonicalize them.",
+      "reciprocal_rank": 0.0,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 634,
+      "characters": 634,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "migrations/20240103_billing_state.sql",
+        "migrations/20240105_notifications_state.sql",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "predicted_primary": [
+        "migrations/20240103_billing_state.sql",
+        "migrations/20240105_notifications_state.sql",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "predicted_primary_roles": {
+        "migrations/20240103_billing_state.sql": "source",
+        "migrations/20240105_notifications_state.sql": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "predicted_roles": {
+        "migrations/20240103_billing_state.sql": "source",
+        "migrations/20240105_notifications_state.sql": "source",
+        "src/billing/renewal_orchestrator.py": "source"
+      },
+      "prompt": "Customers receive the wrong notification state after a failed recurring charge. Find the notification job owner, not billing orchestration.",
+      "reciprocal_rank": 0.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 151
+    },
+    {
+      "abstained": false,
+      "bytes": 431,
+      "characters": 431,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "migrations/20240103_billing_state.sql",
+        "migrations/20240105_notifications_state.sql",
+        "docs/billing.md"
+      ],
+      "predicted_primary": [
+        "migrations/20240103_billing_state.sql",
+        "migrations/20240105_notifications_state.sql",
+        "docs/billing.md"
+      ],
+      "predicted_primary_roles": {
+        "docs/billing.md": "source",
+        "migrations/20240103_billing_state.sql": "source",
+        "migrations/20240105_notifications_state.sql": "source"
+      },
+      "predicted_roles": {
+        "docs/billing.md": "source",
+        "migrations/20240103_billing_state.sql": "source",
+        "migrations/20240105_notifications_state.sql": "source"
+      },
+      "prompt": "Customers receive the wrong notification state after a failed recurring charge. Find the notification job owner, not billing orchestration.",
+      "reciprocal_rank": 0.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 88
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "migrations/20240103_billing_state.sql",
+        "docs/billing.md",
+        "config/billing.json"
+      ],
+      "predicted_primary": [
+        "migrations/20240103_billing_state.sql",
+        "docs/billing.md",
+        "config/billing.json"
+      ],
+      "predicted_primary_roles": {
+        "config/billing.json": "configuration",
+        "docs/billing.md": "source",
+        "migrations/20240103_billing_state.sql": "source"
+      },
+      "predicted_roles": {
+        "config/billing.json": "configuration",
+        "docs/billing.md": "source",
+        "migrations/20240103_billing_state.sql": "source"
+      },
+      "prompt": "Customers receive the wrong notification state after a failed recurring charge. Find the notification job owner, not billing orchestration.",
+      "reciprocal_rank": 0.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 685,
+      "characters": 685,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/notifications/renewal_notice_job.py",
+        "src/billing/renewal_orchestrator.py",
+        "legacy/billing/renewal_processor.py"
+      ],
+      "predicted_primary": [
+        "src/notifications/renewal_notice_job.py",
+        "src/billing/renewal_orchestrator.py",
+        "legacy/billing/renewal_processor.py"
+      ],
+      "predicted_primary_roles": {
+        "legacy/billing/renewal_processor.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/notifications/renewal_notice_job.py": "source"
+      },
+      "predicted_roles": {
+        "legacy/billing/renewal_processor.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/notifications/renewal_notice_job.py": "source"
+      },
+      "prompt": "A failed renewal is rendered as successful in customer messaging. Locate the delivery-side state mapping.",
+      "reciprocal_rank": 1.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 177
+    },
+    {
+      "abstained": false,
+      "bytes": 1224,
+      "characters": 1224,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/renewal_handler.py",
+        "src/billing/renewal_service.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_orchestrator.py",
+        "src/billing/renewal_handler.py",
+        "src/billing/renewal_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/renewal_handler.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/billing/renewal_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/renewal_handler.py": "source",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/billing/renewal_service.py": "source"
+      },
+      "prompt": "A failed renewal is rendered as successful in customer messaging. Locate the delivery-side state mapping.",
+      "reciprocal_rank": 0.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 292
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "expected_primary": [
+        "src/notifications/renewal_notice_job.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/billing/renewal_model.py",
+        "src/billing/renewal_policy.py",
+        "src/billing/renewal_handler.py"
+      ],
+      "predicted_primary": [
+        "src/billing/renewal_model.py",
+        "src/billing/renewal_policy.py",
+        "src/billing/renewal_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/renewal_handler.py": "source",
+        "src/billing/renewal_model.py": "source",
+        "src/billing/renewal_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/renewal_handler.py": "source",
+        "src/billing/renewal_model.py": "source",
+        "src/billing/renewal_policy.py": "source"
+      },
+      "prompt": "A failed renewal is rendered as successful in customer messaging. Locate the delivery-side state mapping.",
+      "reciprocal_rank": 0.0,
+      "task_id": "renewal-notice-owner",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 846,
+      "characters": 846,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_repository.py",
+        "src/catalog/coupon_service.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_repository.py",
+        "src/catalog/coupon_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/coupon_service.py": "source",
+        "src/catalog/price_repository.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/coupon_service.py": "source",
+        "src/catalog/price_repository.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "prompt": "Catalog price labels retain inconsistent casing and whitespace before downstream lookup. Locate the application service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 200
+    },
+    {
+      "abstained": false,
+      "bytes": 922,
+      "characters": 922,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_handler.py",
+        "src/catalog/price_model.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_handler.py",
+        "src/catalog/price_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/price_handler.py": "source",
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/price_handler.py": "source",
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "prompt": "Catalog price labels retain inconsistent casing and whitespace before downstream lookup. Locate the application service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 214
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_model.py",
+        "src/catalog/tax_service.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_model.py",
+        "src/catalog/tax_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source",
+        "src/catalog/tax_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source",
+        "src/catalog/tax_service.py": "source"
+      },
+      "prompt": "Catalog price labels retain inconsistent casing and whitespace before downstream lookup. Locate the application service.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 960,
+      "characters": 960,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/coupon_service.py",
+        "src/catalog/currency_service.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/coupon_service.py",
+        "src/catalog/currency_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/coupon_service.py": "source",
+        "src/catalog/currency_service.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/coupon_service.py": "source",
+        "src/catalog/currency_service.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "prompt": "Price identifiers are not canonicalized before catalog processing. Find the owning service implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 217
+    },
+    {
+      "abstained": false,
+      "bytes": 922,
+      "characters": 922,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_handler.py",
+        "src/catalog/price_model.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_handler.py",
+        "src/catalog/price_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/price_handler.py": "source",
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/price_handler.py": "source",
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source"
+      },
+      "prompt": "Price identifiers are not canonicalized before catalog processing. Find the owning service implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 214
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/catalog/price_service.py"
+      ],
+      "expected_primary": [
+        "src/catalog/price_service.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_model.py",
+        "src/catalog/tax_service.py"
+      ],
+      "predicted_primary": [
+        "src/catalog/price_service.py",
+        "src/catalog/price_model.py",
+        "src/catalog/tax_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source",
+        "src/catalog/tax_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/price_model.py": "source",
+        "src/catalog/price_service.py": "source",
+        "src/catalog/tax_service.py": "source"
+      },
+      "prompt": "Price identifiers are not canonicalized before catalog processing. Find the owning service implementation.",
+      "reciprocal_rank": 1.0,
+      "task_id": "catalog-price-normalization",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 887,
+      "characters": 887,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/accounts/access_policy.py",
+        "src/accounts/identity_policy.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/accounts/access_policy.py",
+        "src/accounts/identity_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/access_policy.py": "source",
+        "src/accounts/identity_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/access_policy.py": "source",
+        "src/accounts/identity_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "prompt": "The platform rejects an idempotency record exactly at its eligibility threshold. Find the boundary policy.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 200
+    },
+    {
+      "abstained": false,
+      "bytes": 1044,
+      "characters": 1044,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/idempotency_handler.py",
+        "src/platform/idempotency_service.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/idempotency_handler.py",
+        "src/platform/idempotency_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/platform/idempotency_handler.py": "source",
+        "src/platform/idempotency_policy.py": "source",
+        "src/platform/idempotency_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/platform/idempotency_handler.py": "source",
+        "src/platform/idempotency_policy.py": "source",
+        "src/platform/idempotency_service.py": "source"
+      },
+      "prompt": "The platform rejects an idempotency record exactly at its eligibility threshold. Find the boundary policy.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 240
+    },
+    {
+      "abstained": false,
+      "bytes": 96857,
+      "characters": 96857,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/clock_policy.py",
+        "src/platform/health_policy.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/clock_policy.py",
+        "src/platform/health_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/platform/clock_policy.py": "source",
+        "src/platform/health_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/platform/clock_policy.py": "source",
+        "src/platform/health_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "prompt": "The platform rejects an idempotency record exactly at its eligibility threshold. Find the boundary policy.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 22333
+    },
+    {
+      "abstained": false,
+      "bytes": 887,
+      "characters": 887,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/accounts/access_policy.py",
+        "src/accounts/identity_policy.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/accounts/access_policy.py",
+        "src/accounts/identity_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/access_policy.py": "source",
+        "src/accounts/identity_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/access_policy.py": "source",
+        "src/accounts/identity_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "prompt": "Records meeting the minimum idempotency threshold are excluded. Locate the policy comparison owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 200
+    },
+    {
+      "abstained": false,
+      "bytes": 1044,
+      "characters": 1044,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/idempotency_handler.py",
+        "src/platform/idempotency_service.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/platform/idempotency_handler.py",
+        "src/platform/idempotency_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/platform/idempotency_handler.py": "source",
+        "src/platform/idempotency_policy.py": "source",
+        "src/platform/idempotency_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/platform/idempotency_handler.py": "source",
+        "src/platform/idempotency_policy.py": "source",
+        "src/platform/idempotency_service.py": "source"
+      },
+      "prompt": "Records meeting the minimum idempotency threshold are excluded. Locate the policy comparison owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 240
+    },
+    {
+      "abstained": false,
+      "bytes": 96857,
+      "characters": 96857,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "expected_primary": [
+        "src/platform/idempotency_policy.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/platform/idempotency_policy.py",
+        "src/catalog/tax_policy.py",
+        "src/catalog/plan_policy.py"
+      ],
+      "predicted_primary": [
+        "src/platform/idempotency_policy.py",
+        "src/catalog/tax_policy.py",
+        "src/catalog/plan_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/plan_policy.py": "source",
+        "src/catalog/tax_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/plan_policy.py": "source",
+        "src/catalog/tax_policy.py": "source",
+        "src/platform/idempotency_policy.py": "source"
+      },
+      "prompt": "Records meeting the minimum idempotency threshold are excluded. Locate the policy comparison owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "idempotency-threshold-policy",
+      "tokens": 22333
+    },
+    {
+      "abstained": false,
+      "bytes": 989,
+      "characters": 989,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_handler.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "prompt": "Webhook payloads lack the handler identity used by downstream delivery diagnostics. Locate the boundary handler.",
+      "reciprocal_rank": 0.3333333333333333,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 221
+    },
+    {
+      "abstained": false,
+      "bytes": 1013,
+      "characters": 1013,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "prompt": "Webhook payloads lack the handler identity used by downstream delivery diagnostics. Locate the boundary handler.",
+      "reciprocal_rank": 0.5,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 218
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py"
+      ],
+      "predicted_primary": [
+        "src/accounts/identity_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "predicted_roles": {
+        "src/accounts/identity_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "prompt": "Webhook payloads lack the handler identity used by downstream delivery diagnostics. Locate the boundary handler.",
+      "reciprocal_rank": 0.5,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 997,
+      "characters": 997,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/digest_handler.py"
+      ],
+      "predicted_primary": [
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_handler.py",
+        "src/notifications/digest_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/digest_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "predicted_roles": {
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/digest_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "prompt": "Delivery diagnostics cannot identify which notification boundary normalized a webhook. Find the handler owner.",
+      "reciprocal_rank": 0.5,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 221
+    },
+    {
+      "abstained": false,
+      "bytes": 1021,
+      "characters": 1021,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_service.py"
+      ],
+      "predicted_primary": [
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/notifications/webhook_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source",
+        "src/notifications/webhook_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source",
+        "src/notifications/webhook_service.py": "source"
+      },
+      "prompt": "Delivery diagnostics cannot identify which notification boundary normalized a webhook. Find the handler owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 218
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "expected_primary": [
+        "src/notifications/webhook_handler.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/catalog/tax_handler.py"
+      ],
+      "predicted_primary": [
+        "src/notifications/webhook_handler.py",
+        "src/notifications/delivery_handler.py",
+        "src/catalog/tax_handler.py"
+      ],
+      "predicted_primary_roles": {
+        "src/catalog/tax_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "predicted_roles": {
+        "src/catalog/tax_handler.py": "source",
+        "src/notifications/delivery_handler.py": "source",
+        "src/notifications/webhook_handler.py": "source"
+      },
+      "prompt": "Delivery diagnostics cannot identify which notification boundary normalized a webhook. Find the handler owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "notification-webhook-boundary",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 377,
+      "characters": 377,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 2,
+      "predicted_all": [
+        "config/billing.yaml",
+        "config/billing.json",
+        "config/workers.toml"
+      ],
+      "predicted_primary": [
+        "config/billing.yaml",
+        "config/billing.json",
+        "config/workers.toml"
+      ],
+      "predicted_primary_roles": {
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration",
+        "config/workers.toml": "configuration"
+      },
+      "predicted_roles": {
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration",
+        "config/workers.toml": "configuration"
+      },
+      "prompt": "Recurring charge workers use the wrong retry limit and gateway timeout. Identify the active billing configuration.",
+      "reciprocal_rank": 1.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 111
+    },
+    {
+      "abstained": false,
+      "bytes": 998,
+      "characters": 998,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/billing/gateway_service.py",
+        "src/billing/gateway_handler.py",
+        "src/platform/configuration_service.py"
+      ],
+      "predicted_primary": [
+        "src/billing/gateway_service.py",
+        "src/billing/gateway_handler.py",
+        "src/platform/configuration_service.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/gateway_handler.py": "source",
+        "src/billing/gateway_service.py": "source",
+        "src/platform/configuration_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/gateway_handler.py": "source",
+        "src/billing/gateway_service.py": "source",
+        "src/platform/configuration_service.py": "source"
+      },
+      "prompt": "Recurring charge workers use the wrong retry limit and gateway timeout. Identify the active billing configuration.",
+      "reciprocal_rank": 0.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 212
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/billing/gateway_model.py",
+        "src/billing/gateway_client.py",
+        "src/billing/gateway_policy.py"
+      ],
+      "predicted_primary": [
+        "src/billing/gateway_model.py",
+        "src/billing/gateway_client.py",
+        "src/billing/gateway_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "src/billing/gateway_client.py": "source",
+        "src/billing/gateway_model.py": "source",
+        "src/billing/gateway_policy.py": "source"
+      },
+      "predicted_roles": {
+        "src/billing/gateway_client.py": "source",
+        "src/billing/gateway_model.py": "source",
+        "src/billing/gateway_policy.py": "source"
+      },
+      "prompt": "Recurring charge workers use the wrong retry limit and gateway timeout. Identify the active billing configuration.",
+      "reciprocal_rank": 0.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 399,
+      "characters": 399,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "config/billing.yaml",
+        "config/accounts.json",
+        "config/billing.json"
+      ],
+      "predicted_primary": [
+        "config/billing.yaml",
+        "config/accounts.json",
+        "config/billing.json"
+      ],
+      "predicted_primary_roles": {
+        "config/accounts.json": "configuration",
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration"
+      },
+      "predicted_roles": {
+        "config/accounts.json": "configuration",
+        "config/billing.json": "configuration",
+        "config/billing.yaml": "configuration"
+      },
+      "prompt": "Operations needs to change timeout and retry defaults for renewals. Find the configuration owner.",
+      "reciprocal_rank": 1.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 116
+    },
+    {
+      "abstained": false,
+      "bytes": 1019,
+      "characters": 1019,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "src/platform/configuration_handler.py",
+        "src/platform/configuration_service.py",
+        "src/platform/configuration_model.py"
+      ],
+      "predicted_primary": [
+        "src/platform/configuration_handler.py",
+        "src/platform/configuration_service.py",
+        "src/platform/configuration_model.py"
+      ],
+      "predicted_primary_roles": {
+        "src/platform/configuration_handler.py": "source",
+        "src/platform/configuration_model.py": "source",
+        "src/platform/configuration_service.py": "source"
+      },
+      "predicted_roles": {
+        "src/platform/configuration_handler.py": "source",
+        "src/platform/configuration_model.py": "source",
+        "src/platform/configuration_service.py": "source"
+      },
+      "prompt": "Operations needs to change timeout and retry defaults for renewals. Find the configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 211
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "config/billing.yaml",
+        "config/workers.toml"
+      ],
+      "expected_primary": [
+        "config/billing.yaml"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 2,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "docs/operations.md",
+        "src/platform/configuration_model.py",
+        "src/platform/configuration_policy.py"
+      ],
+      "predicted_primary": [
+        "docs/operations.md",
+        "src/platform/configuration_model.py",
+        "src/platform/configuration_policy.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/operations.md": "source",
+        "src/platform/configuration_model.py": "source",
+        "src/platform/configuration_policy.py": "source"
+      },
+      "predicted_roles": {
+        "docs/operations.md": "source",
+        "src/platform/configuration_model.py": "source",
+        "src/platform/configuration_policy.py": "source"
+      },
+      "prompt": "Operations needs to change timeout and retry defaults for renewals. Find the configuration owner.",
+      "reciprocal_rank": 0.0,
+      "task_id": "billing-runtime-configuration",
+      "tokens": 22325
+    },
+    {
+      "abstained": false,
+      "bytes": 562,
+      "characters": 562,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_accounts_contracts.py",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_accounts_contracts.py",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "prompt": "Which unit-level verification ensures the notification subsystem retains its expected module inventory?",
+      "reciprocal_rank": 1.0,
+      "task_id": "notification-contract-test",
+      "tokens": 137
+    },
+    {
+      "abstained": false,
+      "bytes": 624,
+      "characters": 624,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "docs/notifications.md",
+        "tests/unit/test_notifications_contracts.py",
+        "src/notifications/digest_model.py"
+      ],
+      "predicted_primary": [
+        "docs/notifications.md",
+        "tests/unit/test_notifications_contracts.py",
+        "src/notifications/digest_model.py"
+      ],
+      "predicted_primary_roles": {
+        "docs/notifications.md": "source",
+        "src/notifications/digest_model.py": "source",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "docs/notifications.md": "source",
+        "src/notifications/digest_model.py": "source",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "prompt": "Which unit-level verification ensures the notification subsystem retains its expected module inventory?",
+      "reciprocal_rank": 0.5,
+      "task_id": "notification-contract-test",
+      "tokens": 135
+    },
+    {
+      "abstained": false,
+      "bytes": 96852,
+      "characters": 96852,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary": [
+        "tests/contract/test_schema_inventory.py",
+        "tests/integration/test_configuration_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "tests/contract/test_schema_inventory.py": "test",
+        "tests/integration/test_configuration_inventory.py": "test"
+      },
+      "prompt": "Which unit-level verification ensures the notification subsystem retains its expected module inventory?",
+      "reciprocal_rank": 0.0,
+      "task_id": "notification-contract-test",
+      "tokens": 22333
+    },
+    {
+      "abstained": false,
+      "bytes": 562,
+      "characters": 562,
+      "condition": "resolver",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_accounts_contracts.py",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_accounts_contracts.py",
+        "tests/unit/test_billing_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "prompt": "Find the focused test that guards the notification module surface against accidental deletion.",
+      "reciprocal_rank": 1.0,
+      "task_id": "notification-contract-test",
+      "tokens": 137
+    },
+    {
+      "abstained": false,
+      "bytes": 552,
+      "characters": 552,
+      "condition": "ripgrep",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": true,
+      "hit_at_3": true,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 1,
+      "predicted_all": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_billing_contracts.py",
+        "tests/unit/test_catalog_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/unit/test_notifications_contracts.py",
+        "tests/unit/test_billing_contracts.py",
+        "tests/unit/test_catalog_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_catalog_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_catalog_contracts.py": "test",
+        "tests/unit/test_notifications_contracts.py": "test"
+      },
+      "prompt": "Find the focused test that guards the notification module surface against accidental deletion.",
+      "reciprocal_rank": 1.0,
+      "task_id": "notification-contract-test",
+      "tokens": 129
+    },
+    {
+      "abstained": false,
+      "bytes": 96852,
+      "characters": 96852,
+      "condition": "inventory",
+      "expected_abstain": false,
+      "expected_all": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "expected_primary": [
+        "tests/unit/test_notifications_contracts.py"
+      ],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 1,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "tests/unit/test_billing_contracts.py",
+        "tests/unit/test_catalog_contracts.py",
+        "tests/unit/test_accounts_contracts.py"
+      ],
+      "predicted_primary": [
+        "tests/unit/test_billing_contracts.py",
+        "tests/unit/test_catalog_contracts.py",
+        "tests/unit/test_accounts_contracts.py"
+      ],
+      "predicted_primary_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_catalog_contracts.py": "test"
+      },
+      "predicted_roles": {
+        "tests/unit/test_accounts_contracts.py": "test",
+        "tests/unit/test_billing_contracts.py": "test",
+        "tests/unit/test_catalog_contracts.py": "test"
+      },
+      "prompt": "Find the focused test that guards the notification module surface against accidental deletion.",
+      "reciprocal_rank": 0.0,
+      "task_id": "notification-contract-test",
+      "tokens": 22333
+    },
+    {
+      "abstained": true,
+      "bytes": 196,
+      "characters": 196,
+      "condition": "resolver",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 0,
+      "owner_true_positive": 0,
+      "predicted_all": [],
+      "predicted_primary": [],
+      "predicted_primary_roles": {},
+      "predicted_roles": {},
+      "prompt": "Clean up subscription handling and make the code easier to maintain without changing behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 60
+    },
+    {
+      "abstained": false,
+      "bytes": 1297,
+      "characters": 1297,
+      "condition": "ripgrep",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "schemas/subscription-event.json",
+        "src/entitlements/grant_service.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "predicted_primary": [
+        "schemas/subscription-event.json",
+        "src/entitlements/grant_service.py",
+        "src/billing/renewal_orchestrator.py"
+      ],
+      "predicted_primary_roles": {
+        "schemas/subscription-event.json": "configuration",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "predicted_roles": {
+        "schemas/subscription-event.json": "configuration",
+        "src/billing/renewal_orchestrator.py": "source",
+        "src/entitlements/grant_service.py": "source"
+      },
+      "prompt": "Clean up subscription handling and make the code easier to maintain without changing behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 324
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "schemas/subscription-event.json",
+        "README.md",
+        "pyproject.toml"
+      ],
+      "predicted_primary": [
+        "schemas/subscription-event.json",
+        "README.md",
+        "pyproject.toml"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "pyproject.toml": "configuration",
+        "schemas/subscription-event.json": "configuration"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "pyproject.toml": "configuration",
+        "schemas/subscription-event.json": "configuration"
+      },
+      "prompt": "Clean up subscription handling and make the code easier to maintain without changing behavior.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 22325
+    },
+    {
+      "abstained": true,
+      "bytes": 198,
+      "characters": 198,
+      "condition": "resolver",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 0,
+      "owner_true_positive": 0,
+      "predicted_all": [],
+      "predicted_primary": [],
+      "predicted_primary_roles": {},
+      "predicted_roles": {},
+      "prompt": "Refactor the subscription path while preserving every existing contract.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 62
+    },
+    {
+      "abstained": false,
+      "bytes": 885,
+      "characters": 885,
+      "condition": "ripgrep",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "schemas/subscription-event.json",
+        "src/entitlements/grant_service.py",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "predicted_primary": [
+        "schemas/subscription-event.json",
+        "src/entitlements/grant_service.py",
+        "tests/contract/test_schema_inventory.py"
+      ],
+      "predicted_primary_roles": {
+        "schemas/subscription-event.json": "configuration",
+        "src/entitlements/grant_service.py": "source",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "schemas/subscription-event.json": "configuration",
+        "src/entitlements/grant_service.py": "source",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "prompt": "Refactor the subscription path while preserving every existing contract.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 222
+    },
+    {
+      "abstained": false,
+      "bytes": 96804,
+      "characters": 96804,
+      "condition": "inventory",
+      "expected_abstain": true,
+      "expected_all": [],
+      "expected_primary": [],
+      "hit_at_1": false,
+      "hit_at_3": false,
+      "incorrect_high_confidence": false,
+      "owner_expected": 0,
+      "owner_predicted": 3,
+      "owner_true_positive": 0,
+      "predicted_all": [
+        "schemas/subscription-event.json",
+        "tests/contract/test_schema_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary": [
+        "schemas/subscription-event.json",
+        "tests/contract/test_schema_inventory.py",
+        "README.md"
+      ],
+      "predicted_primary_roles": {
+        "README.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "predicted_roles": {
+        "README.md": "source",
+        "schemas/subscription-event.json": "configuration",
+        "tests/contract/test_schema_inventory.py": "test"
+      },
+      "prompt": "Refactor the subscription path while preserving every existing contract.",
+      "reciprocal_rank": 0.0,
+      "task_id": "ambiguous-subscription-cleanup",
+      "tokens": 22325
+    }
+  ],
+  "patch_outcomes": [
+    {
+      "applied": true,
+      "bytes": 1244,
+      "characters": 1244,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 266
+    },
+    {
+      "applied": true,
+      "bytes": 1041,
+      "characters": 1041,
+      "condition": "ripgrep",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 242
+    },
+    {
+      "applied": true,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "segment-attribute-matching",
+      "tokens": 8800
+    },
+    {
+      "applied": true,
+      "bytes": 963,
+      "characters": 963,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 219
+    },
+    {
+      "applied": false,
+      "bytes": 936,
+      "characters": 936,
+      "condition": "ripgrep",
+      "success": false,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 216
+    },
+    {
+      "applied": true,
+      "bytes": 38108,
+      "characters": 38108,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "progressive-rollout-cap",
+      "tokens": 8800
+    },
+    {
+      "applied": true,
+      "bytes": 873,
+      "characters": 873,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "prerequisite-threshold",
+      "tokens": 196
+    },
+    {
+      "applied": false,
+      "bytes": 921,
+      "characters": 921,
+      "condition": "ripgrep",
+      "success": false,
+      "task_id": "prerequisite-threshold",
+      "tokens": 217
+    },
+    {
+      "applied": true,
+      "bytes": 38107,
+      "characters": 38107,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "prerequisite-threshold",
+      "tokens": 8800
+    },
+    {
+      "applied": true,
+      "bytes": 607,
+      "characters": 607,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 150
+    },
+    {
+      "applied": true,
+      "bytes": 1228,
+      "characters": 1228,
+      "condition": "ripgrep",
+      "success": true,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 283
+    },
+    {
+      "applied": true,
+      "bytes": 96808,
+      "characters": 96808,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "duplicate-renewal-after-timeout",
+      "tokens": 22326
+    },
+    {
+      "applied": true,
+      "bytes": 810,
+      "characters": 810,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "tenant-subscription-access",
+      "tokens": 199
+    },
+    {
+      "applied": true,
+      "bytes": 896,
+      "characters": 896,
+      "condition": "ripgrep",
+      "success": true,
+      "task_id": "tenant-subscription-access",
+      "tokens": 201
+    },
+    {
+      "applied": true,
+      "bytes": 96901,
+      "characters": 96901,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "tenant-subscription-access",
+      "tokens": 22342
+    },
+    {
+      "applied": true,
+      "bytes": 889,
+      "characters": 889,
+      "condition": "resolver",
+      "success": true,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 204
+    },
+    {
+      "applied": false,
+      "bytes": 900,
+      "characters": 900,
+      "condition": "ripgrep",
+      "success": false,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 211
+    },
+    {
+      "applied": true,
+      "bytes": 96791,
+      "characters": 96791,
+      "condition": "inventory",
+      "success": true,
+      "task_id": "duplicate-entitlement-grants",
+      "tokens": 22323
+    }
+  ],
+  "patch_simulation": {
+    "inventory": {
+      "bytes": 404823,
+      "characters": 404823,
+      "failed_attempt_tokens": 0,
+      "success_rate": 1.0,
+      "successes": 6,
+      "tokens": 93391,
+      "tokens_per_success": 15565.166666666666,
+      "total": 6
+    },
+    "resolver": {
+      "bytes": 5386,
+      "characters": 5386,
+      "failed_attempt_tokens": 0,
+      "success_rate": 1.0,
+      "successes": 6,
+      "tokens": 1234,
+      "tokens_per_success": 205.66666666666666,
+      "total": 6
+    },
+    "ripgrep": {
+      "bytes": 5922,
+      "characters": 5922,
+      "failed_attempt_tokens": 644,
+      "success_rate": 0.5,
+      "successes": 3,
+      "tokens": 1370,
+      "tokens_per_success": 456.6666666666667,
+      "total": 6
+    }
+  },
+  "profile": "full",
+  "report_schema_version": 1
+}

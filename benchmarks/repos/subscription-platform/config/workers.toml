@@ -1,0 +1,3 @@
+[renewals]
+batch_size = 100
+max_concurrency = 8

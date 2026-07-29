@@ -42,7 +42,13 @@ def main() -> int:
     for name, targets, extra_paths in discover_skill_scopes():
         if not run_mypy_group(f"skill: {name}", targets, extra_paths):
             failures.append(name)
-    tooling = [ROOT / "tools" / "validation", ROOT / "tests" / "repository", ROOT / "tests" / "integration"]
+    tooling = [
+        ROOT / "tools" / "validation",
+        ROOT / "tools" / "benchmarks",
+        ROOT / "tests" / "benchmarks",
+        ROOT / "tests" / "repository",
+        ROOT / "tests" / "integration",
+    ]
     if not run_mypy_group("repository tooling", tooling):
         failures.append("repository tooling")
     if failures:

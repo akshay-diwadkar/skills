@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "rollouts",
+  "timeout_seconds": 6
+}

@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "notifications",
+  "timeout_seconds": 9
+}

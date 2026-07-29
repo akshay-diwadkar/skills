@@ -36,10 +36,17 @@ def shard_id(path: str) -> str:
 
 def role(path: str) -> str:
     name = Path(path).name.lower()
+    parts = tuple(part.lower() for part in Path(path).parts)
     if (
         name in CONFIG_NAMES
         or name.startswith("tsconfig") and name.endswith(".json")
         or Path(path).suffix.lower() in {".toml", ".yaml", ".yml", ".ini", ".cfg"}
+        or parts[:1] in {
+            ("config",),
+            ("configuration",),
+            ("schemas",),
+            ("settings",),
+        }
         or path.endswith(".env.example")
     ):
         return "configuration"

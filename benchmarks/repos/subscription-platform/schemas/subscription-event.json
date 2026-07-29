@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "cycle": {
+      "type": "string"
+    },
+    "event_type": {
+      "enum": [
+        "renewed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "subscription_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subscription_id",
+    "cycle",
+    "event_type"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "service": "api",
+  "timeout_seconds": 8
+}
