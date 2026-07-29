@@ -13,13 +13,17 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 MAP_SCRIPTS = ROOT / "skills" / "engineering" / "map-codebase" / "scripts"
 
+import tools.benchmarks.fixtures as fixture_tools
 from tools.benchmarks.catalog import AUDIT_PATH, render_audit
 from tools.benchmarks.fixtures import (
     BenchmarkError,
+    FixtureTree,
+    inspect_fixture_tree,
     load_manifests,
     materialize_repository,
     repository_digest,
     validate_manifest,
+    verify_fixture_tree,
 )
 
 pytestmark = pytest.mark.fixtures
@@ -31,7 +35,91 @@ def test_committed_manifests_and_evidence_hashes_validate() -> None:
         "flag-control-plane",
         "subscription-platform",
     }
-    assert all(repository_digest(ROOT / "benchmarks" / "repos" / manifest["repository"]["path"]) == manifest["repository"]["sha256"] for manifest in manifests)
+    for manifest in manifests:
+        repository = ROOT / "benchmarks" / "repos" / manifest["repository"]["path"]
+        tree = FixtureTree.from_mapping(manifest["repository"])
+        verify_fixture_tree(repository, tree)
+        assert repository_digest(repository) == tree.sha256
+
+
+def test_fixture_tree_contract_rejects_malformed_inventories(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_bytes(b"alpha\n")
+    (tmp_path / "b.txt").write_bytes(b"beta\n")
+    mapping = inspect_fixture_tree(tmp_path).to_mapping()
+
+    unsorted = copy.deepcopy(mapping)
+    unsorted["files"].reverse()
+    with pytest.raises(BenchmarkError, match="must be sorted"):
+        FixtureTree.from_mapping(unsorted)
+
+    duplicate = copy.deepcopy(mapping)
+    duplicate["files"][1] = copy.deepcopy(duplicate["files"][0])
+    with pytest.raises(BenchmarkError, match="duplicate paths"):
+        FixtureTree.from_mapping(duplicate)
+
+    traversal = copy.deepcopy(mapping)
+    traversal["files"][0]["path"] = "../answer.txt"
+    with pytest.raises(BenchmarkError, match="contained relative path"):
+        FixtureTree.from_mapping(traversal)
+
+    stale = copy.deepcopy(mapping)
+    stale["sha256"] = "0" * 64
+    with pytest.raises(BenchmarkError, match="stale aggregate tree hash"):
+        FixtureTree.from_mapping(stale)
+
+
+def test_fixture_tree_ignores_runtime_caches_but_fails_on_source_drift(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    declared = source / "module.py"
+    declared.write_bytes(b"VALUE = 1\n")
+    (source / "keep.txt").write_bytes(b"keep\n")
+    expected = inspect_fixture_tree(source)
+
+    cache = source / ".ruff_cache" / "state"
+    cache.parent.mkdir()
+    cache.write_bytes(b"machine-local")
+    verify_fixture_tree(source, expected)
+
+    unexpected = source / "answer.json"
+    unexpected.write_bytes(b"{}\n")
+    with pytest.raises(BenchmarkError, match="unexpected source path"):
+        verify_fixture_tree(source, expected)
+    unexpected.unlink()
+
+    declared.write_bytes(b"VALUE = 1\r\n")
+    with pytest.raises(BenchmarkError, match="content hash mismatch"):
+        verify_fixture_tree(source, expected)
+    declared.write_bytes(b"VALUE = 1\n")
+
+    declared.unlink()
+    with pytest.raises(BenchmarkError, match="missing declared path"):
+        verify_fixture_tree(source, expected)
+
+
+def test_materialization_copies_only_declared_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repositories = tmp_path / "repos"
+    source = repositories / "fixture"
+    source.mkdir(parents=True)
+    (source / "module.py").write_bytes(b"VALUE = 1\n")
+    tree = inspect_fixture_tree(source)
+    cache = source / ".pytest_cache" / "state"
+    cache.parent.mkdir()
+    cache.write_bytes(b"machine-local")
+    manifest = {
+        "fixture_id": "fixture",
+        "repository": {"path": "fixture", **tree.to_mapping()},
+    }
+    monkeypatch.setattr(fixture_tools, "REPOSITORY_ROOT", repositories)
+
+    with materialize_repository(manifest) as materialized:
+        assert (materialized / "module.py").read_bytes() == b"VALUE = 1\n"
+        assert not (materialized / ".pytest_cache").exists()
 
 
 def test_manifest_rejects_stale_owner_evidence_and_prompt_leakage() -> None:
@@ -107,8 +195,7 @@ def test_external_symlink_escape_is_rejected(tmp_path: Path) -> None:
     except OSError:
         pytest.skip("symlink creation is unavailable on this Windows host")
     try:
-        manifest["repository"]["sha256"] = repository_digest(repository)
-        with pytest.raises(BenchmarkError, match="symlink escapes"):
+        with pytest.raises(BenchmarkError, match="may not contain symlinks"):
             validate_manifest(manifest)
     finally:
         link.unlink(missing_ok=True)
@@ -142,3 +229,16 @@ def test_answers_do_not_leak_into_installed_resolver() -> None:
         for task in manifest["tasks"]:
             for owner in task["expected"]["primary_owners"]:
                 assert owner["path"] not in production
+
+
+def test_ci_profiles_keep_fixture_runtime_and_benchmark_evidence_separate() -> None:
+    quality = (ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+    full = (ROOT / ".github" / "workflows" / "benchmarks.yml").read_text(encoding="utf-8")
+
+    assert 'os: [ubuntu-latest, windows-latest]' in quality
+    assert 'pytest -m fixtures -q' in quality
+    assert 'not fixtures and not benchmark and not benchmark_slow' in quality
+    assert 'benchmark and not benchmark_slow' in quality
+    assert 'timeout-minutes: 10' in quality
+    assert 'pytest -m benchmark_slow -q' in full
+    assert 'pytest -m benchmark -q' not in full

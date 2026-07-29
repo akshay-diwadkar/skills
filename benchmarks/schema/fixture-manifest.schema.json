@@ -51,10 +51,23 @@
     "repository": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256", "meaningful_files", "generator"],
+      "required": [
+        "path",
+        "hash_algorithm",
+        "sha256",
+        "files",
+        "meaningful_files",
+        "generator"
+      ],
       "properties": {
         "path": {"type": "string", "minLength": 1},
+        "hash_algorithm": {"const": "sha256-path-content-v1"},
         "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/fixture_file"}
+        },
         "meaningful_files": {"type": "integer", "minimum": 1},
         "generator": {"type": "string", "minLength": 1}
       }
@@ -95,6 +108,15 @@
     }
   },
   "definitions": {
+    "fixture_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
     "owner": {
       "type": "object",
       "additionalProperties": false,

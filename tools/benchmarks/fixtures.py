@@ -6,8 +6,9 @@ import re
 import shutil
 import tempfile
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 import jsonschema
 
@@ -17,10 +18,77 @@ SCHEMA_PATH = BENCHMARK_ROOT / "schema" / "fixture-manifest.schema.json"
 MANIFEST_ROOT = BENCHMARK_ROOT / "manifests"
 REPOSITORY_ROOT = BENCHMARK_ROOT / "repos"
 KNOWN_ORACLES = {"python-test", "path-set", "ownership", "abstention"}
+TREE_HASH_ALGORITHM = "sha256-path-content-v1"
+RUNTIME_ARTIFACT_DIRECTORIES = frozenset(
+    {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", "__pycache__"}
+)
 
 
 class BenchmarkError(ValueError):
     """Raised when benchmark data violates a safety or integrity contract."""
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureFile:
+    """One exact file in a canonical fixture tree."""
+
+    path: str
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class FixtureTree:
+    """Versioned, path-and-content fixture identity."""
+
+    algorithm: str
+    sha256: str
+    files: tuple[FixtureFile, ...]
+
+    @classmethod
+    def from_mapping(
+        cls,
+        data: Mapping[str, Any],
+        *,
+        source: str = "fixture tree",
+    ) -> FixtureTree:
+        algorithm = str(data.get("hash_algorithm", ""))
+        if algorithm != TREE_HASH_ALGORITHM:
+            raise BenchmarkError(f"{source}: unsupported tree hash algorithm {algorithm!r}")
+        raw_files = data.get("files")
+        if not isinstance(raw_files, list) or not raw_files:
+            raise BenchmarkError(f"{source}: canonical file inventory must not be empty")
+        files: list[FixtureFile] = []
+        for index, raw_file in enumerate(raw_files):
+            if not isinstance(raw_file, Mapping):
+                raise BenchmarkError(f"{source}: files[{index}] must be an object")
+            relative = _relative_path(str(raw_file.get("path", "")), f"{source}.files[{index}].path")
+            sha256 = str(raw_file.get("sha256", ""))
+            if not re.fullmatch(r"[a-f0-9]{64}", sha256):
+                raise BenchmarkError(f"{source}: invalid content hash for {relative}")
+            files.append(FixtureFile(path=relative.as_posix(), sha256=sha256))
+        paths = [item.path for item in files]
+        if paths != sorted(paths):
+            raise BenchmarkError(f"{source}: canonical file inventory must be sorted")
+        if len(paths) != len(set(paths)):
+            raise BenchmarkError(f"{source}: canonical file inventory contains duplicate paths")
+        expected_digest = str(data.get("sha256", ""))
+        actual_digest = _tree_digest(files)
+        if expected_digest != actual_digest:
+            raise BenchmarkError(
+                f"{source}: stale aggregate tree hash "
+                f"(expected {expected_digest}, inventory {actual_digest})"
+            )
+        return cls(algorithm=algorithm, sha256=expected_digest, files=tuple(files))
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {
+            "hash_algorithm": self.algorithm,
+            "sha256": self.sha256,
+            "files": [
+                {"path": item.path, "sha256": item.sha256}
+                for item in self.files
+            ],
+        }
 
 
 def _relative_path(value: str, field: str) -> PurePosixPath:
@@ -41,34 +109,91 @@ def _contained(root: Path, relative: PurePosixPath) -> Path:
     return candidate
 
 
-def repository_digest(root: Path) -> str:
-    """Hash relative paths and bytes for a stable, machine-independent tree digest."""
+def _tree_digest(files: Iterable[FixtureFile]) -> str:
     digest = hashlib.sha256()
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
-        relative = path.relative_to(root)
-        if ".git" in relative.parts or "__pycache__" in relative.parts:
-            continue
-        relative_text = relative.as_posix()
-        digest.update(relative_text.encode("utf-8"))
+    for item in files:
+        digest.update(item.path.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(hashlib.sha256(path.read_bytes()).digest())
+        digest.update(bytes.fromhex(item.sha256))
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _is_runtime_artifact(relative: Path) -> bool:
+    return any(part in RUNTIME_ARTIFACT_DIRECTORIES for part in relative.parts)
+
+
+def inspect_fixture_tree(root: Path, *, allow_empty: bool = False) -> FixtureTree:
+    """Inspect exact fixture bytes while excluding only central runtime artifacts."""
+    if not root.is_dir():
+        raise BenchmarkError(f"fixture repository does not exist: {root}")
+    files: list[FixtureFile] = []
+    candidates = sorted(
+        root.rglob("*"),
+        key=lambda item: item.relative_to(root).as_posix(),
+    )
+    for path in candidates:
+        relative = path.relative_to(root)
+        if _is_runtime_artifact(relative):
+            continue
+        if path.is_symlink():
+            raise BenchmarkError(f"fixture trees may not contain symlinks: {relative.as_posix()}")
+        if not path.is_file():
+            continue
+        files.append(
+            FixtureFile(
+                path=relative.as_posix(),
+                sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+            )
+        )
+    if not files and not allow_empty:
+        raise BenchmarkError(f"fixture repository is empty: {root}")
+    return FixtureTree(
+        algorithm=TREE_HASH_ALGORITHM,
+        sha256=_tree_digest(files),
+        files=tuple(files),
+    )
+
+
+def verify_fixture_tree(root: Path, expected: FixtureTree) -> None:
+    """Fail closed when source bytes differ from a canonical fixture inventory."""
+    actual = inspect_fixture_tree(root)
+    expected_by_path = {item.path: item.sha256 for item in expected.files}
+    actual_by_path = {item.path: item.sha256 for item in actual.files}
+    missing = sorted(set(expected_by_path) - set(actual_by_path))
+    if missing:
+        raise BenchmarkError(f"fixture tree is missing declared path: {missing[0]}")
+    unexpected = sorted(set(actual_by_path) - set(expected_by_path))
+    if unexpected:
+        raise BenchmarkError(f"fixture tree contains unexpected source path: {unexpected[0]}")
+    for path, expected_hash in expected_by_path.items():
+        if actual_by_path[path] != expected_hash:
+            raise BenchmarkError(f"fixture tree content hash mismatch: {path}")
+    if actual.sha256 != expected.sha256:
+        raise BenchmarkError(
+            f"fixture tree digest mismatch (expected {expected.sha256}, actual {actual.sha256})"
+        )
+
+
+def repository_digest(root: Path) -> str:
+    """Compatibility wrapper for callers that need only the canonical digest."""
+    return inspect_fixture_tree(root).sha256
 
 
 def file_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def meaningful_file_count(root: Path) -> int:
+def meaningful_file_count(root: Path, tree: FixtureTree | None = None) -> int:
+    inventory = tree or inspect_fixture_tree(root)
     return sum(
         1
-        for path in root.rglob("*")
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and path.name not in {"__init__.py", ".gitattributes"}
-        and "generated" not in path.relative_to(root).parts
-        and not path.name.startswith(("component_", "check_component_", "service-"))
+        for item in inventory.files
+        if PurePosixPath(item.path).name not in {"__init__.py", ".gitattributes"}
+        and "generated" not in PurePosixPath(item.path).parts
+        and not PurePosixPath(item.path).name.startswith(
+            ("component_", "check_component_", "service-")
+        )
     )
 
 
@@ -87,24 +212,13 @@ def validate_manifest(data: dict[str, Any], *, source: Path | None = None) -> No
         raise BenchmarkError(f"{source or 'manifest'}: missing generator {generator}")
     if not repository_path.is_dir():
         raise BenchmarkError(f"{source or 'manifest'}: missing repository {repository}")
-    for candidate in repository_path.rglob("*"):
-        if not candidate.is_symlink():
-            continue
-        try:
-            candidate.resolve().relative_to(repository_path.resolve())
-        except ValueError as exc:
-            raise BenchmarkError(
-                f"{source or 'manifest'}: symlink escapes repository: "
-                f"{candidate.relative_to(repository_path).as_posix()}"
-            ) from exc
-    actual_digest = repository_digest(repository_path)
-    expected_digest = str(data["repository"]["sha256"])
-    if actual_digest != expected_digest:
-        raise BenchmarkError(
-            f"{source or 'manifest'}: repository digest mismatch "
-            f"(expected {expected_digest}, actual {actual_digest})"
-        )
-    actual_meaningful = meaningful_file_count(repository_path)
+    expected_tree = FixtureTree.from_mapping(
+        data["repository"],
+        source=f"{source or 'manifest'}:repository",
+    )
+    verify_fixture_tree(repository_path, expected_tree)
+    expected_hashes = {item.path: item.sha256 for item in expected_tree.files}
+    actual_meaningful = meaningful_file_count(repository_path, expected_tree)
     if actual_meaningful != data["repository"]["meaningful_files"]:
         raise BenchmarkError(
             f"{source or 'manifest'}: meaningful file count mismatch "
@@ -136,8 +250,8 @@ def validate_manifest(data: dict[str, Any], *, source: Path | None = None) -> No
             owner_path = _contained(repository_path, relative)
             if not owner_path.is_file():
                 raise BenchmarkError(f"{source or 'manifest'}: missing owner path {relative}")
-            actual_file_digest = file_digest(owner_path)
-            if actual_file_digest != owner["sha256"]:
+            expected_file_digest = expected_hashes.get(relative.as_posix())
+            if expected_file_digest != owner["sha256"]:
                 raise BenchmarkError(
                     f"{source or 'manifest'}: stale evidence for {task_id}:{relative}"
                 )
@@ -239,7 +353,17 @@ def load_manifests(root: Path = MANIFEST_ROOT) -> list[dict[str, Any]]:
 def materialize_repository(manifest: dict[str, Any]) -> Iterator[Path]:
     relative = _relative_path(str(manifest["repository"]["path"]), "repository.path")
     source = _contained(REPOSITORY_ROOT, relative)
+    tree = FixtureTree.from_mapping(
+        manifest["repository"],
+        source=f"{manifest['fixture_id']}:repository",
+    )
+    verify_fixture_tree(source, tree)
     with tempfile.TemporaryDirectory(prefix=f"benchmark-{manifest['fixture_id']}-") as temporary:
         destination = Path(temporary) / "repo"
-        shutil.copytree(source, destination, symlinks=True)
+        destination.mkdir()
+        for item in tree.files:
+            source_path = _contained(source, PurePosixPath(item.path))
+            destination_path = _contained(destination, PurePosixPath(item.path))
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, destination_path)
         yield destination

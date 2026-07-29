@@ -4,13 +4,17 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from tools.benchmarks.fixtures import FixtureTree, inspect_fixture_tree  # noqa: E402
+
 REPOS = ROOT / "benchmarks" / "repos"
 
 FEATURE_MODEL = {
@@ -362,11 +366,8 @@ def generate_all(destination: Path) -> None:
     )
 
 
-def _tree(root: Path) -> dict[str, str]:
-    return {
-        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in sorted(item for item in root.rglob("*") if item.is_file())
-    }
+def _tree(root: Path) -> FixtureTree:
+    return inspect_fixture_tree(root)
 
 
 def main() -> int:

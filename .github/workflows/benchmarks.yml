@@ -27,4 +27,4 @@ jobs:
           python -m tools.benchmarks regenerate --check
           python -m tools.benchmarks audit --check
       - name: Run complete deterministic benchmark suite
-        run: python -m pytest -m benchmark -q
+        run: python -m pytest -m benchmark_slow -q

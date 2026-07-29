@@ -2,8 +2,15 @@ import json
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
+from tools.benchmarks.fixtures import FixtureTree, verify_fixture_tree
+
 ROOT = Path(__file__).resolve().parents[3]
 EVAL_DIR = ROOT / "tests" / "skills" / "map-codebase" / "eval"
+INVENTORY_PATH = ROOT / "benchmarks" / "inventories" / "realistic-large.json"
+
+pytestmark = pytest.mark.fixtures
 
 
 def test_legacy_smoke_portfolio_keeps_thirty_cases_per_repository() -> None:
@@ -37,13 +44,17 @@ def test_committed_legacy_baseline_covers_every_repository() -> None:
 
 def test_realistic_large_is_preserved_as_homogeneous_scale_evidence() -> None:
     fixture = EVAL_DIR / "repos" / "realistic-large"
-    files = [path for path in fixture.rglob("*") if path.is_file()]
+    tree = FixtureTree.from_mapping(
+        json.loads(INVENTORY_PATH.read_text(encoding="utf-8")),
+        source=str(INVENTORY_PATH),
+    )
+    verify_fixture_tree(fixture, tree)
     numbered = [
-        path
-        for path in files
-        if path.name.startswith(("component_", "check_component_", "service-"))
+        item
+        for item in tree.files
+        if Path(item.path).name.startswith(("component_", "check_component_", "service-"))
     ]
-    assert len(files) == 228
+    assert len(tree.files) == 218
     assert len(numbered) == 206
     component = (fixture / "src" / "services" / "component_010.py").read_text(encoding="utf-8")
     assert "from src.services.component_009 import services_value_009" in component

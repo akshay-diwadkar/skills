@@ -20,4 +20,6 @@ python tests/skills/map-codebase/run_benchmark.py --profile full --check
 ```
 
 Changing a fixture repository, prompt, or answer requires a fixture-version
-bump. Resolver tuning must not change frozen version-1 answers.
+bump. Resolver tuning must not change frozen version-1 answers. Repository
+identity is the manifest-bound canonical path-and-content tree, not arbitrary
+checkout contents; exact byte drift fails validation.

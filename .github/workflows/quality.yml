@@ -25,13 +25,51 @@ jobs:
         run: python tools/validation/run_mypy.py
       - name: Repository validation
         run: python tools/validation/validate_repository.py
-      - name: Fixture lifecycle
+      - name: Test
+        run: python -m pytest -m "not fixtures and not benchmark and not benchmark_slow" -q
+
+  fixture-contract:
+    name: Fixture Contract (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install fixture dependencies
+        run: |
+          python -m pip install pytest
+          python -m pip install -r skills/engineering/map-codebase/requirements.txt
+      - name: Validate fixture lifecycle
         run: |
           python -m tools.benchmarks validate
           python -m tools.benchmarks regenerate --check
           python -m tools.benchmarks audit --check
-      - name: Test
-        run: python -m pytest -m "not benchmark_slow" -q
+      - name: Run fixture contract tests
+        run: python -m pytest -m fixtures -q
+
+  representative-benchmark:
+    name: Representative Map Benchmark
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install pytest
+          python -m pip install -r skills/engineering/map-codebase/requirements.txt
+      - name: Run representative deterministic benchmark
+        run: python -m pytest -m "benchmark and not benchmark_slow" -q
 
   cross-platform:
     name: Cross-Platform Runtime (${{ matrix.os }}, Python ${{ matrix.python-version }})
@@ -68,4 +106,6 @@ jobs:
       - name: Check runtime prerequisites
         run: python skills/engineering/map-codebase/scripts/cli.py doctor --repo-root .
       - name: Run map-codebase suite
-        run: python -m pytest tests/skills/map-codebase -q
+        run: >-
+          python -m pytest tests/skills/map-codebase
+          -m "not fixtures and not benchmark and not benchmark_slow" -q

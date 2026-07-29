@@ -7,7 +7,7 @@
     "ripgrep": "git ls-files plus independent ripgrep ranking and three full files"
   },
   "fixture_hashes": {
-    "flag-control-plane": "5deaf6c07fedaca50699373c21846d0c8b84747fe1eb1cb09e36e8b3ce96f200"
+    "flag-control-plane": "21d96088476429845edd9b1d139f19a16b72afe6eea2a7d60e0ccfbdc5e48b1c"
   },
   "fixture_versions": {
     "flag-control-plane": 1

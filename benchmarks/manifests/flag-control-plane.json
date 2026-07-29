@@ -1,191 +1,1114 @@
 {
-  "schema_version": 1,
-  "fixture_id": "flag-control-plane",
-  "fixture_version": 1,
-  "seed": 73184,
-  "tier": "B",
+  "baseline_conditions": [
+    "resolver-first",
+    "ripgrep",
+    "broad-inventory"
+  ],
+  "ci": {
+    "markers": [
+      "fixtures",
+      "benchmark"
+    ],
+    "profile": "representative"
+  },
   "classification": "comparative-utility",
   "domain": "feature-flag-platform",
-  "languages": ["python", "typescript", "json", "yaml", "sql"],
-  "skill_targets": ["map-codebase"],
-  "repository": {
-    "path": "flag-control-plane",
-    "sha256": "5deaf6c07fedaca50699373c21846d0c8b84747fe1eb1cb09e36e8b3ce96f200",
-    "meaningful_files": 122,
-    "generator": "benchmarks/generators/generate.py"
+  "fixture_id": "flag-control-plane",
+  "fixture_version": 1,
+  "languages": [
+    "python",
+    "typescript",
+    "json",
+    "yaml",
+    "sql"
+  ],
+  "provenance": {
+    "kind": "synthetic",
+    "license": null
   },
-  "provenance": {"kind": "synthetic", "license": null},
-  "baseline_conditions": ["resolver-first", "ripgrep", "broad-inventory"],
-  "ci": {"profile": "representative", "markers": ["fixtures", "benchmark"]},
+  "repository": {
+    "files": [
+      {
+        "path": ".codebase-knowledge.toml",
+        "sha256": "61af6b18d30f0598f492730e6d3da82e3ea0d7e060e1e5c0e028a51702672249"
+      },
+      {
+        "path": ".gitignore",
+        "sha256": "118cca3b37910f81707e189850c5483884af1c9d04b11c388ba72d012ef681aa"
+      },
+      {
+        "path": "README.md",
+        "sha256": "1b184f9001a927b4e9ecf976b47bbf58473675694c5b9dfdd6c63fb84a94c900"
+      },
+      {
+        "path": "config/api.json",
+        "sha256": "0900af3cb31853c16ddb3c7bf0809f21202cfe7caf907367357c6fb3ceca6648"
+      },
+      {
+        "path": "config/evaluation.json",
+        "sha256": "b19e3845423ce457c4be50fa92b796fa03972d4be24e693d3f57e5c1c4b217c6"
+      },
+      {
+        "path": "config/evaluator.yaml",
+        "sha256": "a97691aec0b5786cc8f25e7b53345ef4d9038dd477316bb70dcd7a1857e38178"
+      },
+      {
+        "path": "config/jobs.json",
+        "sha256": "0a9cd6230ff37c9632f5a1d58b3994afedf616715de720de62fbdd8811a53c85"
+      },
+      {
+        "path": "config/persistence.json",
+        "sha256": "85980388c00b9081c183ce0bcaf4b8dbdd9966d4795803f78958d80a541522bc"
+      },
+      {
+        "path": "config/rollouts.json",
+        "sha256": "5924c7ac06f10e2780836edc7028ee0a92764b34ea1c6932c462b203335e6743"
+      },
+      {
+        "path": "docs/api.md",
+        "sha256": "e630bc6c467f024002bcc6e8742dffc0473c22a4e3eb5065457eda0e6e62ff47"
+      },
+      {
+        "path": "docs/evaluation.md",
+        "sha256": "946c3e26b0ae3ad1ecbde81c9d19542a43fffa7e9bc0d2f9d6e34749c1837e53"
+      },
+      {
+        "path": "docs/jobs.md",
+        "sha256": "adbcd49c5058d320984fb6dd981e6bd3005bf6480d72a0d484875fd94ee57b56"
+      },
+      {
+        "path": "docs/legacy-notes.md",
+        "sha256": "b997231366cdfb0b878c2d155e1e7ad7aa326c67c58b26c4c6e9ad3f86065dff"
+      },
+      {
+        "path": "docs/operations.md",
+        "sha256": "6f28d8f87071f122dc291c1908417dc3175ae32674478c26ee09c5b033752aa0"
+      },
+      {
+        "path": "docs/persistence.md",
+        "sha256": "ad01d6c4f15325ada2a6b1a2f4ffef1742fd08400c42dc650700ed0e4e1ce88a"
+      },
+      {
+        "path": "docs/rollouts.md",
+        "sha256": "563c1a0a1d880e24f61c4c1b61ebc1cbcd903d4baad055161d625cc4b26fc8bd"
+      },
+      {
+        "path": "generated/typescript/admin.ts",
+        "sha256": "4e2841dfdefac0ecc1bf8bc14a6cd5dfcab89dc4a3a4d4c86bfb88f290d335b2"
+      },
+      {
+        "path": "generated/typescript/audit.ts",
+        "sha256": "571738c262fbeac01ad141fa8f9f513786635d7d6510507b1c1dd869bd1bd88f"
+      },
+      {
+        "path": "generated/typescript/cleanup.ts",
+        "sha256": "cbdc000864316691d236c15cd4e121c8730af8f5c85af2868d86790836c1418e"
+      },
+      {
+        "path": "generated/typescript/constraint.ts",
+        "sha256": "ddbb1739dfcb1d90783d8ff145a6ac239e1bc5dc1ba799cbe6de2d2f1f9c8c8c"
+      },
+      {
+        "path": "generated/typescript/context.ts",
+        "sha256": "74e47160c98c6cf3add918ccfdc8da4a9851b730daffef3ea0917c209fee4fb0"
+      },
+      {
+        "path": "generated/typescript/emergency.ts",
+        "sha256": "34a3b4a93626d74c1ee0e85813a9d9cd34ae8eff00d88decfa5e34dd7068bfbd"
+      },
+      {
+        "path": "generated/typescript/environment.ts",
+        "sha256": "5e66208d9c7888d04f5352c2a187cd84b3d05b57c1e222c45528e3abd5ea9f93"
+      },
+      {
+        "path": "generated/typescript/evaluation.ts",
+        "sha256": "0a85f7bf158f4f280b4fed243a3963744187470754b5d8ec6f18d2215b25c18a"
+      },
+      {
+        "path": "generated/typescript/flag.ts",
+        "sha256": "eef382923211c4bf9de73e8fbd6ea63219ad79ada9e2b840f90952e01c719bd6"
+      },
+      {
+        "path": "generated/typescript/percentage.ts",
+        "sha256": "a8b659bd7ec415b73916e9c0d09879050502d6eafedf7cd363c759e6499ff97b"
+      },
+      {
+        "path": "generated/typescript/prerequisite.ts",
+        "sha256": "01df02c037ec422bd8a56c57c4579ebe7f3edb2e7f6ca137217a769f713e9e88"
+      },
+      {
+        "path": "generated/typescript/progressive.ts",
+        "sha256": "cbb08e3d2b2fbcb745af7bb36da96a1d5d30f4a535f0b71054ae55231d3e2230"
+      },
+      {
+        "path": "generated/typescript/reconciliation.ts",
+        "sha256": "376679145ffb9955eb430ac2bf8b13f6a7d667fcafd7196aa6d5102463a1373e"
+      },
+      {
+        "path": "generated/typescript/regional.ts",
+        "sha256": "b6a6d5f6601ca8d4edf05d11961f88f49517b595cce4ab3df79edf7274a085be"
+      },
+      {
+        "path": "generated/typescript/revision.ts",
+        "sha256": "7c60e4b88d22b43250b12f5ac3addfdef86734ca643bf06182aa86dfa2ff137e"
+      },
+      {
+        "path": "generated/typescript/rollout.ts",
+        "sha256": "51da1b1d3bdb9c70159c14a4448b1ebb05861c9e44a5631ca5b572d533ed93e7"
+      },
+      {
+        "path": "generated/typescript/scheduled.ts",
+        "sha256": "b6429966195e444b2558da399aacfa238be9c1a84b525b4aadb416eefb3f1bf2"
+      },
+      {
+        "path": "generated/typescript/segment.ts",
+        "sha256": "96a6c9f883fbc9dd13a4b2529572e0f6dc1beca2a8c9c5dda5b95ab47cb0756e"
+      },
+      {
+        "path": "generated/typescript/variant.ts",
+        "sha256": "25f8b99b62dde80773e63fb77868632fcb680331826b58e19204b0945866938d"
+      },
+      {
+        "path": "migrations/20240101_evaluation_state.sql",
+        "sha256": "2b1b4eacfa0cb3ad3ba4e86679997396e96474140ee88c497cf6749d1ffff09d"
+      },
+      {
+        "path": "migrations/20240102_rollouts_state.sql",
+        "sha256": "1d1bbbdb140d830d67943f92387166a6e43e95ae6fb8c4bdf7ceeb580a65cf11"
+      },
+      {
+        "path": "migrations/20240103_persistence_state.sql",
+        "sha256": "b6b5765e9cd9b61d133cf292e22a31d02cde32b04154e1484a27428338b91685"
+      },
+      {
+        "path": "migrations/20240104_api_state.sql",
+        "sha256": "c18466bb7af7d565333eb683b6e7ac0319d4eb8c0db017c28d502df2bad62e4c"
+      },
+      {
+        "path": "migrations/20240105_jobs_state.sql",
+        "sha256": "5949a4aa84acf7543d67618c644c35dcbea54150c2911ccd087808c448815860"
+      },
+      {
+        "path": "pyproject.toml",
+        "sha256": "f16080aa2c6519aa04af28657079be0379ba31a03991c5878ef438969f5638f5"
+      },
+      {
+        "path": "schemas/flag-event.json",
+        "sha256": "e224b4b02d050e7ff13522e30c81fa910df24d731ed0050859911eb90ad9342d"
+      },
+      {
+        "path": "scripts/verify_admin.py",
+        "sha256": "28c10c06ab86d07250181d94d8ce5bb3720d432ff42adf5a8dd0200f721262a4"
+      },
+      {
+        "path": "scripts/verify_context.py",
+        "sha256": "44c45f69e4e9069a339070040ae742ed873b05dc88b358eeba7d7e32f9c1ee32"
+      },
+      {
+        "path": "scripts/verify_flag.py",
+        "sha256": "1ce6935bfe0d45be0aefff0f1b627e890b264ed04a110a6071aec6b5d810b314"
+      },
+      {
+        "path": "scripts/verify_reconciliation.py",
+        "sha256": "3b4758ab80a6c3efb3c89505fec02d3a9a7a8c8325e7e3f62f1b04f2fc405178"
+      },
+      {
+        "path": "scripts/verify_scheduled.py",
+        "sha256": "73a16b3a7aab3a4909f3068ee8d4937b5707326a33537fc655f08a5528757a35"
+      },
+      {
+        "path": "src/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/api/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/api/admin_model.py",
+        "sha256": "ddd3e239eb2acf48c02f8b4fb0e8eb9e736c4ac6dd93673c6434ce906dcf5738"
+      },
+      {
+        "path": "src/api/admin_policy.py",
+        "sha256": "03b9d5b6eb6c35ef0970c0d76f58492d579f61d8c5ba7e6107b3e281174588a3"
+      },
+      {
+        "path": "src/api/admin_repository.py",
+        "sha256": "1891056667fbc526aaad242733a73cd14e865ccb917791dabd683b5b7c49956c"
+      },
+      {
+        "path": "src/api/admin_service.py",
+        "sha256": "9894ad822c1f25785061bb8a847f275dfad23789dace65e1c6a055e72ddfaa13"
+      },
+      {
+        "path": "src/api/environment_model.py",
+        "sha256": "5817de9b27ba0d7ee4aa7e24144dc382ade2f65e8cb2cb28e1d7e53570415dd7"
+      },
+      {
+        "path": "src/api/environment_policy.py",
+        "sha256": "563f219d3a23013dbc1ae385344ee2ec9f99637ed1c5d882e67a0d9e13ffdcce"
+      },
+      {
+        "path": "src/api/environment_repository.py",
+        "sha256": "4bfb063c6fcb8d87b1f09f94261749c3a24aea65428e0f6baab9702685f38296"
+      },
+      {
+        "path": "src/api/environment_service.py",
+        "sha256": "5862dc07fb5f6a99246f3294760ee4109fad8651f4eb573647163e23e00b7d56"
+      },
+      {
+        "path": "src/api/evaluation_model.py",
+        "sha256": "eb6b4ee482b384587eb1c48e5074653afe882fdfc6bc909cac9d45de426bd6b7"
+      },
+      {
+        "path": "src/api/evaluation_policy.py",
+        "sha256": "edb6335e2a619aeaff8e7a27638ecdbe929b9cbad09a99b753db1b9963076037"
+      },
+      {
+        "path": "src/api/evaluation_repository.py",
+        "sha256": "ee1155d4ec9c1970506e92a36b707a37fb3ffcf8ba4749e09cdb0ddab181bf14"
+      },
+      {
+        "path": "src/api/evaluation_routes.py",
+        "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43"
+      },
+      {
+        "path": "src/api/evaluation_service.py",
+        "sha256": "54e6635b9e9fd64eff62df92e3e57fa578343ba468f8776b96f131aed5231feb"
+      },
+      {
+        "path": "src/api/flag_model.py",
+        "sha256": "ae9207770bf5d49fb02a72385d64609f0c0c3af29e5f80e910231b68d2de2b89"
+      },
+      {
+        "path": "src/api/flag_policy.py",
+        "sha256": "c74f7a2d3042e2e6961340cb18d99d00256eda977937ad2be27ddb7a64b5aca6"
+      },
+      {
+        "path": "src/api/flag_repository.py",
+        "sha256": "640f36eba8a915b05faf1503958f5a6c713586e98c6dfb8cb53005f46e40ebf0"
+      },
+      {
+        "path": "src/api/flag_service.py",
+        "sha256": "45fbcf8f5e561aaede347ec5f1a8199e865fff231d3c02c77e75a0d21f38552f"
+      },
+      {
+        "path": "src/evaluation/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/evaluation/constraint_model.py",
+        "sha256": "dd149e79914d905a94326d47006f484cdf3531fb9a3d0a366e2290f4979ff720"
+      },
+      {
+        "path": "src/evaluation/constraint_policy.py",
+        "sha256": "4f3a0a4acdf1f639e97ad24d3a6f01d17b3d13b5465f4cdab5f668a58359711d"
+      },
+      {
+        "path": "src/evaluation/constraint_repository.py",
+        "sha256": "7649b4aa3f4828f5b4f54d4341a27695dccfabcf55eca388e04ce09f4f40076f"
+      },
+      {
+        "path": "src/evaluation/constraint_service.py",
+        "sha256": "1ec54bcc9abc65e9393539bbd8f28c4e08212368795fc8b79f2b6eda548dd901"
+      },
+      {
+        "path": "src/evaluation/context_model.py",
+        "sha256": "5c001470ac96ddde76df56b6eeb6d1859fb9e030f76732c1cdc1da79fbb0ec14"
+      },
+      {
+        "path": "src/evaluation/context_policy.py",
+        "sha256": "739f5fc53937ba0e31d3e523fb2740e0910905e6de5fcae48ed35530e2fe16a4"
+      },
+      {
+        "path": "src/evaluation/context_repository.py",
+        "sha256": "91b3bc1bee814736b9e3c534a32dda22fe1c509c9873ee509dbdfa9a8a2ad34a"
+      },
+      {
+        "path": "src/evaluation/context_service.py",
+        "sha256": "37d8a2f6dab6456ca1e51b65143d16305a75359c313ac0c507ef986b750846b3"
+      },
+      {
+        "path": "src/evaluation/prerequisite_model.py",
+        "sha256": "4556355c21c32545aaa06e408b71289a9214be4f515f378014ad7e4bb8bb7134"
+      },
+      {
+        "path": "src/evaluation/prerequisite_policy.py",
+        "sha256": "0708a040f72a7ef224fe747487cbba3ffc3a6872ad64cabaf3ad7e0be639ee5c"
+      },
+      {
+        "path": "src/evaluation/prerequisite_repository.py",
+        "sha256": "1bf18d7d8a2cf60e6496535ac26a3f9d27e6b67c83e22dbe967d6c104de3198b"
+      },
+      {
+        "path": "src/evaluation/prerequisite_service.py",
+        "sha256": "878e0b77a4fa1561ca4d0ed913d3ceb955c059473eb4bdd1811768d501a94f64"
+      },
+      {
+        "path": "src/evaluation/segment_matcher.py",
+        "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676"
+      },
+      {
+        "path": "src/evaluation/segment_model.py",
+        "sha256": "65b7e29aea324575884313a7c7a91718bf09402d39c4a2a2b1f543a6fcd5fad8"
+      },
+      {
+        "path": "src/evaluation/segment_policy.py",
+        "sha256": "0366e0cad5f568b44b3a99643b6c9c26cf2185ffe642bf08a0ea062b21b3ad81"
+      },
+      {
+        "path": "src/evaluation/segment_repository.py",
+        "sha256": "7ffb8680dd9029db1be7e04e79665d5ceca5e2893b305ece40908afdeb0b80ed"
+      },
+      {
+        "path": "src/evaluation/segment_service.py",
+        "sha256": "5f667e0cd61a2a2c0d6b885da2a026278fb5438631c7a8f0903b5144f6a7b73d"
+      },
+      {
+        "path": "src/evaluation/variant_model.py",
+        "sha256": "9e40fb54cd8eed4e1bbda05291eda95202d0ea11d4967d782d6e6b35c013b203"
+      },
+      {
+        "path": "src/evaluation/variant_policy.py",
+        "sha256": "68163c7ed1a7978dab9f525238a288f1444c47273d837780be9c2666df8c631e"
+      },
+      {
+        "path": "src/evaluation/variant_repository.py",
+        "sha256": "d64323886e234077b61f07681180abebe56ac32743b9dd2a72497ef22a39c9ab"
+      },
+      {
+        "path": "src/evaluation/variant_service.py",
+        "sha256": "5bf4a5f1a4884b11b23a64c4d2af43343257262222554b20ae8d331da8551f57"
+      },
+      {
+        "path": "src/jobs/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/jobs/cleanup_model.py",
+        "sha256": "6b23bf4dd0bcdd308e893149d770a61c031a9e28ce31cce60244388ab0b5a01c"
+      },
+      {
+        "path": "src/jobs/cleanup_policy.py",
+        "sha256": "256cd3be4d0d1ea473c5740f300bed9d0ef5f50f892fbe5167c897f3b4184153"
+      },
+      {
+        "path": "src/jobs/cleanup_repository.py",
+        "sha256": "131f3631f71ba129ad085cf824f5b08cd1a971396f4b7884b8b174b2cb3aaf4c"
+      },
+      {
+        "path": "src/jobs/cleanup_service.py",
+        "sha256": "3f20c3f23fc14c008dc77dd331322011138b834f2018ad4393bc22cd53ef914f"
+      },
+      {
+        "path": "src/jobs/reconciliation_model.py",
+        "sha256": "1c9a461bbfa9f77be7eee5dcf1eb3385b640d976561b612810073621d095a862"
+      },
+      {
+        "path": "src/jobs/reconciliation_policy.py",
+        "sha256": "19790f9774523bcd81eba36bc10bebfcd31c7e460d374b491a7e481f7dfc92d4"
+      },
+      {
+        "path": "src/jobs/reconciliation_repository.py",
+        "sha256": "e479a7f361a661deb79e97a0437457c6eda4ebdceecc513adea185a4bcaa3457"
+      },
+      {
+        "path": "src/jobs/reconciliation_service.py",
+        "sha256": "5169e07ed8f82f55fc69bbd973dc2f41e5056a06e73a6da63e6a0da59f38fd36"
+      },
+      {
+        "path": "src/jobs/rollout_model.py",
+        "sha256": "234ad3d73e94f9c0dae9cdc983f85cdc3f423d9250a06410c3b785e0b10bf2a9"
+      },
+      {
+        "path": "src/jobs/rollout_policy.py",
+        "sha256": "31411f9ce4534686932b70087960ef558bc3f493b44a7ecb64956f8260f2f0f8"
+      },
+      {
+        "path": "src/jobs/rollout_repository.py",
+        "sha256": "473ff3e6871660928731cc4e99c73e6d4b7ee0b10a42312b460c787e17aabcf5"
+      },
+      {
+        "path": "src/jobs/rollout_service.py",
+        "sha256": "8812116bae95f1b90e95d82a152da38e8e6508a0fc6b8c49e0f1e7eb29c9b5ce"
+      },
+      {
+        "path": "src/persistence/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/persistence/audit_model.py",
+        "sha256": "fb65f72f74055985aa4446e249135165d7f6d342abb7605c00731ec2e5ee442f"
+      },
+      {
+        "path": "src/persistence/audit_policy.py",
+        "sha256": "e639e634bba765025c822a2c5b9f4f7369f1074ffeaf06fecb81a8f3ae2f9798"
+      },
+      {
+        "path": "src/persistence/audit_repository.py",
+        "sha256": "b782c912d8242f426ea7667e2d24ad42db34c3e84f09726585ca7feea4167067"
+      },
+      {
+        "path": "src/persistence/audit_service.py",
+        "sha256": "1869392324f88901a6518e02dbaaf43b2884936ec1419899b8a0e23030182ae6"
+      },
+      {
+        "path": "src/persistence/environment_model.py",
+        "sha256": "e8c7eac61739e58f3e09b1f77dd79c16b091bcbb4368ed0a4dbb5f038ad72f85"
+      },
+      {
+        "path": "src/persistence/environment_policy.py",
+        "sha256": "8fefed51ebe7b6be123f62a98915ab824c62f5c425a359513067113d3f464cf5"
+      },
+      {
+        "path": "src/persistence/environment_repository.py",
+        "sha256": "32ba81838e6d96fbc3c231d7abe9d7a4159f934cb41aa4a2a32c81ddcfd63cbe"
+      },
+      {
+        "path": "src/persistence/environment_service.py",
+        "sha256": "e9a0a64a6480c3ebffb687850b249de7ef0c3a8d3c2bb1139d64d0fa7a3b3e93"
+      },
+      {
+        "path": "src/persistence/flag_model.py",
+        "sha256": "cdb0884c6e9b9fb4d9c1f45f5e62f335816e98a45892cc7ca65e080b4a8c7973"
+      },
+      {
+        "path": "src/persistence/flag_policy.py",
+        "sha256": "07abd0702c4ccee2e6e4f13c76da8ff013d9b56199a6542b38949dc555e0c769"
+      },
+      {
+        "path": "src/persistence/flag_repository.py",
+        "sha256": "435cae99c96392a97709dfe60c9bc60372fe4b769b509bdf45af33a55b7b8c23"
+      },
+      {
+        "path": "src/persistence/flag_service.py",
+        "sha256": "9d8bb10c1aefedce1064f3fa2bac6927c5f37575231b1f763ee15c50f9631d54"
+      },
+      {
+        "path": "src/persistence/revision_model.py",
+        "sha256": "dd76870b789d5c096a4f7dd42c6912f8dfcb00d8f1b7549360e1b7ab657fd848"
+      },
+      {
+        "path": "src/persistence/revision_policy.py",
+        "sha256": "7dc04c948e883a268c6ee874bfd173ae286fef12690ab56f0a06493b671e90fa"
+      },
+      {
+        "path": "src/persistence/revision_repository.py",
+        "sha256": "1ebe47826266e11de08d473752128d6a15efea61a937dbb0c3c8fa73ff32c4a2"
+      },
+      {
+        "path": "src/persistence/revision_service.py",
+        "sha256": "92904132b496e371dbb37be95eea9394a4fc49da19a4be509e3110cf7200a427"
+      },
+      {
+        "path": "src/rollouts/__init__.py",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "src/rollouts/emergency_model.py",
+        "sha256": "86a0853eb44b600344c9629bbedce6c99c5b8860e1e7e9cc8b5a3685abebe66b"
+      },
+      {
+        "path": "src/rollouts/emergency_policy.py",
+        "sha256": "8d6bfc67eb70107f6ab1b7f9a43743333f9dbe77ea7556f4d573018ad9dba4ec"
+      },
+      {
+        "path": "src/rollouts/emergency_repository.py",
+        "sha256": "a91bdc8b959a25ffc42bb243418dbffedb3c2e5bcd12f88bf1ed86ce1501e160"
+      },
+      {
+        "path": "src/rollouts/emergency_service.py",
+        "sha256": "8555dce89b462beac403a2fca46d9583a364b9e1ee43ea0de58f0e7b2afbe235"
+      },
+      {
+        "path": "src/rollouts/percentage_model.py",
+        "sha256": "9914f04376e978112b95f46435b06675782038847fd275e236272aed84c80f66"
+      },
+      {
+        "path": "src/rollouts/percentage_policy.py",
+        "sha256": "76173ef7b10a9f6efe6e45f498e7f74f571beafca91fa63d68b0683c1fe8b194"
+      },
+      {
+        "path": "src/rollouts/percentage_repository.py",
+        "sha256": "8e95c06c81208b3ef3777b93ee1dfa19d013d832a552c04a358ee32cc99ea293"
+      },
+      {
+        "path": "src/rollouts/percentage_service.py",
+        "sha256": "1c50b1234a86c398c6c9476ff0815abb27c8dcdf0dac6dd5ac9dd35cde922f99"
+      },
+      {
+        "path": "src/rollouts/progressive_model.py",
+        "sha256": "40d47ba1798c669d68809918e4129bbaf1205ab6611419d254f7bc71a03075a8"
+      },
+      {
+        "path": "src/rollouts/progressive_policy.py",
+        "sha256": "36be6100e165b3c597c08b241b436e5462e50e422c2d60d42effd27214d903b8"
+      },
+      {
+        "path": "src/rollouts/progressive_repository.py",
+        "sha256": "808f709127e56c8114f3ec1ab9b68ff2b1d576a880645884be4ae721085d85d8"
+      },
+      {
+        "path": "src/rollouts/progressive_rollout.py",
+        "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3"
+      },
+      {
+        "path": "src/rollouts/progressive_service.py",
+        "sha256": "9227f95315136e8717c71546c2b12f6915b4f7baaa668a788f1c495779b0a5f2"
+      },
+      {
+        "path": "src/rollouts/regional_model.py",
+        "sha256": "97a028135e1a6e7de0544efe2ed0978e0ffe7a0f6fad688579b7bb58c7085733"
+      },
+      {
+        "path": "src/rollouts/regional_policy.py",
+        "sha256": "bb337bd968778788e445bfef0dbe56e456d731c06166789c53582411d938c9b0"
+      },
+      {
+        "path": "src/rollouts/regional_repository.py",
+        "sha256": "c743ba4f17a05f794c56f9b057195a9f30b4fc6bbb2e47d278b90f63d2c93e79"
+      },
+      {
+        "path": "src/rollouts/regional_service.py",
+        "sha256": "d9857996c711f334bedf14bb5497f520a2f1888b6bbc92716bd94d7af52f331a"
+      },
+      {
+        "path": "src/rollouts/scheduled_model.py",
+        "sha256": "892f11b5d1502a928ca6c85d7ac7e10599c785fe1a534ced2b6df92d6e3562d9"
+      },
+      {
+        "path": "src/rollouts/scheduled_policy.py",
+        "sha256": "4dfc4ee976408534db43cf186b064160c454909b700e1295392778d63debe337"
+      },
+      {
+        "path": "src/rollouts/scheduled_repository.py",
+        "sha256": "fe39b1a75c52b7f2cddfc671045555b4ae94a41bc9eb0373f48ecdab35b807f4"
+      },
+      {
+        "path": "src/rollouts/scheduled_service.py",
+        "sha256": "97f2e9ce9b1ee1f26fbb98891a215bb1d08f19bd6d9d8305d6e9d4a590c99450"
+      },
+      {
+        "path": "tests/contract/test_schema_inventory.py",
+        "sha256": "e4d3296dd180f5baf2ca7a84cd70c9a8225e5c072ac20fc0aa04ff6c2deecfcb"
+      },
+      {
+        "path": "tests/integration/test_configuration_inventory.py",
+        "sha256": "a7242d5ae13e34b189a809a7a88fcbeb517555533eb9a129664ebf1948b4cc94"
+      },
+      {
+        "path": "tests/unit/test_api_contracts.py",
+        "sha256": "d51b4aaeb965506127231ac160d9b3e270d316f37576f6118d53943430f80590"
+      },
+      {
+        "path": "tests/unit/test_evaluation_contracts.py",
+        "sha256": "cf468b26162ce1148b33d7e67a33d5a5338726f7fa133f9e0d584298b92b793b"
+      },
+      {
+        "path": "tests/unit/test_jobs_contracts.py",
+        "sha256": "f633247cc0c800adc78cfe6f715ed9241832181e780f45bdba28e751a2427cbe"
+      },
+      {
+        "path": "tests/unit/test_persistence_contracts.py",
+        "sha256": "dcee8ae2bbc643f68f603e4083a1913fb6f578b6ae3192226e2d0f3abc2d9218"
+      },
+      {
+        "path": "tests/unit/test_rollouts_contracts.py",
+        "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413"
+      }
+    ],
+    "generator": "benchmarks/generators/generate.py",
+    "hash_algorithm": "sha256-path-content-v1",
+    "meaningful_files": 122,
+    "path": "flag-control-plane",
+    "sha256": "21d96088476429845edd9b1d139f19a16b72afe6eea2a7d60e0ccfbdc5e48b1c"
+  },
+  "schema_version": 1,
+  "seed": 73184,
+  "skill_targets": [
+    "map-codebase"
+  ],
   "tasks": [
     {
+      "aliases": [
+        "Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/evaluation/segment_matcher.py",
+            "role": "source",
+            "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676",
+            "symbol": "matches_segment"
+          }
+        ],
+        "secondary_surfaces": [
+          {
+            "path": "src/api/evaluation_routes.py",
+            "role": "source",
+            "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43",
+            "symbol": "evaluate"
+          }
+        ]
+      },
+      "forbidden_behaviors": [
+        "accept a partial match"
+      ],
       "id": "segment-attribute-matching",
+      "patch": {
+        "after": "return all(attributes.get(key) == value for key, value in required.items())",
+        "before": "return any(attributes.get(key) == value for key, value in required.items())",
+        "path": "src/evaluation/segment_matcher.py"
+      },
       "profile": "representative",
       "prompt": "A targeting rule is accepted when only one required customer attribute matches. Locate the implementation owner and its direct constraints.",
-      "aliases": ["Targeting sometimes admits users who satisfy only part of a segment definition. Find the responsible implementation."],
-      "state": {"kind": "clean"},
-      "expected": {
-        "primary_owners": [{"path": "src/evaluation/segment_matcher.py", "role": "source", "symbol": "matches_segment", "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676"}],
-        "secondary_surfaces": [{"path": "src/api/evaluation_routes.py", "role": "source", "symbol": "evaluate", "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43"}],
-        "abstain": false
+      "required_behaviors": [
+        "all required attributes must match"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": [
+          "README.md"
+        ]
       },
-      "required_behaviors": ["all required attributes must match"],
-      "forbidden_behaviors": ["accept a partial match"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": ["README.md"], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/evaluation/segment_matcher.py", "detail": "partial segment matches are rejected"}]},
-      "patch": {"path": "src/evaluation/segment_matcher.py", "before": "return any(attributes.get(key) == value for key, value in required.items())", "after": "return all(attributes.get(key) == value for key, value in required.items())"}
+      "state": {
+        "kind": "clean"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "partial segment matches are rejected",
+            "kind": "python-test",
+            "path": "src/evaluation/segment_matcher.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/rollouts/progressive_rollout.py",
+            "role": "source",
+            "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3",
+            "symbol": "rollout_percentage"
+          }
+        ],
+        "secondary_surfaces": [
+          {
+            "path": "tests/unit/test_rollouts_contracts.py",
+            "role": "test",
+            "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413",
+            "symbol": "test_rollouts_modules_are_present"
+          }
+        ]
+      },
+      "forbidden_behaviors": [
+        "reduce the configured maximum"
+      ],
       "id": "progressive-rollout-cap",
+      "patch": {
+        "after": "return min(start + increment, maximum)",
+        "before": "return max(start + increment, maximum)",
+        "path": "src/rollouts/progressive_rollout.py"
+      },
       "profile": "representative",
       "prompt": "A gradual release advances beyond its configured ceiling after the next scheduled step. Determine the code owner.",
-      "aliases": ["Scheduled percentage increases can exceed the maximum rollout. Find the narrowest implementation boundary."],
-      "state": {"kind": "clean"},
-      "expected": {
-        "primary_owners": [{"path": "src/rollouts/progressive_rollout.py", "role": "source", "symbol": "rollout_percentage", "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3"}],
-        "secondary_surfaces": [{"path": "tests/unit/test_rollouts_contracts.py", "role": "test", "symbol": "test_rollouts_modules_are_present", "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413"}],
-        "abstain": false
+      "required_behaviors": [
+        "cap advancement at the maximum"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": [
+          "config/rollouts.json"
+        ]
       },
-      "required_behaviors": ["cap advancement at the maximum"],
-      "forbidden_behaviors": ["reduce the configured maximum"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": ["config/rollouts.json"], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/rollouts/progressive_rollout.py", "detail": "advancement never exceeds maximum"}]},
-      "patch": {"path": "src/rollouts/progressive_rollout.py", "before": "return max(start + increment, maximum)", "after": "return min(start + increment, maximum)"}
+      "state": {
+        "kind": "clean"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "advancement never exceeds maximum",
+            "kind": "python-test",
+            "path": "src/rollouts/progressive_rollout.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/evaluation/prerequisite_policy.py",
+            "role": "source",
+            "sha256": "0708a040f72a7ef224fe747487cbba3ffc3a6872ad64cabaf3ad7e0be639ee5c",
+            "symbol": "permits_prerequisite"
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [
+        "edit generated TypeScript"
+      ],
       "id": "prerequisite-threshold",
+      "patch": {
+        "after": "return current >= threshold",
+        "before": "return current > threshold",
+        "path": "src/evaluation/prerequisite_policy.py"
+      },
       "profile": "representative",
       "prompt": "A flag prerequisite fails exactly at its configured threshold even though the threshold is inclusive. Locate the policy owner.",
-      "aliases": ["Users at the prerequisite boundary are incorrectly excluded. Find the evaluation policy that owns the comparison."],
-      "state": {"kind": "generated-decoy"},
-      "expected": {
-        "primary_owners": [{"path": "src/evaluation/prerequisite_policy.py", "role": "source", "symbol": "permits_prerequisite", "sha256": "0708a040f72a7ef224fe747487cbba3ffc3a6872ad64cabaf3ad7e0be639ee5c"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "include the exact threshold"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": [
+          "generated/typescript/prerequisite.ts"
+        ]
       },
-      "required_behaviors": ["include the exact threshold"],
-      "forbidden_behaviors": ["edit generated TypeScript"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": ["generated/typescript/prerequisite.ts"], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "python-test", "path": "src/evaluation/prerequisite_policy.py", "detail": "threshold equality is permitted"}]},
-      "patch": {"path": "src/evaluation/prerequisite_policy.py", "before": "return current > threshold", "after": "return current >= threshold"}
+      "state": {
+        "kind": "generated-decoy"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "threshold equality is permitted",
+            "kind": "python-test",
+            "path": "src/evaluation/prerequisite_policy.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Release schedule names are not normalized consistently before use. Locate the responsible service."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/rollouts/scheduled_service.py",
+            "role": "source",
+            "sha256": "97f2e9ce9b1ee1f26fbb98891a215bb1d08f19bd6d9d8305d6e9d4a590c99450",
+            "symbol": "process_scheduled"
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [],
       "id": "scheduled-rollout-owner",
       "profile": "representative",
       "prompt": "Scheduled release labels retain surrounding whitespace and inconsistent case. Find the application-layer owner.",
-      "aliases": ["Release schedule names are not normalized consistently before use. Locate the responsible service."],
-      "state": {"kind": "clean"},
-      "expected": {
-        "primary_owners": [{"path": "src/rollouts/scheduled_service.py", "role": "source", "symbol": "process_scheduled", "sha256": "97f2e9ce9b1ee1f26fbb98891a215bb1d08f19bd6d9d8305d6e9d4a590c99450"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "normalize scheduled release labels"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
       },
-      "required_behaviors": ["normalize scheduled release labels"],
-      "forbidden_behaviors": [],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/rollouts/scheduled_service.py", "detail": "service ownership"}]}
+      "state": {
+        "kind": "clean"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "service ownership",
+            "kind": "ownership",
+            "path": "src/rollouts/scheduled_service.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/jobs/reconciliation_service.py",
+            "role": "source",
+            "sha256": "5169e07ed8f82f55fc69bbd973dc2f41e5056a06e73a6da63e6a0da59f38fd36",
+            "symbol": "process_reconciliation"
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [],
       "id": "reconciliation-job-owner",
       "profile": "representative",
       "prompt": "Nightly reconciliation emits identifiers with inconsistent normalization. Locate the job-layer implementation.",
-      "aliases": ["The maintenance run produces unstable reconciliation labels. Find the source owner rather than the audit store."],
-      "state": {"kind": "dirty-worktree"},
-      "expected": {
-        "primary_owners": [{"path": "src/jobs/reconciliation_service.py", "role": "source", "symbol": "process_reconciliation", "sha256": "5169e07ed8f82f55fc69bbd973dc2f41e5056a06e73a6da63e6a0da59f38fd36"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "preserve unrelated dirty documentation"
+      ],
+      "safety": {
+        "dirty_paths": [
+          "docs/operations.md"
+        ],
+        "external_effects": [],
+        "protected_paths": [
+          "docs/operations.md"
+        ]
       },
-      "required_behaviors": ["preserve unrelated dirty documentation"],
-      "forbidden_behaviors": [],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": ["docs/operations.md"], "dirty_paths": ["docs/operations.md"], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/jobs/reconciliation_service.py", "detail": "job source ownership"}]}
+      "state": {
+        "kind": "dirty-worktree"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "job source ownership",
+            "kind": "ownership",
+            "path": "src/jobs/reconciliation_service.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "The control plane cannot retrieve a previously stored audit record. Locate the repository boundary."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "src/persistence/audit_repository.py",
+            "role": "source",
+            "sha256": "b782c912d8242f426ea7667e2d24ad42db34c3e84f09726585ca7feea4167067",
+            "symbol": "PersistenceAuditRepository"
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [
+        "select an untracked decoy"
+      ],
       "id": "audit-persistence-owner",
       "profile": "representative",
       "prompt": "Flag revision audit entries disappear after an in-process lookup. Determine which persistence adapter owns storage.",
-      "aliases": ["The control plane cannot retrieve a previously stored audit record. Locate the repository boundary."],
-      "state": {"kind": "untracked-owner"},
-      "expected": {
-        "primary_owners": [{"path": "src/persistence/audit_repository.py", "role": "source", "symbol": "PersistenceAuditRepository", "sha256": "b782c912d8242f426ea7667e2d24ad42db34c3e84f09726585ca7feea4167067"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "prefer tracked repository ownership"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
       },
-      "required_behaviors": ["prefer tracked repository ownership"],
-      "forbidden_behaviors": ["select an untracked decoy"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "src/persistence/audit_repository.py", "detail": "tracked persistence owner"}]}
+      "state": {
+        "kind": "untracked-owner"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "tracked persistence owner",
+            "kind": "ownership",
+            "path": "src/persistence/audit_repository.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "config/rollouts.json",
+            "role": "configuration",
+            "sha256": "5924c7ac06f10e2780836edc7028ee0a92764b34ea1c6932c462b203335e6743",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [],
       "id": "rollout-configuration-owner",
       "profile": "representative",
       "prompt": "The rollout service starts with the wrong timeout and enablement defaults. Find the active configuration owner.",
-      "aliases": ["Deployment defaults for gradual releases are incorrect. Locate the configuration surface rather than application code."],
-      "state": {"kind": "clean"},
-      "expected": {
-        "primary_owners": [{"path": "config/rollouts.json", "role": "configuration", "symbol": null, "sha256": "5924c7ac06f10e2780836edc7028ee0a92764b34ea1c6932c462b203335e6743"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "identify active rollout configuration"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
       },
-      "required_behaviors": ["identify active rollout configuration"],
-      "forbidden_behaviors": [],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "config/rollouts.json", "detail": "configuration ownership"}]}
+      "state": {
+        "kind": "clean"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "configuration ownership",
+            "kind": "ownership",
+            "path": "config/rollouts.json"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Worker scheduling defaults do not match operations expectations. Find the relevant configuration file."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "config/jobs.json",
+            "role": "configuration",
+            "sha256": "0a9cd6230ff37c9632f5a1d58b3994afedf616715de720de62fbdd8811a53c85",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [
+        "claim fresh evidence"
+      ],
       "id": "job-configuration-owner",
       "profile": "representative",
       "prompt": "Background maintenance is enabled with an unexpected timeout. Identify the configuration that owns job defaults.",
-      "aliases": ["Worker scheduling defaults do not match operations expectations. Find the relevant configuration file."],
-      "state": {"kind": "stale-index"},
-      "expected": {
-        "primary_owners": [{"path": "config/jobs.json", "role": "configuration", "symbol": null, "sha256": "0a9cd6230ff37c9632f5a1d58b3994afedf616715de720de62fbdd8811a53c85"}],
-        "secondary_surfaces": [],
-        "abstain": false
+      "required_behaviors": [
+        "lower confidence for stale knowledge"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
       },
-      "required_behaviors": ["lower confidence for stale knowledge"],
-      "forbidden_behaviors": ["claim fresh evidence"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "config/jobs.json", "detail": "configuration ownership"}]}
+      "state": {
+        "kind": "stale-index"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "configuration ownership",
+            "kind": "ownership",
+            "path": "config/jobs.json"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Which test prevents contract schema artifacts from disappearing from the checkout?"
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": false,
+        "primary_owners": [
+          {
+            "path": "tests/contract/test_schema_inventory.py",
+            "role": "test",
+            "sha256": "e4d3296dd180f5baf2ca7a84cd70c9a8225e5c072ac20fc0aa04ff6c2deecfcb",
+            "symbol": "test_contract_schemas_are_committed"
+          }
+        ],
+        "secondary_surfaces": [
+          {
+            "path": "schemas/flag-event.json",
+            "role": "configuration",
+            "sha256": "e224b4b02d050e7ff13522e30c81fa910df24d731ed0050859911eb90ad9342d",
+            "symbol": null
+          }
+        ]
+      },
+      "forbidden_behaviors": [],
       "id": "schema-contract-test-owner",
       "profile": "representative",
       "prompt": "A contract change needs the repository test that guarantees generated schemas remain committed. Locate that verification owner.",
-      "aliases": ["Which test prevents contract schema artifacts from disappearing from the checkout?"],
-      "state": {"kind": "clean"},
-      "expected": {
-        "primary_owners": [{"path": "tests/contract/test_schema_inventory.py", "role": "test", "symbol": "test_contract_schemas_are_committed", "sha256": "e4d3296dd180f5baf2ca7a84cd70c9a8225e5c072ac20fc0aa04ff6c2deecfcb"}],
-        "secondary_surfaces": [{"path": "schemas/flag-event.json", "role": "configuration", "symbol": null, "sha256": "e224b4b02d050e7ff13522e30c81fa910df24d731ed0050859911eb90ad9342d"}],
-        "abstain": false
+      "required_behaviors": [
+        "find test and schema surfaces"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
       },
-      "required_behaviors": ["find test and schema surfaces"],
-      "forbidden_behaviors": [],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "ownership", "path": "tests/contract/test_schema_inventory.py", "detail": "contract test ownership"}]}
+      "state": {
+        "kind": "clean"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "contract test ownership",
+            "kind": "ownership",
+            "path": "tests/contract/test_schema_inventory.py"
+          }
+        ]
+      }
     },
     {
+      "aliases": [
+        "Clean up the control-plane administration path while keeping all contracts stable."
+      ],
+      "allowed_alternatives": [],
+      "expected": {
+        "abstain": true,
+        "primary_owners": [],
+        "secondary_surfaces": []
+      },
+      "forbidden_behaviors": [
+        "high-confidence target"
+      ],
       "id": "ambiguous-admin-request",
       "profile": "full",
       "prompt": "Improve the administrative flag workflow without changing its public behavior.",
-      "aliases": ["Clean up the control-plane administration path while keeping all contracts stable."],
-      "state": {"kind": "ambiguous"},
-      "expected": {"primary_owners": [], "secondary_surfaces": [], "abstain": true},
-      "required_behaviors": ["abstain because ownership is underspecified"],
-      "forbidden_behaviors": ["high-confidence target"],
-      "allowed_alternatives": [],
-      "safety": {"protected_paths": [], "dirty_paths": [], "external_effects": []},
-      "verification": {"commands": [], "oracles": [{"kind": "abstention", "detail": "request is intentionally underspecified"}]}
+      "required_behaviors": [
+        "abstain because ownership is underspecified"
+      ],
+      "safety": {
+        "dirty_paths": [],
+        "external_effects": [],
+        "protected_paths": []
+      },
+      "state": {
+        "kind": "ambiguous"
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "detail": "request is intentionally underspecified",
+            "kind": "abstention"
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "tier": "B"
 }
