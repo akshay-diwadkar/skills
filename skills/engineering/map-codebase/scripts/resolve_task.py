@@ -961,7 +961,6 @@ def _relationship_targets(
 def _estimate_tokens_saved(root: Path, repo: dict[str, Any], targets: list[dict[str, Any]]) -> dict[str, Any]:
     """Estimate tokens saved by returning only targets instead of all files."""
     all_files = repo.get("files", [])
-    target_paths = {t["path"] for t in targets}
     total_files = len(all_files)
 
     # Estimate average tokens per file from a sample (up to 20 files)
@@ -1225,7 +1224,7 @@ def resolve_task(
             uncertainties.append("no exact symbol, exact path, or filename evidence supports high confidence")
         if high:
             reasons.append("top candidate exceeds the configured confidence margin")
-    phases = {
+    phases: dict[int, dict[str, Any]] = {
         1: {
             "targets": primary,
             "question": "Which likely task owner owns the requested behavior or constraint?",
@@ -1259,6 +1258,9 @@ def resolve_task(
         uncertainties.append(
             f"{len(budget_detail['excluded_targets'])} owner or constraint target(s) were excluded by the token budget"
         )
+    selected_targets: list[dict[str, Any]] = (
+        phases[int(phase)]["targets"] if phase != "all" else phases[1]["targets"]
+    )
     payload = {
         "_meta": {
             "command": "resolve",
@@ -1275,9 +1277,7 @@ def resolve_task(
             "reasons": list(intent.reasons),
         },
         "confidence": {"level": level, "score": round(score, 3), "reasons": reasons, "uncertainties": uncertainties},
-        "tokens_saved_estimate": _estimate_tokens_saved(
-            root, repo, phases[int(phase)]["targets"] if phase != "all" else phases[1]["targets"]
-        ),
+        "tokens_saved_estimate": _estimate_tokens_saved(root, repo, selected_targets),
         "fallback_searches": fallback,
     }
     if budget_detail is not None:

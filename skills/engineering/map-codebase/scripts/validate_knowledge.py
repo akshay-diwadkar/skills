@@ -12,9 +12,9 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+from build_knowledge import _symbol_index_payload
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
-from build_knowledge import _symbol_index_payload
 from refresh_knowledge import check_freshness
 
 

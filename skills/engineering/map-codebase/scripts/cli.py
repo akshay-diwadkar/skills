@@ -9,7 +9,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 # Ensure skill scripts directory is on sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -205,6 +205,7 @@ def _main() -> int:
     from validate_knowledge import validate_knowledge
 
     repo_root = Path(args.repo_root).resolve()
+    res: dict[str, Any]
 
     if args.command == "build":
         out = Path(args.output) if args.output else None

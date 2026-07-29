@@ -54,14 +54,14 @@ def test_symbol_index_is_exact_refreshed_and_required(tmp_path: Path) -> None:
     assert _exact_symbol_paths(original, _signals("change authenticate")) == {"src/auth.py"}
 
     source.write_text("def authorize():\n    return True\n", encoding="utf-8")
-    refresh_knowledge(tmp_path, changed_files=[source], knowledge_dir=out)
+    refresh_knowledge(tmp_path, changed_files=[str(source)], knowledge_dir=out)
     refreshed = json.loads((out / "symbol-index.json").read_text(encoding="utf-8"))
     assert "authorize" in refreshed["symbols"]
     assert "authenticate" not in refreshed["symbols"]
     assert validate_knowledge(tmp_path, out)["status"] == "valid-fresh"
 
     source.unlink()
-    refresh_knowledge(tmp_path, changed_files=[source], knowledge_dir=out)
+    refresh_knowledge(tmp_path, changed_files=[str(source)], knowledge_dir=out)
     deleted = json.loads((out / "symbol-index.json").read_text(encoding="utf-8"))
     assert "authorize" not in deleted["symbols"]
 
