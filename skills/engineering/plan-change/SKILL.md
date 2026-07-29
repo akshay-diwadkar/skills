@@ -1,6 +1,7 @@
 ---
 name: plan-change
 description: Produce a proof-carrying, repository-grounded v5 implementation plan that is complete enough for deterministic downstream execution. Use when a user asks to plan a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository.
+version: 1.0.0
 metadata:
   plan-contract: "5"
   finalizer: "scripts/finalize_plan.py"

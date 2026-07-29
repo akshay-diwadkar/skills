@@ -1,0 +1,1 @@
+Use $scope-issue to plan issue #31 against this Go checkout. The issue reports that normalizeName mishandles empty input. Keep GitHub read-only, validate the issue artifact, and route it through a finalized v5 senior handoff with all source markers.

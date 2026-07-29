@@ -1,0 +1,1 @@
+Use $scope-issue to plan issue #34 against this Ruby checkout. The issue reports that normalize_name mishandles blank input. Keep GitHub read-only, validate the issue artifact, and route it through a finalized v5 senior handoff with all source markers.

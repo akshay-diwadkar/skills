@@ -17,31 +17,29 @@ from github_common import ConfigError, normalize_github_repo_target
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = SKILL_ROOT / "references" / "issue-plan-contract.json"
 METADATA_RE = re.compile(r"<!-- issue-plan-metadata -->\s*```json\s*(?P<json>\{.*?\})\s*```", re.DOTALL)
-RECORD_PATTERNS = {
-    "SC": re.compile(r"^- SC-(?P<number>\d+):\s*(?P<body>.+)$", re.MULTILINE),
+RECORD_CANDIDATE_RE = re.compile(
+    r"^\s*[-*]\s*(?P<prefix>SC|F|D|CH|C|T)-(?P<number>[^:\s]*)(?P<tail>.*)$"
+)
+RECORD_TOKENIZERS = {
+    "SC": re.compile(r"^- SC-(?P<number>\d+):\s*(?P<body>.+)$"),
     "F": re.compile(
         r"^- F-(?P<number>\d+): `(?P<path>[^`]+):(?P<line>\d+)` "
-        r"\| anchor: `(?P<anchor>[^`]+)` \| observation: (?P<body>.+)$",
-        re.MULTILINE,
+        r"\| anchor: `(?P<anchor>[^`]+)` \| observation: (?P<body>.+)$"
     ),
     "D": re.compile(
         r"^- D-(?P<number>\d+): selected: (?P<selected>.+?) \| because: (?P<because>.+?) "
-        r"\| rejected: (?P<rejected>.+)$",
-        re.MULTILINE,
+        r"\| rejected: (?P<rejected>.+)$"
     ),
     "CH": re.compile(
         r"^- CH-(?P<number>\d+): `(?P<path>[^`]+)` \| anchor: `(?P<anchor>[^`]+)` "
-        r"\| status: (?P<status>existing|new) \| change: (?P<body>.+)$",
-        re.MULTILINE,
+        r"\| status: (?P<status>existing|new) \| change: (?P<body>.+)$"
     ),
     "C": re.compile(
-        r"^- C-(?P<number>\d+): (?P<body>.+?) \| status: (?P<status>preserved|modified|at-risk)$",
-        re.MULTILINE,
+        r"^- C-(?P<number>\d+): (?P<body>.+?) \| status: (?P<status>preserved|modified|at-risk)$"
     ),
     "T": re.compile(
         r"^- T-(?P<number>\d+): given: (?P<given>.+?) \| expect: (?P<expect>.+?) "
-        r"\| command: `(?P<command>[^`]+)`$",
-        re.MULTILINE,
+        r"\| command: `(?P<command>[^`]+)`$"
     ),
 }
 SENIOR_REQUIRED_TASKS = {"public-contract", "security", "concurrency", "external-integration"}
@@ -101,7 +99,18 @@ def trusted_text(text: str) -> str:
     end = text.find("## Local Evidence Ledger", start + 1)
     if start == -1 or end == -1:
         return text
-    return text[:start] + "## Issue Claims (Untrusted)\n<untrusted-content-removed>\n\n" + text[end:]
+    removed_lines = text[start:end].splitlines(keepends=True)
+    if not removed_lines:
+        return text
+    newline = "\r\n" if removed_lines[0].endswith("\r\n") else "\n"
+    replacement = [removed_lines[0]]
+    if len(removed_lines) > 1:
+        replacement.append(f"<untrusted-content-removed>{newline}")
+    replacement.extend(
+        "\r\n" if line.endswith("\r\n") else "\n" if line.endswith("\n") else ""
+        for line in removed_lines[2:]
+    )
+    return text[:start] + "".join(replacement) + text[end:]
 
 
 def validate_metadata(metadata: dict[str, Any], contract: dict[str, Any]) -> list[str]:
@@ -145,10 +154,25 @@ def validate_sections(text: str, contract: dict[str, Any]) -> list[str]:
     return [f"missing section: {section}" for section in contract["required_sections"] if f"## {section}" not in text]
 
 
-def parse_records(text: str) -> dict[str, list[dict[str, str]]]:
-    return {
-        prefix: [match.groupdict() for match in pattern.finditer(text)] for prefix, pattern in RECORD_PATTERNS.items()
-    }
+def parse_records(
+    text: str, record_formats: dict[str, str]
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    records: dict[str, list[dict[str, str]]] = {prefix: [] for prefix in RECORD_TOKENIZERS}
+    errors: list[str] = []
+    for line_number, line in enumerate(text.splitlines(), 1):
+        candidate = RECORD_CANDIDATE_RE.fullmatch(line)
+        if candidate is None:
+            continue
+        prefix = candidate.group("prefix")
+        match = RECORD_TOKENIZERS[prefix].fullmatch(line)
+        if match is not None:
+            records[prefix].append(match.groupdict())
+            continue
+        record_id = f"{prefix}-{candidate.group('number') or '?'}"
+        errors.append(
+            f"line {line_number} {record_id}: expected {record_formats[prefix]}; actual {line!r}"
+        )
+    return records, errors
 
 
 def validate_record_ids(records: dict[str, list[dict[str, str]]]) -> list[str]:
@@ -331,7 +355,8 @@ def validate_plan(
     for token in contract["placeholder_tokens"]:
         if re.search(rf"\b{re.escape(token)}\b", clean_text, re.IGNORECASE):
             errors.append(f"unresolved placeholder token: {token}")
-    records = parse_records(clean_text)
+    records, record_errors = parse_records(clean_text, contract["record_formats"])
+    errors.extend(record_errors)
     errors.extend(validate_record_ids(records))
     errors.extend(validate_status_requirements(metadata, records, contract))
     errors.extend(validate_facts(records, repo_root.resolve(), issue_json))
