@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -10,6 +11,29 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = ROOT / "skills"
+VERSION_PATH = ROOT / "VERSION"
+MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
+SEMVER_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+)
+EXPECTED_MARKETPLACE_GROUPS = {
+    "engineering-skills": {
+        "./skills/engineering/audit-codebase",
+        "./skills/engineering/design-codebase",
+        "./skills/engineering/diagram-codebase",
+        "./skills/engineering/implement-plan",
+        "./skills/engineering/map-codebase",
+        "./skills/engineering/optimize-codebase",
+        "./skills/engineering/plan-change",
+        "./skills/engineering/scope-issue",
+    },
+    "technical-communication-skills": {
+        "./skills/technical-communication/manualize",
+    },
+}
 ALLOWED_TOP_LEVEL = {
     "SKILL.md",
     "scripts",
@@ -31,7 +55,6 @@ RETIRED_PATHS = (
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
-    "VERSION",
     "tools/catalog",
     "tools/packaging",
     "tools/release",
@@ -42,6 +65,25 @@ RETIRED_PATHS = (
     ".github/workflows/release.yml",
     ".github/workflows/repository-contract.yml",
 )
+
+
+def tracked_files() -> list[Path]:
+    """Return repository files tracked by Git, excluding missing paths."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        return []
+    return [
+        path
+        for relative in result.stdout.decode("utf-8").split("\0")
+        if relative
+        for path in [ROOT / relative]
+        if path.is_file()
+    ]
 
 
 def discover_skills() -> list[Path]:
@@ -80,11 +122,126 @@ def validate_frontmatter(skill_dir: Path) -> list[str]:
     frontmatter = text.split("---", 2)[1]
     name = re.search(r"^name:\s*(.+)$", frontmatter, re.MULTILINE)
     description = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
+    version = re.search(r"^version:\s*(.+)$", frontmatter, re.MULTILINE)
     errors: list[str] = []
     if not name or name.group(1).strip() != skill_dir.name:
         errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter name must match the skill directory")
     if not description or not description.group(1).strip():
         errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter description is required")
+    expected_version = VERSION_PATH.read_text(encoding="utf-8").strip() if VERSION_PATH.is_file() else None
+    if not version:
+        errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter version is required")
+    elif expected_version is not None and version.group(1).strip() != expected_version:
+        errors.append(
+            f"{skill_md.relative_to(ROOT)}: version {version.group(1).strip()!r} "
+            f"does not match VERSION {expected_version!r}"
+        )
+    return errors
+
+
+def validate_version() -> list[str]:
+    if not VERSION_PATH.is_file():
+        return ["Missing VERSION"]
+    version = VERSION_PATH.read_text(encoding="utf-8").strip()
+    if not SEMVER_RE.fullmatch(version):
+        return [f"VERSION {version!r} is not valid Semantic Versioning"]
+    return []
+
+
+def validate_marketplace() -> list[str]:
+    if not MARKETPLACE_PATH.is_file():
+        return ["Missing .claude-plugin/marketplace.json"]
+
+    try:
+        payload = json.loads(MARKETPLACE_PATH.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f".claude-plugin/marketplace.json: invalid JSON: {exc}"]
+
+    plugins = payload.get("plugins") if isinstance(payload, dict) else None
+    if not isinstance(plugins, list):
+        return [".claude-plugin/marketplace.json: plugins must be an array"]
+
+    errors: list[str] = []
+    actual_groups: dict[str, set[str]] = {}
+    all_paths: list[str] = []
+    for plugin in plugins:
+        if not isinstance(plugin, dict):
+            errors.append(".claude-plugin/marketplace.json: each plugin must be an object")
+            continue
+        name = plugin.get("name")
+        source = plugin.get("source")
+        skills = plugin.get("skills")
+        if not isinstance(name, str) or not name:
+            errors.append(".claude-plugin/marketplace.json: each plugin requires a name")
+            continue
+        if source != "./":
+            errors.append(f".claude-plugin/marketplace.json: {name} source must be './'")
+        if not isinstance(skills, list) or not all(isinstance(path, str) for path in skills):
+            errors.append(f".claude-plugin/marketplace.json: {name} skills must be an array of paths")
+            continue
+        if name in actual_groups:
+            errors.append(f".claude-plugin/marketplace.json: duplicate plugin group {name}")
+            continue
+        path_set = set(skills)
+        if len(path_set) != len(skills):
+            errors.append(f".claude-plugin/marketplace.json: {name} contains duplicate skill paths")
+        actual_groups[name] = path_set
+        all_paths.extend(skills)
+        for skill_path in skills:
+            if not skill_path.startswith("./skills/"):
+                errors.append(f".claude-plugin/marketplace.json: invalid skill path {skill_path!r}")
+                continue
+            resolved = ROOT / skill_path.removeprefix("./")
+            if not (resolved / "SKILL.md").is_file():
+                errors.append(f".claude-plugin/marketplace.json: missing {skill_path}/SKILL.md")
+
+    if set(actual_groups) != set(EXPECTED_MARKETPLACE_GROUPS):
+        errors.append(
+            ".claude-plugin/marketplace.json: plugin groups must be exactly "
+            f"{sorted(EXPECTED_MARKETPLACE_GROUPS)}"
+        )
+    for name, expected_paths in EXPECTED_MARKETPLACE_GROUPS.items():
+        if name in actual_groups and actual_groups[name] != expected_paths:
+            errors.append(
+                f".claude-plugin/marketplace.json: {name} must contain exactly "
+                f"{sorted(expected_paths)}"
+            )
+    if len(all_paths) != len(set(all_paths)):
+        errors.append(".claude-plugin/marketplace.json: skill paths must belong to only one group")
+    if (ROOT / ".claude-plugin" / "plugin.json").exists():
+        errors.append(".claude-plugin/plugin.json must remain absent to preserve two installer groups")
+    for manifest_name in ("skill.yaml", "skill.yml", "skill.json"):
+        if (ROOT / manifest_name).exists():
+            errors.append(f"{manifest_name} is unsupported and must remain absent")
+    return errors
+
+
+def _instruction_section(path: Path, heading: str) -> str | None:
+    if not path.is_file():
+        return None
+    pattern = re.compile(
+        rf"^## {re.escape(heading)}\s*\n(.*?)(?=^## |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(path.read_text(encoding="utf-8"))
+    return match.group(1).strip() if match else None
+
+
+def validate_versioning_instructions() -> list[str]:
+    agents_section = _instruction_section(ROOT / "AGENTS.md", "Versioning")
+    claude_section = _instruction_section(ROOT / "CLAUDE.md", "Versioning")
+    errors: list[str] = []
+    if agents_section is None:
+        errors.append("AGENTS.md: missing Versioning section")
+    if claude_section is None:
+        errors.append("CLAUDE.md: missing Versioning section")
+    if agents_section is not None and claude_section is not None and agents_section != claude_section:
+        errors.append("AGENTS.md and CLAUDE.md Versioning sections must match")
+    required_terms = ("`VERSION`", "Semantic Versioning", "Major:", "Minor:", "Patch:", "validate_repository.py")
+    if agents_section is not None:
+        for term in required_terms:
+            if term not in agents_section:
+                errors.append(f"Versioning instructions must mention {term}")
     return errors
 
 
@@ -134,8 +291,8 @@ def validate_legacy_plan_contracts() -> list[str]:
     errors: list[str] = []
     ignored = {ROOT / "tests" / "skills" / "plan-change" / "test_v5_runtime.py"}
     pattern = re.compile(r"<!--\s*plan-(?:contract|validation):\s*[1-4](?:[; ]|-->)")
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or path in ignored or "map-codebase" in path.parts:
+    for path in tracked_files():
+        if path in ignored or "map-codebase" in path.parts:
             continue
         try:
             if pattern.search(path.read_text(encoding="utf-8")):
@@ -148,6 +305,11 @@ def validate_legacy_plan_contracts() -> list[str]:
 def main() -> int:
     skills = discover_skills()
     errors = ["No skills found under skills/<domain>/<skill>"] if not skills else []
+    if not tracked_files():
+        errors.append("Unable to enumerate Git-tracked repository files")
+    errors.extend(validate_version())
+    errors.extend(validate_marketplace())
+    errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())
     for skill_dir in skills:
         errors.extend(validate_skill_package(skill_dir))

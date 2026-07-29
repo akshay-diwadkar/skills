@@ -6,12 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install dependencies
@@ -37,8 +40,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -60,8 +63,8 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -84,8 +87,8 @@ jobs:
         python-version: ["3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -100,8 +103,8 @@ jobs:
     name: Map Codebase Clean Install
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install test harness and runtime requirements
@@ -114,3 +117,28 @@ jobs:
         run: >-
           python -m pytest tests/skills/map-codebase
           -m "not fixtures and not benchmark and not benchmark_slow" -q
+
+  npx-install:
+    name: npx Grouped Installation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Verify grouped discovery
+        env:
+          FORCE_COLOR: "0"
+          NO_COLOR: "1"
+        run: |
+          npx --yes skills@1.5.20 add "$GITHUB_WORKSPACE" --list | tee "$RUNNER_TEMP/skills-list.txt"
+          python tools/validation/validate_npx_output.py "$RUNNER_TEMP/skills-list.txt"
+      - name: Install the complete collection
+        env:
+          FORCE_COLOR: "0"
+          NO_COLOR: "1"
+        run: |
+          mkdir -p "$RUNNER_TEMP/skills-consumer"
+          cd "$RUNNER_TEMP/skills-consumer"
+          npx --yes skills@1.5.20 add "$GITHUB_WORKSPACE" --skill '*' --agent codex --copy --yes
+          test "$(find . -type f -name SKILL.md | wc -l)" -eq 9

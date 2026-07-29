@@ -1,6 +1,7 @@
 ---
 name: diagram-codebase
 description: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
+version: 1.0.0
 ---
 
 # Diagram Codebase

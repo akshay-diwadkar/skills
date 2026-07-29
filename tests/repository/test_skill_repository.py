@@ -60,9 +60,7 @@ def test_skill_metadata_and_tracked_references_use_canonical_names_only() -> Non
         assert name is not None
         assert name.group(1).strip() in CANONICAL_SKILL_NAMES
 
-    for path in REPO_ROOT.rglob("*"):
-        if not path.is_file() or ".git" in path.parts or ".pytest_cache" in path.parts or "__pycache__" in path.parts:
-            continue
+    for path in validator.tracked_files():
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -75,6 +73,26 @@ def test_skill_metadata_and_tracked_references_use_canonical_names_only() -> Non
 def test_skill_packages_have_no_platform_metadata() -> None:
     assert all(not (skill / "agents").exists() for skill in validator.discover_skills())
     assert validator.validate_retired_surfaces() == []
+
+
+def test_suite_versions_are_valid_and_synchronized() -> None:
+    assert validator.validate_version() == []
+    assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
+    assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
+    assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
+    assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")
+
+
+def test_marketplace_groups_every_skill_once() -> None:
+    assert validator.validate_marketplace() == []
+    expected_paths = set().union(*validator.EXPECTED_MARKETPLACE_GROUPS.values())
+    assert expected_paths == {
+        f"./skills/{domain}/{skill_name}" for domain, skill_name in CANONICAL_SKILLS
+    }
+
+
+def test_agent_instruction_versioning_policies_match() -> None:
+    assert validator.validate_versioning_instructions() == []
 
 
 def test_pipeline_readmes_and_skill_changelog_are_supported_resources() -> None:
