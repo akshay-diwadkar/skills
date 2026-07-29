@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["semantic_valid", "errors"],
+  "properties": {
+    "semantic_valid": {"type": "boolean"},
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "location", "severity", "message"],
+        "properties": {
+          "type": {"type": "string"},
+          "location": {"type": "string"},
+          "severity": {"enum": ["error", "critical"]},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

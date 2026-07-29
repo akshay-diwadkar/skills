@@ -1,0 +1,23 @@
+{
+  "status": "fail",
+  "language": {
+    "file": "manual.md",
+    "profile": "strict",
+    "violations": []
+  },
+  "semantic": {
+    "semantic_valid": false,
+    "errors": []
+  },
+  "read_only_receipt": [
+    {
+      "artifact": "manual.md",
+      "before_sha256": "",
+      "after_sha256": "",
+      "unchanged": true
+    }
+  ],
+  "limitations": [
+    "Validation does not establish factual truth beyond supplied sources."
+  ]
+}

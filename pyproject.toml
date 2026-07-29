@@ -8,7 +8,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E402"]
-"skills/engineering/*/scripts/*" = ["E402"]
+"skills/*/*/scripts/*" = ["E402"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the standalone engineering-skill repository."""
+"""Validate the standalone skill repository."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILLS_ROOT = ROOT / "skills" / "engineering"
+SKILLS_ROOT = ROOT / "skills"
 ALLOWED_TOP_LEVEL = {
     "SKILL.md",
     "scripts",
@@ -23,6 +23,7 @@ ALLOWED_TOP_LEVEL = {
     "CHANGELOG.md",
 }
 FORBIDDEN_PARTS = {"agents", "evals", "fixtures", "__pycache__"}
+ALLOWED_DOMAIN_FILES = {"README.md"}
 RETIRED_PATHS = (
     "catalog",
     "docs",
@@ -46,7 +47,27 @@ RETIRED_PATHS = (
 def discover_skills() -> list[Path]:
     if not SKILLS_ROOT.is_dir():
         return []
-    return sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
+    return sorted(
+        skill
+        for domain in SKILLS_ROOT.iterdir()
+        if domain.is_dir()
+        for skill in domain.iterdir()
+        if skill.is_dir()
+    )
+
+
+def validate_domain_layout() -> list[str]:
+    errors: list[str] = []
+    if not SKILLS_ROOT.is_dir():
+        return errors
+    for child in SKILLS_ROOT.iterdir():
+        if not child.is_dir():
+            errors.append(f"{child.relative_to(ROOT)}: skill root may contain only domain directories")
+            continue
+        for item in child.iterdir():
+            if not item.is_dir() and item.name not in ALLOWED_DOMAIN_FILES:
+                errors.append(f"{item.relative_to(ROOT)}: domain may contain only skill directories")
+    return errors
 
 
 def validate_frontmatter(skill_dir: Path) -> list[str]:
@@ -126,7 +147,8 @@ def validate_legacy_plan_contracts() -> list[str]:
 
 def main() -> int:
     skills = discover_skills()
-    errors = ["No skills found under skills/engineering"] if not skills else []
+    errors = ["No skills found under skills/<domain>/<skill>"] if not skills else []
+    errors.extend(validate_domain_layout())
     for skill_dir in skills:
         errors.extend(validate_skill_package(skill_dir))
         errors.extend(validate_script_references(skill_dir))
