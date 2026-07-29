@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from handoff_contract import normalize_markdown, validate_handoff
+from handoff_contract import backfill_evidence_hashes, normalize_markdown, validate_handoff
 
 
 def main() -> int:
@@ -34,10 +34,26 @@ def main() -> int:
             print(f"  - {diagnostic}", file=sys.stderr)
         return 1
 
+    try:
+        normalized = backfill_evidence_hashes(text, args.repo_root)
+    except (OSError, ValueError) as exc:
+        print(f"Cannot finalize invalid design handoff: {exc}", file=sys.stderr)
+        return 1
+    _final_handoff, final_diagnostics = validate_handoff(
+        normalized,
+        args.repo_root,
+        require_evidence_hashes=True,
+    )
+    if final_diagnostics:
+        print("Cannot finalize invalid design handoff:", file=sys.stderr)
+        for diagnostic in final_diagnostics:
+            print(f"  - {diagnostic}", file=sys.stderr)
+        return 1
+
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / "handoff.md"
-    normalized = normalize_markdown(text)
+    normalized = normalize_markdown(normalized)
     temporary_name: str | None = None
     try:
         with tempfile.NamedTemporaryFile(

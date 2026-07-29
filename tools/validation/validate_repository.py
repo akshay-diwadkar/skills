@@ -19,6 +19,8 @@ ALLOWED_TOP_LEVEL = {
     "assets",
     "requirements.txt",
     ".env.example",
+    "README.md",
+    "CHANGELOG.md",
 }
 FORBIDDEN_PARTS = {"agents", "evals", "fixtures", "__pycache__"}
 RETIRED_PATHS = (

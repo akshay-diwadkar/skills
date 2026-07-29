@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -73,6 +74,7 @@ class Evidence:
     locator: str
     claim: str
     anchor: str | None
+    sha256: str | None
     line: int
 
 
@@ -106,6 +108,12 @@ def _fields(raw: str) -> dict[str, str]:
         if separator:
             values[key.strip().casefold()] = value.strip()
     return values
+
+
+def excerpt_sha256(lines: list[str], start: int, end: int) -> str:
+    """Hash an inclusive excerpt exactly as plan-change/hash_excerpt.py does."""
+    excerpt = "\n".join(lines[start - 1 : end]) + "\n"
+    return hashlib.sha256(excerpt.encode()).hexdigest()
 
 
 def _field_from_section(body: str, name: str) -> str:
@@ -196,6 +204,7 @@ def _parse_evidence(body: str, full_text: str) -> tuple[dict[str, Evidence], lis
             locator=fields["locator"],
             claim=fields["claim"],
             anchor=fields.get("anchor"),
+            sha256=fields.get("sha256"),
             line=line,
         )
     if not evidence:
@@ -203,7 +212,12 @@ def _parse_evidence(body: str, full_text: str) -> tuple[dict[str, Evidence], lis
     return evidence, diagnostics
 
 
-def _validate_local_evidence(item: Evidence, repo_root: Path) -> list[Diagnostic]:
+def _validate_local_evidence(
+    item: Evidence,
+    repo_root: Path,
+    *,
+    require_evidence_hashes: bool,
+) -> list[Diagnostic]:
     match = LOCAL_LOCATOR_RE.fullmatch(item.locator)
     if not match:
         return [
@@ -260,10 +274,42 @@ def _validate_local_evidence(item: Evidence, repo_root: Path) -> list[Diagnostic
                 item.line,
             )
         ]
+    if item.sha256 is None:
+        if require_evidence_hashes:
+            return [
+                Diagnostic(
+                    "evidence.sha256.missing",
+                    f"[{item.identifier}] local evidence requires sha256 when evidence verification is enabled.",
+                    item.line,
+                )
+            ]
+        return []
+    if not re.fullmatch(r"[0-9a-f]{64}", item.sha256):
+        return [
+            Diagnostic(
+                "evidence.sha256.invalid",
+                f"[{item.identifier}] sha256 must be exactly 64 lowercase hexadecimal characters.",
+                item.line,
+            )
+        ]
+    current_hash = excerpt_sha256(lines, start, end)
+    if item.sha256 != current_hash:
+        return [
+            Diagnostic(
+                "evidence.sha256.mismatch",
+                f"[{item.identifier}] sha256 does not match current content at {item.locator}; evidence is stale.",
+                item.line,
+            )
+        ]
     return []
 
 
-def _validate_evidence(evidence: dict[str, Evidence], repo_root: Path) -> list[Diagnostic]:
+def _validate_evidence(
+    evidence: dict[str, Evidence],
+    repo_root: Path,
+    *,
+    require_evidence_hashes: bool,
+) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     for item in evidence.values():
         if item.source not in EVIDENCE_SOURCES:
@@ -275,7 +321,13 @@ def _validate_evidence(evidence: dict[str, Evidence], repo_root: Path) -> list[D
                 )
             )
         elif item.source in LOCAL_SOURCES:
-            diagnostics.extend(_validate_local_evidence(item, repo_root))
+            diagnostics.extend(
+                _validate_local_evidence(
+                    item,
+                    repo_root,
+                    require_evidence_hashes=require_evidence_hashes,
+                )
+            )
         elif item.source == "request" and item.locator != "user-request":
             diagnostics.append(
                 Diagnostic(
@@ -289,6 +341,14 @@ def _validate_evidence(evidence: dict[str, Evidence], repo_root: Path) -> list[D
                 Diagnostic(
                     "evidence.external.locator",
                     f"[{item.identifier}] external evidence requires an HTTP(S) URL.",
+                    item.line,
+                )
+            )
+        if item.source not in LOCAL_SOURCES and item.sha256 is not None:
+            diagnostics.append(
+                Diagnostic(
+                    "evidence.sha256.unsupported",
+                    f"[{item.identifier}] sha256 is supported only for code, test, configuration, and schema evidence.",
                     item.line,
                 )
             )
@@ -376,7 +436,7 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
                 "Alternatives Considered requires at least one '### Alternative: NAME' block.",
             )
         ]
-    alternatives: list[StructuralDesign] = []
+    alternatives: list[tuple[StructuralDesign, set[str]]] = []
     for index, start in enumerate(starts):
         end = starts[index + 1].start() if index + 1 < len(starts) else len(alternatives_body)
         block = alternatives_body[start.end() : end]
@@ -397,9 +457,10 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
                     f"Alternative '{start.group('name').strip()}' needs a substantive, cited rejection.",
                 )
             )
-        alternatives.append(alternative)
+        alternatives.append((alternative, set(CITATION_RE.findall(block))))
     if alternatives and all(
-        _normalized(item.core_abstraction) == _normalized(chosen.core_abstraction) for item in alternatives
+        _normalized(item.core_abstraction) == _normalized(chosen.core_abstraction)
+        for item, _citations in alternatives
     ):
         diagnostics.append(
             Diagnostic(
@@ -407,19 +468,30 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
                 "All alternatives share the chosen design's core abstraction.",
             )
         )
-    distinct = any(
-        _normalized(item.core_abstraction) != _normalized(chosen.core_abstraction)
+    structurally_distinct = [
+        (item, citations)
+        for item, citations in alternatives
+        if _normalized(item.core_abstraction) != _normalized(chosen.core_abstraction)
         and (
             _normalized(item.boundary) != _normalized(chosen.boundary)
             or _normalized(item.owner) != _normalized(chosen.owner)
         )
-        for item in alternatives
-    )
-    if alternatives and not distinct:
+    ]
+    if alternatives and not structurally_distinct:
         diagnostics.append(
             Diagnostic(
                 "alternative.structural.none",
                 "At least one alternative must change the core abstraction and the boundary or owner.",
+            )
+        )
+    chosen_citations = set(CITATION_RE.findall(chosen_body))
+    if structurally_distinct and not any(
+        citations - chosen_citations for _item, citations in structurally_distinct
+    ):
+        diagnostics.append(
+            Diagnostic(
+                "alternative.no_distinct_evidence",
+                "At least one structurally distinct alternative must cite evidence not cited by the chosen design rationale.",
             )
         )
     return diagnostics
@@ -575,7 +647,12 @@ def _validate_planner_questions(chosen_body: str, questions_body: str) -> list[D
     return []
 
 
-def validate_handoff(text: str, repo_root: Path) -> tuple[ParsedHandoff, list[Diagnostic]]:
+def validate_handoff(
+    text: str,
+    repo_root: Path,
+    *,
+    require_evidence_hashes: bool = False,
+) -> tuple[ParsedHandoff, list[Diagnostic]]:
     """Parse and validate one design handoff against the current repository."""
     normalized = normalize_markdown(text)
     resolved_root = repo_root.resolve()
@@ -583,7 +660,13 @@ def validate_handoff(text: str, repo_root: Path) -> tuple[ParsedHandoff, list[Di
     diagnostics.extend(_validate_title(normalized))
     evidence, evidence_diagnostics = _parse_evidence(sections.get(EVIDENCE_HEADING, ""), normalized)
     diagnostics.extend(evidence_diagnostics)
-    diagnostics.extend(_validate_evidence(evidence, resolved_root))
+    diagnostics.extend(
+        _validate_evidence(
+            evidence,
+            resolved_root,
+            require_evidence_hashes=require_evidence_hashes,
+        )
+    )
 
     for name in REQUIRED_SECTIONS:
         body = sections.get(name, "")
@@ -632,3 +715,48 @@ def validate_handoff(text: str, repo_root: Path) -> tuple[ParsedHandoff, list[Di
         )
     )
     return ParsedHandoff(sections=sections, evidence=evidence), diagnostics
+
+
+def backfill_evidence_hashes(text: str, repo_root: Path) -> str:
+    """Insert missing hashes for valid local evidence records."""
+    normalized = normalize_markdown(text)
+    sections, section_diagnostics = _parse_sections(normalized)
+    if section_diagnostics:
+        raise ValueError("cannot backfill evidence hashes in an invalid handoff shape")
+    ledger_body = sections.get(EVIDENCE_HEADING, "")
+    evidence, evidence_diagnostics = _parse_evidence(ledger_body, normalized)
+    if evidence_diagnostics:
+        raise ValueError("cannot backfill malformed evidence records")
+
+    replacements: dict[str, str] = {}
+    resolved_root = repo_root.resolve()
+    for item in evidence.values():
+        if item.source not in LOCAL_SOURCES or item.sha256 is not None:
+            continue
+        locator = LOCAL_LOCATOR_RE.fullmatch(item.locator)
+        if locator is None:
+            raise ValueError(f"[{item.identifier}] has an invalid local locator")
+        target = (resolved_root / Path(locator.group("path"))).resolve()
+        lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
+        start = int(locator.group("start"))
+        end = int(locator.group("end") or start)
+        replacements[item.identifier] = excerpt_sha256(lines, start, end)
+
+    def insert_hash(match: re.Match[str]) -> str:
+        identifier = match.group("id")
+        digest = replacements.get(identifier)
+        if digest is None:
+            return match.group(0)
+        fields = match.group("fields")
+        marker = " | claim:"
+        claim_offset = fields.find(marker)
+        if claim_offset < 0:
+            raise ValueError(f"[{identifier}] has no claim field")
+        with_hash = fields[:claim_offset] + f" | sha256: {digest}" + fields[claim_offset:]
+        return f"- [{identifier}] {with_hash}"
+
+    hashed_ledger = EVIDENCE_RE.sub(insert_hash, ledger_body)
+    ledger_offset = normalized.find(ledger_body)
+    if ledger_offset < 0:
+        raise ValueError("cannot locate Evidence Ledger content")
+    return normalized[:ledger_offset] + hashed_ledger + normalized[ledger_offset + len(ledger_body) :]

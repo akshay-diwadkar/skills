@@ -15,6 +15,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--verify-evidence",
+        action="store_true",
+        help="Require and verify sha256 bindings for every local evidence record.",
+    )
     parser.add_argument("draft", type=Path)
     args = parser.parse_args()
 
@@ -26,6 +31,7 @@ def main() -> int:
     _handoff, diagnostics = validate_handoff(
         args.draft.read_text(encoding="utf-8"),
         args.repo_root,
+        require_evidence_hashes=args.verify_evidence,
     )
     if args.format == "json":
         print(json.dumps([diagnostic.as_dict() for diagnostic in diagnostics], indent=2))

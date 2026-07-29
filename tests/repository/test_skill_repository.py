@@ -75,5 +75,13 @@ def test_skill_packages_have_no_platform_metadata() -> None:
     assert validator.validate_retired_surfaces() == []
 
 
+def test_pipeline_readmes_and_skill_changelog_are_supported_resources() -> None:
+    engineering = REPO_ROOT / "skills" / "engineering"
+    for skill_name in ("design-codebase", "plan-change", "scope-issue"):
+        assert not validator.validate_skill_package(engineering / skill_name)
+        assert (engineering / skill_name / "README.md").is_file()
+    assert (engineering / "design-codebase" / "CHANGELOG.md").is_file()
+
+
 def test_mypy_scopes_are_discovered_from_skill_directories() -> None:
     assert {name for name, _, _ in run_mypy.discover_skill_scopes()} == {skill.name for skill in validator.discover_skills()}

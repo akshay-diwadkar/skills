@@ -3,9 +3,9 @@
 ## Evidence Ledger
 
 - [E-1] source: request | locator: user-request | claim: Provider-specific request and failure behavior should stop leaking into checkout and subscription callers.
-- [E-2] source: code | locator: payments/service.py:1-7 | anchor: charge_payment | claim: The payment service constructs provider SDK requests and exposes provider exceptions directly.
-- [E-3] source: code | locator: checkout/process.py:1-6 | anchor: checkout | claim: Checkout supplies provider-specific optional values and handles provider timeout types.
-- [E-4] source: test | locator: tests/test_checkout.py:1-6 | anchor: test_checkout_decline | claim: Current tests assert provider-specific decline exceptions at a domain call site.
+- [E-2] source: code | locator: payments/service.py:1-7 | anchor: charge_payment | sha256: 383f9a66d5763c7a293a22f6388a418a7fba3f8979b35aa7c31fb404d0372c19 | claim: The payment service constructs provider SDK requests and exposes provider exceptions directly.
+- [E-3] source: code | locator: checkout/process.py:1-6 | anchor: checkout | sha256: dcf982001e19cb93ac5b5bbf888233b985f8a933b53623ad2f71b3f1153f7e0d | claim: Checkout supplies provider-specific optional values and handles provider timeout types.
+- [E-4] source: test | locator: tests/test_checkout.py:1-6 | anchor: test_checkout_decline | sha256: e5315c9858912d0b35c027fc7f9927dcb1cd0f266bc29b7f6d2d10cf3ac69e29 | claim: Current tests assert provider-specific decline exceptions at a domain call site.
 
 ## Problem & Scope
 
@@ -23,7 +23,7 @@ decision. [E-1] [E-2] [E-3]
 - Design: Callers submit a domain-owned `ChargeRequest` to `PaymentGateway.charge`; the integration owner translates provider requests, results, and exceptions.
 - Hidden details: Provider SDK request construction, response types, exception taxonomy, and timeout exception classes
 - Exposed controls: Charge amount, currency, payment token, and optional idempotency key
-- Depth rationale: One charge operation and three domain types hide four provider concepts already used by independent callers, while callers retain every control that changes payment behavior. This has a higher functionality-to-interface ratio than exposing the SDK request and exception families directly. [E-2] [E-3] [E-4]
+- Depth rationale: One charge operation and three domain types hide four provider concepts already used by independent callers, while callers retain every control that changes payment behavior. This has a higher functionality-to-interface ratio than exposing the SDK request and exception families directly. [E-2] [E-4]
 
 ## Alternatives Considered
 

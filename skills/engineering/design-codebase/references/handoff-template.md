@@ -8,13 +8,17 @@ Evidence records use this syntax:
 
 ```text
 - [E-1] source: request | locator: user-request | claim: The requested design pressure.
-- [E-2] source: code | locator: relative/path.py:10-24 | anchor: symbol_name | claim: The observed current behavior.
+- [E-2] source: code | locator: relative/path.py:10-24 | anchor: symbol_name | sha256: 64_lowercase_hex_characters | claim: The observed current behavior.
 ```
 
 Allowed sources are `request`, `code`, `test`, `configuration`, `schema`,
 `runtime`, and `external`. Code, test, configuration, and schema evidence must
-use a repository-relative `path:start-end` locator. Its optional anchor must
-occur inside the cited range. External evidence must use an HTTP(S) URL.
+use a repository-relative `path:start-end` locator. Their optional `sha256`
+binds the exact inclusive line range using UTF-8 text, LF joins, and one final
+LF; finalization backfills it when omitted. The optional anchor must occur
+inside the cited range. Other source types must not carry `sha256`. External
+evidence must use an HTTP(S) URL. At least one structurally distinct
+alternative must cite an evidence record not cited by the chosen rationale.
 
 ```markdown
 # Design Handoff: REPLACE_TITLE
@@ -22,7 +26,8 @@ occur inside the cited range. External evidence must use an HTTP(S) URL.
 ## Evidence Ledger
 
 - [E-1] source: request | locator: user-request | claim: REPLACE_REQUEST_CLAIM
-- [E-2] source: code | locator: REPLACE_PATH:REPLACE_LINES | anchor: REPLACE_ANCHOR | claim: REPLACE_REPOSITORY_CLAIM
+- [E-2] source: code | locator: REPLACE_PATH:REPLACE_LINES | anchor: REPLACE_ANCHOR | sha256: REPLACE_OPTIONAL_CURRENT_EXCERPT_HASH | claim: REPLACE_REPOSITORY_CLAIM
+- [E-3] source: code | locator: REPLACE_ALTERNATIVE_PATH:REPLACE_LINES | anchor: REPLACE_ALTERNATIVE_ANCHOR | sha256: REPLACE_OPTIONAL_CURRENT_EXCERPT_HASH | claim: REPLACE_ALTERNATIVE_GROUNDING
 
 ## Problem & Scope
 
@@ -45,7 +50,7 @@ REPLACE_PRESSURE_SCOPE_AND_EXCLUSIONS [E-1] [E-2]
 - Boundary: REPLACE_ALTERNATIVE_BOUNDARY
 - Owner: REPLACE_ALTERNATIVE_OWNER
 - Core abstraction: REPLACE_DISTINCT_CORE_ABSTRACTION
-- Rejected because: REPLACE_STRUCTURAL_REJECTION [E-2]
+- Rejected because: REPLACE_STRUCTURAL_REJECTION [E-3]
 
 ## Target Interface Contract
 

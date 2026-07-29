@@ -20,7 +20,7 @@ def validate_package(skill_path: Path) -> list[str]:
         errors.append(f"Missing SKILL.md in {skill_path}")
 
     # Check for forbidden files inside skill directory
-    forbidden_files = ["browser_smoke.py", "conftest.py", "debug_hash.py", "README.md"]
+    forbidden_files = ["browser_smoke.py", "conftest.py", "debug_hash.py"]
     for p in skill_path.rglob("*"):
         if p.name.lower() in forbidden_files or any(part in {"agents", "evals", "fixtures"} for part in p.parts):
             errors.append(f"Forbidden development artifact inside skill package: {p.relative_to(ROOT)}")
