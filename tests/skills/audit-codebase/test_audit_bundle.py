@@ -21,6 +21,7 @@ for import_path in (RUNTIME_SCRIPTS, DEV_DIR):
         sys.path.insert(0, str(import_path))
 
 import audit_bundle  # noqa: E402
+import checkpoint_audit_bundle  # noqa: E402
 import score_audit_evaluation  # noqa: E402
 import validate_audit_bundle  # noqa: E402
 
@@ -161,6 +162,74 @@ class AuditBundleTests(unittest.TestCase):
             with contextlib.redirect_stderr(stderr):
                 self.assertEqual(validate_audit_bundle.main([str(invalid_path)]), 2)
             self.assertIn("coverage is missing", stderr.getvalue())
+
+    def test_checkpoint_write_resume_and_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            input_path = temp / "in-progress.json"
+            checkpoint_path = temp / "state" / "audit-checkpoint.json"
+            bundle = valid_bundle()
+            input_path.write_text(json.dumps(bundle), encoding="utf-8")
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    checkpoint_audit_bundle.main(
+                        [
+                            "save",
+                            "--checkpoint",
+                            str(checkpoint_path),
+                            "--input",
+                            str(input_path),
+                            "--phase",
+                            "issues",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertIn("Saved issues checkpoint", stdout.getvalue())
+            saved_text = checkpoint_path.read_text(encoding="utf-8")
+            self.assertEqual(json.loads(saved_text), bundle)
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(
+                    checkpoint_audit_bundle.main(
+                        [
+                            "resume",
+                            "--checkpoint",
+                            str(checkpoint_path),
+                            "--target",
+                            bundle["audit_context"]["target"],
+                            "--commit",
+                            bundle["audit_context"]["commit"],
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(json.loads(stdout.getvalue()), bundle)
+
+            mismatched = copy.deepcopy(bundle)
+            mismatched["audit_context"]["commit"] = "different-commit"
+            input_path.write_text(json.dumps(mismatched), encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                self.assertEqual(
+                    checkpoint_audit_bundle.main(
+                        [
+                            "save",
+                            "--checkpoint",
+                            str(checkpoint_path),
+                            "--input",
+                            str(input_path),
+                            "--phase",
+                            "issues",
+                        ]
+                    ),
+                    2,
+                )
+            self.assertIn("do not match", stderr.getvalue())
+            self.assertEqual(checkpoint_path.read_text(encoding="utf-8"), saved_text)
 
 
 if __name__ == "__main__":
