@@ -122,5 +122,41 @@
     "grounding": {"paths": ["src/package/__init__.py"]}, "propagation": {"surfaces": ["config"]},
     "decisions": {"terms": ["owner"]}, "implementation": {"paths": ["src/package/new.py"], "terms": ["owner"]},
     "blueprints": {"minimum": 1}, "verification": {"terms": ["new"], "minimum": 1}, "forbidden": ["TBD"]
+  },
+  "go-ast-grounding": {
+    "grounding": {"paths": ["src/names.go"], "anchors": ["normalizeName"]},
+    "propagation": {"surfaces": ["direct-caller"]},
+    "decisions": {"terms": ["empty"]},
+    "implementation": {"paths": ["src/names.go"], "terms": ["empty"]},
+    "blueprints": {"minimum": 0},
+    "verification": {"terms": ["empty"], "minimum": 1},
+    "forbidden": ["TBD"]
+  },
+  "java-ast-grounding": {
+    "grounding": {"paths": ["src/Parser.java"], "anchors": ["parseValue"]},
+    "propagation": {"surfaces": ["direct-caller"]},
+    "decisions": {"terms": ["rename"]},
+    "implementation": {"paths": ["src/Parser.java"], "terms": ["rename"]},
+    "blueprints": {"minimum": 1},
+    "verification": {"terms": ["trim"], "minimum": 1},
+    "forbidden": ["TBD"]
+  },
+  "rust-ast-grounding": {
+    "grounding": {"paths": ["src/lib.rs"], "anchors": ["parse_value"]},
+    "propagation": {"surfaces": ["direct-caller"]},
+    "decisions": {"terms": ["rename"]},
+    "implementation": {"paths": ["src/lib.rs"], "terms": ["rename"]},
+    "blueprints": {"minimum": 1},
+    "verification": {"terms": ["trim"], "minimum": 1},
+    "forbidden": ["TBD"]
+  },
+  "ruby-ast-grounding": {
+    "grounding": {"paths": ["src/names.rb"], "anchors": ["normalize_name"]},
+    "propagation": {"surfaces": ["direct-caller"]},
+    "decisions": {"terms": ["blank"]},
+    "implementation": {"paths": ["src/names.rb"], "terms": ["blank"]},
+    "blueprints": {"minimum": 0},
+    "verification": {"terms": ["blank"], "minimum": 1},
+    "forbidden": ["TBD"]
   }
 }

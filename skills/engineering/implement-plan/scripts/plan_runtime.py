@@ -681,6 +681,37 @@ NON_PYTHON_STRUCTURAL_KINDS = {
 JAVASCRIPT_SUFFIXES = {".js", ".jsx", ".mjs", ".cjs"}
 TYPESCRIPT_SUFFIXES = {".ts", ".tsx", ".mts", ".cts"}
 KOTLIN_SUFFIXES = {".kt", ".kts"}
+GO_SUFFIXES = {".go"}
+JAVA_SUFFIXES = {".java"}
+RUST_SUFFIXES = {".rs"}
+RUBY_SUFFIXES = {".rb"}
+TREE_SITTER_SUFFIXES = (
+    JAVASCRIPT_SUFFIXES
+    | TYPESCRIPT_SUFFIXES
+    | KOTLIN_SUFFIXES
+    | GO_SUFFIXES
+    | JAVA_SUFFIXES
+    | RUST_SUFFIXES
+    | RUBY_SUFFIXES
+)
+
+LANGUAGE_BY_SUFFIX = {
+    **{suffix: "ecma" for suffix in JAVASCRIPT_SUFFIXES | TYPESCRIPT_SUFFIXES},
+    **{suffix: "kotlin" for suffix in KOTLIN_SUFFIXES},
+    **{suffix: "go" for suffix in GO_SUFFIXES},
+    **{suffix: "java" for suffix in JAVA_SUFFIXES},
+    **{suffix: "rust" for suffix in RUST_SUFFIXES},
+    **{suffix: "ruby" for suffix in RUBY_SUFFIXES},
+}
+
+GRAMMAR_BY_LANGUAGE = {
+    "ecma": ("tree_sitter_javascript", "language"),
+    "kotlin": ("tree_sitter_kotlin", "language"),
+    "go": ("tree_sitter_go", "language"),
+    "java": ("tree_sitter_java", "language"),
+    "rust": ("tree_sitter_rust", "language"),
+    "ruby": ("tree_sitter_ruby", "language"),
+}
 
 
 def _node_text(node: Any, source: bytes) -> str:
@@ -712,15 +743,13 @@ def _normalized_code(value: str) -> str:
 
 
 def _tree_sitter_root(source_text: str, suffix: str) -> tuple[Any | None, str | None]:
-    if suffix in JAVASCRIPT_SUFFIXES:
-        grammar_module, factory = "tree_sitter_javascript", "language"
-    elif suffix in TYPESCRIPT_SUFFIXES:
+    language_name = LANGUAGE_BY_SUFFIX.get(suffix)
+    if language_name is None:
+        return None, None
+    grammar_module, factory = GRAMMAR_BY_LANGUAGE[language_name]
+    if suffix in TYPESCRIPT_SUFFIXES:
         grammar_module = "tree_sitter_typescript"
         factory = "language_tsx" if suffix == ".tsx" else "language_typescript"
-    elif suffix in KOTLIN_SUFFIXES:
-        grammar_module, factory = "tree_sitter_kotlin", "language"
-    else:
-        return None, None
     try:
         tree_sitter = importlib.import_module("tree_sitter")
         grammar = importlib.import_module(grammar_module)
@@ -752,6 +781,14 @@ def _function_nodes(root: Any, source: bytes, language: str) -> list[dict[str, A
             continue
         elif language == "kotlin" and node.type != "function_declaration":
             continue
+        elif language == "go" and node.type not in {"function_declaration", "method_declaration"}:
+            continue
+        elif language == "java" and node.type not in {"method_declaration", "constructor_declaration"}:
+            continue
+        elif language == "rust" and node.type != "function_item":
+            continue
+        elif language == "ruby" and node.type not in {"method", "singleton_method"}:
+            continue
         if name_node is None:
             continue
         parameters = callable_node.child_by_field_name("parameters")
@@ -760,24 +797,33 @@ def _function_nodes(root: Any, source: bytes, language: str) -> list[dict[str, A
                 (
                     child
                     for child in callable_node.children
-                    if child.type in {"formal_parameters", "function_value_parameters"}
+                    if child.type
+                    in {
+                        "formal_parameters",
+                        "function_value_parameters",
+                        "parameter_list",
+                        "parameters",
+                        "method_parameters",
+                    }
                 ),
                 None,
             )
-        if parameters is None:
+        if parameters is None and language != "ruby":
             continue
-        return_node = callable_node.child_by_field_name("return_type")
+        return_node = callable_node.child_by_field_name(
+            "result" if language == "go" else "type" if language == "java" else "return_type"
+        )
         body = callable_node.child_by_field_name("body")
         if body is None:
             body = next(
                 (
                     child
                     for child in reversed(callable_node.children)
-                    if child.type in {"statement_block", "function_body"}
+                    if child.type in {"statement_block", "function_body", "block", "body_statement"}
                 ),
                 None,
             )
-        if language == "kotlin" and return_node is None and body is not None:
+        if language == "kotlin" and return_node is None and body is not None and parameters is not None:
             after_parameters = source[parameters.end_byte : body.start_byte].decode("utf-8", errors="replace").strip()
             return_text = after_parameters[1:].strip() if after_parameters.startswith(":") else "unannotated"
         else:
@@ -786,24 +832,48 @@ def _function_nodes(root: Any, source: bytes, language: str) -> list[dict[str, A
                 if return_node is not None
                 else "unannotated"
             )
-        header = source[declaration.start_byte : parameters.start_byte].decode("utf-8", errors="replace")
+        header_end = parameters.start_byte if parameters is not None else (body.start_byte if body is not None else node.end_byte)
+        header = source[declaration.start_byte : header_end].decode("utf-8", errors="replace")
+        parameters_text = _node_text(parameters, source) if parameters is not None else ""
+        if parameters_text.startswith("(") and parameters_text.endswith(")"):
+            parameters_text = parameters_text[1:-1]
         functions.append(
             {
                 "node": callable_node,
                 "declaration": declaration,
                 "name": _node_text(name_node, source),
-                "parameters": _node_text(parameters, source)[1:-1].strip(),
+                "parameters": parameters_text.strip(),
                 "returns": return_text,
-                "async": bool(re.search(r"\b(?:async|suspend)\b", header)),
+                "async": language in {"ecma", "kotlin", "rust"}
+                and bool(re.search(r"\b(?:async|suspend)\b", header)),
             }
         )
     return functions
 
 
 def _call_name(node: Any, source: bytes, language: str) -> str:
-    if language == "ecma":
+    if language in {"ecma", "go", "rust"}:
         function = node.child_by_field_name("function")
         return _node_text(function, source) if function is not None else ""
+    if language == "java":
+        object_node = node.child_by_field_name("object")
+        name = node.child_by_field_name("name")
+        if name is None:
+            return ""
+        return (
+            f"{_node_text(object_node, source)}.{_node_text(name, source)}"
+            if object_node is not None
+            else _node_text(name, source)
+        )
+    if language == "ruby":
+        receiver = node.child_by_field_name("receiver")
+        method = node.child_by_field_name("method")
+        if method is None:
+            return ""
+        receiver_name = _call_name(receiver, source, language) if receiver is not None and receiver.type == "call" else (
+            _node_text(receiver, source) if receiver is not None else ""
+        )
+        return f"{receiver_name}.{_node_text(method, source)}" if receiver_name else _node_text(method, source)
     for child in node.named_children:
         if child.type not in {"value_arguments", "type_arguments", "annotated_lambda"}:
             return _node_text(child, source)
@@ -812,22 +882,80 @@ def _call_name(node: Any, source: bytes, language: str) -> str:
 
 def _class_nodes(root: Any, source: bytes, language: str) -> list[tuple[Any, str, str]]:
     classes: list[tuple[Any, str, str]] = []
+    rust_traits: dict[str, list[str]] = {}
+    if language == "rust":
+        for node in _tree_nodes(root):
+            if node.type != "impl_item":
+                continue
+            trait = node.child_by_field_name("trait")
+            target = node.child_by_field_name("type")
+            if trait is not None and target is not None:
+                rust_traits.setdefault(_node_text(target, source), []).append(_node_text(trait, source))
     for node in _tree_nodes(root):
-        if node.type != "class_declaration":
+        accepted = {
+            "ecma": {"class_declaration"},
+            "kotlin": {"class_declaration"},
+            "java": {"class_declaration", "interface_declaration", "record_declaration"},
+            "ruby": {"class"},
+            "go": {"type_spec"},
+            "rust": {"struct_item", "enum_item", "union_item"},
+        }[language]
+        if node.type not in accepted:
             continue
         name = node.child_by_field_name("name")
         if name is None:
             continue
-        heritage_types = {"class_heritage"} if language == "ecma" else {"delegation_specifiers"}
-        heritage = next((child for child in node.children if child.type in heritage_types), None)
+        if language == "ecma":
+            heritage_types = {"class_heritage"}
+            heritage = next((child for child in node.children if child.type in heritage_types), None)
+            bases = _node_text(heritage, source).strip() if heritage is not None else ""
+        elif language == "kotlin":
+            heritage = next((child for child in node.children if child.type == "delegation_specifiers"), None)
+            bases = _node_text(heritage, source).strip() if heritage is not None else ""
+        elif language == "java":
+            heritage = [
+                child
+                for child in node.children
+                if child.type in {"superclass", "super_interfaces", "extends_interfaces"}
+            ]
+            bases = " ".join(_node_text(child, source).strip() for child in heritage)
+        elif language == "ruby":
+            heritage = node.child_by_field_name("superclass")
+            bases = _node_text(heritage, source).strip() if heritage is not None else ""
+        elif language == "go":
+            type_node = node.child_by_field_name("type")
+            embedded = []
+            if type_node is not None:
+                for child in _tree_nodes(type_node):
+                    if child.type != "field_declaration" or child.child_by_field_name("name") is not None:
+                        continue
+                    type_field = child.child_by_field_name("type")
+                    if type_field is None and child.named_children:
+                        type_field = child.named_children[-1]
+                    if type_field is not None:
+                        embedded.append(_node_text(type_field, source))
+            bases = ", ".join(embedded)
+        else:
+            bases = ", ".join(rust_traits.get(_node_text(name, source), []))
         classes.append(
             (
                 node,
                 _node_text(name, source),
-                _node_text(heritage, source).strip() if heritage is not None else "",
+                bases,
             )
         )
     return classes
+
+
+def _call_node_types(language: str) -> set[str]:
+    return {
+        "ecma": {"call_expression"},
+        "kotlin": {"call_expression"},
+        "go": {"call_expression"},
+        "java": {"method_invocation"},
+        "rust": {"call_expression"},
+        "ruby": {"call"},
+    }[language]
 
 
 def _non_python_fact_fields(
@@ -847,7 +975,7 @@ def _non_python_fact_fields(
         _structured_error(ds, fact, "supported-language structured evidence contains syntax errors.")
         return
     source = source_text.encode("utf-8")
-    language = "kotlin" if source_path.suffix.lower() in KOTLIN_SUFFIXES else "ecma"
+    language = LANGUAGE_BY_SUFFIX[source_path.suffix.lower()]
     functions = _function_nodes(root, source, language)
     kind = fact.fields["kind"]
     if kind == "function-signature":
@@ -895,7 +1023,7 @@ def _non_python_fact_fields(
     calls = [
         node
         for node in _tree_nodes(root)
-        if node.type == "call_expression"
+        if node.type in _call_node_types(language)
         and _tree_in_range(node, start, end)
         and _normalized_code(_call_name(node, source, language))
         == _normalized_code(fact.fields.get("callee", ""))
@@ -915,28 +1043,47 @@ def _non_python_fact_fields(
             _structured_error(ds, fact, "qualified external call is not contained in the cited range.")
         return
     if kind == "branch":
-        branch_types = (
-            {"if_expression", "while_statement", "do_while_statement", "when_entry"}
-            if language == "kotlin"
-            else {"if_statement", "while_statement", "do_statement", "ternary_expression"}
-        )
+        branch_types = {
+            "ecma": {"if_statement", "while_statement", "do_statement", "ternary_expression"},
+            "kotlin": {"if_expression", "while_statement", "do_while_statement", "when_entry"},
+            "go": {"if_statement", "for_statement", "expression_switch_statement"},
+            "java": {"if_statement", "while_statement", "do_statement", "ternary_expression"},
+            "rust": {"if_expression", "while_expression", "match_arm"},
+            "ruby": {"if", "unless", "while", "until", "if_modifier", "unless_modifier"},
+        }[language]
         values: list[str] = []
         for node in _tree_nodes(root):
             if node.type not in branch_types:
                 continue
             condition = node.child_by_field_name("condition")
-            if condition is None and node.type == "when_entry":
+            if condition is None and node.type in {"when_entry", "match_arm"}:
                 condition = next((child for child in node.named_children if child.type != "control_structure_body"), None)
             if condition is not None and _tree_in_range(condition, start, end):
                 values.append(_node_text(condition, source))
         claim = fact.fields["condition"]
     elif kind == "error":
-        error_types = {"throw_expression"} if language == "kotlin" else {"throw_statement"}
-        values = [
-            re.sub(r"^throw\s+", "", _node_text(node, source)).strip().rstrip(";")
-            for node in _tree_nodes(root)
-            if node.type in error_types and _tree_in_range(node, start, end)
-        ]
+        error_types = {
+            "ecma": {"throw_statement"},
+            "kotlin": {"throw_expression"},
+            "go": set(),
+            "java": {"throw_statement"},
+            "rust": set(),
+            "ruby": set(),
+        }[language]
+        values = []
+        for node in _tree_nodes(root):
+            if not _tree_in_range(node, start, end):
+                continue
+            if node.type in error_types:
+                values.append(re.sub(r"^throw\s+", "", _node_text(node, source)).strip().rstrip(";"))
+            elif language == "go" and node.type == "call_expression" and _call_name(node, source, language) == "panic":
+                values.append(_node_text(node, source))
+            elif language == "rust" and node.type == "macro_invocation":
+                macro = node.child_by_field_name("macro")
+                if macro is not None and _node_text(macro, source) in {"panic", "todo", "unreachable"}:
+                    values.append(_node_text(node, source))
+            elif language == "ruby" and node.type == "call" and _call_name(node, source, language) in {"raise", "fail"}:
+                values.append(_node_text(node, source))
         claim = fact.fields["error"]
     else:
         def is_effect(node: Any) -> bool:
@@ -946,12 +1093,21 @@ def _non_python_fact_fields(
                     node.type in {"prefix_expression", "postfix_expression"}
                     and ("++" in text or "--" in text)
                 )
-            return node.type in {
-                "call_expression",
-                "assignment_expression",
-                "augmented_assignment_expression",
-                "update_expression",
-            } or (node.type == "unary_expression" and text.startswith("delete "))
+            effect_types = {
+                "ecma": {
+                    "call_expression",
+                    "assignment_expression",
+                    "augmented_assignment_expression",
+                    "update_expression",
+                },
+                "go": {"call_expression", "assignment_statement", "inc_statement", "dec_statement"},
+                "java": {"method_invocation", "assignment_expression", "update_expression", "object_creation_expression"},
+                "rust": {"call_expression", "assignment_expression", "compound_assignment_expr", "macro_invocation"},
+                "ruby": {"call", "assignment", "operator_assignment"},
+            }[language]
+            return node.type in effect_types or (
+                language == "ecma" and node.type == "unary_expression" and text.startswith("delete ")
+            )
 
         values = [
             _node_text(node, source)
@@ -983,9 +1139,7 @@ def _fact_fields(
         return
     start, end = map(int, fact.fields["lines"].split("-", 1))
     suffix = source_path.suffix.lower()
-    if kind in NON_PYTHON_STRUCTURAL_KINDS and suffix in (
-        JAVASCRIPT_SUFFIXES | TYPESCRIPT_SUFFIXES | KOTLIN_SUFFIXES
-    ):
+    if kind in NON_PYTHON_STRUCTURAL_KINDS and suffix in TREE_SITTER_SUFFIXES:
         _non_python_fact_fields(ds, fact, source_text, source_path, start, end)
         return
     tree: ast.Module | None = None

@@ -79,23 +79,82 @@ def _fact_hashes(path: Path, start: int, end: int) -> tuple[str, str]:
 
 
 def _language_plan(repo: Path, tier: str, anchor: str, inventory: dict[str, Any]) -> str:
-    is_kotlin = repo.name.startswith("kotlin")
     tiny = tier == "tiny"
-    primary_path = (
-        "src/Names.kt"
-        if tiny and is_kotlin
-        else "src/names.ts"
-        if tiny
-        else "src/internal/Parser.kt"
-        if is_kotlin
-        else "src/parser.ts"
-    )
+    profiles: dict[str, dict[str, Any]] = {
+        "typescript-tiny": {
+            "primary_path": "src/names.ts",
+            "primary_lines": (1, 3),
+            "callee": "name.trim",
+            "parameters": "raw: string",
+            "returns": "string",
+            "command": "npm test -- names",
+        },
+        "typescript-standard": {
+            "primary_path": "src/parser.ts",
+            "primary_lines": (1, 3),
+            "callee": "",
+            "parameters": "raw: string",
+            "returns": "string",
+            "command": "npm test -- parser",
+        },
+        "kotlin-tiny": {
+            "primary_path": "src/Names.kt",
+            "primary_lines": (1, 3),
+            "callee": "name!!.trim",
+            "parameters": "raw: String",
+            "returns": "String",
+            "command": "./gradlew test --tests NamesTest",
+        },
+        "kotlin-standard": {
+            "primary_path": "src/internal/Parser.kt",
+            "primary_lines": (3, 5),
+            "callee": "",
+            "parameters": "raw: String",
+            "returns": "String",
+            "command": "./gradlew test --tests ParserTest",
+        },
+        "go-tiny": {
+            "primary_path": "src/names.go",
+            "primary_lines": (5, 7),
+            "callee": "strings.TrimSpace",
+            "parameters": "raw string",
+            "returns": "string",
+            "command": "go test ./...",
+        },
+        "java-standard": {
+            "primary_path": "src/internal/Parser.java",
+            "primary_lines": (4, 4),
+            "callee": "",
+            "parameters": "String raw",
+            "returns": "String",
+            "command": "./gradlew test --tests ParserTest",
+        },
+        "rust-standard": {
+            "primary_path": "src/internal/parser.rs",
+            "primary_lines": (1, 1),
+            "callee": "",
+            "parameters": "raw: &str",
+            "returns": "String",
+            "command": "cargo test parser",
+        },
+        "ruby-tiny": {
+            "primary_path": "src/names.rb",
+            "primary_lines": (1, 3),
+            "callee": "name.strip",
+            "parameters": "raw",
+            "returns": "unannotated",
+            "command": "bundle exec ruby -Itest test/names_test.rb",
+        },
+    }
+    profile = profiles[repo.name]
+    primary_path = str(profile["primary_path"])
     primary = repo / primary_path
-    primary_lines = (1, 3) if tiny else (3, 5) if is_kotlin else (1, 3)
+    primary_lines = profile["primary_lines"]
+    assert isinstance(primary_lines, tuple)
     primary_excerpt, primary_file = _fact_hashes(primary, *primary_lines)
     facts: list[str] = []
     if tiny:
-        callee = "name!!.trim" if is_kotlin else "name.trim"
+        callee = str(profile["callee"])
         facts.append(
             f"- F-1: kind: call-edge | path: {primary_path} | lines: {primary_lines[0]}-{primary_lines[1]} "
             f"| anchor: {anchor} | excerpt-sha256: {primary_excerpt} | file-sha256: {primary_file} "
@@ -103,8 +162,8 @@ def _language_plan(repo: Path, tier: str, anchor: str, inventory: dict[str, Any]
             f"| callee: {callee}"
         )
     else:
-        parameters = "raw: String" if is_kotlin else "raw: string"
-        returns = "String" if is_kotlin else "string"
+        parameters = str(profile["parameters"])
+        returns = str(profile["returns"])
         facts.append(
             f"- F-1: kind: function-signature | path: {primary_path} | lines: {primary_lines[0]}-{primary_lines[1]} "
             f"| anchor: {anchor} | excerpt-sha256: {primary_excerpt} | file-sha256: {primary_file} "
@@ -224,16 +283,12 @@ def _language_plan(repo: Path, tier: str, anchor: str, inventory: dict[str, Any]
             (
                 "- T-1: given: null empty and padded mixed-case names | when: normalizeName runs "
                 "| then: caller propagation returns empty for null and empty while non-null text is trimmed then lowercased with no side effect "
-                "| command: npm test -- names"
-                if tiny and not is_kotlin
-                else "- T-1: given: null empty and padded mixed-case names | when: normalizeName runs "
-                "| then: caller propagation returns empty for null and empty while non-null text is trimmed then lowercased with no side effect "
-                "| command: ./gradlew test --tests NamesTest"
+                f"| command: {profile['command']}"
                 if tiny
                 else "- T-1: given: definition forwarding re-export or facade consumer and fixture references "
                 "| when: the targeted parser tests run | then: propagation updates every caller and re-export while preserving "
                 "boundary input literal implementation branch error ordering side effect and trimmed output "
-                f"| command: {'./gradlew test --tests ParserTest' if is_kotlin else 'npm test -- parser'}"
+                f"| command: {profile['command']}"
             ),
             "",
             "## Risks, Assumptions, and Attack",
@@ -255,6 +310,10 @@ def _language_plan(repo: Path, tier: str, anchor: str, inventory: dict[str, Any]
         ("typescript-standard", "standard", "parseValue", "Rename parseValue across its re-export and consumers."),
         ("kotlin-tiny", "tiny", "normalizeName", "Fix normalizeName for null names."),
         ("kotlin-standard", "standard", "parseValue", "Rename parseValue across its public facade and consumers."),
+        ("go-tiny", "tiny", "normalizeName", "Fix normalizeName for empty names."),
+        ("java-standard", "standard", "parseValue", "Rename parseValue across its public facade and consumers."),
+        ("rust-standard", "standard", "parseValue", "Rename parseValue across its re-export and consumers."),
+        ("ruby-tiny", "tiny", "normalizeName", "Fix normalizeName for blank names."),
     ],
 )
 def test_non_python_fixtures_prepare_check_finalize_from_arbitrary_cwd(

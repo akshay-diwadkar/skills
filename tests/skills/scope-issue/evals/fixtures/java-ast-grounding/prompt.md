@@ -1,0 +1,1 @@
+Use $scope-issue to plan issue #32 against this Java checkout. The issue requests renaming parseValue across its facade and callers. Keep GitHub read-only, validate the issue artifact, and route it through a finalized v5 senior handoff with all source markers.

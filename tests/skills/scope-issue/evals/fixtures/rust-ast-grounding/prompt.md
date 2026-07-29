@@ -1,0 +1,1 @@
+Use $scope-issue to plan issue #33 against this Rust checkout. The issue requests renaming parse_value across its public caller. Keep GitHub read-only, validate the issue artifact, and route it through a finalized v5 senior handoff with all source markers.
