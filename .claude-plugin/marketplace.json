@@ -1,0 +1,33 @@
+{
+  "name": "akshay-diwadkar-skills",
+  "owner": {
+    "name": "Akshay Diwadkar",
+    "url": "https://github.com/akshay-diwadkar"
+  },
+  "description": "Repository-grounded engineering and technical communication skills.",
+  "plugins": [
+    {
+      "name": "engineering-skills",
+      "source": "./",
+      "description": "Skills for understanding, designing, planning, implementing, optimizing, auditing, and visualizing codebases.",
+      "skills": [
+        "./skills/engineering/audit-codebase",
+        "./skills/engineering/design-codebase",
+        "./skills/engineering/diagram-codebase",
+        "./skills/engineering/implement-plan",
+        "./skills/engineering/map-codebase",
+        "./skills/engineering/optimize-codebase",
+        "./skills/engineering/plan-change",
+        "./skills/engineering/scope-issue"
+      ]
+    },
+    {
+      "name": "technical-communication-skills",
+      "source": "./",
+      "description": "Skills for source-grounded technical documentation.",
+      "skills": [
+        "./skills/technical-communication/manualize"
+      ]
+    }
+  ]
+}

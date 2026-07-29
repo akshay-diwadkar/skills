@@ -1,6 +1,7 @@
 ---
 name: optimize-codebase
 description: Run a multi-gate, evidence-backed optimization process for a named performance, build, CI, dependency, maintainability, or developer-experience workflow. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery; implementation requires explicit authorization, with a strict Quick-Win fast path for already-authorized single-symbol changes.
+version: 1.0.0
 ---
 
 # Optimize Codebase

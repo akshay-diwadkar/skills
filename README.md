@@ -1,145 +1,146 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
-[![Skills Suite](https://img.shields.io/badge/Skills-9%20Canonical-brightgreen.svg)](#-skill-catalog)
 
-> **Production-grade, evidence-backed engineering and technical communication skills for autonomous AI agents and human practitioners.**
+Repository-grounded skills for planning, implementing, reviewing, optimizing, visualizing, and documenting software changes with AI coding agents.
 
----
+Each skill is a self-contained package with focused instructions and, where needed, scripts, schemas, templates, and validators. Install the complete collection or choose only the workflow you need.
 
-## 💡 Overview
+## Why use these skills?
 
-This repository provides a standardized, self-contained suite of **Engineering and Technical Communication Skills** designed to augment AI coding assistants (such as **Google Antigravity**, **Cursor**, **Claude Code**, and **Windsurf**) as well as human practitioners.
+- **Ground decisions in the repository.** Workflows inspect current source, configuration, tests, and contracts before proposing changes.
+- **Turn requests into verifiable artifacts.** Planning and execution skills produce structured outputs that can be checked before work moves forward.
+- **Keep responsibilities clear.** Separate skills handle discovery, design, planning, implementation, review, visualization, and documentation.
+- **Use skills independently or together.** Start with one focused task or compose several skills into an end-to-end engineering workflow.
 
-Each skill delivers repository-grounded workflows, opinionated guidelines, bundled scripts, and test suites that ensure high precision, minimal hallucination, and deterministic engineering outcomes.
+## Choose the right skill
 
----
+### Engineering workflows
 
-## 🔄 Interlocking Workflow Architecture
+| Skill | Use it when you need to… |
+| --- | --- |
+| [`plan-change`](skills/engineering/plan-change/SKILL.md) | Turn a feature, bug fix, refactor, migration, or integration request into a decision-complete implementation plan. |
+| [`implement-plan`](skills/engineering/implement-plan/SKILL.md) | Execute an approved plan as a minimal patch while preserving repository patterns and uncommitted work. |
+| [`scope-issue`](skills/engineering/scope-issue/SKILL.md) | Triage GitHub issues and plan one selected issue against the local checkout. |
+| [`audit-codebase`](skills/engineering/audit-codebase/SKILL.md) | Find confirmed bugs, security or performance risks, test gaps, and maintainability problems. |
+| [`diagram-codebase`](skills/engineering/diagram-codebase/SKILL.md) | Create a self-contained HTML diagram of a system, architecture, workflow, or code relationship. |
 
-Engineering tasks flow seamlessly across specialized skills. Use them individually or chain them together for end-to-end software delivery:
+### Engineering disciplines and utilities
+
+| Skill | Use it when you need to… |
+| --- | --- |
+| [`design-codebase`](skills/engineering/design-codebase/SKILL.md) | Decide code boundaries, dependency direction, state ownership, or another structural design before planning implementation. |
+| [`optimize-codebase`](skills/engineering/optimize-codebase/SKILL.md) | Investigate and improve a named performance, build, CI, dependency, maintainability, or developer-experience bottleneck. |
+| [`map-codebase`](skills/engineering/map-codebase/SKILL.md) | Understand an unfamiliar repository and locate the files or symbols that own a requested change. |
+
+### Technical communication
+
+| Skill | Use it when you need to… |
+| --- | --- |
+| [`manualize`](skills/technical-communication/manualize/SKILL.md) | Write or audit source-grounded manuals, procedures, runbooks, guides, notices, error messages, or reference documentation. |
+
+## How the skills fit together
+
+Use only the stages your task requires:
 
 ```mermaid
-flowchart TD
-    A[🔍 Map & Scope] -->|map-codebase / scope-issue| B[📐 Architect & Plan]
-    B -->|plan-change / design-codebase| C[🛠️ Execute & Patch]
-    C -->|implement-plan / optimize-codebase| D[🛡️ Audit & Verify]
-    D -->|audit-codebase / diagram-codebase| E[✅ Production Ready]
+flowchart LR
+    A["Understand<br/>map-codebase · scope-issue"]
+    B["Decide<br/>design-codebase · plan-change"]
+    C["Deliver<br/>implement-plan · optimize-codebase"]
+    D["Review and explain<br/>audit-codebase · diagram-codebase · manualize"]
 
-    style A fill:#2d3748,stroke:#4a5568,color:#fff
-    style B fill:#2b6cb0,stroke:#3182ce,color:#fff
-    style C fill:#2f855a,stroke:#38a169,color:#fff
-    style D fill:#d69e2e,stroke:#d69e2e,color:#fff
-    style E fill:#805ad5,stroke:#9f7aea,color:#fff
+    A --> B --> C --> D
 ```
 
----
+## Install and use
 
-## 🎯 Skill Catalog
+The [`skills` CLI](https://www.skills.sh/docs/cli) can discover and install the packages for supported AI coding agents.
 
-The repository features 9 canonical skills organized by domain:
+The installer groups the collection into **Engineering Skills** and
+**Technical Communication Skills**, so you can quickly select the part of the
+suite you need.
 
-### Technical Communication
-| Skill | Invocation | Description |
-| :--- | :---: | :--- |
-| **[manualize](skills/technical-communication/manualize/SKILL.md)** | `both` | Write or audit source-grounded technical manuals with deterministic language, semantic, and receipt validation. |
-
-### Engineering
-
-### 🛠️ Workflows
-| Skill | Invocation | Description |
-| :--- | :---: | :--- |
-| **[plan-change](skills/engineering/plan-change/SKILL.md)** | `both` | Transform features, bug fixes, refactors, or migrations into decision-complete, repository-grounded blueprints. |
-| **[implement-plan](skills/engineering/implement-plan/SKILL.md)** | `both` | Execute approved blueprints as minimal, behavior-preserving patches with strict layered verification. |
-| **[scope-issue](skills/engineering/scope-issue/SKILL.md)** | `both` | Inventory GitHub issues and resolve them into executable implementation plans against the checkout. |
-| **[audit-codebase](skills/engineering/audit-codebase/SKILL.md)** | `both` | Audit codebases for security risks, performance bottlenecks, and architectural friction, generating actionable issues. |
-| **[diagram-codebase](skills/engineering/diagram-codebase/SKILL.md)** | `both` | Generate self-contained HTML visual diagrams of system architecture, workflows, and module relationships. |
-
-### 📐 Disciplines
-| Skill | Invocation | Description |
-| :--- | :---: | :--- |
-| **[design-codebase](skills/engineering/design-codebase/SKILL.md)** | `both` | Decide and justify a repository-grounded design, then hand one plan-ready request document to plan-change. |
-| **[optimize-codebase](skills/engineering/optimize-codebase/SKILL.md)** | `both` | Measure, benchmark, and resolve named performance bottlenecks without introducing behavior regressions. |
-
-### 🔍 Utilities
-| Skill | Invocation | Description |
-| :--- | :---: | :--- |
-| **[map-codebase](skills/engineering/map-codebase/SKILL.md)** | `both` | Generate compact repository navigation maps and bound code exploration into evidence-backed read phases. |
-
----
-
-## 🚀 How to Use
-
-### 🤖 1. Adding Skills to AI Agents (Antigravity, Cursor, Claude Code, etc.)
-
-Install skills into your project repo or agent environment using `npx`:
+### 1. Inspect the available skills
 
 ```bash
-# Add all engineering skills to your active workspace/agent
-npx skills add akshay-diwadkar/skills
+npx skills add akshay-diwadkar/skills --list
+```
 
-# Add only a specific skill (e.g. plan-change)
+### 2. Install the collection or one skill
+
+Install all skills and choose the target agent when prompted:
+
+```bash
+npx skills add akshay-diwadkar/skills --skill '*'
+```
+
+Or install a single skill:
+
+```bash
 npx skills add akshay-diwadkar/skills --skill plan-change
 ```
 
-Once installed, your AI agent automatically reads each skill's `SKILL.md` and uses its guidelines, workflows, and bundled scripts whenever you request matching engineering tasks.
+Add `--global` to make an installation available across projects, or use `--agent <agent-name>` to select a supported agent explicitly.
 
-### 💬 2. Triggering Skills via Chat Prompts
+### 3. Ask for the workflow you need
 
-Once installed, simply request tasks in your AI assistant's chat interface (such as Antigravity, Cursor, or Claude Code). The agent detects installed skills and executes their workflow:
+After installation, describe the task in your agent's chat. For example:
 
-```markdown
-# Example: Triggering the plan-change skill
-"Plan a refactor to migrate our database client to connection pooling."
-
-# Example: Triggering the audit-codebase skill
-"Audit our repository for security risks and performance bottlenecks."
-
-# Example: Triggering the scope-issue skill
-"Scope open issue #42 and build an implementation blueprint."
-
-# Example: Triggering the manualize write operation
-"Write a strict installation runbook from these source files."
-
-# Example: Triggering the manualize audit operation
-"Audit this manual for MTE-1 violations and source drift without rewriting it."
+```text
+Map this repository and show me where authentication is implemented.
 ```
 
+```text
+Plan a migration from the current database client to connection pooling.
+```
 
+```text
+Implement the approved plan in docs/plans/connection-pooling.md.
+```
 
+```text
+Audit this repository for security risks and missing tests.
+```
 
+```text
+Write an installation runbook from the checked-in configuration and scripts.
+```
 
----
+The selected agent decides when to invoke an installed skill based on its name and description. You can mention the skill explicitly when you want a particular workflow.
 
-## 🧪 Quality & Verification
+## Requirements and compatibility
 
-We enforce strict repository health and verification standards across all skills using automated linters, static typing, unit testing, and custom skill validators:
+- **Skill installation:** Node.js with `npx`, plus an agent supported by the `skills` CLI.
+- **Bundled runtime scripts:** Python 3.11 or newer.
+- **Skill-specific packages:** Install the `requirements.txt` inside a skill directory when that skill includes one.
+- **Repository verification:** CI exercises the suite on Linux, macOS, and Windows with Python 3.11 and 3.12.
+
+Individual skills may require extra tools or credentials for their target workflow. Read the selected skill's `SKILL.md` before running its scripts.
+
+## Development and verification
+
+Clone the repository, create a Python environment, and install the dependencies required by the skills you are changing. The repository's quality checks are:
 
 ```bash
-# Run Ruff linting
+# Lint Python
 ruff check .
 
-# Run Mypy static type checking
+# Run static type checks
 python tools/validation/run_mypy.py
 
-# Validate repository skill structure & metadata
+# Validate skill structure and metadata
 python tools/validation/validate_repository.py
 
-# Execute full pytest suite
+# Run the test suite
 python -m pytest -q
 ```
 
-Benchmark fixtures, methodology, limitations, frozen baselines, and the
-cross-skill migration matrix are documented in
-[`benchmarks/`](benchmarks/README.md). Pull requests run the representative
-deterministic profile; the complete Tier C comparison runs on pushes to `main`
-and by manual dispatch.
+Benchmark fixtures, methodology, limitations, baselines, and the cross-skill migration matrix are documented in [`benchmarks/`](benchmarks/README.md).
 
----
+## License
 
-## 📄 License
-
-This repository is distributed under the [MIT License](LICENSE).
-
+Released under the [MIT License](LICENSE).
