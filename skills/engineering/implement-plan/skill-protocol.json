@@ -1,0 +1,188 @@
+{
+  "protocol_version": "1.0",
+  "skill": "implement-plan",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill_and_repo",
+  "requirements": [
+    {"distribution": "tree-sitter", "specifier": "==0.25.2"},
+    {"distribution": "tree-sitter-javascript", "specifier": "==0.25.0"},
+    {"distribution": "tree-sitter-typescript", "specifier": "==0.23.2"},
+    {"distribution": "tree-sitter-kotlin", "specifier": "==1.1.0"},
+    {"distribution": "tree-sitter-go", "specifier": "==0.25.0"},
+    {"distribution": "tree-sitter-java", "specifier": "==0.23.5"},
+    {"distribution": "tree-sitter-rust", "specifier": "==0.24.2"},
+    {"distribution": "tree-sitter-ruby", "specifier": "==0.23.1"}
+  ],
+  "inputs": [
+    {
+      "name": "plan_file",
+      "kind": "path",
+      "required": true,
+      "repeatable": false,
+      "description": "Absolute path to the exact finalized implementation plan.",
+      "choices": []
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "implementation",
+      "path": "implementation.json",
+      "media_type": "application/json"
+    }
+  ],
+  "phases": {
+    "implementing": {
+      "status": "in_progress",
+      "next_action": "implement_plan_and_complete_bundle",
+      "next_command": "validate",
+      "required_reads": [
+        "{input.plan_file}",
+        "{skill_dir}/references/implementation-contract.json",
+        "{skill_dir}/references/implementation-protocols.md",
+        "{skill_dir}/references/code-quality-checklist.md",
+        "{skill_dir}/references/implementation-hazards.md",
+        "{run_dir}/implementation.json"
+      ],
+      "allowed_writes": [
+        "{repo_root}",
+        "{run_dir}/implementation.json"
+      ],
+      "forbidden_actions": [
+        "edit_unplanned_path",
+        "overwrite_dirty_target",
+        "overwrite_concurrent_change",
+        "weaken_plan_or_quality_evidence",
+        "edit_installed_skill"
+      ]
+    },
+    "validated": {
+      "status": "ready",
+      "next_action": "finalize",
+      "next_command": "finalize",
+      "required_reads": [
+        "{input.plan_file}",
+        "{run_dir}/implementation.json"
+      ],
+      "allowed_writes": ["{run_dir}/implementation.json"],
+      "forbidden_actions": [
+        "edit_validated_implementation",
+        "edit_target_repository",
+        "edit_installed_skill"
+      ]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{run_dir}/implementation.json"],
+      "allowed_writes": [],
+      "forbidden_actions": [
+        "modify_finalized_bundle",
+        "edit_target_repository",
+        "edit_installed_skill"
+      ]
+    }
+  },
+  "commands": {
+    "start": {
+      "allowed_phases": ["implementing"],
+      "success_phase": "implementing",
+      "steps": [
+        {
+          "argv": [
+            "{python}",
+            "{skill_dir}/scripts/scaffold_implementation.py",
+            "--repo-root",
+            "{repo_root}",
+            "--plan",
+            "{input.plan_file}",
+            "--output",
+            "{run_dir}/implementation.json"
+          ],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": false,
+          "failure": "blocked"
+        },
+        {
+          "argv": [
+            "{python}",
+            "{skill_dir}/scripts/check_cli_intake.py",
+            "--bundle",
+            "{run_dir}/implementation.json",
+            "--format",
+            "json"
+          ],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": true,
+          "failure": "blocked"
+        }
+      ]
+    },
+    "validate": {
+      "allowed_phases": ["implementing", "validated"],
+      "success_phase": "validated",
+      "steps": [
+        {
+          "argv": [
+            "{python}",
+            "{skill_dir}/scripts/check_implementation.py",
+            "--repo-root",
+            "{repo_root}",
+            "--plan",
+            "{input.plan_file}",
+            "--format",
+            "json",
+            "--require-complete",
+            "{run_dir}/implementation.json"
+          ],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": true,
+          "failure": "blocked"
+        }
+      ]
+    },
+    "finalize": {
+      "allowed_phases": ["validated"],
+      "success_phase": "complete",
+      "steps": [
+        {
+          "argv": [
+            "{python}",
+            "{skill_dir}/scripts/finalize_implementation.py",
+            "--repo-root",
+            "{repo_root}",
+            "--plan",
+            "{input.plan_file}",
+            "{run_dir}/implementation.json"
+          ],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": false,
+          "failure": "blocked"
+        },
+        {
+          "argv": [
+            "{python}",
+            "{skill_dir}/scripts/check_implementation.py",
+            "--repo-root",
+            "{repo_root}",
+            "--plan",
+            "{input.plan_file}",
+            "--format",
+            "json",
+            "--require-complete",
+            "--require-receipt",
+            "{run_dir}/implementation.json"
+          ],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": true,
+          "failure": "blocked"
+        }
+      ]
+    }
+  }
+}

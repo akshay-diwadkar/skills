@@ -268,7 +268,12 @@ def _implementation_binding_diagnostics(plan: Any, bundle: dict[str, Any], repo_
 
 
 def validate_bundle(
-    bundle: object, plan_text: str, repo_root: Path, *, require_receipt: bool = False
+    bundle: object,
+    plan_text: str,
+    repo_root: Path,
+    *,
+    require_complete: bool = False,
+    require_receipt: bool = False,
 ) -> list[Diagnostic]:
     if not isinstance(bundle, dict):
         return [Diagnostic("bundle.type", "Implementation bundle must be a JSON object.")]
@@ -291,6 +296,10 @@ def validate_bundle(
         diagnostics.append(Diagnostic("bundle.run_id", "run_id must be a non-empty string."))
     if bundle.get("status") not in contract["statuses"]:
         diagnostics.append(Diagnostic("bundle.status", f"status must be one of: {', '.join(contract['statuses'])}."))
+    elif require_complete and bundle.get("status") != "complete":
+        diagnostics.append(
+            Diagnostic("bundle.incomplete", "Common CLI validation requires bundle status `complete`.")
+        )
     for field in (
         "changes",
         "verification",
@@ -539,11 +548,15 @@ def main() -> int:
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--require-complete", action="store_true")
+    parser.add_argument("--require-receipt", action="store_true")
     args = parser.parse_args()
     diagnostics = validate_bundle(
         json.loads(args.bundle.read_text(encoding="utf-8")),
         args.plan.read_text(encoding="utf-8"),
         args.repo_root,
+        require_complete=args.require_complete,
+        require_receipt=args.require_receipt,
     )
     if args.format == "json":
         print(json.dumps({"valid": not diagnostics, "diagnostics": [item.to_dict() for item in diagnostics]}, indent=2))

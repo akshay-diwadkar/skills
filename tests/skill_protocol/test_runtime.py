@@ -139,6 +139,70 @@ def test_manifest_and_response_schemas_accept_reference_contract(tmp_path: Path)
     assert response["status"] == "ready"
 
 
+def test_generic_initial_phase_and_conditional_reads_are_supported(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["inputs"][0].update({"required": True, "repeatable": False})
+    payload["phases"]["implementing"] = payload["phases"].pop("drafting")
+    payload["phases"]["implementing"]["conditional_reads"] = [
+        {"input": "tag", "values": ["full"], "paths": ["{skill_dir}/SKILL.md"]}
+    ]
+    payload["commands"]["start"].update(
+        {"allowed_phases": ["implementing"], "success_phase": "implementing"}
+    )
+    payload["commands"]["validate"]["allowed_phases"] = ["implementing", "validated"]
+    jsonschema.validate(payload, MANIFEST_SCHEMA)
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    result = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(run),
+        "--input",
+        "tag=full",
+        "--format",
+        "json",
+        "start",
+    )
+    response = json_result(result)
+    assert response["phase"] == "implementing"
+    assert [Path(item["path"]).resolve() for item in response["required_reads"]] == [
+        (run / "work.txt").resolve(),
+        (skill / "SKILL.md").resolve(),
+    ]
+
+
+def test_doctor_returns_replayable_start_command_with_inputs(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["inputs"][0].update({"required": True, "repeatable": True})
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    result = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(run),
+        "--input",
+        "tag=one",
+        "--input",
+        "tag=two",
+        "--format",
+        "json",
+        "doctor",
+    )
+    response = json_result(result)
+    command = response["next_command"]
+    assert command is not None
+    replay = subprocess.run(command["argv"], cwd=command["cwd"], capture_output=True, text=True, check=False)
+    assert replay.returncode == 0
+    assert json_result(replay)["phase"] == "drafting"
+    assert (run / "work.txt").read_text(encoding="utf-8") == "--tag one --tag two"
+
+
 def test_lifecycle_repeated_inputs_state_and_idempotent_complete(tmp_path: Path) -> None:
     skill = create_skill(tmp_path)
     repo = tmp_path / "repo"

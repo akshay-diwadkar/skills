@@ -67,12 +67,22 @@
       "next_action": "complete_or_repair_draft",
       "next_command": "validate",
       "required_reads": [
+        "{input.request_file}",
         "{skill_dir}/references/glossary.md",
         "{skill_dir}/references/plan-contract.md",
         "{skill_dir}/references/cognitive-protocols.md",
+        "{skill_dir}/references/task-playbooks.md",
+        "{skill_dir}/references/adversarial-verification.md",
         "{run_dir}/baseline.json",
         "{run_dir}/inventory.json",
         "{run_dir}/draft.md"
+      ],
+      "conditional_reads": [
+        {
+          "input": "tier",
+          "values": ["standard", "high-risk"],
+          "paths": ["{skill_dir}/references/worked-examples.md"]
+        }
       ],
       "allowed_writes": ["{run_dir}/draft.md"],
       "forbidden_actions": [

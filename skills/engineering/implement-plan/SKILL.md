@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-version: 1.0.0
+version: 1.1.0
 metadata:
   implementation-contract: "3"
   finalizer: "scripts/finalize_implementation.py"
@@ -11,6 +11,32 @@ metadata:
 # Implement Plan
 
 Implement the approved plan as the smallest complete patch. Repository evidence decides how code is written; the plan decides what behavior may change; the implementation contract proves what actually happened.
+
+## Common CLI
+
+Use the skill-local common CLI as the primary interface. Pass the exact
+finalized plan and choose a new run directory outside both the installed skill
+and target repository:
+
+```bash
+python /absolute/skill-root/scripts/cli.py \
+  --repo-root /absolute/path/to/repository \
+  --run-dir /absolute/path/to/temporary-run \
+  --input plan_file=/absolute/path/to/finalized-plan.md \
+  --format json \
+  doctor
+```
+
+Execute each returned `next_command.argv` directly with its returned `cwd`.
+Read only the returned phase references and stop on every blocking reason. A
+fresh bundle remains in phase `implementing` until `implementation.json` has
+status `complete` and passes the authoritative validator. Completion requires
+phase `complete` and a matching implementation-contract v3 receipt.
+
+Common-CLI intake refuses a planned target that was already dirty. Explicitly
+authorized incorporation remains available only through the direct
+compatibility workflow because v3 has no receipt-bound authorization field.
+See `references/cli-compatibility.md` for every existing direct entry point.
 
 ## Read Before Acting
 

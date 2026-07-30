@@ -472,7 +472,11 @@ def main() -> int:
         errors.extend(validate_skill_protocol(skill_dir))
     errors.extend(validate_retired_surfaces())
     errors.extend(validate_legacy_plan_contracts())
-    for script in ("generate_plan_contract.py", "sync_plan_runtime.py"):
+    for script in (
+        "generate_plan_contract.py",
+        "sync_plan_runtime.py",
+        "sync_skill_protocol_runtime.py",
+    ):
         result = subprocess.run(
             [sys.executable, str(ROOT / "tools" / "validation" / script), "--check"],
             cwd=ROOT,

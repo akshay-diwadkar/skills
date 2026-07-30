@@ -17,6 +17,12 @@ python /absolute/runtime/tools/skill_cli.py \
   <doctor|start|status|next|validate|finalize>
 ```
 
+An installed skill may expose `scripts/cli.py`, which fixes `--skill-dir` to
+that package and passes its own path to the runtime. Responses from such an
+adapter keep returning that local CLI in `next_command.argv`. Core skills
+carry a synchronized standard-library fallback so this remains operable when
+the repository-level `tools/` directory is absent.
+
 `doctor` does not require a run directory. `start` requires a new run
 directory. Every later stateful command requires the directory created by
 `start`. A skill may require the run directory to be outside the target
@@ -28,7 +34,8 @@ variable name instead of a credential value.
 ## Lifecycle
 
 - `doctor` validates the interpreter, paths, manifest, scripts, and declared
-  distributions without writing.
+  distributions without writing. When a run directory and every required
+  input are supplied, it returns a replayable `start` command.
 - `start` validates inputs, runs the declared preparation command in a staging
   directory, atomically publishes the run, and records the initial phase.
 - `status` reads and verifies state without running a skill command.
@@ -69,6 +76,10 @@ workflow block or operational error.
 Allowed placeholders are `{python}`, `{skill_dir}`, `{repo_root}`, `{run_dir}`,
 and `{input.<name>}`. Repeated inputs use the step's `repeat` entries and are
 never interpolated into a shell.
+
+Phase names are skill-defined except for the required terminal `complete`
+phase. `conditional_reads` can add paths for selected declared input values
+without exposing unrelated references in other runs.
 
 Protocol 1.x may add optional behavior but will not change required response
 fields, their types, command meanings, or exit-code categories. Breaking
