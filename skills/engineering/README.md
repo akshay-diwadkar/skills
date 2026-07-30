@@ -23,4 +23,5 @@ This directory contains all canonical engineering skills.
 
 | Skill | Status | Invocation | Summary |
 | --- | --- | --- | --- |
+| [route-engineering-work](./route-engineering-work/SKILL.md) | `stable` | `model` | Select one suite workflow for an engineering request and emit a read-only machine routing decision. |
 | [map-codebase](./map-codebase/SKILL.md) | `stable` | `both` | Generate compact repository-navigation artifacts and resolve coding tasks into bounded, evidence-backed read phases. |

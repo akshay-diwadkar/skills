@@ -141,4 +141,4 @@ jobs:
           mkdir -p "$RUNNER_TEMP/skills-consumer"
           cd "$RUNNER_TEMP/skills-consumer"
           npx --yes skills@1.5.20 add "$GITHUB_WORKSPACE" --skill '*' --agent codex --copy --yes
-          test "$(find . -type f -name SKILL.md | wc -l)" -eq 9
+          test "$(find . -type f -name SKILL.md | wc -l)" -eq 10
