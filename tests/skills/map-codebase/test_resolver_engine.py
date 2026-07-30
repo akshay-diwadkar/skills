@@ -18,10 +18,12 @@ def test_resolver_exact_symbol_match(tmp_path: Path):
     build_knowledge(tmp_path, out_dir)
 
     res = resolve_task(tmp_path, "Fix bug in PasswordResetHandler", out_dir)
-    assert res["confidence"]["level"] == "medium"
-    assert len(res["targets"]) > 0
-    assert res["targets"][0]["path"] == "src/auth.py"
-    assert res["targets"][0]["symbol"] == "PasswordResetHandler"
+    assert res["status"] == "resolved"
+    assert res["confidence"]["level"] == "high"
+    assert res["primary_owner"]["path"] == "src/auth.py"
+    assert res["primary_owner"]["symbol"] == "PasswordResetHandler"
+    assert res["targets"] == [res["primary_owner"]]
+    assert res["co_owners"] == []
 
 
 def test_resolver_progressive_expansion_medium_confidence(tmp_path: Path):

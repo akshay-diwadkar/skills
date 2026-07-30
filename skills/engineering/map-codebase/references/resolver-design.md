@@ -6,41 +6,45 @@ Use this reference when changing ownership classification, candidate evidence, s
 
 ```text
 task
-  -> signal extraction
-  -> ownership classification
-  -> lexical candidates
-  -> relationship reranking
-  -> symbol/range focusing
-  -> confidence
+  -> structured positive/negative query parsing
+  -> ownership, component, subsystem, and cardinality intent
+  -> IDF-weighted lexical shortlist
+  -> symbol-centric ranking
+  -> capped relationship evidence
+  -> calibrated owner selection
   -> bounded read phases
 ```
 
-### 1. Signal extraction
+### 1. Structured query parsing
 
-The resolver extracts explicit paths, explicit symbols, literal terms, stemmed forms, and configured synonyms. Protected compounds such as `JavaScript`, `TypeScript`, and `sign in` are normalized before camel-case and punctuation splitting.
+The resolver extracts explicit paths and symbols plus positive and excluded concepts. Contrastive spans introduced by `not`, `rather than`, `instead of`, and `exclude` may exclude roles, subsystems, component types, or concepts. It also records requested architectural layer, phase intent, and whether co-ownership was explicitly requested.
 
 ### 2. Ownership classification
 
-Ownership is one of `source`, `test`, or `configuration`. Exact indexed paths and symbols decide first. Otherwise a deterministic scored rule table classifies task phrasing. Source owns mixed implementation tasks, while directly requested test maintenance and configuration work retain their own roles.
+Ownership role remains `source`, `test`, or `configuration`. Exact indexed paths and symbols decide first. Otherwise the deterministic role table classifies task phrasing. Source owns mixed implementation tasks, while directly requested test maintenance and configuration work retain their roles.
 
-### 3. Lexical candidates
+### 3. Candidate scoring
 
-Indexed path, filename, subsystem, symbol, synonym, configuration-key, generated, vendor, and freshness evidence produces an initial shortlist. Every contribution uses the weights in `knowledge.config.DEFAULT_CONFIG`; the design has no second hard-coded scoring table.
+Path, filename, normalized subsystem path, component type, symbol, synonym, configuration-key, generated, vendor, and freshness evidence produces the initial shortlist. Corpus IDF and file-length normalization reduce generic-name collisions. Evidence families are capped.
 
-### 4. Relationship reranking
+### 4. Symbol-centric ranking
 
-Only direct indexed neighbors may expand the shortlist. Directional test links, imports, reverse imports, and entry-point evidence adjust scores. Vendor, generated, unsupported-extractor, and stale-knowledge penalties remain explicit evidence.
+Shortlisted symbols are ranked from qualified name, signature, type hints, docstring, decorators, implemented interfaces, references, calls, constants/configuration use, and control-flow markers. A file score is led by its best symbol; secondary symbols and file-level evidence are capped.
 
-### 5. Symbol and range focusing
+### 5. Relationship and decoy controls
 
-The resolver loads only symbol shards needed by shortlisted paths. Exact or expanded task terms focus source targets to matching symbols. Configuration targets instead rank active structural keys and return bounded TOML, INI, YAML, JSON, or Make ranges.
+Relationships never create an ownership candidate and share a small evidence cap. Generated, migration, documentation, and legacy candidates are penalized unless explicitly requested. Negative conflicts can force ambiguity or abstention.
 
 ### 6. Confidence
 
-No target yields low confidence. A positive target normally yields medium confidence. High confidence additionally requires fresh knowledge, a focused range, configured score separation, multiple positive evidence families, and a unique exact path, exact symbol, or non-weak filename signal. Synonym or relationship evidence alone cannot produce high confidence.
+Confidence returns `resolved`, `ambiguous`, or `abstain`, plus a normalized probability and legacy level/raw score. Inputs include direct score, margin, evidence diversity, exact path/symbol evidence, component and subsystem matches, freshness, focus, and negative conflicts. A unique focused exact symbol is eligible for high confidence.
 
-### 7. Bounded read phases
+### 7. Result cardinality and phases
 
-Phase 1 returns likely primary owners. Phase 2 returns direct tests or explicitly represented secondary configuration/test constraints. Phase 3 returns directional one-hop impacts. Consumers request phase 2 or 3 only when the preceding phase exposes an expansion trigger; confidence does not automatically expand the response.
+- `primary_owner` is the single default owner.
+- `co_owners` require an explicit multi-owner query and independent direct evidence.
+- `alternatives` preserve bounded retrieval recall without being presented as owners.
+- `constraints` and `impacts` belong to phases 2 and 3.
+- `targets` remains the compatibility projection of the requested phase.
 
-Each phase includes its question, stop condition, and expansion triggers. `--phase all` exists for debugging and human inspection rather than normal agent navigation.
+Each phase includes a question, stop condition, and expansion triggers. `--phase all` remains for debugging and human inspection.

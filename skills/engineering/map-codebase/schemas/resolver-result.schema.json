@@ -7,6 +7,12 @@
     "phase",
     "knowledge_freshness",
     "task_terms",
+    "status",
+    "primary_owner",
+    "co_owners",
+    "alternatives",
+    "constraints",
+    "impacts",
     "confidence",
     "fallback_searches"
   ],
@@ -38,6 +44,26 @@
     },
     "confidence": {
       "type": "object"
+    },
+    "status": {
+      "enum": ["resolved", "ambiguous", "abstain"]
+    },
+    "primary_owner": {
+      "type": ["object", "null"]
+    },
+    "co_owners": {
+      "type": "array",
+      "maxItems": 2
+    },
+    "alternatives": {
+      "type": "array",
+      "maxItems": 2
+    },
+    "constraints": {
+      "type": "array"
+    },
+    "impacts": {
+      "type": "array"
     },
     "targets": {
       "type": "array",

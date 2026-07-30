@@ -24,8 +24,8 @@ from knowledge.indexing import classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
-SCHEMA_VERSION = "5.0"
-EXTRACTOR_VERSION = "5.0.0"
+SCHEMA_VERSION = "6.0"
+EXTRACTOR_VERSION = "6.0.0"
 
 
 def _digest(value: Any) -> str:
@@ -100,12 +100,24 @@ def _symbol_index_payload(symbols: list[dict[str, Any]]) -> dict[str, Any]:
     """Return an inverted symbol index with deterministic entries."""
     index: dict[str, list[dict[str, Any]]] = {}
     for sym in symbols:
-        entry = {"file": sym["path"], "line": sym["line_start"], "kind": sym["kind"]}
+        entry = {
+            "file": sym["path"],
+            "line": sym["line_start"],
+            "kind": sym["kind"],
+            "qualified_name": sym.get("qualified_name", ""),
+            "component_types": sym.get("component_types", []),
+        }
         index.setdefault(sym["name"].lower(), []).append(entry)
     for sym in symbols:
         qname = sym.get("qualified_name", "").lower()
         if qname and qname != sym["name"].lower():
-            entry = {"file": sym["path"], "line": sym["line_start"], "kind": sym["kind"]}
+            entry = {
+                "file": sym["path"],
+                "line": sym["line_start"],
+                "kind": sym["kind"],
+                "qualified_name": sym.get("qualified_name", ""),
+                "component_types": sym.get("component_types", []),
+            }
             index.setdefault(qname, []).append(entry)
     for key in index:
         index[key] = sorted(index[key], key=lambda x: (x["file"], x["line"]))

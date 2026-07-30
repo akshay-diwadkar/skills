@@ -38,12 +38,11 @@ def test_no_match_returns_empty_resolution_and_safe_fallback(tmp_path: Path):
 
     result = resolve_task(tmp_path, "Fix frobnicator", output, phase="all")
 
-    assert result["confidence"] == {
-        "level": "low",
-        "score": 0,
-        "reasons": ["no indexed owner matched the task terms"],
-        "uncertainties": ["run the targeted fallback search against authoritative source"],
-    }
+    assert result["status"] == "abstain"
+    assert result["primary_owner"] is None
+    assert result["confidence"]["level"] == "low"
+    assert result["confidence"]["score"] == 0
+    assert result["confidence"]["probability"] == 0
     assert all(phase["targets"] == [] for phase in result["phases"])
     assert result["fallback_searches"] == ["rg -n --glob '!.agent/knowledge/**' -- '\\bfrobnicator\\b'"]
     assert "role_fallback" not in str(result)

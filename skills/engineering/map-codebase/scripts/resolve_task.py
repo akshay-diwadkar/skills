@@ -22,6 +22,13 @@ from knowledge.discovery import knowledge_output_prefix
 from knowledge.indexing import shard_id
 from knowledge.schemas import validate_schema_json
 from refresh_knowledge import check_freshness
+from resolver.features import structured_candidate_paths
+from resolver.features import tokenize as structured_tokenize
+from resolver.phase1_ranker import resolve_phase1
+from resolver.query_parser import parse_task_query
+from resolver.schemas import TaskQuery
+from resolver.scoring import score_candidates
+from resolver.symbol_ranker import rank_symbols
 
 STOPWORDS = {
     "add",
@@ -328,6 +335,15 @@ def _is_underspecified_refactor(task: str) -> bool:
         lowered,
     )
     return bool(broad_action and preservation_only)
+
+
+def _is_underspecified_query(query: TaskQuery) -> bool:
+    generic = {
+        "behavior", "implementation", "owner", "owners", "ownership", "owns",
+        "policy", "service", "handler", "job", "repository", "model",
+        "orchestrator", "route", "controller", "component", "code", "this",
+    }
+    return not bool(query.positive_concepts - generic)
 
 
 def _role_order(roles: list[str]) -> list[PrimaryRole]:
@@ -658,30 +674,32 @@ def _rerank(
     shortlist: list[dict[str, Any]], relationships: dict[str, Any], by_path: dict[str, Any], weights: dict[str, float]
 ) -> list[dict[str, Any]]:
     selected = {x["file"]["path"]: x for x in shortlist}
-    seed = set(selected)
-    # Include direct neighbours only; this is the sole controlled expansion.
-    for edge in relationships.get("imports", []):
-        if edge["source"] in seed or edge["target"] in seed:
-            other = edge["target"] if edge["source"] in seed else edge["source"]
-            if other in by_path and other not in selected:
-                selected[other] = {"file": by_path[other], "score": 0.0, "evidence": {}}
+    del by_path
     tests_by_target: dict[str, list[str]] = {}
     for edge in relationships.get("test_links", []):
         tests_by_target.setdefault(edge["target"], []).append(edge["source"])
     for path, item in selected.items():
         ev = item["evidence"]
-        for test in sorted(tests_by_target.get(path, [])):
-            _add(ev, f"tested_by: {test}", weights["related_test"], "related_test")
-        for importer in sorted(relationships.get("reverse_imports", {}).get(path, [])):
+        relationship_budget = 3.0
+        for test in sorted(tests_by_target.get(path, []))[:1]:
+            _add(ev, f"tested_by: {test}", min(weights["related_test"], relationship_budget), "related_test")
+            relationship_budget = max(0.0, relationship_budget - weights["related_test"])
+        for importer in sorted(relationships.get("reverse_imports", {}).get(path, []))[:1]:
             _add(
                 ev,
                 f"imported_by: {importer}",
-                weights["reverse_import_relationship"],
+                min(weights["reverse_import_relationship"], relationship_budget),
                 "reverse_import_relationship",
             )
-        for edge in relationships.get("imports", []):
+            relationship_budget = max(0.0, relationship_budget - weights["reverse_import_relationship"])
+        for edge in relationships.get("imports", [])[:1]:
             if edge["source"] == path:
-                _add(ev, f"imports: {edge['target']}", weights["import_relationship"], "import_relationship")
+                _add(
+                    ev,
+                    f"imports: {edge['target']}",
+                    min(weights["import_relationship"], relationship_budget),
+                    "import_relationship",
+                )
         if Path(path).name.lower() in {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}:
             _add(ev, f"entry_point: {path}", weights["entry_point"], "entry_point")
         item["score"] = sum(x[0] for x in ev.values())
@@ -862,7 +880,8 @@ def _focused_text_range(root: Path, path: str, task: str, config: dict[str, Any]
 
 
 def _target(
-    candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: dict[str, set[str]], root: Path, task: str, config: dict[str, Any]
+    candidate: dict[str, Any], symbols: list[dict[str, Any]], signals: dict[str, set[str]], root: Path, task: str,
+    config: dict[str, Any], query: TaskQuery | None = None,
 ) -> dict[str, Any]:
     def symbol_relevance(symbol: dict[str, Any]) -> tuple[int, int]:
         exact = symbol["name"] in signals["symbols"]
@@ -882,12 +901,23 @@ def _target(
         )
         return score, -int(symbol["line_start"])
 
-    ranked_symbols = sorted(
-        (symbol for symbol in symbols if symbol_relevance(symbol)[0] > 0),
-        key=symbol_relevance,
-        reverse=True,
+    exact_symbol = next(
+        (symbol for symbol in symbols if symbol["name"] in signals["symbols"]),
+        None,
     )
-    match = ranked_symbols[0] if ranked_symbols else None
+    match: dict[str, Any] | None
+    structured_symbols = rank_symbols(symbols, query) if query is not None else []
+    if exact_symbol is not None:
+        match = exact_symbol
+    elif structured_symbols:
+        match = structured_symbols[0][0]
+    else:
+        ranked_symbols = sorted(
+            (symbol for symbol in symbols if symbol_relevance(symbol)[0] > 0),
+            key=symbol_relevance,
+            reverse=True,
+        )
+        match = ranked_symbols[0] if ranked_symbols else None
     file = candidate["file"]
     start_line = match["line_start"] if match else None
     end_line = match["line_end"] if match else None
@@ -1038,12 +1068,18 @@ def resolve_task(
     config = load_config(root)
     freshness = check_freshness(root, directory)["status"]
     signals = _signals(task)
+    query = parse_task_query(task)
+    signals["literal_terms"] -= set(query.excluded_concepts) | {"not", "rather", "instead", "exclude"}
+    for term in query.excluded_concepts:
+        signals["terms"] -= _split(term)
     by_path = {x["path"]: x for x in repo["files"]}
     intent = classify_task_intent(task, signals, repo["files"])
     configuration_keys = {
         item["path"]: item.get("keys", [])
         for item in repo.get("configurations", [])
     }
+    for file in repo["files"]:
+        file["configuration_keys"] = configuration_keys.get(file["path"], [])
     lexical_matches = _lexical(
         repo["files"],
         signals,
@@ -1054,7 +1090,7 @@ def resolve_task(
     )
     content_candidates = {
         item["file"]["path"] for item in lexical_matches[:24]
-    } | _exact_symbol_paths(symbol_index, signals)
+    } | _exact_symbol_paths(symbol_index, signals) | structured_candidate_paths(repo["files"], query)
     indexed_symbols = _symbols(directory, catalog, content_candidates)
     descriptions = {
         path: (
@@ -1079,17 +1115,11 @@ def resolve_task(
         descriptions,
         source_terms,
     )
-    rescored_by_path = {
-        item["file"]["path"]: item
-        for item in rescored_candidates
-    }
     lexical_matches = sorted(
-        (
-            rescored_by_path.get(item["file"]["path"], item)
-            for item in lexical_matches
-        ),
+        rescored_candidates,
         key=lambda item: (-item["score"], item["file"]["path"]),
     )
+    lexical_matches = score_candidates(lexical_matches, indexed_symbols, query, repo["files"])
     literal_primary_matches = [
         item
         for item in lexical_matches
@@ -1104,13 +1134,28 @@ def resolve_task(
         }.values()
     )
     ranked = _rerank(lexical, relationships, by_path, config["weights"])
+    ranked = score_candidates(ranked, indexed_symbols, query, repo["files"])
     lexical_paths = {item["file"]["path"] for item in primary_lexical}
     primaries = [
         item for item in ranked
         if item["file"]["path"] in lexical_paths
         and item["file"]["role"] == intent.primary_role
         and has_positive_evidence(item)
-    ][:3]
+    ][:24]
+    if intent.primary_role == "configuration":
+        for item in primaries:
+            key_terms = structured_tokenize(
+                " ".join(configuration_keys.get(item["file"]["path"], []))
+            )
+            key_matches = query.positive_concepts & key_terms
+            if key_matches:
+                bonus = min(75.0, 15.0 * len(key_matches))
+                item["score"] += bonus
+                item["direct_score"] = item["score"]
+                item["evidence"][
+                    f"configuration_key_coverage: {','.join(sorted(key_matches)[:5])}"
+                ] = (bonus, "configuration_key")
+        primaries.sort(key=lambda item: (-item["score"], item["file"]["path"]))
     exact_symbol_primaries = [
         item
         for item in primaries
@@ -1118,14 +1163,29 @@ def resolve_task(
     ]
     if exact_symbol_primaries:
         primaries = exact_symbol_primaries
-    if _is_underspecified_refactor(task):
-        primaries = []
     primary_symbol_paths = {x["file"]["path"] for x in primaries}
     missing_symbol_paths = primary_symbol_paths - set(indexed_symbols)
     if missing_symbol_paths:
         indexed_symbols.update(_symbols(directory, catalog, missing_symbol_paths))
     symbol_map = {path: indexed_symbols[path] for path in primary_symbol_paths}
-    primary = [_target(x, symbol_map[x["file"]["path"]], signals, root, task, config) for x in primaries]
+    candidate_targets = [
+        _target(x, symbol_map[x["file"]["path"]], signals, root, task, config, query)
+        for x in primaries
+    ]
+    focused = bool(candidate_targets and candidate_targets[0]["start_line"])
+    owner_selection, assessment = resolve_phase1(
+        primaries,
+        candidate_targets,
+        query,
+        freshness=freshness,
+        focused=focused,
+        underspecified=_is_underspecified_refactor(task) or _is_underspecified_query(query),
+    )
+    primary = (
+        [owner_selection.primary, *owner_selection.co_owners]
+        if owner_selection.primary is not None
+        else []
+    )
     primary_paths = {x["path"] for x in primary}
     tests = _dedupe(
         [
@@ -1145,43 +1205,8 @@ def resolve_task(
     )
     impacts = _relationship_targets(primary_paths, relationships, by_path, root, task, signals, config)
     score = primaries[0]["score"] if primaries else 0
-    margin = score - (primaries[1]["score"] if len(primaries) > 1 else 0)
-    families = (
-        {
-            family
-            for weight, family in primaries[0]["evidence"].values()
-            if weight > 0
-        }
-        if primaries
-        else set()
-    )
-    focused = bool(primary and primary[0]["start_line"])
-    strong_labels: list[str] = []
-    if primaries:
-        evidence = primaries[0]["evidence"]
-        if any(label.startswith("exact_path:") and weight > 0 for label, (weight, _) in evidence.items()):
-            strong_labels.append("exact_path")
-        for label, (weight, _) in evidence.items():
-            if label.startswith("exact_symbol:") and weight > 0:
-                symbol = label.split(":", 1)[1].strip()
-                owners = sum(symbol in file.get("symbols", []) for file in repo["files"])
-                if owners == 1:
-                    strong_labels.append("exact_symbol")
-            if label.startswith("filename:") and weight > 0:
-                term = label.split(":", 1)[1].strip()
-                owners = sum(term in _literal_split(Path(file["path"]).stem) for file in repo["files"])
-                if owners == 1 and term not in WEAK_FILENAME_TERMS:
-                    strong_labels.append("filename")
-    has_strong_evidence = bool(strong_labels)
-    high = (
-        freshness == "fresh"
-        and focused
-        and margin >= config["confidence_margin"]
-        and len(families) >= 2
-        and has_strong_evidence
-        and "exact_symbol" not in strong_labels
-    )
-    level = "high" if high else "medium" if primary else "low"
+    high = assessment.level == "high"
+    level = assessment.level
     terms = sorted(signals["terms"])
     output_prefix = knowledge_output_prefix(root, directory)
     strongest = sorted(
@@ -1197,33 +1222,18 @@ def resolve_task(
     else:
         fallback_values = [(term, False) for term in strongest]
     fallback = []
-    if not high:
-        limit = 1 if level == "medium" else 3
+    if not high or (intent.primary_role == "configuration" and (not primary or not focused)):
+        limit = 1 if level in {"medium", "high"} or intent.primary_role == "configuration" else 3
         fallback = list(
             dict.fromkeys(
                 _fallback_search(output_prefix, value, is_regex=is_regex)
                 for value, is_regex in fallback_values[:limit]
             )
         )
-    if not primary:
-        reasons = ["no indexed owner matched the task terms"]
-        uncertainties = ["run the targeted fallback search against authoritative source"]
-    else:
-        evidence_labels = primary[0]["evidence"]
-        concrete = [label.replace("exact_symbol: ", "exact symbol matched ") for label in evidence_labels if label.startswith("exact_symbol:")]
-        concrete += [label.replace("tested_by: ", "direct test relationship points to ") for label in evidence_labels if label.startswith("tested_by:")]
-        reasons = concrete or [f"{primary[0]['role']} candidate matched task vocabulary"]
-        uncertainties = []
-        if primary[0]["role"] == "configuration" and not focused:
-            uncertainties.append("no exact configuration key or focused range was located")
-        if len(primaries) > 1 and margin < config["confidence_margin"]:
-            uncertainties.append("candidate score separation is below the configured confidence margin")
-        if len(families) < 2:
-            uncertainties.append("no direct test, import, or entry-point evidence separates candidates")
-        if not has_strong_evidence:
-            uncertainties.append("no exact symbol, exact path, or filename evidence supports high confidence")
-        if high:
-            reasons.append("top candidate exceeds the configured confidence margin")
+    reasons = list(assessment.reasons)
+    uncertainties = list(assessment.uncertainties)
+    if assessment.status == "abstain":
+        uncertainties.append("run the targeted fallback search against authoritative source")
     phases: dict[int, dict[str, Any]] = {
         1: {
             "targets": primary,
@@ -1275,8 +1285,30 @@ def resolve_task(
             "primary_role": intent.primary_role,
             "secondary_roles": list(intent.secondary_roles),
             "reasons": list(intent.reasons),
+            "positive_concepts": sorted(query.positive_concepts),
+            "excluded_concepts": sorted(query.excluded_concepts),
+            "requested_subsystem": query.requested_subsystem,
+            "excluded_subsystem": query.excluded_subsystem,
+            "requested_component_type": query.requested_component_type,
+            "excluded_component_types": sorted(query.excluded_component_types),
+            "requested_layer": query.requested_layer,
+            "intents": sorted(query.intents),
+            "owner_cardinality": query.owner_cardinality,
         },
-        "confidence": {"level": level, "score": round(score, 3), "reasons": reasons, "uncertainties": uncertainties},
+        "status": assessment.status,
+        "primary_owner": owner_selection.primary,
+        "co_owners": owner_selection.co_owners,
+        "alternatives": owner_selection.alternatives,
+        "constraints": phases[2]["targets"],
+        "impacts": phases[3]["targets"],
+        "confidence": {
+            "level": level,
+            "score": round(score, 3),
+            "probability": assessment.probability,
+            "reasons": reasons,
+            "uncertainties": uncertainties,
+            "negative_conflicts": assessment.negative_conflicts,
+        },
         "tokens_saved_estimate": _estimate_tokens_saved(root, repo, selected_targets),
         "fallback_searches": fallback,
     }

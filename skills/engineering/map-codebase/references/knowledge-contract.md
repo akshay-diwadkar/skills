@@ -44,9 +44,11 @@ The resolved knowledge directory never participates in indexing, repository comp
 
 ## Resolver Contract
 
-Each task has one deterministic primary owner and optional secondary constraints. Exact indexed paths and symbols outrank vocabulary. Mixed implementation work remains source-owned; direct test maintenance remains test-owned.
+Each non-abstained task has one deterministic `primary_owner`; explicit multi-owner requests may add independently supported `co_owners`. Alternatives, constraints, and first-order impacts are distinct result sets. Exact indexed paths and symbols outrank vocabulary. Mixed implementation work remains source-owned; direct test maintenance remains test-owned.
 
 Configuration targets use ranked active keys and bounded structural ranges. Test and import evidence is directional and one hop. Resolver phases remain bounded, and selected symbol shards are loaded internally rather than preloaded by consumers.
+
+Artifact schema 6.0 adds component subtypes, normalized subsystem paths, symbol signatures, type hints, decorators, interfaces, references, control-flow markers, calls, and call relationships. Schema 5.0 knowledge is intentionally stale and must be rebuilt.
 
 ## Workflow Generation
 

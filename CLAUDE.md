@@ -16,14 +16,16 @@ Do not preload all maps or shards. Knowledge guides navigation; source remains a
 
 ## Versioning
 
-`VERSION` is the authoritative suite version. Keep the `version` field in every
-`SKILL.md` synchronized with it.
+`VERSION` is the authoritative overall skills-package version. Individual
+`SKILL.md` versions are independent and do not have to match `VERSION`.
 
 Any modification within a skill package under `skills/<domain>/<skill>/` is a
 skill update and requires a Semantic Versioning bump in the same change,
-including documentation and supporting resources. Update `VERSION` and the
-affected skill's `SKILL.md` version. Because suite versions are synchronized,
-update the `version` field in every `SKILL.md` to the same new version.
+including documentation and supporting resources. Update only the affected
+skill's `SKILL.md` version; unmodified skills retain their existing versions.
+Every skill update also requires a `VERSION` bump for the overall package. When
+multiple skills change in one release, choose the package bump from the
+highest-impact skill update.
 
 Choose the bump from the skill update's impact:
 
@@ -32,8 +34,8 @@ Choose the bump from the skill update's impact:
 - Patch: fixes and installation or distribution metadata corrections.
 
 Repository-only documentation, tests, benchmarks, and CI maintenance outside
-skill packages do not require a bump unless they change installation or
-distributed behavior. After any required bump, run
+skill packages do not require a skill or package bump unless they change
+installation or distributed behavior. After any required bump, run
 `python tools/validation/validate_repository.py` before pushing or opening a
 pull request.
 

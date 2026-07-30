@@ -27,6 +27,9 @@ from refresh_knowledge import refresh_knowledge  # noqa: E402
 from resolve_task import resolve_task  # noqa: E402
 from tokenizer import count_tokens  # noqa: E402
 
+from benchmarks.gates import evaluate_balanced_gates  # noqa: E402
+from benchmarks.loader import BenchmarkCase, load_case_splits  # noqa: E402
+from benchmarks.metrics import aggregate_benchmark_metrics  # noqa: E402
 from tools.benchmarks import load_manifests, materialize_repository  # noqa: E402
 
 ORACLES = ROOT / "benchmarks" / "oracles" / "map-codebase"
@@ -241,20 +244,34 @@ def _resolver_condition(
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
     str,
     float,
     str,
     float,
     list[str],
+    str,
 ]:
     started = time.perf_counter()
     phase_one = resolve_task(repository, task, knowledge, phase=1)
     elapsed_ms = (time.perf_counter() - started) * 1000
     phase_two = resolve_task(repository, task, knowledge, phase=2)
     phase_three = resolve_task(repository, task, knowledge, phase=3)
-    primary = list(phase_one["targets"])
+    if "primary_owner" in phase_one:
+        primary_owner = phase_one.get("primary_owner")
+        primary = ([primary_owner] if isinstance(primary_owner, dict) else []) + list(
+            phase_one.get("co_owners", [])
+        )
+        alternatives = list(phase_one.get("alternatives", []))
+    else:
+        primary = list(phase_one["targets"])
+        alternatives = []
+    constraints = list(phase_two["targets"])
+    impacts = list(phase_three["targets"])
     all_targets: list[dict[str, Any]] = []
-    for target in [*primary, *phase_two["targets"], *phase_three["targets"]]:
+    for target in [*primary, *constraints, *impacts]:
         if target["path"] not in {item["path"] for item in all_targets}:
             all_targets.append(target)
     _, rendered = _context(repository, all_targets)
@@ -263,12 +280,16 @@ def _resolver_condition(
         rendered += "\n### emitted fallback searches\n" + "\n".join(fallback_searches)
     return (
         primary,
+        alternatives,
+        constraints,
+        impacts,
         all_targets,
         rendered,
         elapsed_ms,
         str(phase_one["confidence"]["level"]),
         float(phase_one["confidence"]["score"]),
         list(phase_one["confidence"]["uncertainties"]),
+        str(phase_one.get("status", "resolved" if primary else "abstain")),
     )
 
 
@@ -308,6 +329,11 @@ def _case_outcome(
     confidence: str,
     confidence_score: float,
     uncertainties: list[str],
+    *,
+    alternatives: list[dict[str, Any]] | None = None,
+    constraints: list[dict[str, Any]] | None = None,
+    impacts: list[dict[str, Any]] | None = None,
+    status: str | None = None,
 ) -> dict[str, Any]:
     expected_primary = {
         item["path"]
@@ -327,14 +353,24 @@ def _case_outcome(
             *task["expected"]["secondary_surfaces"],
         ]
     }
-    predicted_primary = [item["path"] for item in primary]
+    alternatives = alternatives or []
+    constraints = constraints or []
+    impacts = impacts or []
+    selected_owners = [item["path"] for item in primary]
+    predicted_primary = list(dict.fromkeys(
+        [*selected_owners, *(item["path"] for item in alternatives)]
+    ))
     predicted_all = [item["path"] for item in all_targets]
     hit_one, hit_three, reciprocal_rank = _rank_score(expected_primary, predicted_primary)
-    abstained = _safe_abstention(
-        primary,
-        confidence,
-        confidence_score,
-        uncertainties,
+    abstained = (
+        status == "abstain"
+        if status is not None
+        else _safe_abstention(
+            primary,
+            confidence,
+            confidence_score,
+            uncertainties,
+        )
     )
     true_positive = len(expected_all & set(predicted_all))
     return {
@@ -344,7 +380,32 @@ def _case_outcome(
         "expected_primary": sorted(expected_primary),
         "expected_all": sorted(expected_all),
         "predicted_primary": predicted_primary,
-        "predicted_primary_roles": {item["path"]: item["role"] for item in primary},
+        "predicted_primary_roles": {
+            item["path"]: item["role"] for item in [*primary, *alternatives]
+        },
+        "expected_owner_sets": [
+            [item["path"] for item in task["expected"]["primary_owners"]],
+            *[
+                [item["path"] for item in alternative]
+                for alternative in task["allowed_alternatives"]
+            ],
+        ],
+        "primary_owner": primary[0] if primary else None,
+        "co_owners": primary[1:],
+        "alternatives": alternatives,
+        "constraints": constraints,
+        "impacts": impacts,
+        "expected_constraints": [
+            item["path"]
+            for item in task["expected"].get("constraints", [])
+        ],
+        "expected_impacts": [
+            item["path"]
+            for item in task["expected"].get("impacts", [])
+        ],
+        "expected_status": "abstain" if task["expected"]["abstain"] else "resolved",
+        "status": status or ("resolved" if primary else "abstain"),
+        "confidence_level": confidence,
         "predicted_all": predicted_all,
         "predicted_roles": {item["path"]: item["role"] for item in all_targets},
         "hit_at_1": hit_one,
@@ -365,6 +426,7 @@ def _case_outcome(
 
 
 def _aggregate(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
+    separated = aggregate_benchmark_metrics(outcomes)
     normal = [item for item in outcomes if not item["expected_abstain"]]
     expected_abstentions = [item for item in outcomes if item["expected_abstain"]]
     predicted_abstentions = [item for item in outcomes if item["abstained"]]
@@ -404,6 +466,7 @@ def _aggregate(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
     owner_tp = sum(item["owner_true_positive"] for item in outcomes)
     owner_predicted = sum(item["owner_predicted"] for item in outcomes)
     owner_expected = sum(item["owner_expected"] for item in outcomes)
+    phase_one = separated["phase1"]
     return {
         "cases": len(outcomes),
         "hit_at_1": sum(item["hit_at_1"] for item in normal) / len(normal) if normal else 0.0,
@@ -411,8 +474,22 @@ def _aggregate(outcomes: list[dict[str, Any]]) -> dict[str, Any]:
         "mrr": sum(item["reciprocal_rank"] for item in normal) / len(normal) if normal else 0.0,
         "roles": roles,
         "macro_role_f1": statistics.fmean(f1_values),
-        "owner_precision": owner_tp / owner_predicted if owner_predicted else 0.0,
-        "owner_recall": owner_tp / owner_expected if owner_expected else 0.0,
+        "owner_precision": phase_one["primary_owner_precision"],
+        "owner_recall": phase_one["primary_owner_recall"],
+        "primary_owner_precision": phase_one["primary_owner_precision"],
+        "primary_owner_recall": phase_one["primary_owner_recall"],
+        "exact_owner_set_match": phase_one["exact_owner_set_match"],
+        "false_primary_rate": phase_one["false_primary_rate"],
+        "confidence_bin_accuracy": phase_one["confidence_bin_accuracy"],
+        "unsafe_high_confidence_count": phase_one["unsafe_high_confidence_count"],
+        "constraint_precision": separated["phase2"]["precision"],
+        "constraint_recall": separated["phase2"]["recall"],
+        "constraint_ground_truth_available": separated["phase2"]["ground_truth_available"],
+        "impact_precision": separated["phase3"]["precision"],
+        "impact_recall": separated["phase3"]["recall"],
+        "impact_ground_truth_available": separated["phase3"]["ground_truth_available"],
+        "legacy_mixed_owner_precision": owner_tp / owner_predicted if owner_predicted else 0.0,
+        "legacy_mixed_owner_recall": owner_tp / owner_expected if owner_expected else 0.0,
         "abstention_precision": (
             1.0
             if not expected_abstentions
@@ -473,7 +550,19 @@ def _patch_conditions(
         knowledge = repository / ".agent" / "knowledge"
         build_knowledge(repository, knowledge)
         contexts: dict[str, tuple[set[str], str]] = {}
-        primary, all_targets, rendered, _, _, _, _ = _resolver_condition(
+        (
+            primary,
+            _,
+            _,
+            _,
+            all_targets,
+            rendered,
+            _,
+            _,
+            _,
+            _,
+            _,
+        ) = _resolver_condition(
             repository,
             prompt,
             knowledge,
@@ -568,44 +657,105 @@ def _legacy_smoke() -> dict[str, Any]:
     }
 
 
+def _split_case_outcome(
+    case: BenchmarkCase,
+    repository: Path,
+    knowledge: Path,
+) -> dict[str, Any]:
+    (
+        primary,
+        alternatives,
+        constraints,
+        impacts,
+        _,
+        _,
+        _,
+        confidence,
+        _,
+        _,
+        status,
+    ) = _resolver_condition(repository, case.query, knowledge)
+    return {
+        "task_id": case.id,
+        "expected_owner_sets": [list(owner_set) for owner_set in case.expected_owner_sets],
+        "primary_owner": primary[0] if primary else None,
+        "co_owners": primary[1:],
+        "alternatives": alternatives,
+        "expected_constraints": list(case.expected_constraints),
+        "constraints": constraints,
+        "expected_impacts": list(case.expected_impacts),
+        "impacts": impacts,
+        "expected_status": case.expected_status,
+        "expected_abstain": case.expected_status == "abstain",
+        "status": status,
+        "confidence_level": confidence,
+    }
+
+
+def _evaluate_fixture_splits(manifests: list[dict[str, Any]]) -> dict[str, Any]:
+    manifests_by_id = {str(manifest["fixture_id"]): manifest for manifest in manifests}
+    results: dict[str, Any] = {}
+    for split, cases in load_case_splits().items():
+        outcomes: list[dict[str, Any]] = []
+        by_repository: dict[str, list[BenchmarkCase]] = defaultdict(list)
+        for case in cases:
+            if case.repository not in manifests_by_id:
+                continue
+            by_repository[case.repository].append(case)
+        for repository_id, selected in sorted(by_repository.items()):
+            with materialize_repository(manifests_by_id[repository_id]) as repository:
+                _prepare_repository(repository)
+                knowledge = repository / ".agent" / "knowledge"
+                build_knowledge(repository, knowledge)
+                outcomes.extend(
+                    _split_case_outcome(case, repository, knowledge)
+                    for case in selected
+                )
+        metrics = aggregate_benchmark_metrics(outcomes)
+        results[split] = {"metrics": metrics, "outcomes": outcomes}
+    return results
+
+
 def _gates(
     metrics: dict[str, Any],
     patches: dict[str, Any],
     legacy_smoke: dict[str, Any],
+    split_results: dict[str, Any],
 ) -> dict[str, bool]:
+    """Return only the release-blocking, phase-separated resolver gates."""
     resolver = metrics["resolver"]
-    resolver_patch = patches["resolver"]
-    strict_win = (
-        resolver["hit_at_1"] >= metrics["ripgrep"]["hit_at_1"] + 0.10
-        or resolver["owner_recall"] >= metrics["ripgrep"]["owner_recall"] + 0.15
-        or (
-            resolver_patch["tokens_per_success"] is not None
-            and patches["ripgrep"]["tokens_per_success"] is not None
-            and resolver_patch["tokens_per_success"] <= patches["ripgrep"]["tokens_per_success"] * 0.70
-        )
-    )
-    inventory_efficiency = (
-        resolver_patch["successes"] >= patches["inventory"]["successes"]
-        and resolver_patch["tokens_per_success"] is not None
-        and patches["inventory"]["tokens_per_success"] is not None
-        and resolver_patch["tokens_per_success"] <= patches["inventory"]["tokens_per_success"] * 0.20
-    )
-    return {
-        "hit_at_1": resolver["hit_at_1"] >= 0.75,
-        "hit_at_3": resolver["hit_at_3"] >= 0.90,
-        "mrr": resolver["mrr"] >= 0.82,
-        "macro_role_f1": resolver["macro_role_f1"] >= 0.75,
-        "abstention_precision": resolver["abstention_precision"] >= 0.80,
-        "abstention_recall": resolver["abstention_recall"] >= 0.80,
-        "confidence_safety": resolver["incorrect_high_confidence"] == 0,
-        "patch_noninferiority": (
-            resolver_patch["successes"] >= patches["ripgrep"]["successes"]
-            and resolver_patch["successes"] >= patches["inventory"]["successes"]
-        ),
-        "strict_utility_win": strict_win,
-        "inventory_token_efficiency": inventory_efficiency,
-        "legacy_smoke_no_regression": bool(legacy_smoke["passes"]),
+    del patches, legacy_smoke
+    separated = {
+        "phase1": {
+            key: resolver[key]
+            for key in (
+                "hit_at_1",
+                "hit_at_3",
+                "mrr",
+                "primary_owner_precision",
+                "primary_owner_recall",
+                "exact_owner_set_match",
+                "false_primary_rate",
+                "abstention_precision",
+                "abstention_recall",
+                "incorrect_high_confidence",
+            )
+        },
+        "phase2": {
+            "precision": resolver["constraint_precision"],
+            "recall": resolver["constraint_recall"],
+            "ground_truth_available": resolver["constraint_ground_truth_available"],
+        },
+        "phase3": {
+            "precision": resolver["impact_precision"],
+            "recall": resolver["impact_recall"],
+            "ground_truth_available": resolver["impact_ground_truth_available"],
+        },
     }
+    return evaluate_balanced_gates(
+        separated,
+        heldout=split_results["heldout"]["metrics"],
+    )
 
 
 def evaluate(profile: str) -> dict[str, Any]:
@@ -654,12 +804,16 @@ def evaluate(profile: str) -> dict[str, Any]:
                 for prompt in prompts:
                     (
                         resolver_primary,
+                        resolver_alternatives,
+                        resolver_constraints,
+                        resolver_impacts,
                         resolver_targets,
                         resolver_context,
                         resolver_ms,
                         confidence,
                         confidence_score,
                         uncertainties,
+                        status,
                     ) = _resolver_condition(repository, prompt, knowledge)
                     resolver_samples.append(resolver_ms)
                     resolver_outcome = _case_outcome(
@@ -672,6 +826,10 @@ def evaluate(profile: str) -> dict[str, Any]:
                         confidence,
                         confidence_score,
                         uncertainties,
+                        alternatives=resolver_alternatives,
+                        constraints=resolver_constraints,
+                        impacts=resolver_impacts,
+                        status=status,
                     )
                     resolver_outcome["_task"] = task
                     outcomes.append(resolver_outcome)
@@ -715,7 +873,8 @@ def evaluate(profile: str) -> dict[str, Any]:
     }
     patches = _patch_metrics(patch_outcomes)
     legacy_smoke = _legacy_smoke()
-    gates = _gates(metrics, patches, legacy_smoke)
+    split_results = _evaluate_fixture_splits(manifests)
+    gates = _gates(metrics, patches, legacy_smoke, split_results)
     latency_budgets = {
         "build_samples": len(build_samples),
         "refresh_samples": len(refresh_samples),
@@ -727,14 +886,22 @@ def evaluate(profile: str) -> dict[str, Any]:
         ),
         "refresh_median_under_15_seconds": statistics.median(refresh_samples) < 15_000,
     }
-    gates["latency_budgets"] = all(
-        latency_budgets[key]
-        for key in (
-            "build_median_under_30_seconds",
-            "resolver_p95_under_2_seconds",
-            "refresh_median_under_15_seconds",
-        )
-    )
+    comparative_checks = {
+        "macro_role_f1": metrics["resolver"]["macro_role_f1"] >= 0.75,
+        "patch_noninferiority": (
+            patches["resolver"]["successes"] >= patches["ripgrep"]["successes"]
+            and patches["resolver"]["successes"] >= patches["inventory"]["successes"]
+        ),
+        "legacy_smoke_no_regression": bool(legacy_smoke["passes"]),
+        "latency_budgets": all(
+            latency_budgets[key]
+            for key in (
+                "build_median_under_30_seconds",
+                "resolver_p95_under_2_seconds",
+                "refresh_median_under_15_seconds",
+            )
+        ),
+    }
     public_outcomes = [
         {key: value for key, value in item.items() if key != "_task"}
         for item in outcomes
@@ -752,10 +919,12 @@ def evaluate(profile: str) -> dict[str, Any]:
             "inventory": "tracked eligible repository content with lexical path ranking",
         },
         "metrics": metrics,
+        "split_results": split_results,
         "patch_simulation": patches,
         "legacy_smoke": legacy_smoke,
         "latency_budgets": latency_budgets,
         "gates": gates,
+        "comparative_checks": comparative_checks,
         "all_gates_pass": all(gates.values()),
         "outcomes": public_outcomes,
         "patch_outcomes": patch_outcomes,

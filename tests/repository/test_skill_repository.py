@@ -75,9 +75,19 @@ def test_skill_packages_have_no_platform_metadata() -> None:
     assert validator.validate_retired_surfaces() == []
 
 
-def test_suite_versions_are_valid_and_synchronized() -> None:
+def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
+    versions = {
+        skill.name: re.search(
+            r"^version:\s*(.+)$",
+            (skill / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1],
+            re.MULTILINE,
+        ).group(1).strip()
+        for skill in validator.discover_skills()
+    }
+    assert versions["map-codebase"] == "1.1.0"
+    assert set(versions.values()) == {"1.0.0", "1.1.0"}
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")

@@ -8,10 +8,20 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "5.0"
+      "const": "6.0"
     },
     "shards": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "count", "hash"],
+        "properties": {
+          "id": {"type": "string"},
+          "path": {"type": "string"},
+          "count": {"type": "integer", "minimum": 0},
+          "hash": {"type": "string"}
+        }
+      }
     },
     "symbol_count": {
       "type": "integer"
