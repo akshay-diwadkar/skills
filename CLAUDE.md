@@ -27,6 +27,10 @@ Every skill update also requires a `VERSION` bump for the overall package. When
 multiple skills change in one release, choose the package bump from the
 highest-impact skill update.
 
+Whenever `VERSION` changes, update `VERSION_DESC.md` with the GitHub release
+summary and update the README release-badge cache key to match. Merging that
+change to `main` publishes the matching release automatically.
+
 Choose the bump from the skill update's impact:
 
 - Major: breaking skill behavior, contracts, or compatibility.

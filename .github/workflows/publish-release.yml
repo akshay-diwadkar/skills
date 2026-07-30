@@ -1,0 +1,85 @@
+name: Publish Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate release metadata
+        run: python tools/validation/validate_repository.py
+
+      - name: Require an updated release description
+        if: github.event_name == 'push'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- VERSION_DESC.md; then
+            echo "VERSION_DESC.md must be updated in the same push as VERSION." >&2
+            exit 1
+          fi
+
+      - name: Resolve release version
+        id: release
+        run: |
+          version="$(tr -d '\r\n' < VERSION)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; no publication is needed."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify an existing tag is safe to reuse
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            tag_commit="$(git rev-list -n 1 "$TAG")"
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "Tag $TAG already points to $tag_commit, not $GITHUB_SHA." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Publish GitHub release
+        if: steps.existing.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: >-
+          gh release create "$TAG"
+          --repo "$GITHUB_REPOSITORY"
+          --target "$GITHUB_SHA"
+          --title "$TAG"
+          --notes-file VERSION_DESC.md
+          --latest
