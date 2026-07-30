@@ -20,7 +20,7 @@ from typing import Any, NoReturn, Sequence
 PROTOCOL_VERSION = "1.0"
 STATE_FILE = ".skill-cli-state.json"
 MANIFEST_FILE = "skill-protocol.json"
-COMMANDS = ("doctor", "start", "status", "next", "validate", "finalize")
+COMMANDS = ("doctor", "run", "start", "status", "next", "validate", "finalize")
 STATUSES = {"ready", "in_progress", "blocked", "complete", "error"}
 PLACEHOLDER_RE = re.compile(r"\{(python|skill_dir|repo_root|run_dir|input\.[A-Za-z][A-Za-z0-9_-]*)\}")
 SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -98,6 +98,7 @@ def _empty_envelope(skill: str = "unknown") -> dict[str, Any]:
         "blocking_reasons": [],
         "diagnostics": [],
         "artifacts": [],
+        "result": None,
     }
 
 
@@ -196,7 +197,7 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["manifest must be a JSON object"]
-    expected = {
+    required_fields = {
         "protocol_version",
         "skill",
         "minimum_python",
@@ -207,10 +208,13 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
         "phases",
         "commands",
     }
-    if set(data) != expected:
-        errors.append(f"manifest fields must be exactly {sorted(expected)}")
+    if not required_fields <= set(data) or set(data) - required_fields - {"mode"}:
+        errors.append(f"manifest fields must contain {sorted(required_fields)} with optional mode")
     if data.get("protocol_version") != PROTOCOL_VERSION:
         errors.append(f"protocol_version must be {PROTOCOL_VERSION!r}")
+    mode = data.get("mode", "stateful")
+    if mode not in {"stateful", "stateless"}:
+        errors.append("mode must be stateful or stateless")
     skill = data.get("skill")
     if not isinstance(skill, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", skill):
         errors.append("skill must be a kebab-case string")
@@ -239,14 +243,20 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
         errors.append("inputs must be an array")
     else:
         for item in inputs:
-            if not isinstance(item, dict) or set(item) != {
+            required_input_fields = {
                 "name",
                 "kind",
                 "required",
                 "repeatable",
                 "description",
                 "choices",
-            }:
+            }
+            optional_input_fields = {"required_for", "path_policy"}
+            if (
+                not isinstance(item, dict)
+                or not required_input_fields <= set(item)
+                or set(item) - required_input_fields - optional_input_fields
+            ):
                 errors.append("each input must contain the complete input contract")
                 continue
             name = item.get("name")
@@ -267,6 +277,17 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
                 errors.append(f"input {name!r} choices must be an array of strings")
             if item.get("kind") == "choice" and not choices:
                 errors.append(f"choice input {name!r} must declare choices")
+            required_for = item.get("required_for", [])
+            if not isinstance(required_for, list) or not all(
+                isinstance(command, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", command)
+                for command in required_for
+            ):
+                errors.append(f"input {name!r} required_for must be an array of command identifiers")
+            path_policy = item.get("path_policy", "existing")
+            if path_policy not in {"existing", "future"}:
+                errors.append(f"input {name!r} path_policy must be existing or future")
+            if "path_policy" in item and item.get("kind") != "path":
+                errors.append(f"input {name!r} path_policy is only valid for path inputs")
 
     artifacts = data.get("artifacts")
     artifact_names: set[str] = set()
@@ -274,24 +295,37 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
         errors.append("artifacts must be an array")
     else:
         for item in artifacts:
+            required_artifact_fields = {"name", "path", "media_type"}
             if (
                 not isinstance(item, dict)
-                or set(item) != {"name", "path", "media_type"}
-                or not all(isinstance(item.get(key), str) for key in ("name", "path", "media_type"))
+                or not required_artifact_fields <= set(item)
+                or set(item) - required_artifact_fields - {"external"}
+                or not all(isinstance(item.get(key), str) for key in required_artifact_fields)
+                or not isinstance(item.get("external", False), bool)
             ):
                 errors.append("each artifact must contain only name, path, and media_type strings")
                 continue
             artifact_names.add(item["name"])
-            path = Path(item["path"])
-            if path.is_absolute() or ".." in path.parts:
-                errors.append(f"artifact {item['name']!r} path must remain within the run directory")
+            if item.get("external", False):
+                match = re.fullmatch(r"\{input\.([A-Za-z][A-Za-z0-9_-]*)\}", item["path"])
+                definitions = {
+                    definition.get("name"): definition for definition in inputs or [] if isinstance(definition, dict)
+                }
+                if not match or definitions.get(match.group(1), {}).get("kind") != "path":
+                    errors.append(
+                        f"external artifact {item['name']!r} path must be exactly one declared path input"
+                    )
+            else:
+                path = Path(item["path"])
+                if path.is_absolute() or ".." in path.parts or "{" in item["path"]:
+                    errors.append(f"artifact {item['name']!r} path must remain within the run directory")
 
     phases = data.get("phases")
     phase_names = set(phases) if isinstance(phases, dict) else set()
-    if not isinstance(phases, dict) or not phases:
-        errors.append("phases must be a non-empty object")
+    if not isinstance(phases, dict) or (mode == "stateful" and not phases):
+        errors.append("stateful phases must be a non-empty object")
     else:
-        if "complete" not in phases:
+        if mode == "stateful" and "complete" not in phases:
             errors.append("phases must include complete")
         for phase_name, phase in phases.items():
             required_phase_fields = {
@@ -313,8 +347,11 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
             if phase.get("status") not in STATUSES - {"error"}:
                 errors.append(f"phase {phase_name!r} has an invalid status")
             next_command = phase.get("next_command")
-            if next_command not in {None, "validate", "finalize"}:
-                errors.append(f"phase {phase_name!r} next_command must be validate, finalize, or null")
+            if next_command is not None and (
+                not isinstance(next_command, str)
+                or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", next_command)
+            ):
+                errors.append(f"phase {phase_name!r} next_command must be a command identifier or null")
             for field in ("required_reads", "allowed_writes", "forbidden_actions"):
                 if not isinstance(phase.get(field), list) or not all(
                     isinstance(value, str) for value in phase.get(field, [])
@@ -350,25 +387,53 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
                             errors.append(exc.message)
 
     commands = data.get("commands")
-    if not isinstance(commands, dict) or set(commands) != {"start", "validate", "finalize"}:
-        errors.append("commands must contain exactly start, validate, and finalize")
-    else:
-        for command_name, command in commands.items():
-            if not isinstance(command, dict) or set(command) != {
-                "allowed_phases",
-                "success_phase",
-                "steps",
-            }:
+    if not isinstance(commands, dict):
+        errors.append("commands must be an object")
+        commands = {}
+    required_command = "run" if mode == "stateless" else "start"
+    if required_command not in commands:
+        errors.append(f"{mode} manifests must declare {required_command}")
+    for command_name, raw_command in commands.items():
+        if not isinstance(command_name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", command_name):
+            errors.append("command names must be identifiers")
+            continue
+        variants = raw_command if isinstance(raw_command, list) else [raw_command]
+        if not variants:
+            errors.append(f"command {command_name!r} must declare at least one variant")
+            continue
+        for command in variants:
+            required_command_fields = {"allowed_phases", "success_phase", "steps"}
+            if (
+                not isinstance(command, dict)
+                or not required_command_fields <= set(command)
+                or set(command) - required_command_fields - {"when"}
+            ):
                 errors.append(f"command {command_name!r} must contain the complete command contract")
                 continue
+            when = command.get("when", {})
+            if not isinstance(when, dict):
+                errors.append(f"command {command_name!r} when must be an object")
+            else:
+                for input_name, values in when.items():
+                    if (
+                        input_name not in input_names
+                        or not isinstance(values, list)
+                        or not values
+                        or not all(isinstance(value, str) for value in values)
+                    ):
+                        errors.append(f"command {command_name!r} contains an invalid variant condition")
             allowed = command.get("allowed_phases")
             if not isinstance(allowed, list) or not all(phase in phase_names for phase in allowed):
                 errors.append(f"command {command_name!r} allowed_phases contains an unknown phase")
-            if command.get("success_phase") not in phase_names:
-                errors.append(f"command {command_name!r} success_phase contains an unknown phase")
+            success_phase = command.get("success_phase")
+            if mode == "stateful":
+                if success_phase not in phase_names:
+                    errors.append(f"command {command_name!r} success_phase contains an unknown phase")
+            elif success_phase is not None:
+                errors.append(f"stateless command {command_name!r} success_phase must be null")
             steps = command.get("steps")
-            if not isinstance(steps, list) or not steps:
-                errors.append(f"command {command_name!r} steps must be a non-empty array")
+            if not isinstance(steps, list) or (not steps and command_name != "start"):
+                errors.append(f"command {command_name!r} steps must be non-empty except for start")
                 continue
             for step in steps:
                 if not isinstance(step, dict) or set(step) != {
@@ -414,6 +479,30 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
                         candidate = (skill_dir / script).resolve()
                         if not _within(candidate, skill_dir) or not candidate.is_file():
                             errors.append(f"command {command_name!r} script is missing or escapes the skill: {script}")
+    for phase_name, phase in phases.items() if isinstance(phases, dict) else []:
+        next_command = phase.get("next_command") if isinstance(phase, dict) else None
+        if next_command is not None and next_command not in commands:
+            errors.append(f"phase {phase_name!r} references unknown command {next_command!r}")
+    declared_writes = {
+        value
+        for phase in (phases.values() if isinstance(phases, dict) else [])
+        if isinstance(phase, dict)
+        for value in phase.get("allowed_writes", [])
+    }
+    for artifact in artifacts or []:
+        if (
+            isinstance(artifact, dict)
+            and artifact.get("external", False)
+            and artifact.get("path") not in declared_writes
+        ):
+            errors.append(
+                f"external artifact {artifact.get('name')!r} must be declared in phase allowed_writes"
+            )
+    for item in inputs or []:
+        if isinstance(item, dict):
+            for command_name in item.get("required_for", []):
+                if command_name not in commands:
+                    errors.append(f"input {item.get('name')!r} requires unknown command {command_name!r}")
     return sorted(set(errors))
 
 
@@ -476,7 +565,11 @@ def _parse_inputs(raw_values: Sequence[str], manifest: dict[str, Any]) -> dict[s
                 )
             if definition["kind"] == "path":
                 try:
-                    value = str(Path(value).expanduser().resolve(strict=True))
+                    value = str(
+                        _safe_future_path(value)
+                        if definition.get("path_policy", "existing") == "future"
+                        else Path(value).expanduser().resolve(strict=True)
+                    )
                 except (OSError, RuntimeError) as exc:
                     raise ProtocolError(
                         "input.path_invalid",
@@ -489,12 +582,19 @@ def _parse_inputs(raw_values: Sequence[str], manifest: dict[str, Any]) -> dict[s
     return result
 
 
-def _required_inputs(manifest: dict[str, Any], inputs: dict[str, Any]) -> list[dict[str, Any]]:
+def _required_inputs(
+    manifest: dict[str, Any],
+    inputs: dict[str, Any],
+    command_name: str | None = None,
+) -> list[dict[str, Any]]:
     return [
         {
             "name": item["name"],
             "kind": item["kind"],
-            "required": item["required"],
+            "required": bool(
+                item["required"] and command_name in {None, "start", "run"}
+                or command_name in item.get("required_for", [])
+            ),
             "repeatable": item["repeatable"],
             "description": item["description"],
         }
@@ -536,15 +636,46 @@ def _resolve_display_path(value: str, context: Context) -> str:
 
 def _artifact_list(context: Context, run_dir: Path | None = None) -> list[dict[str, Any]]:
     base = run_dir or context.run_dir
-    return [
-        {
-            "name": item["name"],
-            "path": str(base / item["path"]) if base else item["path"],
-            "media_type": item["media_type"],
-            "exists": bool(base and (base / item["path"]).is_file()),
-        }
-        for item in context.manifest["artifacts"]
+    artifacts: list[dict[str, Any]] = []
+    for item in context.manifest["artifacts"]:
+        if item.get("external", False):
+            path = Path(_expand(item["path"], context, base or context.repo_root))
+        else:
+            path = base / item["path"] if base else Path(item["path"])
+        artifacts.append(
+            {
+                "name": item["name"],
+                "path": str(path),
+                "media_type": item["media_type"],
+                "exists": path.is_file(),
+            }
+        )
+    return artifacts
+
+
+def _command_variant(context: Context, command_name: str) -> dict[str, Any]:
+    raw = context.manifest["commands"].get(command_name)
+    if raw is None:
+        raise ProtocolError(
+            "command.unsupported",
+            f"{command_name} is not supported by {context.skill}",
+            "Use the next_command returned by the current phase.",
+            EXIT_BLOCKED,
+        )
+    variants = raw if isinstance(raw, list) else [raw]
+    matches = [
+        command
+        for command in variants
+        if all(context.inputs.get(name) in values for name, values in command.get("when", {}).items())
     ]
+    if len(matches) != 1:
+        raise ProtocolError(
+            "command.variant_unresolved",
+            f"{command_name} requires one unambiguous input-selected variant",
+            "Supply the required choice inputs returned by the protocol.",
+            EXIT_BLOCKED,
+        )
+    return matches[0]
 
 
 def _next_command(context: Context, command: str | None) -> dict[str, Any] | None:
@@ -560,7 +691,7 @@ def _next_command(context: Context, command: str | None) -> dict[str, Any] | Non
     ]
     if context.run_dir:
         argv.extend(["--run-dir", str(context.run_dir)])
-    if command == "start":
+    if command in {"start", "run"}:
         for definition in context.manifest["inputs"]:
             name = definition["name"]
             values = context.inputs.get(name, [])
@@ -601,7 +732,11 @@ def _phase_envelope(
             "next_action": phase["next_action"],
             "next_command": _next_command(context, "next" if phase["next_command"] else None),
             "required_reads": reads,
-            "required_inputs": _required_inputs(context.manifest, context.inputs),
+            "required_inputs": _required_inputs(
+                context.manifest,
+                context.inputs,
+                phase["next_command"],
+            ),
             "allowed_writes": [_resolve_display_path(path, context) for path in phase["allowed_writes"]],
             "forbidden_actions": phase["forbidden_actions"],
             "blocking_reasons": blocking_reasons or [],
@@ -645,6 +780,21 @@ def _state_data(context: Context, phase: str) -> dict[str, Any]:
         json.dumps(state, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     return state
+
+
+def _merge_state_inputs(context: Context, state: dict[str, Any]) -> None:
+    stored = state["inputs"]
+    for name, value in context.inputs.items():
+        if name in stored and stored[name] != value:
+            raise ProtocolError(
+                "input.immutable",
+                f"input {name!r} is already bound to a different value",
+                "Reuse the original value or start a new run.",
+                EXIT_BLOCKED,
+            )
+        stored[name] = value
+    context.inputs.clear()
+    context.inputs.update(stored)
 
 
 def _write_state(context: Context, phase: str) -> None:
@@ -760,22 +910,25 @@ def _doctor(context: Context) -> tuple[int, dict[str, Any]]:
                     "Choose a run directory beneath an existing writable directory.",
                 )
             )
+    mode = context.manifest.get("mode", "stateful")
+    first_command = "run" if mode == "stateless" else "start"
+    required_inputs = _required_inputs(context.manifest, context.inputs, first_command)
     envelope = _empty_envelope(context.skill)
     envelope.update(
         {
             "status": "blocked" if diagnostics else "ready",
-            "next_action": "repair_prerequisites" if diagnostics else "start",
+            "next_action": "repair_prerequisites" if diagnostics else first_command,
             "next_command": (
-                _next_command(context, "start")
+                _next_command(context, first_command)
                 if not diagnostics
-                and context.run_dir is not None
-                and not any(item["required"] for item in _required_inputs(context.manifest, context.inputs))
+                and (mode == "stateless" or context.run_dir is not None)
+                and not any(item["required"] for item in required_inputs)
                 else None
             ),
             "required_reads": [
                 {"path": str(context.skill_dir / "SKILL.md"), "reason": "Read the skill workflow before starting."}
             ],
-            "required_inputs": _required_inputs(context.manifest, context.inputs),
+            "required_inputs": required_inputs,
             "allowed_writes": [],
             "forbidden_actions": ["write_installed_skill", "write_target_repository_during_doctor"],
             "blocking_reasons": [item["code"] for item in diagnostics],
@@ -832,7 +985,7 @@ def _run_command(
     command_name: str,
     run_dir: Path,
 ) -> tuple[int, list[dict[str, Any]], list[str]]:
-    command = context.manifest["commands"][command_name]
+    command = _command_variant(context, command_name)
     for step in command["steps"]:
         argv = _build_argv(step, context, run_dir)
         result = subprocess.run(
@@ -862,7 +1015,11 @@ def _run_command(
         capture = step["capture_stdout"]
         if capture is not None:
             artifact = next(item for item in context.manifest["artifacts"] if item["name"] == capture)
-            target = run_dir / artifact["path"]
+            target = (
+                Path(_expand(artifact["path"], context, run_dir))
+                if artifact.get("external", False)
+                else run_dir / artifact["path"]
+            )
             target.parent.mkdir(parents=True, exist_ok=True)
             handle, temporary = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
             try:
@@ -880,7 +1037,7 @@ def _run_command(
 def _start(context: Context) -> tuple[int, dict[str, Any]]:
     if context.run_dir is None:
         raise ProtocolError("path.run_dir_required", "--run-dir is required for start", "Pass a new run directory.")
-    missing = _required_inputs(context.manifest, context.inputs)
+    missing = _required_inputs(context.manifest, context.inputs, "start")
     required_missing = [item for item in missing if item["required"]]
     if required_missing:
         error = ProtocolError(
@@ -891,6 +1048,7 @@ def _start(context: Context) -> tuple[int, dict[str, Any]]:
         envelope = _error_envelope(error, context.skill)
         envelope["required_inputs"] = missing
         return error.exit_code, envelope
+    command = _command_variant(context, "start")
     if context.run_dir.exists():
         raise ProtocolError(
             "state.run_exists",
@@ -916,7 +1074,7 @@ def _start(context: Context) -> tuple[int, dict[str, Any]]:
                     "status": "blocked" if exit_code == EXIT_BLOCKED else "error",
                     "blocking_reasons": reasons,
                     "diagnostics": diagnostics,
-                    "required_inputs": _required_inputs(context.manifest, context.inputs),
+                    "required_inputs": _required_inputs(context.manifest, context.inputs, "start"),
                 }
             )
             return exit_code, envelope
@@ -925,21 +1083,46 @@ def _start(context: Context) -> tuple[int, dict[str, Any]]:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
         raise
-    _write_state(context, context.manifest["commands"]["start"]["success_phase"])
-    return EXIT_OK, _phase_envelope(context, context.manifest["commands"]["start"]["success_phase"])
+    success_phase = command["success_phase"]
+    _write_state(context, success_phase)
+    return EXIT_OK, _phase_envelope(context, success_phase)
 
 
 def _status(context: Context) -> tuple[int, dict[str, Any]]:
+    if context.inputs:
+        raise ProtocolError(
+            "input.status_read_only",
+            "status does not accept new inputs",
+            "Pass late inputs to next, validate, or finalize.",
+        )
     state = _load_state(context)
-    context.inputs.update(state["inputs"])
+    _merge_state_inputs(context, state)
     return EXIT_OK, _phase_envelope(context, state["phase"])
 
 
 def _transition(context: Context, command_name: str) -> tuple[int, dict[str, Any]]:
     state = _load_state(context)
-    context.inputs.update(state["inputs"])
+    _merge_state_inputs(context, state)
     phase = state["phase"]
-    command = context.manifest["commands"][command_name]
+    missing = _required_inputs(context.manifest, context.inputs, command_name)
+    required_missing = [item for item in missing if item["required"]]
+    if required_missing:
+        error = ProtocolError(
+            "input.required",
+            "missing required inputs: " + ", ".join(item["name"] for item in required_missing),
+            "Pass every required value with --input name=value.",
+            EXIT_BLOCKED,
+        )
+        envelope = _phase_envelope(
+            context,
+            phase,
+            diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+            blocking_reasons=[error.code],
+        )
+        envelope["required_inputs"] = missing
+        return error.exit_code, envelope
+    command = _command_variant(context, "start")
+    command = _command_variant(context, command_name)
     if phase not in command["allowed_phases"]:
         error = ProtocolError(
             "phase.command_forbidden",
@@ -955,6 +1138,7 @@ def _transition(context: Context, command_name: str) -> tuple[int, dict[str, Any
         )
         return error.exit_code, envelope
     assert context.run_dir is not None
+    _write_state(context, phase)
     exit_code, diagnostics, reasons = _run_command(context, command_name, context.run_dir)
     if exit_code:
         return exit_code, _phase_envelope(
@@ -970,12 +1154,79 @@ def _transition(context: Context, command_name: str) -> tuple[int, dict[str, Any
 
 def _next(context: Context) -> tuple[int, dict[str, Any]]:
     state = _load_state(context)
-    context.inputs.update(state["inputs"])
+    _merge_state_inputs(context, state)
     phase_name = state["phase"]
     next_command = context.manifest["phases"][phase_name]["next_command"]
     if next_command is None:
         return EXIT_OK, _phase_envelope(context, phase_name)
     return _transition(context, next_command)
+
+
+def _run_stateless(context: Context) -> tuple[int, dict[str, Any]]:
+    if context.manifest.get("mode", "stateful") != "stateless":
+        raise ProtocolError(
+            "command.unsupported",
+            f"run is not supported by stateful skill {context.skill}",
+            "Use start for a stateful skill.",
+            EXIT_BLOCKED,
+        )
+    if context.run_dir is not None:
+        raise ProtocolError(
+            "path.run_dir_forbidden",
+            "stateless run does not accept --run-dir",
+            "Remove --run-dir and retry.",
+        )
+    missing = _required_inputs(context.manifest, context.inputs, "run")
+    required_missing = [item for item in missing if item["required"]]
+    if required_missing:
+        error = ProtocolError(
+            "input.required",
+            "missing required inputs: " + ", ".join(item["name"] for item in required_missing),
+            "Pass every required value with --input name=value.",
+        )
+        envelope = _error_envelope(error, context.skill)
+        envelope["required_inputs"] = missing
+        return error.exit_code, envelope
+    command = _command_variant(context, "run")
+    result_payload: Any = None
+    for step in command["steps"]:
+        argv = _build_argv(step, context, context.repo_root)
+        result = subprocess.run(
+            argv,
+            cwd=context.repo_root,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode:
+            message = result.stderr.strip() or result.stdout.strip() or f"child exited {result.returncode}"
+            error = ProtocolError(
+                "adapter.run_failed",
+                message,
+                "Repair the supplied inputs and retry.",
+                EXIT_BLOCKED if step["failure"] == "blocked" else EXIT_OPERATIONAL,
+            )
+            return error.exit_code, _error_envelope(error, context.skill)
+        if result.stdout.strip():
+            try:
+                result_payload = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                result_payload = result.stdout.rstrip("\n")
+    envelope = _empty_envelope(context.skill)
+    envelope.update(
+        {
+            "status": "complete",
+            "phase": "complete",
+            "next_action": None,
+            "required_inputs": _required_inputs(context.manifest, context.inputs, "run"),
+            "forbidden_actions": ["write_installed_skill", "write_target_repository"],
+            "result": result_payload,
+        }
+    )
+    return EXIT_OK, envelope
 
 
 def _make_context(args: argparse.Namespace, output_format: str, cli_path: Path | None = None) -> Context:
@@ -1003,6 +1254,16 @@ def _make_context(args: argparse.Namespace, output_format: str, cli_path: Path |
             "Choose an external temporary or state directory.",
         )
     inputs = _parse_inputs(args.input, manifest)
+    for artifact in manifest["artifacts"]:
+        if artifact.get("external", False):
+            input_name = artifact["path"].removeprefix("{input.").removesuffix("}")
+            value = inputs.get(input_name)
+            if isinstance(value, str) and _within(Path(value), skill_dir):
+                raise ProtocolError(
+                    "path.external_artifact_in_skill",
+                    f"external artifact must not overwrite the installed skill: {value}",
+                    "Choose an output path outside the installed skill.",
+                )
     return Context(
         cli_path=(cli_path or Path(__file__).resolve().parents[1] / "skill_cli.py").resolve(),
         skill_dir=skill_dir,
@@ -1065,8 +1326,24 @@ def main(
                 )
         context = _make_context(args, output_format, cli_path)
         skill = context.skill
+        mode = context.manifest.get("mode", "stateful")
+        if mode == "stateless" and args.command not in {"doctor", "run"}:
+            raise ProtocolError(
+                "command.unsupported",
+                f"{args.command} is not supported by stateless skill {context.skill}",
+                "Use doctor or run.",
+                EXIT_BLOCKED,
+            )
+        if args.command in {"validate", "finalize"} and args.command not in context.manifest["commands"]:
+            raise ProtocolError(
+                "command.unsupported",
+                f"{args.command} is not supported by {context.skill}",
+                "Use the next_command returned by the current phase.",
+                EXIT_BLOCKED,
+            )
         handlers = {
             "doctor": _doctor,
+            "run": _run_stateless,
             "start": _start,
             "status": _status,
             "next": _next,

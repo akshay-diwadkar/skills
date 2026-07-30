@@ -62,6 +62,24 @@ def test_audit_cli_pipeline_is_read_only(
     assert semantic.returncode == 0, semantic.stdout + semantic.stderr
     assert {path: (path.read_bytes(), os.stat(path).st_mtime_ns) for path in inputs} == before
 
+    audited = run(
+        "audit_manual.py",
+        "--repo-root",
+        str(repo),
+        "--bundle",
+        str(bundle_path),
+        "--glossary",
+        str(glossary),
+        "--profile",
+        bundle["profile"],
+        str(manual),
+    )
+    assert audited.returncode == 0, audited.stdout + audited.stderr
+    report = json.loads(audited.stdout)
+    assert report["status"] == "pass"
+    assert all(item["unchanged"] for item in report["read_only_receipt"])
+    assert {path: (path.read_bytes(), os.stat(path).st_mtime_ns) for path in inputs} == before
+
     rejected = run("finalize_manual.py", "--repo-root", str(repo), "--bundle", str(bundle_path), str(manual))
     assert rejected.returncode == 1
     assert {path: (path.read_bytes(), os.stat(path).st_mtime_ns) for path in inputs} == before

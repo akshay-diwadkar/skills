@@ -1,7 +1,7 @@
 ---
 name: audit-codebase
 description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-version: 1.0.0
+version: 1.1.0
 metadata:
   audit-contract: "1"
   validator: "scripts/validate_audit_bundle.py"
@@ -11,6 +11,12 @@ metadata:
 # Audit Codebase
 
 Audit broadly, promote strictly, and publish only with explicit approval. Default to every audit category and severity `medium+`; honor explicit time boxes and exclusions as reported limitations.
+
+Use `scripts/cli.py` as the primary executable entrypoint. It checkpoints one
+audit phase per `next`, validates with the existing bundle validator, and
+returns only the references for the active phase. GitHub publication remains
+an explicit `publication=publish` branch with a dry-run review and a later
+`publish_confirmation=yes` input. Existing scripts remain supported.
 
 ## Skill Directory Resolution
 

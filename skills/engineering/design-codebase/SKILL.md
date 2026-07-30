@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Design Codebase
@@ -10,6 +10,11 @@ Decide **what** the target design is and **why** it is the right structural
 choice. Inspect the repository without editing implementation files. Finish
 with one validated `handoff.md` that can be passed, largely unedited, to
 `plan-change/scripts/prepare_plan.py --request-file`.
+
+Use `scripts/cli.py` as the primary executable entrypoint. Start with absolute
+`draft` and `output_dir` inputs; `next` validates the draft and then finalizes
+and verifies `handoff.md`. Existing checker and finalizer commands remain
+supported lower-level interfaces.
 
 ## Out of Scope
 

@@ -1,12 +1,18 @@
 ---
 name: diagram-codebase
 description: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Diagram Codebase
 
 Grill to a shared model, plan the diagram, then build through the bundled template and validators. Default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences unless the user explicitly asks for `exact-code-graph` or `executive-concept-map`.
+
+After approval and outside conversational Plan Mode, use `scripts/cli.py` as
+the primary executable entrypoint. Supply the approved payload and output path,
+plus separate `create_dirs` and `overwrite` choices. `next` validates the
+generated HTML with the existing validator. Direct builder and validator
+commands remain supported.
 
 ## Skill Directory Resolution
 

@@ -1,13 +1,23 @@
 ---
 name: route-engineering-work
 description: Route engineering requests to one repository workflow without executing it. Use when the user does not know which suite skill applies, asks which engineering workflow to use, combines discovery, design, planning, implementation, audit, optimization, issue, diagram, or manual work, or gives an ambiguous request that could trigger multiple heavyweight skills.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Route Engineering Work
 
 Classify the request, emit one routing decision, and stop. Never execute the
 selected workflow.
+
+Use the stateless common entrypoint when a protocol envelope is needed:
+
+```bash
+python scripts/cli.py --repo-root /absolute/repo \
+  --input request="<request>" --format json run
+```
+
+It creates no run state and returns the router decision in `result`. The
+existing `route_engineering_work.py` output remains the exact legacy JSON.
 
 ## Safety Boundary
 

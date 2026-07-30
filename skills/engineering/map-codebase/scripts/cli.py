@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import importlib.metadata
 import json
 import re
@@ -331,7 +332,26 @@ def _main() -> int:
     return 0
 
 
+def _protocol_main(argv: list[str]) -> int:
+    skill_root = Path(__file__).resolve().parent.parent
+    for parent in skill_root.parents:
+        runtime = parent / "tools" / "skill_protocol" / "runtime.py"
+        if runtime.is_file():
+            sys.path.insert(0, str(parent))
+            protocol_main = importlib.import_module("tools.skill_protocol.runtime").main
+            break
+    else:
+        from _skill_protocol_runtime import main as protocol_main
+
+    values = list(argv)
+    if "--skill-dir" not in values and not any(value.startswith("--skill-dir=") for value in values):
+        values[:0] = ["--skill-dir", str(skill_root)]
+    return protocol_main(values, cli_path=Path(__file__), expected_skill_dir=skill_root)
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1].startswith("--") and sys.argv[1] not in {"-h", "--help"}:
+        return _protocol_main(sys.argv[1:])
     """Convert expected operational failures into concise CLI diagnostics."""
     try:
         return _main()

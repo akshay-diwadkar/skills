@@ -1,0 +1,93 @@
+{
+  "protocol_version": "1.0",
+  "skill": "scope-issue",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill",
+  "requirements": [],
+  "inputs": [
+    {"name": "operation", "kind": "choice", "required": true, "repeatable": false, "description": "Planning, execution freshness gate, or approved post-merge follow-up.", "choices": ["plan", "execution-gate", "post-merge"]},
+    {"name": "github_repo", "kind": "string", "required": false, "repeatable": false, "description": "GitHub.com owner/repository.", "choices": []},
+    {"name": "env_file", "kind": "path", "required": false, "repeatable": false, "description": "Explicit GitHub environment file.", "choices": []},
+    {"name": "issue_number", "kind": "string", "required": false, "required_for": ["fetch_selected"], "repeatable": false, "description": "Selected positive issue number.", "choices": []},
+    {"name": "plan_output", "kind": "path", "path_policy": "future", "required": false, "repeatable": false, "description": "Absolute selected-issue plan output path.", "choices": []},
+    {"name": "plan_file", "kind": "path", "required": false, "repeatable": false, "description": "Existing validator-passing issue plan.", "choices": []},
+    {"name": "issue_json", "kind": "path", "required": false, "repeatable": false, "description": "Fresh selected-issue JSON for execution gating.", "choices": []},
+    {"name": "pr_number", "kind": "string", "required": false, "repeatable": false, "description": "Merged pull request number.", "choices": []},
+    {"name": "base", "kind": "string", "required": false, "repeatable": false, "description": "Expected merged base branch.", "choices": []},
+    {"name": "verification_summary", "kind": "path", "required": false, "repeatable": false, "description": "Approved post-merge verification summary.", "choices": []}
+  ],
+  "artifacts": [
+    {"name": "issues", "path": "issues.json", "media_type": "application/json"},
+    {"name": "selected_issue", "path": "selected-issue.json", "media_type": "application/json"}
+  ],
+  "phases": {
+    "selection": {
+      "status": "in_progress",
+      "next_action": "select_one_issue",
+      "next_command": "fetch_selected",
+      "required_reads": ["{run_dir}/issues.json", "{skill_dir}/references/planning-rubric.md"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "comment_on_github", "execute_issue"]
+    },
+    "drafting": {
+      "status": "in_progress",
+      "next_action": "ground_and_validate_selected_issue_plan",
+      "next_command": "validate",
+      "required_reads": ["{run_dir}/selected-issue.json", "{skill_dir}/references/planning-rubric.md", "{input.plan_output}"],
+      "allowed_writes": ["{input.plan_output}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "comment_on_github", "execute_issue"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": [],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "close_issue", "apply_labels"]
+    }
+  },
+  "commands": {
+    "start": [
+      {
+        "when": {"operation": ["plan"]},
+        "allowed_phases": ["selection"],
+        "success_phase": "selection",
+        "steps": [
+          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
+          {"argv": ["{python}", "{skill_dir}/scripts/fetch_github_issues.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}", "--no-comments", "--output", "{run_dir}/issues.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
+        ]
+      },
+      {
+        "when": {"operation": ["execution-gate"]},
+        "allowed_phases": ["complete"],
+        "success_phase": "complete",
+        "steps": [
+          {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_file}", "--repo-root", "{repo_root}", "--issue-json", "{input.issue_json}", "--execution-ready"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+        ]
+      },
+      {
+        "when": {"operation": ["post-merge"]},
+        "allowed_phases": ["complete"],
+        "success_phase": "complete",
+        "steps": [
+          {"argv": ["{python}", "{skill_dir}/scripts/post_merge_issue_followup.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}", "--issue-number", "{input.issue_number}", "--pr-number", "{input.pr_number}", "--base", "{input.base}", "--verification-summary-file", "{input.verification_summary}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
+        ]
+      }
+    ],
+    "fetch_selected": {
+      "allowed_phases": ["selection"],
+      "success_phase": "drafting",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/fetch_github_issues.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}", "--issue-number", "{input.issue_number}", "--output", "{run_dir}/selected-issue.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"},
+        {"argv": ["{python}", "{skill_dir}/scripts/scaffold_issue_plan.py", "--repo-root", "{repo_root}", "--issue-json", "{run_dir}/selected-issue.json", "--issue-number", "{input.issue_number}", "--output", "{input.plan_output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
+      ]
+    },
+    "validate": {
+      "allowed_phases": ["drafting"],
+      "success_phase": "complete",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_output}", "--repo-root", "{repo_root}", "--issue-json", "{run_dir}/selected-issue.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+      ]
+    }
+  }
+}

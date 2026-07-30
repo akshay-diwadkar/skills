@@ -1,12 +1,18 @@
 ---
 name: optimize-codebase
 description: Run a multi-gate, evidence-backed optimization process for a named performance, build, CI, dependency, maintainability, or developer-experience workflow. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery; implementation requires explicit authorization, with a strict Quick-Win fast path for already-authorized single-symbol changes.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Optimize Codebase
 
 Select an execution path before producing an artifact. Evidence selects the leverage point; ecosystem documentation only validates an evidence-selected mechanism.
+
+Use `scripts/cli.py` as the primary executable entrypoint. Supply `path`,
+`scope`, `stage`, `report`, and `implementation_authorized`; the common
+protocol scaffolds the selected artifact and exposes only its relevant
+references. Repository writes are available only for an explicitly authorized
+implementation stage. Existing scaffold and checker commands remain supported.
 
 ## Resolve the Skill
 

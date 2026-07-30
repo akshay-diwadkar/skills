@@ -1,0 +1,88 @@
+{
+  "protocol_version": "1.0",
+  "skill": "design-codebase",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill_and_repo",
+  "requirements": [],
+  "inputs": [
+    {
+      "name": "draft",
+      "kind": "path",
+      "required": true,
+      "repeatable": false,
+      "description": "Absolute path to the design handoff draft.",
+      "choices": []
+    },
+    {
+      "name": "output_dir",
+      "kind": "path",
+      "required": true,
+      "repeatable": false,
+      "description": "Existing directory that will receive handoff.md.",
+      "choices": []
+    }
+  ],
+  "artifacts": [],
+  "phases": {
+    "drafting": {
+      "status": "in_progress",
+      "next_action": "complete_and_validate_handoff",
+      "next_command": "validate",
+      "required_reads": ["{skill_dir}/references/handoff-template.md", "{input.draft}"],
+      "allowed_writes": ["{input.draft}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "write_implementation_plan"]
+    },
+    "validated": {
+      "status": "ready",
+      "next_action": "finalize_handoff",
+      "next_command": "finalize",
+      "required_reads": ["{input.draft}"],
+      "allowed_writes": ["{input.output_dir}/handoff.md"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "edit_validated_draft"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{input.output_dir}/handoff.md"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "modify_finalized_artifact"]
+    }
+  },
+  "commands": {
+    "start": {"allowed_phases": ["drafting"], "success_phase": "drafting", "steps": []},
+    "validate": {
+      "allowed_phases": ["drafting", "validated"],
+      "success_phase": "validated",
+      "steps": [
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/check_assessment.py", "--repo-root", "{repo_root}", "--format", "json", "{input.draft}"],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": true,
+          "failure": "blocked"
+        }
+      ]
+    },
+    "finalize": {
+      "allowed_phases": ["validated"],
+      "success_phase": "complete",
+      "steps": [
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/finalize_assessment.py", "--repo-root", "{repo_root}", "--output-dir", "{input.output_dir}", "{input.draft}"],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": false,
+          "failure": "operational"
+        },
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/check_assessment.py", "--repo-root", "{repo_root}", "--verify-evidence", "{input.output_dir}/handoff.md"],
+          "repeat": [],
+          "capture_stdout": null,
+          "diagnostics_json": false,
+          "failure": "operational"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "protocol_version": "1.0",
+  "skill": "map-codebase",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill_and_repo",
+  "requirements": [
+    {"distribution": "jsonschema", "specifier": ">=4.0"}
+  ],
+  "inputs": [
+    {
+      "name": "task",
+      "kind": "string",
+      "required": true,
+      "repeatable": false,
+      "description": "Natural-language repository navigation task.",
+      "choices": []
+    }
+  ],
+  "artifacts": [
+    {"name": "ownership", "path": "ownership.json", "media_type": "application/json"},
+    {"name": "constraints", "path": "constraints.json", "media_type": "application/json"},
+    {"name": "impacts", "path": "impacts.json", "media_type": "application/json"}
+  ],
+  "phases": {
+    "ownership": {
+      "status": "in_progress",
+      "next_action": "verify_ownership_then_resolve_constraints",
+      "next_command": "resolve_constraints",
+      "required_reads": ["{run_dir}/ownership.json"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "preload_all_references"]
+    },
+    "constraints": {
+      "status": "in_progress",
+      "next_action": "verify_constraints_then_resolve_impacts",
+      "next_command": "resolve_impacts",
+      "required_reads": ["{run_dir}/constraints.json"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "preload_all_references"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{run_dir}/impacts.json"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository"]
+    }
+  },
+  "commands": {
+    "start": {
+      "allowed_phases": ["ownership"],
+      "success_phase": "ownership",
+      "steps": [
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "1", "--format", "json"],
+          "repeat": [],
+          "capture_stdout": "ownership",
+          "diagnostics_json": false,
+          "failure": "blocked"
+        }
+      ]
+    },
+    "resolve_constraints": {
+      "allowed_phases": ["ownership"],
+      "success_phase": "constraints",
+      "steps": [
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "2", "--format", "json"],
+          "repeat": [],
+          "capture_stdout": "constraints",
+          "diagnostics_json": false,
+          "failure": "blocked"
+        }
+      ]
+    },
+    "resolve_impacts": {
+      "allowed_phases": ["constraints"],
+      "success_phase": "complete",
+      "steps": [
+        {
+          "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "3", "--format", "json"],
+          "repeat": [],
+          "capture_stdout": "impacts",
+          "diagnostics_json": false,
+          "failure": "blocked"
+        }
+      ]
+    }
+  }
+}
