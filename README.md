@@ -147,7 +147,8 @@ When preparing a release, update `VERSION`, summarize the release in `VERSION_DE
 and update the release badge cache key at the top of this README to match `VERSION`.
 After that change is merged to `main`, the Publish Release workflow creates the matching
 `v<version>` tag and GitHub release. The workflow can also be run manually from `main`
-to retry an interrupted publication.
+to retry an interrupted publication. Release publication is restricted to the repository
+owner; pull requests and other repository collaborators cannot invoke the publishing job.
 
 ## License
 

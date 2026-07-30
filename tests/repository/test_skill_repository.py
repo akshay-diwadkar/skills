@@ -155,7 +155,9 @@ def test_publish_release_workflow_uses_version_description() -> None:
     assert "contents: write" in workflow
     assert "VERSION_DESC.md must be updated in the same push as VERSION." in workflow
     assert "--notes-file VERSION_DESC.md" in workflow
-    assert 'if: github.ref == \'refs/heads/main\'' in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
+    assert "github.actor == github.repository_owner" in workflow
+    assert "pull_request:" not in workflow
 
 
 def test_pipeline_readmes_and_skill_changelog_are_supported_resources() -> None:
