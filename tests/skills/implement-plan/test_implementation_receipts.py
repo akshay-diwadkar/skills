@@ -124,6 +124,24 @@ def test_complete_bundle_reconciles_actual_workspace(tmp_path: Path) -> None:
     assert validate_bundle(bundle, plan_text, repo) == []
 
 
+def test_strict_common_cli_flags_require_complete_and_receipted_bundle(tmp_path: Path) -> None:
+    repo, _plan_path, bundle, plan_text = _prepared(tmp_path)
+    assert {item.code for item in validate_bundle(bundle, plan_text, repo, require_complete=True)} == {
+        "bundle.incomplete"
+    }
+    _complete(repo, bundle, plan_text)
+    assert {
+        item.code
+        for item in validate_bundle(
+            bundle,
+            plan_text,
+            repo,
+            require_complete=True,
+            require_receipt=True,
+        )
+    } == {"bundle.receipt"}
+
+
 def test_plan_sha_nested_rows_and_verification_fail_closed(tmp_path: Path) -> None:
     repo, _plan_path, bundle, plan_text = _prepared(tmp_path)
     _complete(repo, bundle, plan_text)

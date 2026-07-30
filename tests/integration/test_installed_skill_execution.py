@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -78,3 +79,63 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     assert decision["follow_up"] == ["implement-plan"]
     assert decision["forbidden_actions"][-1] == "execute_selected_workflow"
     assert snapshot() == before
+
+
+def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    plan = tmp_path / "plan.md"
+    plan.write_text("placeholder", encoding="utf-8")
+    request = tmp_path / "request.md"
+    request.write_text("Plan a local change.", encoding="utf-8")
+
+    for name, inputs in (
+        (
+            "plan-change",
+            [
+                f"request_file={request}",
+                "tier=tiny",
+                "intent=bug-fix",
+            ],
+        ),
+        ("implement-plan", [f"plan_file={plan}"]),
+    ):
+        source = ROOT / "skills" / "engineering" / name
+        installed = tmp_path / "installed" / name
+        shutil.copytree(source, installed)
+        run = tmp_path / f"{name}-run"
+        argv = [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--run-dir",
+            str(run),
+        ]
+        for value in inputs:
+            argv.extend(["--input", value])
+        argv.extend(["--format", "json", "doctor"])
+        result = subprocess.run(argv, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stdout + result.stderr
+        response = json.loads(result.stdout)
+        assert response["status"] == "ready"
+        assert response["next_command"]["argv"][1] == str(installed / "scripts" / "cli.py")
+
+        mismatch = subprocess.run(
+            [
+                sys.executable,
+                str(installed / "scripts" / "cli.py"),
+                "--skill-dir",
+                str(repo),
+                "--repo-root",
+                str(repo),
+                "--format",
+                "json",
+                "doctor",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert mismatch.returncode == 2
+        assert json.loads(mismatch.stdout)["blocking_reasons"] == ["skill.adapter_mismatch"]

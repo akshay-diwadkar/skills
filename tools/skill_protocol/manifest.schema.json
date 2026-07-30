@@ -80,6 +80,19 @@
           "next_action": {"type": ["string", "null"]},
           "next_command": {"enum": ["validate", "finalize", null]},
           "required_reads": {"type": "array", "items": {"type": "string"}},
+          "conditional_reads": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["input", "values", "paths"],
+              "properties": {
+                "input": {"type": "string"},
+                "values": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                "paths": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+              }
+            }
+          },
           "allowed_writes": {"type": "array", "items": {"type": "string"}},
           "forbidden_actions": {"type": "array", "items": {"type": "string"}}
         }

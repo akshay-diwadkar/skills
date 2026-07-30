@@ -1,8 +1,11 @@
-# Common stateful skill CLI protocol
+# Core handoff skills on the common CLI
 
-This release adds a provider-neutral, standard-library CLI protocol for stateful skills with
-stable `doctor`, `start`, `status`, `next`, `validate`, and `finalize` commands, a strict JSON
-response envelope, typed exit codes, safe path and state handling, and declarative adapters.
+This release makes `plan-change` and `implement-plan` self-contained common-CLI
+skills with stable `doctor`, `start`, `next`, `validate`, and `finalize`
+lifecycles. Skill-local adapters preserve argv-safe handoffs after standalone
+installation and keep all run state outside tracked source.
 
-`plan-change` is the first reference adapter. Its existing public scripts remain compatible,
-while the common runtime can prepare, validate, and finalize a plan through one lifecycle.
+The migration retains plan-contract v5 evidence, inventory, adversarial,
+binding, and receipt checks, plus implementation-contract v3 dirty-worktree,
+freshness, hash, quality-evidence, workspace-reconciliation, and receipt
+checks. Existing direct scripts remain compatible lower-level entry points.
