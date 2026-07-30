@@ -16,6 +16,9 @@ VERSION_PATH = ROOT / "VERSION"
 README_PATH = ROOT / "README.md"
 VERSION_DESCRIPTION_PATH = ROOT / "VERSION_DESC.md"
 MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
+ROUTER_SCHEMA_PATH = (
+    ROOT / "skills" / "engineering" / "route-engineering-work" / "schemas" / "routing-decision.schema.json"
+)
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
@@ -35,12 +38,48 @@ EXPECTED_MARKETPLACE_GROUPS = {
         "./skills/engineering/map-codebase",
         "./skills/engineering/optimize-codebase",
         "./skills/engineering/plan-change",
+        "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue",
     },
     "technical-communication-skills": {
         "./skills/technical-communication/manualize",
     },
 }
+ROUTED_SKILLS = {
+    "map-codebase",
+    "design-codebase",
+    "plan-change",
+    "implement-plan",
+    "audit-codebase",
+    "optimize-codebase",
+    "scope-issue",
+    "diagram-codebase",
+    "manualize",
+}
+ROUTER_FIELDS = {
+    "primary_skill",
+    "prerequisites",
+    "follow_up",
+    "reason",
+    "confidence",
+    "next_action",
+    "allowed_actions",
+    "forbidden_actions",
+}
+ROUTER_ALLOWED_ACTIONS = [
+    "read_request",
+    "read_repository_facts",
+    "emit_routing_decision",
+]
+ROUTER_FORBIDDEN_ACTIONS = [
+    "plan",
+    "edit_source",
+    "publish_issues",
+    "commit",
+    "push",
+    "create_pull_request",
+    "execute_selected_workflow",
+]
 ALLOWED_TOP_LEVEL = {
     "SKILL.md",
     "scripts",
@@ -262,6 +301,41 @@ def validate_marketplace() -> list[str]:
     return errors
 
 
+def validate_router_contract(path: Path | None = None) -> list[str]:
+    """Keep the suite router's machine and safety contract exact."""
+    path = path or ROUTER_SCHEMA_PATH
+    if not path.is_file():
+        return [f"Missing {path.relative_to(ROOT)}"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"{path.relative_to(ROOT)}: invalid JSON: {exc}"]
+
+    errors: list[str] = []
+    properties = payload.get("properties")
+    required = payload.get("required")
+    definitions = payload.get("$defs")
+    if not isinstance(properties, dict) or set(properties) != ROUTER_FIELDS:
+        errors.append("route-engineering-work: decision properties must remain exact")
+        return errors
+    if not isinstance(required, list) or set(required) != ROUTER_FIELDS:
+        errors.append("route-engineering-work: every decision property must remain required")
+    if not isinstance(definitions, dict):
+        errors.append("route-engineering-work: decision schema must define routed skills")
+    else:
+        skill = definitions.get("skill")
+        skill_enum = skill.get("enum") if isinstance(skill, dict) else None
+        if not isinstance(skill_enum, list) or set(skill_enum) != ROUTED_SKILLS:
+            errors.append("route-engineering-work: routed skill enum must remain exact")
+    if properties["allowed_actions"].get("const") != ROUTER_ALLOWED_ACTIONS:
+        errors.append("route-engineering-work: allowed actions must remain read-only")
+    if properties["forbidden_actions"].get("const") != ROUTER_FORBIDDEN_ACTIONS:
+        errors.append("route-engineering-work: forbidden actions must remain exact")
+    if payload.get("additionalProperties") is not False:
+        errors.append("route-engineering-work: routing decisions must reject additional properties")
+    return errors
+
+
 def _instruction_section(path: Path, heading: str) -> str | None:
     if not path.is_file():
         return None
@@ -368,6 +442,7 @@ def main() -> int:
     errors.extend(validate_version_description())
     errors.extend(validate_readme_release_link())
     errors.extend(validate_marketplace())
+    errors.extend(validate_router_contract())
     errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())
     for skill_dir in skills:

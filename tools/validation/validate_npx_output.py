@@ -18,6 +18,7 @@ EXPECTED_GROUPS = {
         "map-codebase",
         "optimize-codebase",
         "plan-change",
+        "route-engineering-work",
         "scope-issue",
     },
     "Technical Communication Skills": {"manualize"},
@@ -82,7 +83,8 @@ def main() -> int:
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
-    print("npx output validation passed for 9 skills in 2 groups.")
+    count = sum(len(skills) for skills in EXPECTED_GROUPS.values())
+    print(f"npx output validation passed for {count} skills in {len(EXPECTED_GROUPS)} groups.")
     return 0
 
 

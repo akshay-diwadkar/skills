@@ -1,8 +1,8 @@
-# Map-codebase resolver precision and benchmark credibility
+# Route engineering requests safely
 
-This release improves `map-codebase` ownership resolution with structured query parsing,
-symbol-centric ranking, precise primary-owner selection, calibrated confidence, and
-phase-separated benchmark metrics.
+This release adds the model-invoked `route-engineering-work` skill. It emits a deterministic,
+read-only routing decision for the engineering and technical communication workflows without
+planning, editing, publishing, or executing the selected workflow.
 
-It also introduces independent skill versioning: only modified skills receive their own
-version bump, while the overall package version advances for every skill release.
+It also adds routing fixtures, false-positive coverage, grouped installation checks, and
+suite documentation for the new ten-skill catalogue.

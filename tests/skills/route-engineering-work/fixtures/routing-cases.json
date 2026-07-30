@@ -1,0 +1,242 @@
+[
+  {
+    "id": "map-orientation",
+    "request": "I am new to this repository. Where is retry scheduling implemented?",
+    "facts": {},
+    "expected": {
+      "primary_skill": "map-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "repository_orientation",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "design-boundary",
+    "request": "Decide the dependency direction and state ownership for the billing subsystem.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "design-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "structural_design_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "plan-migration",
+    "request": "Plan a migration from the current database client to connection pooling.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "implement-approved-plan",
+    "request": "Apply the requested change.",
+    "facts": {
+      "approved_plan_available": true
+    },
+    "expected": {
+      "primary_skill": "implement-plan",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "approved_plan_execution",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "audit-unknown-risks",
+    "request": "Audit this repository for security risks, bugs, and missing tests.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "audit-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "unknown_risk_discovery",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "optimize-latency",
+    "request": "Investigate and reduce the checkout latency bottleneck.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "optimize-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "named_optimization_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "scope-issue",
+    "request": "Triage GitHub issue #42 against the local checkout.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "scope-issue",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "github_issue_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "diagram-architecture",
+    "request": "Draw an architecture diagram for the payment workflow.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "diagram-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "diagram_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "manual-runbook",
+    "request": "Write an installation runbook from the checked-in scripts.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "manualize",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "technical_manual_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "explicit-map-plan-implement-chain",
+    "request": "Use map-codebase, then plan-change, then implement-plan.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [
+        "map-codebase"
+      ],
+      "follow_up": [
+        "implement-plan"
+      ],
+      "reason": "explicit_map_plan_implementation_chain",
+      "confidence": "high",
+      "next_action": "invoke_prerequisite"
+    }
+  },
+  {
+    "id": "audit-wins-unknown-performance",
+    "request": "Audit the repository to find unknown performance risks.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "audit-codebase",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "unknown_risk_discovery",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "design-before-plan-and-implementation",
+    "request": "Redesign state ownership, plan the change, and implement it.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "design-codebase",
+      "prerequisites": [],
+      "follow_up": [
+        "plan-change",
+        "implement-plan"
+      ],
+      "reason": "structural_design_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "issue-wins-generic-planning",
+    "request": "Plan GitHub issue #77 against the current checkout.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "scope-issue",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "github_issue_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "map-prerequisite-for-unplanned-fix",
+    "request": "In this unfamiliar codebase, locate the owner and fix authentication.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [
+        "map-codebase"
+      ],
+      "follow_up": [
+        "implement-plan"
+      ],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_prerequisite"
+    }
+  },
+  {
+    "id": "missing-plan-routes-back-to-planning",
+    "request": "Use implement-plan to fix authentication.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [
+        "implement-plan"
+      ],
+      "reason": "implementation_requires_approved_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "approved-plan-satisfies-explicit-implementation",
+    "request": "Use implement-plan to apply this change.",
+    "facts": {
+      "approved_plan_available": true
+    },
+    "expected": {
+      "primary_skill": "implement-plan",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "explicit_skill_request",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "issue-number-fact",
+    "request": "Scope the reported behavior against the checkout.",
+    "facts": {
+      "issue_context_available": true
+    },
+    "expected": {
+      "primary_skill": "scope-issue",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "github_issue_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  }
+]

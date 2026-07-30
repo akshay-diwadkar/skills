@@ -18,6 +18,7 @@ CANONICAL_SKILLS = {
     ("engineering", "map-codebase"),
     ("engineering", "optimize-codebase"),
     ("engineering", "plan-change"),
+    ("engineering", "route-engineering-work"),
     ("engineering", "scope-issue"),
     ("technical-communication", "manualize"),
 }
@@ -140,6 +141,10 @@ def test_marketplace_groups_every_skill_once() -> None:
     assert expected_paths == {
         f"./skills/{domain}/{skill_name}" for domain, skill_name in CANONICAL_SKILLS
     }
+
+
+def test_router_contract_is_exact_and_read_only() -> None:
+    assert validator.validate_router_contract() == []
 
 
 def test_agent_instruction_versioning_policies_match() -> None:

@@ -9,7 +9,7 @@
     {
       "name": "engineering-skills",
       "source": "./",
-      "description": "Skills for understanding, designing, planning, implementing, optimizing, auditing, and visualizing codebases.",
+      "description": "Skills for routing, understanding, designing, planning, implementing, optimizing, auditing, and visualizing codebases.",
       "skills": [
         "./skills/engineering/audit-codebase",
         "./skills/engineering/design-codebase",
@@ -18,6 +18,7 @@
         "./skills/engineering/map-codebase",
         "./skills/engineering/optimize-codebase",
         "./skills/engineering/plan-change",
+        "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue"
       ]
     },

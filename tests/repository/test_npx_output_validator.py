@@ -10,7 +10,8 @@ import validate_npx_output as validator  # noqa: E402
 
 
 def _valid_output() -> str:
-    lines = ["Found 9 skills", "Engineering Skills"]
+    count = sum(len(skills) for skills in validator.EXPECTED_GROUPS.values())
+    lines = [f"Found {count} skills", "Engineering Skills"]
     lines.extend(sorted(validator.EXPECTED_GROUPS["Engineering Skills"]))
     lines.append("Technical Communication Skills")
     lines.extend(sorted(validator.EXPECTED_GROUPS["Technical Communication Skills"]))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -43,3 +44,37 @@ def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(result.stdout)["violations"] == []
+
+
+def test_installed_router_executes_read_only(tmp_path: Path) -> None:
+    skill = ROOT / "skills" / "engineering" / "route-engineering-work"
+
+    def snapshot() -> dict[str, str]:
+        return {
+            path.relative_to(skill).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(skill.rglob("*"))
+            if path.is_file()
+        }
+
+    before = snapshot()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/route_engineering_work.py",
+            "--request",
+            "Use map-codebase, then plan-change, then implement-plan.",
+        ],
+        cwd=skill,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    decision = json.loads(result.stdout)
+    assert decision["primary_skill"] == "plan-change"
+    assert decision["prerequisites"] == ["map-codebase"]
+    assert decision["follow_up"] == ["implement-plan"]
+    assert decision["forbidden_actions"][-1] == "execute_selected_workflow"
+    assert snapshot() == before
