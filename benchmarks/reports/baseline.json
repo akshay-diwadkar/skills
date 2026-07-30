@@ -1,0 +1,18 @@
+{
+  "captured_before_architecture_change": true,
+  "metrics": {
+    "hit_at_1": 0.806,
+    "hit_at_3": 0.972,
+    "mrr": 0.884,
+    "macro_role_f1": 0.901,
+    "owner_recall": 0.78,
+    "owner_precision": 0.364,
+    "incorrect_high_confidence": 0,
+    "abstention_precision": 1.0,
+    "abstention_recall": 1.0
+  },
+  "notes": [
+    "The supplied owner precision and recall combine Phase 1 owners with Phase 2/3 surfaces.",
+    "They are retained for historical context and are not directly comparable to the phase-separated primary-owner metrics."
+  ]
+}

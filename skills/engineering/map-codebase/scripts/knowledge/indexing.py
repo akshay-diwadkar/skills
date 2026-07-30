@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from knowledge.discovery import is_binary_file, is_secret_file_or_content, matches_glob
+from knowledge.extraction.base import infer_component_types, normalized_subsystem_path
 from knowledge.extraction.configuration import extract_config_and_commands
+from knowledge.extraction.csharp import extract_csharp_file
 from knowledge.extraction.javascript import extract_javascript_file
 from knowledge.extraction.lexical import extract_lexical_file
 from knowledge.extraction.python import extract_python_file
@@ -55,8 +57,6 @@ def _get_extractor(suffix: str) -> Any | None:
 register_extractor([".py"], extract_python_file)
 register_extractor([".js", ".jsx", ".ts", ".tsx"], extract_javascript_file)
 register_extractor([".go", ".rs", ".java", ".c", ".cpp"], extract_lexical_file)
-
-from knowledge.extraction.csharp import extract_csharp_file
 
 register_extractor([".cs"], extract_csharp_file)
 
@@ -137,6 +137,7 @@ def classify_and_extract(
     extractor = _get_extractor(suffix)
     if extractor is not None:
         extracted, imports, _, unknowns = extractor(full, path, content, subsystem)
+    generated = matches_glob(path, config["generated"])
     symbols = [
         {
             "name": item.name,
@@ -148,6 +149,21 @@ def classify_and_extract(
             "owner": subsystem,
             "exported": not item.name.startswith("_"),
             "docstring": item.docstring,
+            "component_types": infer_component_types(
+                path,
+                name=item.name,
+                decorators=item.decorators,
+                imports=imports,
+                content=content,
+                generated=generated,
+            ),
+            "signature": item.signature,
+            "type_hints": sorted(set(item.type_hints)),
+            "decorators": sorted(set(item.decorators)),
+            "interfaces": sorted(set(item.interfaces)),
+            "references": sorted(set(item.references)),
+            "control_flow": sorted(set(item.control_flow)),
+            "calls": sorted(set(item.calls)),
         }
         for item in extracted
     ]
@@ -158,12 +174,22 @@ def classify_and_extract(
         "path": path,
         "role": role(path),
         "subsystem": subsystem,
+        "normalized_subsystem_path": normalized_subsystem_path(path),
+        "component_types": infer_component_types(
+            path,
+            name=" ".join(item.name for item in extracted),
+            decorators=tuple(value for item in extracted for value in item.decorators),
+            imports=imports,
+            content=content,
+            generated=generated,
+        ),
         "language": LANGUAGES.get(suffix, ""),
         "hash": compute_file_hash(full),
         "line_count": len(content.splitlines()),
         "symbols": sorted(item["name"] for item in symbols),
         "raw_imports": sorted(set(imports)),
-        "generated": matches_glob(path, config["generated"]),
+        "generated": generated,
+        "calls": sorted({call for item in extracted for call in item.calls}),
         "unknowns": sorted(unknowns),
     }
     return IndexedFile(record, symbols, config_entry, commands, unknowns), path, None
@@ -213,7 +239,7 @@ def project(
     for file in files:
         subsystems.setdefault(file["subsystem"], []).append(file["path"])
     repo = {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "repository": {"root": ".", "languages": sorted({f["language"] for f in files if f["language"]})},
         "subsystems": [{"name": key, "paths": sorted(value)} for key, value in sorted(subsystems.items())],
         "directories": [{"path": key, "file_count": len(value)} for key, value in sorted(subsystems.items())],
@@ -232,10 +258,31 @@ def project(
         "ignored_paths": [],
         "unknowns": sorted({f"{file['path']}: {item}" for file in files for item in file.get("unknowns", [])})[:20],
     }
+    symbols_by_name: dict[str, set[str]] = {}
+    for file in files:
+        for symbol in file["symbols"]:
+            symbols_by_name.setdefault(symbol.lower(), set()).add(file["path"])
+    calls = []
+    for file in files:
+        for called in file.get("calls", []):
+            called_name = called.rsplit(".", 1)[-1].lower()
+            targets = symbols_by_name.get(called_name, set())
+            if len(targets) == 1:
+                target = next(iter(targets))
+                if target != file["path"]:
+                    calls.append(
+                        {
+                            "source": file["path"],
+                            "target": target,
+                            "kind": "call",
+                            "confidence": "medium",
+                            "evidence": [called],
+                        }
+                    )
     relationships = {
-        "schema_version": "5.0",
+        "schema_version": "6.0",
         "imports": sorted(imports, key=lambda x: (x["source"], x["target"])),
-        "calls": [],
+        "calls": sorted(calls, key=lambda x: (x["source"], x["target"], x["evidence"][0])),
         "test_links": sorted(tests, key=lambda x: (x["source"], x["target"])),
         "configuration_links": [],
         "unresolved_imports": sorted(unresolved, key=lambda x: (x["source"], x["import"])),

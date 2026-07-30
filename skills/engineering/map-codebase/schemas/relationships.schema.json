@@ -12,13 +12,24 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "5.0"
+      "const": "6.0"
     },
     "imports": {
       "type": "array"
     },
     "calls": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target", "kind", "confidence", "evidence"],
+        "properties": {
+          "source": {"type": "string"},
+          "target": {"type": "string"},
+          "kind": {"const": "call"},
+          "confidence": {"enum": ["high", "medium", "low"]},
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
     },
     "test_links": {
       "type": "array"

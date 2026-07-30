@@ -4,7 +4,7 @@
   "required": ["schema_version", "symbols"],
   "properties": {
     "schema_version": {
-      "const": "5.0"
+      "const": "6.0"
     },
     "symbols": {
       "type": "object",
@@ -12,11 +12,17 @@
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["file", "line", "kind"],
+          "required": ["file", "line", "kind", "qualified_name", "component_types"],
           "properties": {
             "file": {"type": "string"},
             "line": {"type": "integer", "minimum": 1},
-            "kind": {"type": "string"}
+            "kind": {"type": "string"},
+            "qualified_name": {"type": "string"},
+            "component_types": {
+              "type": "array",
+              "items": {"type": "string"},
+              "uniqueItems": true
+            }
           }
         }
       }

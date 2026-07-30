@@ -50,6 +50,9 @@ def validate_semantic_graph(
     for edge in relationships.get("test_links", []):
         if edge["source"] not in paths or edge["target"] not in paths:
             errors.append("Invalid test relationship")
+    for edge in relationships.get("calls", []):
+        if edge["source"] not in paths or edge["target"] not in paths:
+            errors.append("Invalid call relationship")
     for target, sources in relationships.get("reverse_imports", {}).items():
         if target not in paths or any(source not in paths for source in sources):
             errors.append("Invalid reverse import relationship")

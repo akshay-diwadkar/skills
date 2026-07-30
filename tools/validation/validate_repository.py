@@ -128,13 +128,12 @@ def validate_frontmatter(skill_dir: Path) -> list[str]:
         errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter name must match the skill directory")
     if not description or not description.group(1).strip():
         errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter description is required")
-    expected_version = VERSION_PATH.read_text(encoding="utf-8").strip() if VERSION_PATH.is_file() else None
     if not version:
         errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter version is required")
-    elif expected_version is not None and version.group(1).strip() != expected_version:
+    elif not SEMVER_RE.fullmatch(version.group(1).strip()):
         errors.append(
-            f"{skill_md.relative_to(ROOT)}: version {version.group(1).strip()!r} "
-            f"does not match VERSION {expected_version!r}"
+            f"{skill_md.relative_to(ROOT)}: version "
+            f"{version.group(1).strip()!r} is not valid Semantic Versioning"
         )
     return errors
 
@@ -237,7 +236,17 @@ def validate_versioning_instructions() -> list[str]:
         errors.append("CLAUDE.md: missing Versioning section")
     if agents_section is not None and claude_section is not None and agents_section != claude_section:
         errors.append("AGENTS.md and CLAUDE.md Versioning sections must match")
-    required_terms = ("`VERSION`", "Semantic Versioning", "Major:", "Minor:", "Patch:", "validate_repository.py")
+    required_terms = (
+        "`VERSION`",
+        "Semantic Versioning",
+        "only the affected",
+        "unmodified skills retain",
+        "highest-impact",
+        "Major:",
+        "Minor:",
+        "Patch:",
+        "validate_repository.py",
+    )
     if agents_section is not None:
         for term in required_terms:
             if term not in agents_section:

@@ -1,7 +1,7 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Map Codebase
@@ -76,8 +76,12 @@ See the [Worked Example](references/example-walkthrough.md) for a partial-stalen
 
 ## Resolver Contract
 
-- Every task has one primary owner and optional secondary constraints.
+- Every resolved task has one `primary_owner`; explicit multi-owner requests may add evidence-backed `co_owners`.
+- Plausible but unselected files are `alternatives`, never equal owners.
+- `constraints` and `impacts` are separate phase outputs. Legacy `targets` remains the requested-phase projection.
+- Resolution status is `resolved`, `ambiguous`, or `abstain`.
 - Exact paths and symbols take precedence over task vocabulary.
+- Contrastive phrases exclude concepts, subsystems, component types, or roles from ownership.
 - Mixed implementation tasks remain source-owned.
 - Explicit test creation and test-file work are test-owned.
 - Exact symbols use the inverted index; only shortlisted symbol shards are loaded.

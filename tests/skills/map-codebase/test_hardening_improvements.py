@@ -88,13 +88,33 @@ def test_versions_force_old_knowledge_to_rebuild(tmp_path: Path) -> None:
     build_knowledge(tmp_path, out)
     manifest_path = out / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert SCHEMA_VERSION == "5.0"
-    assert EXTRACTOR_VERSION == "5.0.0"
+    assert SCHEMA_VERSION == "6.0"
+    assert EXTRACTOR_VERSION == "6.0.0"
     manifest["extractor_version"] = "4.1.0"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     assert check_freshness(tmp_path, out)["status"] == "stale"
     assert check_freshness(tmp_path, out)["staleness_detail"]["recommendation"] == "rebuild"
+
+
+def test_v5_schema_artifacts_take_full_rebuild_path(tmp_path: Path) -> None:
+    _write_owner(tmp_path)
+    out = tmp_path / ".agent" / "knowledge"
+    build_knowledge(tmp_path, out)
+    manifest_path = out / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["schema_version"] = "5.0"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    state = check_freshness(tmp_path, out)
+    assert state["status"] == "invalid"
+    assert state["requires_full_rebuild"] is True
+
+    refreshed = refresh_knowledge(tmp_path, knowledge_dir=out)
+    rebuilt_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert refreshed["mode"] == "full"
+    assert rebuilt_manifest["schema_version"] == "6.0"
+    assert rebuilt_manifest["extractor_version"] == "6.0.0"
 
 
 def test_unexpected_extractor_failures_are_not_silenced(

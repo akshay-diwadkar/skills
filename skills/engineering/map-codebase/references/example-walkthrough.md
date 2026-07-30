@@ -38,13 +38,13 @@ python skills/engineering/map-codebase/scripts/cli.py refresh \
 
 ```bash
 python skills/engineering/map-codebase/scripts/cli.py resolve \
-  "Fix task ownership classification in classify_task_intent without changing the resolver output schema" \
+  "Fix task ownership classification in classify_task_intent, not its callers" \
   --repo-root . --phase 1 --format json
 ```
 
 ```json
 {
-  "task": "Fix task ownership classification in classify_task_intent without changing the resolver output schema",
+  "task": "Fix task ownership classification in classify_task_intent, not its callers",
   "phase": 1,
   "knowledge_freshness": "fresh",
   "task_intent": {
@@ -54,8 +54,18 @@ python skills/engineering/map-codebase/scripts/cli.py resolve \
       "explicit indexed symbol matched skills/engineering/map-codebase/scripts/resolve_task.py"
     ]
   },
+  "status": "resolved",
+  "primary_owner": {
+    "path": "skills/engineering/map-codebase/scripts/resolve_task.py",
+    "symbol": "classify_task_intent",
+    "role": "source",
+    "question": "Does classify_task_intent own the requested behavior?"
+  },
+  "co_owners": [],
+  "alternatives": [],
   "confidence": {
     "level": "high",
+    "probability": 0.98,
     "reasons": [
       "exact symbol matched classify_task_intent",
       "top candidate exceeds the configured confidence margin"

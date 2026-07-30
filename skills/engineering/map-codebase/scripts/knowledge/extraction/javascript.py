@@ -6,7 +6,7 @@ import importlib
 from pathlib import Path
 from typing import Any
 
-from knowledge.extraction.base import ExtractedSymbol
+from knowledge.extraction.base import ExtractedSymbol, SymbolEvidence, infer_component_types
 
 GRAMMARS = {
     ".js": "tree_sitter_javascript",
@@ -116,6 +116,77 @@ def _declaration_name(node: Any, source: bytes) -> str | None:
     return _text(found, source) if found is not None else None
 
 
+def _descendants(node: Any) -> list[Any]:
+    result: list[Any] = []
+    pending = list(node.named_children)
+    while pending:
+        child = pending.pop()
+        result.append(child)
+        pending.extend(child.named_children)
+    return result
+
+
+def _symbol_evidence(node: Any, source: bytes) -> SymbolEvidence:
+    descendants = _descendants(node)
+    raw = _text(node, source)
+    signature = raw.split("{", 1)[0].strip().rstrip(";")
+    if len(signature) > 500:
+        signature = signature[:500]
+    decorators = [
+        _text(child, source).lstrip("@")
+        for child in node.named_children
+        if child.type in {"decorator", "annotation"}
+    ]
+    interfaces = [
+        _text(child, source)
+        for child in node.named_children
+        if child.type in {"class_heritage", "extends_clause", "implements_clause"}
+    ]
+    type_hints = sorted(
+        {
+            _text(child, source).lstrip(":").strip()
+            for child in descendants
+            if child.type in {"type_annotation", "return_type", "type_predicate"}
+        }
+    )
+    calls = set()
+    for child in descendants:
+        if child.type == "call_expression":
+            function = child.child_by_field_name("function")
+            if function is not None:
+                calls.add(_text(function, source))
+    references = sorted(
+        {
+            _text(child, source)
+            for child in descendants
+            if child.type in IDENTIFIER_TYPES
+            and (
+                _text(child, source).isupper()
+                or any(token in _text(child, source).lower() for token in ("config", "setting", "env"))
+            )
+        }
+    )
+    flow_map = {
+        "throw_statement": "raises",
+        "try_statement": "try",
+        "if_statement": "conditional",
+        "switch_statement": "conditional",
+        "for_statement": "loop",
+        "for_in_statement": "loop",
+        "while_statement": "loop",
+        "yield_expression": "generator",
+    }
+    return {
+        "signature": signature,
+        "type_hints": type_hints,
+        "decorators": decorators,
+        "interfaces": interfaces,
+        "references": references,
+        "control_flow": sorted({flow_map[child.type] for child in descendants if child.type in flow_map}),
+        "calls": sorted(calls),
+    }
+
+
 def extract_javascript_file(
     full_path: Path,
     rel_str: str,
@@ -168,6 +239,7 @@ def extract_javascript_file(
             name = _declaration_name(node, source)
             if name and name not in ("const", "let", "var", "async", "function", "class"):
                 qualified = ".".join((stem, *scope, name))
+                evidence = _symbol_evidence(node, source)
                 symbols.append(
                     ExtractedSymbol(
                         name=name,
@@ -178,6 +250,20 @@ def extract_javascript_file(
                         line_end=node.end_point[0] + 1,
                         subsystem=subsystem,
                         docstring="",
+                        component_types=infer_component_types(
+                            rel_str,
+                            name=name,
+                            decorators=evidence["decorators"],
+                            imports=imports,
+                            content=_text(node, source),
+                        ),
+                        signature=str(evidence["signature"]),
+                        type_hints=list(evidence["type_hints"]),
+                        decorators=list(evidence["decorators"]),
+                        interfaces=list(evidence["interfaces"]),
+                        references=list(evidence["references"]),
+                        control_flow=list(evidence["control_flow"]),
+                        calls=list(evidence["calls"]),
                     )
                 )
                 # Use this declaration as a scope for children (classes, etc.)

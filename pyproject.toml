@@ -13,7 +13,7 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.11"
 explicit_package_bases = true
-mypy_path = ["tools/validation"]
+mypy_path = ["tools/validation", "skills/engineering/map-codebase/scripts"]
 warn_unused_ignores = true
 strict_optional = true
 no_implicit_optional = true
@@ -34,6 +34,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
+pythonpath = ["."]
 markers = [
   "fixtures: benchmark fixture integrity, regeneration, leakage, and oracle checks",
   "benchmark: deterministic comparative benchmark checks",
