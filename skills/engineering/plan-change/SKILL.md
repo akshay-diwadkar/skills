@@ -1,7 +1,7 @@
 ---
 name: plan-change
 description: Produce a proof-carrying, repository-grounded v5 implementation plan that is complete enough for deterministic downstream execution. Use when a user asks to plan a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository.
-version: 1.0.0
+version: 1.1.0
 metadata:
   plan-contract: "5"
   finalizer: "scripts/finalize_plan.py"
@@ -19,6 +19,26 @@ target repository, request file, and run directory. Install the pinned
 `requirements.txt` at skill build/install time; validation never downloads a
 grammar. Create the run directory in confirmed ignored storage or an OS
 temporary directory, never in the target repository.
+
+When the repository-level common runtime is available, agents may use the
+provider-neutral lifecycle in `skill-protocol.json` instead of remembering the
+individual script invocations:
+
+```bash
+python /absolute/runtime/tools/skill_cli.py \
+  --skill-dir /absolute/skill-root \
+  --repo-root /absolute/path/to/repository \
+  --run-dir /absolute/path/to/temporary-run \
+  --input request_file=/absolute/path/to/request.md \
+  --input tier=<tiny|standard|high-risk> \
+  --input intent=<feature|bug-fix|refactor> \
+  --format json \
+  start
+```
+
+Continue with `next`; each call performs one validated transition and returns
+an argv-safe `next_command`. The direct public scripts documented below remain
+fully supported.
 
 ## 1. Classify and Prepare
 

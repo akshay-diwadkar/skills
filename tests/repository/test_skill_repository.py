@@ -143,6 +143,11 @@ def test_marketplace_groups_every_skill_once() -> None:
     }
 
 
+def test_stateful_skill_protocol_manifests_are_valid() -> None:
+    for skill_dir in validator.discover_skills():
+        assert validator.validate_skill_protocol(skill_dir) == []
+
+
 def test_router_contract_is_exact_and_read_only() -> None:
     assert validator.validate_router_contract() == []
 

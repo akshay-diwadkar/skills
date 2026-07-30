@@ -1,8 +1,8 @@
-# Route engineering requests safely
+# Common stateful skill CLI protocol
 
-This release adds the model-invoked `route-engineering-work` skill. It emits a deterministic,
-read-only routing decision for the engineering and technical communication workflows without
-planning, editing, publishing, or executing the selected workflow.
+This release adds a provider-neutral, standard-library CLI protocol for stateful skills with
+stable `doctor`, `start`, `status`, `next`, `validate`, and `finalize` commands, a strict JSON
+response envelope, typed exit codes, safe path and state handling, and declarative adapters.
 
-It also adds routing fixtures, false-positive coverage, grouped installation checks, and
-suite documentation for the new ten-skill catalogue.
+`plan-change` is the first reference adapter. Its existing public scripts remain compatible,
+while the common runtime can prepare, validate, and finalize a plan through one lifecycle.

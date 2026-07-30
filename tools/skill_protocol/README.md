@@ -1,0 +1,75 @@
+# Common Stateful Skill CLI Protocol 1.0
+
+This runtime gives stateful skills one provider-neutral lifecycle:
+`doctor`, `start`, `status`, `next`, `validate`, and `finalize`.
+It uses only the Python standard library and invokes existing skill scripts
+without a shell.
+
+## Invocation
+
+```text
+python /absolute/runtime/tools/skill_cli.py \
+  --skill-dir /absolute/installed/skill \
+  --repo-root /absolute/target/repository \
+  [--run-dir /absolute/external/run] \
+  [--input name=value ...] \
+  --format <human|json> \
+  <doctor|start|status|next|validate|finalize>
+```
+
+`doctor` does not require a run directory. `start` requires a new run
+directory. Every later stateful command requires the directory created by
+`start`. A skill may require the run directory to be outside the target
+repository. Every skill requires it to be outside the installed skill.
+
+Inputs are not a secret store. A manifest should accept a path or environment
+variable name instead of a credential value.
+
+## Lifecycle
+
+- `doctor` validates the interpreter, paths, manifest, scripts, and declared
+  distributions without writing.
+- `start` validates inputs, runs the declared preparation command in a staging
+  directory, atomically publishes the run, and records the initial phase.
+- `status` reads and verifies state without running a skill command.
+- `next` runs exactly one phase-declared transition. A complete run is
+  idempotent.
+- `validate` runs the declared validator and advances only on success.
+- `finalize` is phase-gated and marks the run complete only after every
+  declared finalization and post-validation step succeeds.
+
+The runtime treats `skill-protocol.json` as trusted installed-skill metadata,
+but still rejects traversal, unknown placeholders, shell strings, undeclared
+artifacts, unsafe run paths, and identity changes. Child processes receive
+absolute paths, run with `shell=False`, and have stdout and stderr captured.
+
+## Output and exit codes
+
+The response schema is `response.schema.json`. JSON mode writes exactly one
+compact JSON object and one newline to stdout and writes nothing to stderr.
+Human mode writes a concise summary to stdout and failure diagnostics to
+stderr.
+
+- `0`: a usable response was produced successfully
+- `2`: invalid invocation, manifest, input, state identity, or path
+- `3`: prerequisites, phase gates, or validation block progress
+- `4`: an existing skill command failed operationally
+- `70`: an unexpected runtime defect
+
+`next_command.argv` is an argv array, not a shell command. Consumers must
+execute it directly with `next_command.cwd`.
+
+## Manifest contract
+
+The manifest schema is `manifest.schema.json`. Commands contain ordered steps.
+Each step declares an argv array, optional repeated input expansions, optional
+stdout artifact capture, diagnostic JSON handling, and whether failure is a
+workflow block or operational error.
+
+Allowed placeholders are `{python}`, `{skill_dir}`, `{repo_root}`, `{run_dir}`,
+and `{input.<name>}`. Repeated inputs use the step's `repeat` entries and are
+never interpolated into a shell.
+
+Protocol 1.x may add optional behavior but will not change required response
+fields, their types, command meanings, or exit-code categories. Breaking
+changes require a new major `protocol_version`.
