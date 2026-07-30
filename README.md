@@ -1,7 +1,7 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=1.1.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -140,6 +140,14 @@ python -m pytest -q
 ```
 
 Benchmark fixtures, methodology, limitations, baselines, and the cross-skill migration matrix are documented in [`benchmarks/`](benchmarks/README.md).
+
+## Publishing a release
+
+When preparing a release, update `VERSION`, summarize the release in `VERSION_DESC.md`,
+and update the release badge cache key at the top of this README to match `VERSION`.
+After that change is merged to `main`, the Publish Release workflow creates the matching
+`v<version>` tag and GitHub release. The workflow can also be run manually from `main`
+to retry an interrupted publication.
 
 ## License
 

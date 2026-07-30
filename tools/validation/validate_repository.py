@@ -8,10 +8,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = ROOT / "skills"
 VERSION_PATH = ROOT / "VERSION"
+README_PATH = ROOT / "README.md"
+VERSION_DESCRIPTION_PATH = ROOT / "VERSION_DESC.md"
 MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -19,6 +22,10 @@ SEMVER_RE = re.compile(
     r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+LATEST_RELEASE_BADGE_RE = re.compile(
+    r"\[!\[Latest Release\]\((?P<badge_url>[^)]+)\)\]\((?P<target_url>[^)]+)\)"
+)
+LATEST_RELEASE_URL = "https://github.com/akshay-diwadkar/skills/releases/latest"
 EXPECTED_MARKETPLACE_GROUPS = {
     "engineering-skills": {
         "./skills/engineering/audit-codebase",
@@ -147,6 +154,46 @@ def validate_version() -> list[str]:
     return []
 
 
+def validate_version_description(path: Path | None = None) -> list[str]:
+    """Require usable release notes for the package version."""
+    path = path or VERSION_DESCRIPTION_PATH
+    if not path.is_file():
+        return ["Missing VERSION_DESC.md"]
+    if not path.read_text(encoding="utf-8").strip():
+        return ["VERSION_DESC.md must contain the GitHub release summary"]
+    return []
+
+
+def validate_readme_release_link(
+    readme_path: Path | None = None,
+    version_path: Path | None = None,
+) -> list[str]:
+    """Keep the dynamic latest-release badge cache key aligned with VERSION."""
+    readme_path = readme_path or README_PATH
+    version_path = version_path or VERSION_PATH
+    if not readme_path.is_file():
+        return ["Missing README.md"]
+    if not version_path.is_file():
+        return ["README.md: cannot validate latest-release badge without VERSION"]
+
+    match = LATEST_RELEASE_BADGE_RE.search(readme_path.read_text(encoding="utf-8"))
+    if match is None:
+        return ["README.md: missing Latest Release badge"]
+
+    errors: list[str] = []
+    if match.group("target_url") != LATEST_RELEASE_URL:
+        errors.append(f"README.md: Latest Release badge must target {LATEST_RELEASE_URL}")
+
+    version = version_path.read_text(encoding="utf-8").strip()
+    cache_versions = parse_qs(urlsplit(match.group("badge_url")).query).get("v", [])
+    if cache_versions != [version]:
+        errors.append(
+            "README.md: Latest Release badge cache key must match VERSION "
+            f"(expected v={version})"
+        )
+    return errors
+
+
 def validate_marketplace() -> list[str]:
     if not MARKETPLACE_PATH.is_file():
         return ["Missing .claude-plugin/marketplace.json"]
@@ -238,6 +285,7 @@ def validate_versioning_instructions() -> list[str]:
         errors.append("AGENTS.md and CLAUDE.md Versioning sections must match")
     required_terms = (
         "`VERSION`",
+        "`VERSION_DESC.md`",
         "Semantic Versioning",
         "only the affected",
         "unmodified skills retain",
@@ -317,6 +365,8 @@ def main() -> int:
     if not tracked_files():
         errors.append("Unable to enumerate Git-tracked repository files")
     errors.extend(validate_version())
+    errors.extend(validate_version_description())
+    errors.extend(validate_readme_release_link())
     errors.extend(validate_marketplace())
     errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())
