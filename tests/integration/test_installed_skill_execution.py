@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -139,3 +141,117 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
         )
         assert mismatch.returncode == 2
         assert json.loads(mismatch.stdout)["blocking_reasons"] == ["skill.adapter_mismatch"]
+
+
+@pytest.mark.parametrize(
+    ("domain", "name"),
+    [
+        ("engineering", "map-codebase"),
+        ("engineering", "design-codebase"),
+        ("engineering", "audit-codebase"),
+        ("engineering", "optimize-codebase"),
+        ("engineering", "scope-issue"),
+        ("engineering", "diagram-codebase"),
+        ("technical-communication", "manualize"),
+        ("engineering", "route-engineering-work"),
+    ],
+)
+def test_remaining_skill_common_cli_runs_from_standalone_install(
+    tmp_path: Path,
+    domain: str,
+    name: str,
+) -> None:
+    source = ROOT / "skills" / domain / name
+    installed = tmp_path / "installed" / name
+    shutil.copytree(source, installed)
+    before = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    existing = tmp_path / "input.json"
+    existing.write_text("{}\n", encoding="utf-8")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    run = tmp_path / f"{name}-run"
+    values: dict[str, list[str]] = {
+        "map-codebase": ["task=locate the application entrypoint"],
+        "design-codebase": [f"draft={existing}", f"output_dir={output_dir}"],
+        "audit-codebase": [f"bundle={existing}", f"checkpoint={tmp_path / 'checkpoint.json'}"],
+        "optimize-codebase": [
+            "path=full",
+            "scope=targeted",
+            "stage=plan",
+            f"report={tmp_path / 'report.md'}",
+            "implementation_authorized=no",
+        ],
+        "scope-issue": ["operation=execution-gate"],
+        "diagram-codebase": [
+            f"data={existing}",
+            f"output={tmp_path / 'diagram.html'}",
+            "create_dirs=no",
+            "overwrite=no",
+        ],
+        "manualize": [
+            "operation=audit",
+            "profile=standard",
+            f"manual={existing}",
+            f"bundle={existing}",
+            f"glossary={existing}",
+        ],
+        "route-engineering-work": ["request=Choose the planning workflow."],
+    }
+    argv = [
+        sys.executable,
+        str(installed / "scripts" / "cli.py"),
+        "--repo-root",
+        str(repo),
+    ]
+    if name != "route-engineering-work":
+        argv.extend(["--run-dir", str(run)])
+    for value in values[name]:
+        argv.extend(["--input", value])
+    argv.extend(["--format", "json", "doctor"])
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    response = json.loads(result.stdout)
+    assert response["status"] == "ready"
+    assert response["next_command"]["argv"][1] == str(installed / "scripts" / "cli.py")
+    after = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    assert after == before
+
+
+def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "engineering" / "route-engineering-work"
+    installed = tmp_path / "route-engineering-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Use map-codebase, then plan-change, then implement-plan.",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    response = json.loads(result.stdout)
+    assert response["status"] == "complete"
+    assert response["result"]["primary_skill"] == "plan-change"
+    assert response["result"]["prerequisites"] == ["map-codebase"]
+    assert not list(tmp_path.rglob(".skill-cli-state.json"))

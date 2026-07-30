@@ -88,10 +88,10 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version_description() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
-    assert versions["map-codebase"] == "1.1.0"
+    assert versions["map-codebase"] == "1.2.0"
     assert versions["plan-change"] == "1.2.0"
     assert versions["implement-plan"] == "1.1.0"
-    assert set(versions.values()) == {"1.0.0", "1.1.0", "1.2.0"}
+    assert set(versions.values()) == {"1.1.0", "1.2.0"}
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")

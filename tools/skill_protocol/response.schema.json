@@ -97,6 +97,7 @@
           "exists": {"type": "boolean"}
         }
       }
-    }
+    },
+    "result": {}
   }
 }

@@ -1,11 +1,13 @@
-# Core handoff skills on the common CLI
+# Complete common CLI coverage
 
-This release makes `plan-change` and `implement-plan` self-contained common-CLI
-skills with stable `doctor`, `start`, `next`, `validate`, and `finalize`
-lifecycles. Skill-local adapters preserve argv-safe handoffs after standalone
-installation and keep all run state outside tracked source.
+This release migrates every executable skill to common CLI protocol 1.0 while
+preserving all existing direct scripts and safety boundaries. Stateful skills
+now expose lifecycle-specific phases, late immutable inputs, progressive
+references, and explicit write permissions. `route-engineering-work` adds a
+stateless one-shot protocol result without creating run state.
 
-The migration retains plan-contract v5 evidence, inventory, adversarial,
-binding, and receipt checks, plus implementation-contract v3 dirty-worktree,
-freshness, hash, quality-evidence, workspace-reconciliation, and receipt
-checks. Existing direct scripts remain compatible lower-level entry points.
+Audit publication and issue follow-up retain their existing preflight,
+dry-run, confirmation, duplicate, and freshness gates. Read-only navigation,
+design, routing, and manual auditing do not gain repository write authority.
+Installed-package smoke tests cover every skill across Linux, macOS, and
+Windows on Python 3.11 and 3.12.

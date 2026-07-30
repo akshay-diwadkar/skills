@@ -1,0 +1,69 @@
+{
+  "protocol_version": "1.0",
+  "skill": "diagram-codebase",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill",
+  "requirements": [],
+  "inputs": [
+    {"name": "data", "kind": "path", "required": true, "repeatable": false, "description": "Approved diagram payload JSON.", "choices": []},
+    {"name": "output", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "Approved output HTML path.", "choices": []},
+    {"name": "create_dirs", "kind": "choice", "required": true, "repeatable": false, "description": "Explicit permission to create a missing output directory.", "choices": ["no", "yes"]},
+    {"name": "overwrite", "kind": "choice", "required": true, "repeatable": false, "description": "Explicit permission to overwrite an existing output.", "choices": ["no", "yes"]}
+  ],
+  "artifacts": [
+    {"name": "diagram", "path": "{input.output}", "media_type": "text/html", "external": true}
+  ],
+  "phases": {
+    "built": {
+      "status": "in_progress",
+      "next_action": "validate_generated_diagram",
+      "next_command": "validate",
+      "required_reads": ["{input.output}"],
+      "allowed_writes": ["{input.output}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "hand_code_alternate_renderer"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{input.output}"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "modify_validated_diagram"]
+    }
+  },
+  "commands": {
+    "start": [
+      {
+        "when": {"create_dirs": ["no"], "overwrite": ["no"]},
+        "allowed_phases": ["built"],
+        "success_phase": "built",
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+      },
+      {
+        "when": {"create_dirs": ["yes"], "overwrite": ["no"]},
+        "allowed_phases": ["built"],
+        "success_phase": "built",
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--create-dirs"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+      },
+      {
+        "when": {"create_dirs": ["no"], "overwrite": ["yes"]},
+        "allowed_phases": ["built"],
+        "success_phase": "built",
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+      },
+      {
+        "when": {"create_dirs": ["yes"], "overwrite": ["yes"]},
+        "allowed_phases": ["built"],
+        "success_phase": "built",
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--create-dirs", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+      }
+    ],
+    "validate": {
+      "allowed_phases": ["built"],
+      "success_phase": "complete",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/validate_diagram.py", "{input.output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+      ]
+    }
+  }
+}

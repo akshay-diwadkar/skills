@@ -17,6 +17,7 @@
   ],
   "properties": {
     "protocol_version": {"const": "1.0"},
+    "mode": {"enum": ["stateful", "stateless"], "default": "stateful"},
     "skill": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
     "minimum_python": {"type": "string", "pattern": "^\\d+\\.\\d+$"},
     "run_dir_policy": {"enum": ["outside_skill", "outside_skill_and_repo"]},
@@ -44,7 +45,12 @@
           "required": {"type": "boolean"},
           "repeatable": {"type": "boolean"},
           "description": {"type": "string"},
-          "choices": {"type": "array", "items": {"type": "string"}}
+          "choices": {"type": "array", "items": {"type": "string"}},
+          "required_for": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"}
+          },
+          "path_policy": {"enum": ["existing", "future"]}
         }
       }
     },
@@ -57,13 +63,13 @@
         "properties": {
           "name": {"type": "string"},
           "path": {"type": "string"},
-          "media_type": {"type": "string"}
+          "media_type": {"type": "string"},
+          "external": {"type": "boolean"}
         }
       }
     },
     "phases": {
       "type": "object",
-      "minProperties": 1,
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
@@ -78,7 +84,12 @@
         "properties": {
           "status": {"enum": ["ready", "in_progress", "blocked", "complete"]},
           "next_action": {"type": ["string", "null"]},
-          "next_command": {"enum": ["validate", "finalize", null]},
+          "next_command": {
+            "oneOf": [
+              {"type": "null"},
+              {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"}
+            ]
+          },
           "required_reads": {"type": "array", "items": {"type": "string"}},
           "conditional_reads": {
             "type": "array",
@@ -100,12 +111,11 @@
     },
     "commands": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["start", "validate", "finalize"],
-      "properties": {
-        "start": {"$ref": "#/$defs/command"},
-        "validate": {"$ref": "#/$defs/command"},
-        "finalize": {"$ref": "#/$defs/command"}
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/command"},
+          {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/command"}}
+        ]
       }
     }
   },
@@ -116,10 +126,17 @@
       "required": ["allowed_phases", "success_phase", "steps"],
       "properties": {
         "allowed_phases": {"type": "array", "items": {"type": "string"}},
-        "success_phase": {"type": "string"},
+        "success_phase": {"type": ["string", "null"]},
+        "when": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string"}
+          }
+        },
         "steps": {
           "type": "array",
-          "minItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,

@@ -374,3 +374,111 @@ def test_failed_post_finalize_step_does_not_commit_complete_state(tmp_path: Path
     assert json_result(result)["phase"] == "validated"
     state = json.loads((run / ".skill-cli-state.json").read_text(encoding="utf-8"))
     assert state["phase"] == "validated"
+
+
+def test_stateless_run_returns_inline_result_without_state(tmp_path: Path) -> None:
+    payload = {
+        "protocol_version": "1.0",
+        "mode": "stateless",
+        "skill": "fixture-skill",
+        "minimum_python": "3.11",
+        "run_dir_policy": "outside_skill",
+        "requirements": [],
+        "inputs": [
+            {
+                "name": "request",
+                "kind": "string",
+                "required": True,
+                "repeatable": False,
+                "description": "Request.",
+                "choices": [],
+            }
+        ],
+        "artifacts": [],
+        "phases": {},
+        "commands": {
+            "run": {
+                "allowed_phases": [],
+                "success_phase": None,
+                "steps": [
+                    {
+                        "argv": ["{python}", "{skill_dir}/scripts/workflow.py", "{input.request}"],
+                        "repeat": [],
+                        "capture_stdout": None,
+                        "diagnostics_json": False,
+                        "failure": "blocked",
+                    }
+                ],
+            }
+        },
+    }
+    skill = create_skill(tmp_path, payload)
+    (skill / "scripts" / "workflow.py").write_text(
+        "import json, sys\nprint(json.dumps({'request': sys.argv[1]}))\n",
+        encoding="utf-8",
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = invoke(skill, repo, "--input", "request=route me", "--format", "json", "run")
+    response = json_result(result)
+    assert result.returncode == 0
+    assert response["status"] == "complete"
+    assert response["result"] == {"request": "route me"}
+    assert not list(tmp_path.rglob(".skill-cli-state.json"))
+    unsupported = invoke(skill, repo, "--format", "json", "status")
+    assert unsupported.returncode == 3
+    assert json_result(unsupported)["blocking_reasons"] == ["command.unsupported"]
+
+
+def test_custom_next_transition_accepts_late_immutable_input(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["inputs"].append(
+        {
+            "name": "decision",
+            "kind": "choice",
+            "required": False,
+            "required_for": ["promote"],
+            "repeatable": False,
+            "description": "Late phase decision.",
+            "choices": ["yes", "no"],
+        }
+    )
+    payload["phases"]["drafting"]["next_command"] = "promote"
+    payload["commands"]["promote"] = {
+        "when": {"decision": ["yes"]},
+        "allowed_phases": ["drafting"],
+        "success_phase": "validated",
+        "steps": [],
+    }
+    payload["commands"]["promote"]["steps"] = payload["commands"]["validate"]["steps"]
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start").returncode == 0
+    advanced = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(run),
+        "--input",
+        "decision=yes",
+        "--format",
+        "json",
+        "next",
+    )
+    assert advanced.returncode == 0
+    assert json_result(advanced)["phase"] == "validated"
+    changed = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(run),
+        "--input",
+        "decision=no",
+        "--format",
+        "json",
+        "finalize",
+    )
+    assert changed.returncode == 3
+    assert json_result(changed)["blocking_reasons"] == ["input.immutable"]

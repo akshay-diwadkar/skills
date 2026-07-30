@@ -408,15 +408,29 @@ def validate_script_references(skill_dir: Path) -> list[str]:
 
 
 def validate_skill_protocol(skill_dir: Path) -> list[str]:
-    """Validate an optional common stateful-skill protocol manifest."""
+    """Validate the required common CLI contract for executable skills."""
     manifest_path = skill_dir / "skill-protocol.json"
+    scripts_dir = skill_dir / "scripts"
+    executable = scripts_dir.is_dir() and any(
+        path.name != "__init__.py" and "__pycache__" not in path.parts
+        for path in scripts_dir.rglob("*.py")
+    )
     if not manifest_path.exists():
-        return []
+        return [f"{skill_dir.relative_to(ROOT)}: executable skill is missing skill-protocol.json"] if executable else []
+    cli_path = scripts_dir / "cli.py"
+    fallback_path = scripts_dir / "_skill_protocol_runtime.py"
+    errors: list[str] = []
+    if not cli_path.is_file():
+        errors.append("executable skill must expose scripts/cli.py")
+    if not fallback_path.is_file():
+        errors.append("executable skill must package scripts/_skill_protocol_runtime.py")
+    elif fallback_path.read_bytes() != (ROOT / "tools" / "skill_protocol" / "runtime.py").read_bytes():
+        errors.append("packaged common CLI runtime is stale")
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         return [f"{manifest_path.relative_to(ROOT)}: invalid JSON: {exc}"]
-    errors = validate_manifest(payload, skill_dir=skill_dir)
+    errors.extend(validate_manifest(payload, skill_dir=skill_dir))
     if isinstance(payload, dict) and payload.get("skill") != skill_dir.name:
         errors.append("manifest skill must match the installed skill directory")
     return [f"{manifest_path.relative_to(ROOT)}: {error}" for error in sorted(set(errors))]

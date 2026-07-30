@@ -1,7 +1,7 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=1.4.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=1.5.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -117,6 +117,48 @@ Write an installation runbook from the checked-in configuration and scripts.
 ```
 
 The selected agent decides when to invoke an installed skill based on its name and description. You can mention the skill explicitly when you want a particular workflow.
+
+### Common executable protocol
+
+Every executable skill has a skill-local `scripts/cli.py`. Stateful workflows
+use the same provider-neutral command shape:
+
+```bash
+python /absolute/skill/scripts/cli.py \
+  --repo-root /absolute/repository \
+  --run-dir /absolute/external/run \
+  --input name=value \
+  --format json \
+  doctor
+```
+
+Continue with the returned `next_command`; each `next` response discloses only
+the references, inputs, and write permissions for its new phase. Depending on
+the skill, the lifecycle uses `start`, `status`, `next`, `validate`, and
+`finalize`.
+
+The read-only router is stateless:
+
+```bash
+python skills/engineering/route-engineering-work/scripts/cli.py \
+  --repo-root /absolute/repository \
+  --input request="Plan a safe API migration" \
+  --format json \
+  run
+```
+
+`map-codebase` retains its established command-first compatibility syntax:
+
+```bash
+python skills/engineering/map-codebase/scripts/cli.py status \
+  --repo-root /absolute/repository --format json
+```
+
+Its common progressive lifecycle uses global options first and returns
+ownership, constraints, and impacts on successive calls. External writes such
+as audit issue publication and post-merge issue comments require their
+existing preflight plus explicit protocol authorization; no read-only branch
+acquires write permission implicitly.
 
 ## Requirements and compatibility
 

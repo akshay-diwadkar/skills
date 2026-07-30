@@ -1,12 +1,17 @@
 ---
 name: manualize
 description: Write or audit source-grounded technical manuals, procedures, runbooks, guides, notices, error messages, and reference documentation. Use when technical content must preserve supplied facts while following deterministic controlled-language and operational-completeness checks.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Manualize
 
 Use MTE-1 to make technical information explicit, executable, and traceable to supplied sources. MTE-1 is an original controlled-English system inspired by ASD-STE100. Never claim official ASD-STE100 compliance. This skill does not contain or reproduce the ASD-STE100 approved-word dictionary.
+
+Use `scripts/cli.py` as the primary executable entrypoint. Select `write` to
+validate and finalize through the existing authoritative scripts, or `audit`
+to produce a hash-backed read-only report without invoking the finalizer.
+Existing validators and finalizer commands remain supported.
 
 Resolve `skill-root` as this directory. Run bundled scripts by absolute path, pass absolute artifact paths, and keep working files outside the installed skill. Technical correctness depends on the supplied source material; validation does not establish independent factual truth.
 

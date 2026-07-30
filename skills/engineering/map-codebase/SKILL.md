@@ -1,12 +1,24 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Map Codebase
 
 Use compact machine knowledge for navigation. Source is always authoritative.
+
+Use command-first `scripts/cli.py` calls below for the existing public CLI.
+For the common progressive protocol, place global options first:
+
+```bash
+python scripts/cli.py --repo-root /absolute/repo --run-dir /absolute/run \
+  --input task="locate authentication ownership" --format json start
+python scripts/cli.py --repo-root /absolute/repo --run-dir /absolute/run --format json next
+```
+
+The first response returns ownership references; later `next` calls return
+constraints and impacts without preloading later phases.
 
 ## Quick Start
 

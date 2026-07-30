@@ -1,0 +1,138 @@
+{
+  "protocol_version": "1.0",
+  "skill": "audit-codebase",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill_and_repo",
+  "requirements": [],
+  "inputs": [
+    {"name": "bundle", "kind": "path", "required": true, "repeatable": false, "description": "In-progress audit bundle JSON.", "choices": []},
+    {"name": "checkpoint", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "External atomic audit checkpoint path.", "choices": []},
+    {"name": "publication", "kind": "choice", "required": false, "required_for": ["publication_decision"], "repeatable": false, "description": "Stop locally or begin the approved publish path.", "choices": ["local", "publish"]},
+    {"name": "github_repo", "kind": "string", "required": false, "repeatable": false, "description": "Approved GitHub owner/repository destination.", "choices": []},
+    {"name": "env_file", "kind": "path", "required": false, "repeatable": false, "description": "Explicit GitHub environment file.", "choices": []},
+    {"name": "publish_confirmation", "kind": "choice", "required": false, "required_for": ["publish_issues"], "repeatable": false, "description": "Explicit confirmation after reviewing the dry run.", "choices": ["yes"]}
+  ],
+  "artifacts": [],
+  "phases": {
+    "audit_context": {
+      "status": "in_progress",
+      "next_action": "complete_and_checkpoint_audit_context",
+      "next_command": "checkpoint_context",
+      "required_reads": ["{skill_dir}/references/audit-protocol.md", "{skill_dir}/references/audit-bundle.md", "{input.bundle}"],
+      "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
+    },
+    "risk_surfaces": {
+      "status": "in_progress",
+      "next_action": "complete_and_checkpoint_risk_surfaces",
+      "next_command": "checkpoint_surfaces",
+      "required_reads": ["{skill_dir}/references/deep-analysis-patterns.md", "{input.bundle}"],
+      "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
+    },
+    "coverage": {
+      "status": "in_progress",
+      "next_action": "complete_and_checkpoint_coverage",
+      "next_command": "checkpoint_coverage",
+      "required_reads": ["{input.bundle}"],
+      "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
+    },
+    "candidates": {
+      "status": "in_progress",
+      "next_action": "disconfirm_and_checkpoint_candidates",
+      "next_command": "checkpoint_candidates",
+      "required_reads": ["{skill_dir}/references/audit-rubric.md", "{input.bundle}"],
+      "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
+    },
+    "issues": {
+      "status": "in_progress",
+      "next_action": "validate_and_checkpoint_issue_drafts",
+      "next_command": "validate",
+      "required_reads": ["{input.bundle}"],
+      "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
+    },
+    "reviewed": {
+      "status": "ready",
+      "next_action": "choose_local_completion_or_approved_publication",
+      "next_command": "publication_decision",
+      "required_reads": ["{input.bundle}"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_without_dry_run"]
+    },
+    "publication_review": {
+      "status": "ready",
+      "next_action": "review_dry_run_and_confirm_publication",
+      "next_command": "publish_issues",
+      "required_reads": ["{input.bundle}"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_without_confirmation"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{input.bundle}"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "close_github_issue_implicitly"]
+    }
+  },
+  "commands": {
+    "start": {"allowed_phases": ["audit_context"], "success_phase": "audit_context", "steps": []},
+    "checkpoint_context": {
+      "allowed_phases": ["audit_context"],
+      "success_phase": "risk_surfaces",
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "audit_context"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+    },
+    "checkpoint_surfaces": {
+      "allowed_phases": ["risk_surfaces"],
+      "success_phase": "coverage",
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "risk_surfaces"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+    },
+    "checkpoint_coverage": {
+      "allowed_phases": ["coverage"],
+      "success_phase": "candidates",
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "coverage"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+    },
+    "checkpoint_candidates": {
+      "allowed_phases": ["candidates"],
+      "success_phase": "issues",
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "candidates"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+    },
+    "validate": {
+      "allowed_phases": ["issues"],
+      "success_phase": "reviewed",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
+        {"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "issues"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
+      ]
+    },
+    "publication_decision": [
+      {
+        "when": {"publication": ["local"]},
+        "allowed_phases": ["reviewed"],
+        "success_phase": "complete",
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+      },
+      {
+        "when": {"publication": ["publish"]},
+        "allowed_phases": ["reviewed"],
+        "success_phase": "publication_review",
+        "steps": [
+          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
+          {"argv": ["{python}", "{skill_dir}/scripts/publish_github_issues.py", "--input", "{input.bundle}", "--github-repo-url", "{input.github_repo}", "--env", "{input.env_file}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+        ]
+      }
+    ],
+    "publish_issues": {
+      "when": {"publish_confirmation": ["yes"]},
+      "allowed_phases": ["publication_review"],
+      "success_phase": "complete",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/publish_github_issues.py", "--input", "{input.bundle}", "--github-repo-url", "{input.github_repo}", "--env", "{input.env_file}", "--publish"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
+      ]
+    }
+  }
+}

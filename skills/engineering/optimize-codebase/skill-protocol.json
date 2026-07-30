@@ -1,0 +1,105 @@
+{
+  "protocol_version": "1.0",
+  "skill": "optimize-codebase",
+  "minimum_python": "3.11",
+  "run_dir_policy": "outside_skill_and_repo",
+  "requirements": [],
+  "inputs": [
+    {"name": "path", "kind": "choice", "required": true, "repeatable": false, "description": "Optimization fast or full path.", "choices": ["fast", "full"]},
+    {"name": "scope", "kind": "choice", "required": true, "repeatable": false, "description": "Targeted or sweep scope.", "choices": ["targeted", "sweep"]},
+    {"name": "stage", "kind": "choice", "required": true, "repeatable": false, "description": "Plan or explicitly authorized implementation stage.", "choices": ["plan", "implementation"]},
+    {"name": "report", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "Absolute optimization report path.", "choices": []},
+    {"name": "implementation_authorized", "kind": "choice", "required": true, "repeatable": false, "description": "Whether repository implementation was explicitly authorized.", "choices": ["no", "yes"]}
+  ],
+  "artifacts": [
+    {"name": "report", "path": "{input.report}", "media_type": "text/markdown", "external": true}
+  ],
+  "phases": {
+    "drafting_plan": {
+      "status": "in_progress",
+      "next_action": "complete_and_validate_optimization_plan",
+      "next_command": "validate",
+      "required_reads": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md", "{input.report}"],
+      "allowed_writes": ["{input.report}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "implement_without_authorization"]
+    },
+    "drafting_implementation": {
+      "status": "in_progress",
+      "next_action": "complete_authorized_candidate_and_validation_evidence",
+      "next_command": "validate",
+      "required_reads": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md", "{input.report}"],
+      "allowed_writes": ["{input.report}", "{repo_root}"],
+      "forbidden_actions": ["write_installed_skill", "implement_outside_selected_candidate", "retain_failed_or_inconclusive_patch"]
+    },
+    "complete": {
+      "status": "complete",
+      "next_action": null,
+      "next_command": null,
+      "required_reads": ["{input.report}"],
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "modify_validated_report"]
+    }
+  },
+  "commands": {
+    "start": [
+      {
+        "when": {"stage": ["plan"]},
+        "allowed_phases": ["drafting_plan"],
+        "success_phase": "drafting_plan",
+        "steps": [
+          {
+            "argv": ["{python}", "{skill_dir}/scripts/scaffold_optimization.py", "--path", "{input.path}", "--scope", "{input.scope}", "--stage", "{input.stage}"],
+            "repeat": [],
+            "capture_stdout": "report",
+            "diagnostics_json": false,
+            "failure": "operational"
+          }
+        ]
+      },
+      {
+        "when": {"stage": ["implementation"], "implementation_authorized": ["yes"]},
+        "allowed_phases": ["drafting_implementation"],
+        "success_phase": "drafting_implementation",
+        "steps": [
+          {
+            "argv": ["{python}", "{skill_dir}/scripts/scaffold_optimization.py", "--path", "{input.path}", "--scope", "{input.scope}", "--stage", "{input.stage}"],
+            "repeat": [],
+            "capture_stdout": "report",
+            "diagnostics_json": false,
+            "failure": "operational"
+          }
+        ]
+      }
+    ],
+    "validate": [
+      {
+        "when": {"stage": ["plan"]},
+        "allowed_phases": ["drafting_plan"],
+        "success_phase": "complete",
+        "steps": [
+          {
+            "argv": ["{python}", "{skill_dir}/scripts/check_optimization.py", "--path", "{input.path}", "--scope", "{input.scope}", "--stage", "{input.stage}", "--repo-root", "{repo_root}", "--format", "json", "{input.report}"],
+            "repeat": [],
+            "capture_stdout": null,
+            "diagnostics_json": true,
+            "failure": "blocked"
+          }
+        ]
+      },
+      {
+        "when": {"stage": ["implementation"], "implementation_authorized": ["yes"]},
+        "allowed_phases": ["drafting_implementation"],
+        "success_phase": "complete",
+        "steps": [
+          {
+            "argv": ["{python}", "{skill_dir}/scripts/check_optimization.py", "--path", "{input.path}", "--scope", "{input.scope}", "--stage", "{input.stage}", "--repo-root", "{repo_root}", "--format", "json", "{input.report}"],
+            "repeat": [],
+            "capture_stdout": null,
+            "diagnostics_json": true,
+            "failure": "blocked"
+          }
+        ]
+      }
+    ]
+  }
+}

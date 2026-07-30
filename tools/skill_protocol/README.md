@@ -1,7 +1,8 @@
 # Common Stateful Skill CLI Protocol 1.0
 
-This runtime gives stateful skills one provider-neutral lifecycle:
-`doctor`, `start`, `status`, `next`, `validate`, and `finalize`.
+This runtime gives executable skills one provider-neutral interface. Stateful
+skills use `doctor`, `start`, `status`, `next`, and lifecycle-specific
+`validate` or `finalize` transitions. Stateless skills use `doctor` and `run`.
 It uses only the Python standard library and invokes existing skill scripts
 without a shell.
 
@@ -14,7 +15,7 @@ python /absolute/runtime/tools/skill_cli.py \
   [--run-dir /absolute/external/run] \
   [--input name=value ...] \
   --format <human|json> \
-  <doctor|start|status|next|validate|finalize>
+  <doctor|run|start|status|next|validate|finalize>
 ```
 
 An installed skill may expose `scripts/cli.py`, which fixes `--skill-dir` to
@@ -66,6 +67,9 @@ stderr.
 `next_command.argv` is an argv array, not a shell command. Consumers must
 execute it directly with `next_command.cwd`.
 
+Stateless `run` does not accept `--run-dir`, does not write protocol state, and
+returns wrapped structured output in the optional `result` field.
+
 ## Manifest contract
 
 The manifest schema is `manifest.schema.json`. Commands contain ordered steps.
@@ -80,6 +84,13 @@ never interpolated into a shell.
 Phase names are skill-defined except for the required terminal `complete`
 phase. `conditional_reads` can add paths for selected declared input values
 without exposing unrelated references in other runs.
+
+Stateful manifests require `start`; stateless manifests require `run`.
+Skill-defined transition commands are reached through `next`, and command
+variants must resolve from declared choice inputs to exactly one branch.
+`required_for` inputs may be supplied at later transitions and become
+immutable when stored. External artifacts must resolve directly from declared
+path inputs and be listed in the active phase's `allowed_writes`.
 
 Protocol 1.x may add optional behavior but will not change required response
 fields, their types, command meanings, or exit-code categories. Breaking
