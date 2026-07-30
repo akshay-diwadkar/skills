@@ -24,6 +24,13 @@ CANONICAL_SKILLS = {
 CANONICAL_SKILL_NAMES = {name for _, name in CANONICAL_SKILLS}
 
 
+def _skill_version(skill: Path) -> str:
+    frontmatter = (skill / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+    match = re.search(r"^version:\s*(.+)$", frontmatter, re.MULTILINE)
+    assert match is not None
+    return match.group(1).strip()
+
+
 def test_repository_validation_passes() -> None:
     assert validator.main() == 0
 
@@ -78,14 +85,7 @@ def test_skill_packages_have_no_platform_metadata() -> None:
 def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
-    versions = {
-        skill.name: re.search(
-            r"^version:\s*(.+)$",
-            (skill / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1],
-            re.MULTILINE,
-        ).group(1).strip()
-        for skill in validator.discover_skills()
-    }
+    versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "1.1.0"
     assert set(versions.values()) == {"1.0.0", "1.1.0"}
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")

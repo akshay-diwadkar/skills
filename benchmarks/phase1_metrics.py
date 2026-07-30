@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 
@@ -61,7 +61,7 @@ def _best_expected(predicted: set[str], accepted: list[set[str]]) -> set[str]:
     )
 
 
-def aggregate_phase1_metrics(outcomes: list[Mapping[str, Any]]) -> dict[str, Any]:
+def aggregate_phase1_metrics(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     scored = [
         outcome
         for outcome in outcomes

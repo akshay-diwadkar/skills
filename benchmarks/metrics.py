@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 from .phase1_metrics import aggregate_phase1_metrics
@@ -19,7 +19,7 @@ def _set(values: Iterable[object]) -> set[str]:
 
 
 def _phase_metrics(
-    outcomes: list[Mapping[str, Any]], predicted_field: str, expected_field: str
+    outcomes: Sequence[Mapping[str, Any]], predicted_field: str, expected_field: str
 ) -> dict[str, float | int | bool]:
     true_positive = predicted = expected = 0
     for outcome in outcomes:
@@ -38,7 +38,7 @@ def _phase_metrics(
     }
 
 
-def aggregate_benchmark_metrics(outcomes: list[Mapping[str, Any]]) -> dict[str, Any]:
+def aggregate_benchmark_metrics(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Score phases independently; no Phase 2/3 path can affect owner precision."""
     return {
         "phase1": aggregate_phase1_metrics(outcomes),

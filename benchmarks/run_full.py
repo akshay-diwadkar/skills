@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "benchmarks" / "reports"
@@ -19,7 +20,7 @@ def _runner() -> ModuleType:
     return module
 
 
-def write_report(result: dict[str, object], profile: str, runner: ModuleType) -> None:
+def write_report(result: dict[str, Any], profile: str, runner: ModuleType) -> None:
     if "metrics" not in result:
         return
     REPORTS.mkdir(parents=True, exist_ok=True)
@@ -29,8 +30,8 @@ def write_report(result: dict[str, object], profile: str, runner: ModuleType) ->
     )
     if profile == "full":
         (REPORTS / "after-full.md").write_text(runner.render_markdown(result), encoding="utf-8")
-        resolver = result["metrics"]["resolver"]  # type: ignore[index]
-        split_metrics = result.get("split_results", {})  # type: ignore[union-attr]
+        resolver = result["metrics"]["resolver"]
+        split_metrics = result.get("split_results", {})
         heldout = split_metrics.get("heldout", {}).get("metrics", {}).get("phase1", {})
         comparison = [
             "# Resolver Before/After",
