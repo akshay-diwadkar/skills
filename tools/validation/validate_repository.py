@@ -11,6 +11,11 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.skill_protocol import validate_manifest  # noqa: E402
+
 SKILLS_ROOT = ROOT / "skills"
 VERSION_PATH = ROOT / "VERSION"
 README_PATH = ROOT / "README.md"
@@ -91,6 +96,7 @@ ALLOWED_TOP_LEVEL = {
     ".env.example",
     "README.md",
     "CHANGELOG.md",
+    "skill-protocol.json",
 }
 FORBIDDEN_PARTS = {"agents", "evals", "fixtures", "__pycache__"}
 ALLOWED_DOMAIN_FILES = {"README.md"}
@@ -401,6 +407,21 @@ def validate_script_references(skill_dir: Path) -> list[str]:
     return errors
 
 
+def validate_skill_protocol(skill_dir: Path) -> list[str]:
+    """Validate an optional common stateful-skill protocol manifest."""
+    manifest_path = skill_dir / "skill-protocol.json"
+    if not manifest_path.exists():
+        return []
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"{manifest_path.relative_to(ROOT)}: invalid JSON: {exc}"]
+    errors = validate_manifest(payload, skill_dir=skill_dir)
+    if isinstance(payload, dict) and payload.get("skill") != skill_dir.name:
+        errors.append("manifest skill must match the installed skill directory")
+    return [f"{manifest_path.relative_to(ROOT)}: {error}" for error in sorted(set(errors))]
+
+
 def validate_retired_surfaces() -> list[str]:
     """Reject tracked-style platform surfaces while tolerating ignored bytecode caches."""
     errors: list[str] = []
@@ -448,6 +469,7 @@ def main() -> int:
     for skill_dir in skills:
         errors.extend(validate_skill_package(skill_dir))
         errors.extend(validate_script_references(skill_dir))
+        errors.extend(validate_skill_protocol(skill_dir))
     errors.extend(validate_retired_surfaces())
     errors.extend(validate_legacy_plan_contracts())
     for script in ("generate_plan_contract.py", "sync_plan_runtime.py"):

@@ -1,0 +1,312 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+import jsonschema
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+CLI = ROOT / "tools" / "skill_cli.py"
+RESPONSE_SCHEMA = json.loads((ROOT / "tools" / "skill_protocol" / "response.schema.json").read_text())
+MANIFEST_SCHEMA = json.loads((ROOT / "tools" / "skill_protocol" / "manifest.schema.json").read_text())
+
+
+def manifest() -> dict[str, Any]:
+    step = {
+        "argv": ["{python}", "{skill_dir}/scripts/workflow.py", "{run_dir}"],
+        "repeat": [{"input": "tag", "flag": "--tag"}],
+        "capture_stdout": None,
+        "diagnostics_json": False,
+        "failure": "operational",
+    }
+    return {
+        "protocol_version": "1.0",
+        "skill": "fixture-skill",
+        "minimum_python": "3.11",
+        "run_dir_policy": "outside_skill",
+        "requirements": [],
+        "inputs": [
+            {
+                "name": "tag",
+                "kind": "string",
+                "required": False,
+                "repeatable": True,
+                "description": "Fixture tags.",
+                "choices": [],
+            }
+        ],
+        "artifacts": [{"name": "work", "path": "work.txt", "media_type": "text/plain"}],
+        "phases": {
+            "drafting": {
+                "status": "in_progress",
+                "next_action": "validate",
+                "next_command": "validate",
+                "required_reads": ["{run_dir}/work.txt"],
+                "allowed_writes": ["{run_dir}/work.txt"],
+                "forbidden_actions": ["write_installed_skill"],
+            },
+            "validated": {
+                "status": "ready",
+                "next_action": "finalize",
+                "next_command": "finalize",
+                "required_reads": ["{run_dir}/work.txt"],
+                "allowed_writes": [],
+                "forbidden_actions": ["write_installed_skill"],
+            },
+            "complete": {
+                "status": "complete",
+                "next_action": None,
+                "next_command": None,
+                "required_reads": ["{run_dir}/work.txt"],
+                "allowed_writes": [],
+                "forbidden_actions": ["write_installed_skill"],
+            },
+        },
+        "commands": {
+            "start": {"allowed_phases": ["drafting"], "success_phase": "drafting", "steps": [step]},
+            "validate": {
+                "allowed_phases": ["drafting", "validated"],
+                "success_phase": "validated",
+                "steps": [step],
+            },
+            "finalize": {
+                "allowed_phases": ["validated"],
+                "success_phase": "complete",
+                "steps": [step],
+            },
+        },
+    }
+
+
+def create_skill(tmp_path: Path, payload: dict[str, Any] | None = None) -> Path:
+    skill = tmp_path / "fixture-skill"
+    scripts = skill / "scripts"
+    scripts.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(
+        "---\nname: fixture-skill\ndescription: Fixture.\nversion: 1.0.0\n---\n",
+        encoding="utf-8",
+    )
+    (skill / "skill-protocol.json").write_text(json.dumps(payload or manifest()), encoding="utf-8")
+    (scripts / "workflow.py").write_text(
+        "from pathlib import Path\n"
+        "import sys\n"
+        "run = Path(sys.argv[1])\n"
+        "run.mkdir(parents=True, exist_ok=False) if not run.exists() else None\n"
+        "(run / 'work.txt').write_text(' '.join(sys.argv[2:]), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    return skill
+
+
+def invoke(skill: Path, repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(CLI),
+            "--skill-dir",
+            str(skill),
+            "--repo-root",
+            str(repo),
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def json_result(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+    assert result.stderr == ""
+    assert result.stdout.endswith("\n")
+    assert result.stdout.count("\n") == 1
+    payload = json.loads(result.stdout)
+    jsonschema.validate(payload, RESPONSE_SCHEMA)
+    return payload
+
+
+def test_manifest_and_response_schemas_accept_reference_contract(tmp_path: Path) -> None:
+    payload = manifest()
+    jsonschema.validate(payload, MANIFEST_SCHEMA)
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    response = json_result(invoke(skill, repo, "--format", "json", "doctor"))
+    assert response["status"] == "ready"
+
+
+def test_lifecycle_repeated_inputs_state_and_idempotent_complete(tmp_path: Path) -> None:
+    skill = create_skill(tmp_path)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    start = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(run),
+        "--input",
+        "tag=one",
+        "--input",
+        "tag=two",
+        "--format",
+        "json",
+        "start",
+    )
+    assert start.returncode == 0
+    assert json_result(start)["phase"] == "drafting"
+    assert (run / "work.txt").read_text(encoding="utf-8") == "--tag one --tag two"
+    assert json_result(invoke(skill, repo, "--run-dir", str(run), "--format", "json", "status"))["phase"] == "drafting"
+    assert json_result(invoke(skill, repo, "--run-dir", str(run), "--format", "json", "next"))["phase"] == "validated"
+    assert json_result(invoke(skill, repo, "--run-dir", str(run), "--format", "json", "next"))["phase"] == "complete"
+    complete = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "next")
+    assert complete.returncode == 0
+    assert json_result(complete)["phase"] == "complete"
+    assert not list(run.glob("*.tmp"))
+
+
+def test_json_invocation_errors_are_machine_readable_and_stderr_free(tmp_path: Path) -> None:
+    result = subprocess.run(
+        [sys.executable, str(CLI), "--format", "json", "start"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    payload = json_result(result)
+    assert payload["blocking_reasons"] == ["invocation.invalid"]
+
+
+def test_rejects_run_inside_skill_existing_run_and_state_identity_change(tmp_path: Path) -> None:
+    skill = create_skill(tmp_path)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    unsafe = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(skill / "run"),
+        "--format",
+        "json",
+        "start",
+    )
+    assert unsafe.returncode == 2
+    assert json_result(unsafe)["blocking_reasons"] == ["path.run_dir_in_skill"]
+
+    run = tmp_path / "run"
+    run.mkdir()
+    existing = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start")
+    assert existing.returncode == 2
+    assert json_result(existing)["blocking_reasons"] == ["state.run_exists"]
+
+    run.rmdir()
+    started = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start")
+    assert started.returncode == 0
+    other_repo = tmp_path / "other-repo"
+    other_repo.mkdir()
+    mismatch = invoke(skill, other_repo, "--run-dir", str(run), "--format", "json", "status")
+    assert mismatch.returncode == 2
+    assert json_result(mismatch)["blocking_reasons"] == ["state.identity_mismatch"]
+
+
+def test_rejects_symlink_escape_into_installed_skill(tmp_path: Path) -> None:
+    skill = create_skill(tmp_path)
+    internal = skill / "internal"
+    internal.mkdir()
+    link = tmp_path / "linked-state"
+    try:
+        os.symlink(internal, link, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks are unavailable: {exc}")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = invoke(skill, repo, "--run-dir", str(link / "run"), "--format", "json", "start")
+    assert result.returncode == 2
+    assert json_result(result)["blocking_reasons"] == ["path.run_dir_in_skill"]
+
+
+def test_manifest_rejects_unknown_placeholder_and_traversal(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["commands"]["start"]["steps"][0]["argv"].append("{mystery}")
+    payload["artifacts"][0]["path"] = "../escape"
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = invoke(skill, repo, "--format", "json", "doctor")
+    assert result.returncode == 2
+    response = json_result(result)
+    assert response["blocking_reasons"] == ["manifest.invalid"]
+
+
+def test_human_failure_uses_stderr_without_traceback(tmp_path: Path) -> None:
+    skill = create_skill(tmp_path)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    result = invoke(skill, repo, "status")
+    assert result.returncode == 2
+    assert "state.invalid" in result.stderr or "path.run_dir_required" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_child_failure_and_invalid_diagnostic_json_are_actionable(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["commands"]["validate"]["steps"][0]["diagnostics_json"] = True
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start").returncode == 0
+    (skill / "scripts" / "workflow.py").write_text(
+        "print('{not-json')\nraise SystemExit(1)\n",
+        encoding="utf-8",
+    )
+    result = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "validate")
+    assert result.returncode == 4
+    response = json_result(result)
+    assert response["blocking_reasons"] == ["adapter.validate_failed"]
+    assert response["diagnostics"][0]["details"]["returncode"] == 1
+
+
+def test_tampered_state_is_rejected(tmp_path: Path) -> None:
+    skill = create_skill(tmp_path)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start").returncode == 0
+    state_path = run / ".skill-cli-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["phase"] = "complete"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    result = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "status")
+    assert result.returncode == 2
+    assert json_result(result)["blocking_reasons"] == ["state.tampered"]
+
+
+def test_failed_post_finalize_step_does_not_commit_complete_state(tmp_path: Path) -> None:
+    payload = manifest()
+    capture = payload["commands"]["finalize"]["steps"][0]
+    capture["capture_stdout"] = "work"
+    failing = {
+        "argv": ["{python}", "{skill_dir}/scripts/fail.py"],
+        "repeat": [],
+        "capture_stdout": None,
+        "diagnostics_json": False,
+        "failure": "operational",
+    }
+    payload["commands"]["finalize"]["steps"].append(failing)
+    skill = create_skill(tmp_path, payload)
+    (skill / "scripts" / "fail.py").write_text("raise SystemExit(9)\n", encoding="utf-8")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start").returncode == 0
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "validate").returncode == 0
+    result = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "finalize")
+    assert result.returncode == 4
+    assert json_result(result)["phase"] == "validated"
+    state = json.loads((run / ".skill-cli-state.json").read_text(encoding="utf-8"))
+    assert state["phase"] == "validated"

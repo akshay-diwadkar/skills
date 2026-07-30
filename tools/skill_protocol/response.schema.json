@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/akshay-diwadkar/skills/tools/skill_protocol/response.schema.json",
+  "title": "Common Stateful Skill CLI Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "skill",
+    "status",
+    "phase",
+    "next_action",
+    "next_command",
+    "required_reads",
+    "required_inputs",
+    "allowed_writes",
+    "forbidden_actions",
+    "blocking_reasons",
+    "diagnostics",
+    "artifacts"
+  ],
+  "properties": {
+    "protocol_version": {"const": "1.0"},
+    "skill": {"type": "string", "minLength": 1},
+    "status": {"enum": ["ready", "in_progress", "blocked", "complete", "error"]},
+    "phase": {"type": ["string", "null"]},
+    "next_action": {"type": ["string", "null"]},
+    "next_command": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "cwd"],
+          "properties": {
+            "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+            "cwd": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "required_reads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "required_inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "required", "repeatable", "description"],
+        "properties": {
+          "name": {"type": "string"},
+          "kind": {"enum": ["string", "path", "choice"]},
+          "required": {"type": "boolean"},
+          "repeatable": {"type": "boolean"},
+          "description": {"type": "string"}
+        }
+      }
+    },
+    "allowed_writes": {"type": "array", "items": {"type": "string"}},
+    "forbidden_actions": {"type": "array", "items": {"type": "string"}},
+    "blocking_reasons": {"type": "array", "items": {"type": "string"}},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message", "hint", "details"],
+        "properties": {
+          "code": {"type": "string"},
+          "severity": {"enum": ["info", "warning", "error"]},
+          "message": {"type": "string"},
+          "hint": {"type": "string"},
+          "details": {"type": "object"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path", "media_type", "exists"],
+        "properties": {
+          "name": {"type": "string"},
+          "path": {"type": "string"},
+          "media_type": {"type": "string"},
+          "exists": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

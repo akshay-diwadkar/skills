@@ -46,9 +46,12 @@ def main() -> int:
     tooling = [
         ROOT / "tools" / "validation",
         ROOT / "tools" / "benchmarks",
+        ROOT / "tools" / "skill_protocol",
+        ROOT / "tools" / "skill_cli.py",
         ROOT / "tests" / "benchmarks",
         ROOT / "tests" / "repository",
         ROOT / "tests" / "integration",
+        ROOT / "tests" / "skill_protocol",
     ]
     if not run_mypy_group("repository tooling", tooling):
         failures.append("repository tooling")

@@ -1,0 +1,1031 @@
+#!/usr/bin/env python3
+"""Common provider-neutral CLI runtime for declaratively wrapped stateful skills."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.metadata
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, NoReturn, Sequence
+
+PROTOCOL_VERSION = "1.0"
+STATE_FILE = ".skill-cli-state.json"
+MANIFEST_FILE = "skill-protocol.json"
+COMMANDS = ("doctor", "start", "status", "next", "validate", "finalize")
+STATUSES = {"ready", "in_progress", "blocked", "complete", "error"}
+PLACEHOLDER_RE = re.compile(r"\{(python|skill_dir|repo_root|run_dir|input\.[A-Za-z][A-Za-z0-9_-]*)\}")
+SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+
+EXIT_OK = 0
+EXIT_USAGE = 2
+EXIT_BLOCKED = 3
+EXIT_OPERATIONAL = 4
+EXIT_INTERNAL = 70
+
+
+class ProtocolError(Exception):
+    """Expected protocol error carrying a stable code and exit status."""
+
+    def __init__(self, code: str, message: str, hint: str, exit_code: int = EXIT_USAGE):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.hint = hint
+        self.exit_code = exit_code
+
+
+class JsonArgumentParser(argparse.ArgumentParser):
+    """Argument parser whose failures can be rendered through the protocol."""
+
+    def error(self, message: str) -> NoReturn:
+        raise ProtocolError("invocation.invalid", message, "Correct the command arguments and retry.")
+
+
+@dataclass(frozen=True)
+class Context:
+    cli_path: Path
+    skill_dir: Path
+    repo_root: Path
+    run_dir: Path | None
+    manifest: dict[str, Any]
+    manifest_digest: str
+    inputs: dict[str, Any]
+    output_format: str
+
+    @property
+    def skill(self) -> str:
+        return str(self.manifest["skill"])
+
+
+def _diagnostic(
+    code: str,
+    message: str,
+    hint: str,
+    *,
+    severity: str = "error",
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "code": code,
+        "severity": severity,
+        "message": message,
+        "hint": hint,
+        "details": details or {},
+    }
+
+
+def _empty_envelope(skill: str = "unknown") -> dict[str, Any]:
+    return {
+        "protocol_version": PROTOCOL_VERSION,
+        "skill": skill,
+        "status": "error",
+        "phase": None,
+        "next_action": None,
+        "next_command": None,
+        "required_reads": [],
+        "required_inputs": [],
+        "allowed_writes": [],
+        "forbidden_actions": [],
+        "blocking_reasons": [],
+        "diagnostics": [],
+        "artifacts": [],
+    }
+
+
+def _error_envelope(error: ProtocolError, skill: str = "unknown") -> dict[str, Any]:
+    envelope = _empty_envelope(skill)
+    envelope["status"] = "blocked" if error.exit_code == EXIT_BLOCKED else "error"
+    envelope["blocking_reasons"] = [error.code]
+    envelope["diagnostics"] = [_diagnostic(error.code, error.message, error.hint)]
+    return envelope
+
+
+def _within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _canonical_dir(raw: str | Path, label: str) -> Path:
+    try:
+        path = Path(raw).expanduser().resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ProtocolError(
+            f"path.{label}_invalid",
+            f"{label.replace('_', ' ')} cannot be resolved: {raw}",
+            f"Pass an existing directory with --{label.replace('_', '-')}. Details: {exc}",
+        ) from exc
+    if not path.is_dir():
+        raise ProtocolError(
+            f"path.{label}_invalid",
+            f"{label.replace('_', ' ')} is not a directory: {path}",
+            f"Pass an existing directory with --{label.replace('_', '-')}.",
+        )
+    return path
+
+
+def _safe_future_path(raw: str | Path) -> Path:
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    missing: list[str] = []
+    cursor = path
+    while not cursor.exists():
+        missing.append(cursor.name)
+        if cursor.parent == cursor:
+            break
+        cursor = cursor.parent
+    try:
+        resolved = cursor.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ProtocolError(
+            "path.run_dir_invalid",
+            f"run directory cannot be resolved safely: {raw}",
+            f"Use a path beneath an existing directory. Details: {exc}",
+        ) from exc
+    for part in reversed(missing):
+        resolved /= part
+    return resolved
+
+
+def _read_skill_name(skill_dir: Path) -> str:
+    skill_md = skill_dir / "SKILL.md"
+    if not skill_md.is_file():
+        raise ProtocolError(
+            "skill.metadata_missing",
+            f"installed skill has no SKILL.md: {skill_dir}",
+            "Pass the root directory of an installed skill.",
+        )
+    text = skill_md.read_text(encoding="utf-8")
+    match = re.search(r"^name:\s*([A-Za-z0-9_-]+)\s*$", text, re.MULTILINE)
+    if not match:
+        raise ProtocolError(
+            "skill.name_missing",
+            f"SKILL.md has no valid name field: {skill_md}",
+            "Add a YAML frontmatter name matching the installed skill directory.",
+        )
+    return match.group(1)
+
+
+def _manifest_error(message: str) -> ProtocolError:
+    return ProtocolError("manifest.invalid", message, "Repair skill-protocol.json and run doctor again.")
+
+
+def _validate_template(value: str, input_names: set[str]) -> None:
+    scrubbed = PLACEHOLDER_RE.sub("", value)
+    if "{" in scrubbed or "}" in scrubbed:
+        raise _manifest_error(f"unknown or malformed placeholder in {value!r}")
+    for placeholder in PLACEHOLDER_RE.findall(value):
+        if placeholder.startswith("input.") and placeholder.removeprefix("input.") not in input_names:
+            raise _manifest_error(f"placeholder references unknown input {placeholder!r}")
+
+
+def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
+    """Return deterministic manifest contract errors without third-party dependencies."""
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["manifest must be a JSON object"]
+    expected = {
+        "protocol_version",
+        "skill",
+        "minimum_python",
+        "run_dir_policy",
+        "requirements",
+        "inputs",
+        "artifacts",
+        "phases",
+        "commands",
+    }
+    if set(data) != expected:
+        errors.append(f"manifest fields must be exactly {sorted(expected)}")
+    if data.get("protocol_version") != PROTOCOL_VERSION:
+        errors.append(f"protocol_version must be {PROTOCOL_VERSION!r}")
+    skill = data.get("skill")
+    if not isinstance(skill, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", skill):
+        errors.append("skill must be a kebab-case string")
+    minimum_python = data.get("minimum_python")
+    if not isinstance(minimum_python, str) or not re.fullmatch(r"\d+\.\d+", minimum_python):
+        errors.append("minimum_python must be MAJOR.MINOR")
+    if data.get("run_dir_policy") not in {"outside_skill", "outside_skill_and_repo"}:
+        errors.append("run_dir_policy must be outside_skill or outside_skill_and_repo")
+
+    requirements = data.get("requirements")
+    if not isinstance(requirements, list):
+        errors.append("requirements must be an array")
+    else:
+        for item in requirements:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"distribution", "specifier"}
+                or not isinstance(item.get("distribution"), str)
+                or not isinstance(item.get("specifier"), str)
+            ):
+                errors.append("each requirement must contain only string distribution and specifier fields")
+
+    inputs = data.get("inputs")
+    input_names: set[str] = set()
+    if not isinstance(inputs, list):
+        errors.append("inputs must be an array")
+    else:
+        for item in inputs:
+            if not isinstance(item, dict) or set(item) != {
+                "name",
+                "kind",
+                "required",
+                "repeatable",
+                "description",
+                "choices",
+            }:
+                errors.append("each input must contain the complete input contract")
+                continue
+            name = item.get("name")
+            if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name):
+                errors.append("input names must be identifiers")
+            elif name in input_names:
+                errors.append(f"duplicate input {name!r}")
+            else:
+                input_names.add(name)
+            if item.get("kind") not in {"string", "path", "choice"}:
+                errors.append(f"input {name!r} has an unsupported kind")
+            if not isinstance(item.get("required"), bool) or not isinstance(item.get("repeatable"), bool):
+                errors.append(f"input {name!r} required and repeatable must be booleans")
+            if not isinstance(item.get("description"), str):
+                errors.append(f"input {name!r} description must be a string")
+            choices = item.get("choices")
+            if not isinstance(choices, list) or not all(isinstance(choice, str) for choice in choices):
+                errors.append(f"input {name!r} choices must be an array of strings")
+            if item.get("kind") == "choice" and not choices:
+                errors.append(f"choice input {name!r} must declare choices")
+
+    artifacts = data.get("artifacts")
+    artifact_names: set[str] = set()
+    if not isinstance(artifacts, list):
+        errors.append("artifacts must be an array")
+    else:
+        for item in artifacts:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"name", "path", "media_type"}
+                or not all(isinstance(item.get(key), str) for key in ("name", "path", "media_type"))
+            ):
+                errors.append("each artifact must contain only name, path, and media_type strings")
+                continue
+            artifact_names.add(item["name"])
+            path = Path(item["path"])
+            if path.is_absolute() or ".." in path.parts:
+                errors.append(f"artifact {item['name']!r} path must remain within the run directory")
+
+    phases = data.get("phases")
+    phase_names = set(phases) if isinstance(phases, dict) else set()
+    if not isinstance(phases, dict) or not phases:
+        errors.append("phases must be a non-empty object")
+    else:
+        if "drafting" not in phases or "complete" not in phases:
+            errors.append("phases must include drafting and complete")
+        for phase_name, phase in phases.items():
+            if not isinstance(phase, dict) or set(phase) != {
+                "status",
+                "next_action",
+                "next_command",
+                "required_reads",
+                "allowed_writes",
+                "forbidden_actions",
+            }:
+                errors.append(f"phase {phase_name!r} must contain the complete phase contract")
+                continue
+            if phase.get("status") not in STATUSES - {"error"}:
+                errors.append(f"phase {phase_name!r} has an invalid status")
+            next_command = phase.get("next_command")
+            if next_command not in {None, "validate", "finalize"}:
+                errors.append(f"phase {phase_name!r} next_command must be validate, finalize, or null")
+            for field in ("required_reads", "allowed_writes", "forbidden_actions"):
+                if not isinstance(phase.get(field), list) or not all(
+                    isinstance(value, str) for value in phase.get(field, [])
+                ):
+                    errors.append(f"phase {phase_name!r} {field} must be an array of strings")
+            for value in [*phase.get("required_reads", []), *phase.get("allowed_writes", [])]:
+                try:
+                    _validate_template(value, input_names)
+                except ProtocolError as exc:
+                    errors.append(exc.message)
+
+    commands = data.get("commands")
+    if not isinstance(commands, dict) or set(commands) != {"start", "validate", "finalize"}:
+        errors.append("commands must contain exactly start, validate, and finalize")
+    else:
+        for command_name, command in commands.items():
+            if not isinstance(command, dict) or set(command) != {
+                "allowed_phases",
+                "success_phase",
+                "steps",
+            }:
+                errors.append(f"command {command_name!r} must contain the complete command contract")
+                continue
+            allowed = command.get("allowed_phases")
+            if not isinstance(allowed, list) or not all(phase in phase_names for phase in allowed):
+                errors.append(f"command {command_name!r} allowed_phases contains an unknown phase")
+            if command.get("success_phase") not in phase_names:
+                errors.append(f"command {command_name!r} success_phase contains an unknown phase")
+            steps = command.get("steps")
+            if not isinstance(steps, list) or not steps:
+                errors.append(f"command {command_name!r} steps must be a non-empty array")
+                continue
+            for step in steps:
+                if not isinstance(step, dict) or set(step) != {
+                    "argv",
+                    "repeat",
+                    "capture_stdout",
+                    "diagnostics_json",
+                    "failure",
+                }:
+                    errors.append(f"command {command_name!r} contains an invalid step contract")
+                    continue
+                argv = step.get("argv")
+                if not isinstance(argv, list) or not argv or not all(isinstance(token, str) for token in argv):
+                    errors.append(f"command {command_name!r} step argv must be a non-empty string array")
+                    continue
+                for token in argv:
+                    try:
+                        _validate_template(token, input_names)
+                    except ProtocolError as exc:
+                        errors.append(exc.message)
+                repeat = step.get("repeat")
+                if not isinstance(repeat, list):
+                    errors.append(f"command {command_name!r} step repeat must be an array")
+                else:
+                    for item in repeat:
+                        if (
+                            not isinstance(item, dict)
+                            or set(item) != {"input", "flag"}
+                            or item.get("input") not in input_names
+                            or not isinstance(item.get("flag"), str)
+                        ):
+                            errors.append(f"command {command_name!r} contains an invalid repeat expansion")
+                capture = step.get("capture_stdout")
+                if capture is not None and capture not in artifact_names:
+                    errors.append(f"command {command_name!r} captures unknown artifact {capture!r}")
+                if not isinstance(step.get("diagnostics_json"), bool):
+                    errors.append(f"command {command_name!r} diagnostics_json must be boolean")
+                if step.get("failure") not in {"blocked", "operational"}:
+                    errors.append(f"command {command_name!r} failure must be blocked or operational")
+                if skill_dir is not None and argv and argv[0] == "{python}" and len(argv) > 1:
+                    script = argv[1].replace("{skill_dir}/", "")
+                    if "{" not in script:
+                        candidate = (skill_dir / script).resolve()
+                        if not _within(candidate, skill_dir) or not candidate.is_file():
+                            errors.append(f"command {command_name!r} script is missing or escapes the skill: {script}")
+    return sorted(set(errors))
+
+
+def _load_manifest(skill_dir: Path) -> tuple[dict[str, Any], str]:
+    path = skill_dir / MANIFEST_FILE
+    if not path.is_file():
+        raise ProtocolError(
+            "manifest.missing",
+            f"installed skill does not opt into protocol {PROTOCOL_VERSION}: {path}",
+            f"Add a valid {MANIFEST_FILE} or use the skill's existing public scripts.",
+        )
+    try:
+        raw = path.read_bytes()
+        data = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise _manifest_error(f"cannot read {path}: {exc}") from exc
+    errors = validate_manifest(data, skill_dir=skill_dir)
+    if errors:
+        raise _manifest_error("; ".join(errors))
+    assert isinstance(data, dict)
+    return data, hashlib.sha256(raw).hexdigest()
+
+
+def _parse_inputs(raw_values: Sequence[str], manifest: dict[str, Any]) -> dict[str, Any]:
+    definitions = {item["name"]: item for item in manifest["inputs"]}
+    collected: dict[str, list[str]] = {}
+    for raw in raw_values:
+        if "=" not in raw:
+            raise ProtocolError(
+                "input.malformed",
+                f"input must use name=value syntax: {raw!r}",
+                "Pass each input as --input name=value.",
+            )
+        name, value = raw.split("=", 1)
+        if name not in definitions:
+            raise ProtocolError(
+                "input.unknown",
+                f"unknown input {name!r}",
+                f"Use one of: {', '.join(sorted(definitions))}.",
+            )
+        collected.setdefault(name, []).append(value)
+    result: dict[str, Any] = {}
+    for name, definition in definitions.items():
+        values = collected.get(name, [])
+        if definition["required"] and not values:
+            continue
+        if not definition["repeatable"] and len(values) > 1:
+            raise ProtocolError(
+                "input.not_repeatable",
+                f"input {name!r} may be provided only once",
+                f"Remove duplicate --input {name}=... arguments.",
+            )
+        checked: list[str] = []
+        for value in values:
+            if definition["kind"] == "choice" and value not in definition["choices"]:
+                raise ProtocolError(
+                    "input.invalid_choice",
+                    f"input {name!r} must be one of {definition['choices']}",
+                    "Choose a declared manifest value.",
+                )
+            if definition["kind"] == "path":
+                try:
+                    value = str(Path(value).expanduser().resolve(strict=True))
+                except (OSError, RuntimeError) as exc:
+                    raise ProtocolError(
+                        "input.path_invalid",
+                        f"input path {name!r} cannot be resolved: {value}",
+                        f"Pass an existing path. Details: {exc}",
+                    ) from exc
+            checked.append(value)
+        if checked:
+            result[name] = checked if definition["repeatable"] else checked[0]
+    return result
+
+
+def _required_inputs(manifest: dict[str, Any], inputs: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": item["name"],
+            "kind": item["kind"],
+            "required": item["required"],
+            "repeatable": item["repeatable"],
+            "description": item["description"],
+        }
+        for item in manifest["inputs"]
+        if item["name"] not in inputs
+    ]
+
+
+def _expand(value: str, context: Context, run_dir: Path) -> str:
+    replacements = {
+        "python": sys.executable,
+        "skill_dir": str(context.skill_dir),
+        "repo_root": str(context.repo_root),
+        "run_dir": str(run_dir),
+    }
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name.startswith("input."):
+            input_name = name.removeprefix("input.")
+            input_value = context.inputs.get(input_name)
+            if isinstance(input_value, str):
+                return input_value
+            raise ProtocolError(
+                "input.missing",
+                f"command requires scalar input {input_name!r}",
+                f"Pass --input {input_name}=<value> to start.",
+            )
+        return replacements[name]
+
+    return PLACEHOLDER_RE.sub(replace, value)
+
+
+def _resolve_display_path(value: str, context: Context) -> str:
+    run_dir = context.run_dir or Path("{run_dir}")
+    expanded = _expand(value, context, run_dir) if "{run_dir}" not in value or context.run_dir else value
+    return expanded
+
+
+def _artifact_list(context: Context, run_dir: Path | None = None) -> list[dict[str, Any]]:
+    base = run_dir or context.run_dir
+    return [
+        {
+            "name": item["name"],
+            "path": str(base / item["path"]) if base else item["path"],
+            "media_type": item["media_type"],
+            "exists": bool(base and (base / item["path"]).is_file()),
+        }
+        for item in context.manifest["artifacts"]
+    ]
+
+
+def _next_command(context: Context, command: str | None) -> dict[str, Any] | None:
+    if command is None:
+        return None
+    argv = [
+        sys.executable,
+        str(context.cli_path),
+        "--skill-dir",
+        str(context.skill_dir),
+        "--repo-root",
+        str(context.repo_root),
+    ]
+    if context.run_dir:
+        argv.extend(["--run-dir", str(context.run_dir)])
+    argv.extend(["--format", context.output_format, command])
+    return {"argv": argv, "cwd": str(context.repo_root)}
+
+
+def _phase_envelope(
+    context: Context,
+    phase_name: str,
+    *,
+    diagnostics: list[dict[str, Any]] | None = None,
+    blocking_reasons: list[str] | None = None,
+) -> dict[str, Any]:
+    phase = context.manifest["phases"][phase_name]
+    reads = [
+        {"path": _resolve_display_path(path, context), "reason": "Required by the current skill phase."}
+        for path in phase["required_reads"]
+    ]
+    envelope = _empty_envelope(context.skill)
+    envelope.update(
+        {
+            "status": "blocked" if blocking_reasons else phase["status"],
+            "phase": phase_name,
+            "next_action": phase["next_action"],
+            "next_command": _next_command(context, "next" if phase["next_command"] else None),
+            "required_reads": reads,
+            "required_inputs": _required_inputs(context.manifest, context.inputs),
+            "allowed_writes": [_resolve_display_path(path, context) for path in phase["allowed_writes"]],
+            "forbidden_actions": phase["forbidden_actions"],
+            "blocking_reasons": blocking_reasons or [],
+            "diagnostics": diagnostics or [],
+            "artifacts": _artifact_list(context),
+        }
+    )
+    return envelope
+
+
+def _atomic_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(data, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def _state_data(context: Context, phase: str) -> dict[str, Any]:
+    assert context.run_dir is not None
+    state = {
+        "protocol_version": PROTOCOL_VERSION,
+        "skill": context.skill,
+        "manifest_sha256": context.manifest_digest,
+        "skill_dir": str(context.skill_dir),
+        "repo_root": str(context.repo_root),
+        "run_dir": str(context.run_dir),
+        "inputs": context.inputs,
+        "phase": phase,
+        "status": context.manifest["phases"][phase]["status"],
+        "artifacts": _artifact_list(context),
+    }
+    state["state_sha256"] = hashlib.sha256(
+        json.dumps(state, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return state
+
+
+def _write_state(context: Context, phase: str) -> None:
+    assert context.run_dir is not None
+    _atomic_json(context.run_dir / STATE_FILE, _state_data(context, phase))
+
+
+def _load_state(context: Context) -> dict[str, Any]:
+    if context.run_dir is None:
+        raise ProtocolError("path.run_dir_required", "--run-dir is required", "Pass the run directory returned by start.")
+    path = context.run_dir / STATE_FILE
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProtocolError(
+            "state.invalid",
+            f"cannot read protocol state: {path}",
+            f"Use the exact run directory returned by start. Details: {exc}",
+        ) from exc
+    if not isinstance(state, dict):
+        raise ProtocolError("state.invalid", "protocol state must be a JSON object", "Repair or restart the run.")
+    checksum = state.get("state_sha256")
+    body = {key: value for key, value in state.items() if key != "state_sha256"}
+    actual_checksum = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if not isinstance(checksum, str) or checksum != actual_checksum:
+        raise ProtocolError(
+            "state.tampered",
+            "protocol state checksum does not match its contents",
+            "Restore the original state or restart the run.",
+        )
+    expected = {
+        "protocol_version": PROTOCOL_VERSION,
+        "skill": context.skill,
+        "manifest_sha256": context.manifest_digest,
+        "skill_dir": str(context.skill_dir),
+        "repo_root": str(context.repo_root),
+        "run_dir": str(context.run_dir),
+    }
+    for key, value in expected.items():
+        if state.get(key) != value:
+            raise ProtocolError(
+                "state.identity_mismatch",
+                f"state {key} does not match the current invocation",
+                "Use the original skill, repository, runtime manifest, and run directory.",
+            )
+    phase = state.get("phase")
+    if phase not in context.manifest["phases"]:
+        raise ProtocolError("state.phase_invalid", f"unknown stored phase: {phase!r}", "Repair or restart the run.")
+    if not isinstance(state.get("inputs"), dict):
+        raise ProtocolError("state.inputs_invalid", "stored inputs are invalid", "Repair or restart the run.")
+    return state
+
+
+def _version_tuple(value: str) -> tuple[int, ...]:
+    match = re.match(r"(\d+(?:\.\d+)*)", value)
+    return tuple(int(part) for part in match.group(1).split(".")) if match else ()
+
+
+def _satisfies(installed: str, specifier: str) -> bool:
+    current = _version_tuple(installed)
+    for operator, expected_text in re.findall(r"(>=|<=|==|!=|>|<)\s*([0-9][^,;\s]*)", specifier):
+        expected = _version_tuple(expected_text)
+        width = max(len(current), len(expected))
+        left = current + (0,) * (width - len(current))
+        right = expected + (0,) * (width - len(expected))
+        if not {">=": left >= right, "<=": left <= right, "==": left == right, "!=": left != right, ">": left > right, "<": left < right}[operator]:
+            return False
+    return True
+
+
+def _doctor(context: Context) -> tuple[int, dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    major, minor = (int(part) for part in context.manifest["minimum_python"].split("."))
+    if sys.version_info[:2] < (major, minor):
+        diagnostics.append(
+            _diagnostic(
+                "doctor.python_unsupported",
+                f"Python {major}.{minor} or newer is required.",
+                "Run the protocol with a supported Python interpreter.",
+            )
+        )
+    for requirement in context.manifest["requirements"]:
+        name = requirement["distribution"]
+        try:
+            installed = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            diagnostics.append(
+                _diagnostic(
+                    "doctor.dependency_missing",
+                    f"Required distribution is not installed: {name}{requirement['specifier']}",
+                    f"Install the requirements declared by {context.skill_dir / 'requirements.txt'}.",
+                    details={"distribution": name, "specifier": requirement["specifier"]},
+                )
+            )
+            continue
+        if not _satisfies(installed, requirement["specifier"]):
+            diagnostics.append(
+                _diagnostic(
+                    "doctor.dependency_incompatible",
+                    f"{name} {installed} does not satisfy {requirement['specifier']}.",
+                    f"Install the requirements declared by {context.skill_dir / 'requirements.txt'}.",
+                )
+            )
+    if context.run_dir is not None:
+        parent = context.run_dir.parent
+        if not parent.is_dir() or not os.access(parent, os.W_OK):
+            diagnostics.append(
+                _diagnostic(
+                    "doctor.run_dir_unwritable",
+                    f"Run directory parent is not writable: {parent}",
+                    "Choose a run directory beneath an existing writable directory.",
+                )
+            )
+    envelope = _empty_envelope(context.skill)
+    envelope.update(
+        {
+            "status": "blocked" if diagnostics else "ready",
+            "next_action": "repair_prerequisites" if diagnostics else "start",
+            "next_command": None,
+            "required_reads": [
+                {"path": str(context.skill_dir / "SKILL.md"), "reason": "Read the skill workflow before starting."}
+            ],
+            "required_inputs": _required_inputs(context.manifest, context.inputs),
+            "allowed_writes": [],
+            "forbidden_actions": ["write_installed_skill", "write_target_repository_during_doctor"],
+            "blocking_reasons": [item["code"] for item in diagnostics],
+            "diagnostics": diagnostics,
+        }
+    )
+    return (EXIT_BLOCKED if diagnostics else EXIT_OK), envelope
+
+
+def _build_argv(step: dict[str, Any], context: Context, run_dir: Path) -> list[str]:
+    argv = [_expand(token, context, run_dir) for token in step["argv"]]
+    for expansion in step["repeat"]:
+        values = context.inputs.get(expansion["input"], [])
+        if isinstance(values, str):
+            values = [values]
+        for value in values:
+            argv.extend([expansion["flag"], value])
+    if len(argv) > 1 and Path(argv[0]).resolve() == Path(sys.executable).resolve():
+        script = Path(argv[1]).resolve()
+        if not _within(script, context.skill_dir) or not script.is_file():
+            raise ProtocolError(
+                "command.script_unsafe",
+                f"declared script is missing or outside the installed skill: {script}",
+                "Repair the manifest script path.",
+            )
+    return argv
+
+
+def _child_diagnostics(stdout: str) -> list[dict[str, Any]]:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return []
+    raw = payload.get("diagnostics") if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        return []
+    diagnostics: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        diagnostics.append(
+            _diagnostic(
+                str(item.get("code", "adapter.validation")),
+                str(item.get("message", "Skill validation failed.")),
+                str(item.get("hint", "Repair the reported validation problem and retry.")),
+                details={key: value for key, value in item.items() if key not in {"code", "message", "hint"}},
+            )
+        )
+    return diagnostics
+
+
+def _run_command(
+    context: Context,
+    command_name: str,
+    run_dir: Path,
+) -> tuple[int, list[dict[str, Any]], list[str]]:
+    command = context.manifest["commands"][command_name]
+    for step in command["steps"]:
+        argv = _build_argv(step, context, run_dir)
+        result = subprocess.run(
+            argv,
+            cwd=context.repo_root,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode:
+            diagnostics = _child_diagnostics(result.stdout) if step["diagnostics_json"] else []
+            if not diagnostics:
+                message = result.stderr.strip() or result.stdout.strip() or f"child exited {result.returncode}"
+                diagnostics = [
+                    _diagnostic(
+                        f"adapter.{command_name}_failed",
+                        message,
+                        "Use the diagnostic from the wrapped skill, repair the run, and retry.",
+                        details={"returncode": result.returncode},
+                    )
+                ]
+            exit_code = EXIT_BLOCKED if step["failure"] == "blocked" else EXIT_OPERATIONAL
+            return exit_code, diagnostics, [item["code"] for item in diagnostics]
+        capture = step["capture_stdout"]
+        if capture is not None:
+            artifact = next(item for item in context.manifest["artifacts"] if item["name"] == capture)
+            target = run_dir / artifact["path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            handle, temporary = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
+            try:
+                with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+                    stream.write(result.stdout)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, target)
+            except BaseException:
+                Path(temporary).unlink(missing_ok=True)
+                raise
+    return EXIT_OK, [], []
+
+
+def _start(context: Context) -> tuple[int, dict[str, Any]]:
+    if context.run_dir is None:
+        raise ProtocolError("path.run_dir_required", "--run-dir is required for start", "Pass a new run directory.")
+    missing = _required_inputs(context.manifest, context.inputs)
+    required_missing = [item for item in missing if item["required"]]
+    if required_missing:
+        error = ProtocolError(
+            "input.required",
+            "missing required inputs: " + ", ".join(item["name"] for item in required_missing),
+            "Pass every required value with --input name=value.",
+        )
+        envelope = _error_envelope(error, context.skill)
+        envelope["required_inputs"] = missing
+        return error.exit_code, envelope
+    if context.run_dir.exists():
+        raise ProtocolError(
+            "state.run_exists",
+            f"start requires a new run directory: {context.run_dir}",
+            "Choose a path that does not exist, or use status for the existing run.",
+        )
+    parent = context.run_dir.parent
+    if not parent.is_dir():
+        raise ProtocolError(
+            "path.run_parent_missing",
+            f"run directory parent does not exist: {parent}",
+            "Create or choose an existing parent directory.",
+        )
+    staging = Path(tempfile.mkdtemp(prefix=f".{context.run_dir.name}.", suffix=".staging", dir=parent))
+    try:
+        staging.rmdir()
+        exit_code, diagnostics, reasons = _run_command(context, "start", staging)
+        if exit_code:
+            shutil.rmtree(staging, ignore_errors=True)
+            envelope = _empty_envelope(context.skill)
+            envelope.update(
+                {
+                    "status": "blocked" if exit_code == EXIT_BLOCKED else "error",
+                    "blocking_reasons": reasons,
+                    "diagnostics": diagnostics,
+                    "required_inputs": _required_inputs(context.manifest, context.inputs),
+                }
+            )
+            return exit_code, envelope
+        staging.rename(context.run_dir)
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+        raise
+    _write_state(context, context.manifest["commands"]["start"]["success_phase"])
+    return EXIT_OK, _phase_envelope(context, context.manifest["commands"]["start"]["success_phase"])
+
+
+def _status(context: Context) -> tuple[int, dict[str, Any]]:
+    state = _load_state(context)
+    context.inputs.update(state["inputs"])
+    return EXIT_OK, _phase_envelope(context, state["phase"])
+
+
+def _transition(context: Context, command_name: str) -> tuple[int, dict[str, Any]]:
+    state = _load_state(context)
+    context.inputs.update(state["inputs"])
+    phase = state["phase"]
+    command = context.manifest["commands"][command_name]
+    if phase not in command["allowed_phases"]:
+        error = ProtocolError(
+            "phase.command_forbidden",
+            f"{command_name} is not allowed from phase {phase!r}",
+            f"Follow next_action for phase {phase!r} before retrying.",
+            EXIT_BLOCKED,
+        )
+        envelope = _phase_envelope(
+            context,
+            phase,
+            diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+            blocking_reasons=[error.code],
+        )
+        return error.exit_code, envelope
+    assert context.run_dir is not None
+    exit_code, diagnostics, reasons = _run_command(context, command_name, context.run_dir)
+    if exit_code:
+        return exit_code, _phase_envelope(
+            context,
+            phase,
+            diagnostics=diagnostics,
+            blocking_reasons=reasons,
+        )
+    success_phase = command["success_phase"]
+    _write_state(context, success_phase)
+    return EXIT_OK, _phase_envelope(context, success_phase)
+
+
+def _next(context: Context) -> tuple[int, dict[str, Any]]:
+    state = _load_state(context)
+    context.inputs.update(state["inputs"])
+    phase_name = state["phase"]
+    next_command = context.manifest["phases"][phase_name]["next_command"]
+    if next_command is None:
+        return EXIT_OK, _phase_envelope(context, phase_name)
+    return _transition(context, next_command)
+
+
+def _make_context(args: argparse.Namespace, output_format: str) -> Context:
+    skill_dir = _canonical_dir(args.skill_dir, "skill_dir")
+    repo_root = _canonical_dir(args.repo_root, "repo_root")
+    skill_name = _read_skill_name(skill_dir)
+    manifest, digest = _load_manifest(skill_dir)
+    if manifest["skill"] != skill_name or manifest["skill"] != skill_dir.name:
+        raise ProtocolError(
+            "skill.identity_mismatch",
+            f"manifest, SKILL.md, and directory names must match: {manifest['skill']!r}, {skill_name!r}, {skill_dir.name!r}",
+            "Pass the installed skill root and repair its manifest identity.",
+        )
+    run_dir = _safe_future_path(args.run_dir) if args.run_dir else None
+    if run_dir and _within(run_dir, skill_dir):
+        raise ProtocolError(
+            "path.run_dir_in_skill",
+            f"run directory must not be inside the installed skill: {run_dir}",
+            "Choose external temporary or state storage.",
+        )
+    if run_dir and manifest["run_dir_policy"] == "outside_skill_and_repo" and _within(run_dir, repo_root):
+        raise ProtocolError(
+            "path.run_dir_in_repo",
+            f"this skill forbids run state inside the target repository: {run_dir}",
+            "Choose an external temporary or state directory.",
+        )
+    inputs = _parse_inputs(args.input, manifest)
+    return Context(
+        cli_path=Path(__file__).resolve().parents[1] / "skill_cli.py",
+        skill_dir=skill_dir,
+        repo_root=repo_root,
+        run_dir=run_dir,
+        manifest=manifest,
+        manifest_digest=digest,
+        inputs=inputs,
+        output_format=output_format,
+    )
+
+
+def _parser() -> JsonArgumentParser:
+    parser = JsonArgumentParser(description=__doc__)
+    parser.add_argument("--skill-dir", required=True)
+    parser.add_argument("--repo-root", required=True)
+    parser.add_argument("--run-dir")
+    parser.add_argument("--input", action="append", default=[])
+    parser.add_argument("--format", choices=("human", "json"), default="human")
+    parser.add_argument("command", choices=COMMANDS)
+    return parser
+
+
+def _render(envelope: dict[str, Any], output_format: str, exit_code: int) -> None:
+    if output_format == "json":
+        sys.stdout.write(json.dumps(envelope, sort_keys=True, separators=(",", ":")) + "\n")
+        return
+    phase = f" phase={envelope['phase']}" if envelope["phase"] else ""
+    print(f"{envelope['skill']}: {envelope['status']}{phase}")
+    if envelope["next_action"]:
+        print(f"Next action: {envelope['next_action']}")
+    stream = sys.stderr if exit_code else sys.stdout
+    for item in envelope["diagnostics"]:
+        print(f"{item['code']}: {item['message']} Fix: {item['hint']}", file=stream)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one protocol command and convert all failures to the stable envelope."""
+    raw = list(argv if argv is not None else sys.argv[1:])
+    output_format = "json" if any(
+        value == "--format=json" or (value == "--format" and index + 1 < len(raw) and raw[index + 1] == "json")
+        for index, value in enumerate(raw)
+    ) else "human"
+    skill = "unknown"
+    try:
+        args = _parser().parse_args(raw)
+        output_format = args.format
+        context = _make_context(args, output_format)
+        skill = context.skill
+        handlers = {
+            "doctor": _doctor,
+            "start": _start,
+            "status": _status,
+            "next": _next,
+            "validate": lambda value: _transition(value, "validate"),
+            "finalize": lambda value: _transition(value, "finalize"),
+        }
+        exit_code, envelope = handlers[args.command](context)
+    except ProtocolError as exc:
+        exit_code, envelope = exc.exit_code, _error_envelope(exc, skill)
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        error = ProtocolError(
+            "runtime.operational_error",
+            str(exc) or exc.__class__.__name__,
+            "Inspect the paths and wrapped skill command, then retry.",
+            EXIT_OPERATIONAL,
+        )
+        exit_code, envelope = error.exit_code, _error_envelope(error, skill)
+    except Exception as exc:  # pragma: no cover - defensive public boundary
+        error = ProtocolError(
+            "runtime.internal_error",
+            str(exc) or exc.__class__.__name__,
+            "Report this protocol runtime failure with the command and diagnostic code.",
+            EXIT_INTERNAL,
+        )
+        exit_code, envelope = error.exit_code, _error_envelope(error, skill)
+    _render(envelope, output_format, exit_code)
+    return exit_code
