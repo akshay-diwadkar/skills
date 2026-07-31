@@ -419,6 +419,7 @@ def validate_skill_protocol(skill_dir: Path) -> list[str]:
         return [f"{skill_dir.relative_to(ROOT)}: executable skill is missing skill-protocol.json"] if executable else []
     cli_path = scripts_dir / "cli.py"
     fallback_path = scripts_dir / "_skill_protocol_runtime.py"
+    diagnostic_path = scripts_dir / "_diagnostic_contract.py"
     errors: list[str] = []
     if not cli_path.is_file():
         errors.append("executable skill must expose scripts/cli.py")
@@ -426,6 +427,10 @@ def validate_skill_protocol(skill_dir: Path) -> list[str]:
         errors.append("executable skill must package scripts/_skill_protocol_runtime.py")
     elif fallback_path.read_bytes() != (ROOT / "tools" / "skill_protocol" / "runtime.py").read_bytes():
         errors.append("packaged common CLI runtime is stale")
+    if not diagnostic_path.is_file():
+        errors.append("executable skill must package scripts/_diagnostic_contract.py")
+    elif diagnostic_path.read_bytes() != (ROOT / "tools" / "diagnostics" / "runtime.py").read_bytes():
+        errors.append("packaged diagnostic runtime is stale")
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -488,6 +493,7 @@ def main() -> int:
     errors.extend(validate_legacy_plan_contracts())
     for script in (
         "generate_plan_contract.py",
+        "sync_diagnostic_runtime.py",
         "sync_plan_runtime.py",
         "sync_classification_runtime.py",
         "sync_skill_protocol_runtime.py",

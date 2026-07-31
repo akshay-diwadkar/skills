@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from handoff_contract import validate_handoff
 
@@ -34,7 +35,17 @@ def main() -> int:
         require_evidence_hashes=args.verify_evidence,
     )
     if args.format == "json":
-        print(json.dumps([diagnostic.as_dict() for diagnostic in diagnostics], indent=2))
+        retry: dict[str, Any] = {
+            "argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+            "cwd": str(Path.cwd()),
+        }
+        print(
+            json.dumps(
+                [diagnostic.as_dict(path=args.draft, next_command=retry) for diagnostic in diagnostics],
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     else:
         stream = sys.stderr if diagnostics else sys.stdout
         if diagnostics:

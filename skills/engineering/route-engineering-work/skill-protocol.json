@@ -19,7 +19,7 @@
           "argv": ["{python}", "{skill_dir}/scripts/route_engineering_work.py", "--request", "{input.request}", "--repo-root", "{repo_root}"],
           "repeat": [],
           "capture_stdout": null,
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         }
       ]

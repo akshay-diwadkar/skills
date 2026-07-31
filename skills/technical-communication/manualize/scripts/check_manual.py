@@ -8,9 +8,11 @@ import hashlib
 import json
 import re
 import shlex
+import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from _diagnostic_contract import normalize_diagnostic
 from jsonschema import Draft7Validator
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
@@ -198,7 +200,30 @@ def main(argv: list[str] | None = None) -> int:
         result = {"semantic_valid": False, "errors": [_error("invalid_input", "input", "critical", str(exc))]}
         print(json.dumps(result, indent=2))
         return 2
-    print(json.dumps(result, indent=2))
+    if not result["semantic_valid"]:
+        retry = {
+            "argv": [str(Path(sys.executable)), str(Path(__file__).resolve()), *sys.argv[1:]],
+            "cwd": str(Path.cwd()),
+        }
+        diagnostics = [
+            normalize_diagnostic(
+                {
+                    **item,
+                    "code": item["type"],
+                    "record": item["location"],
+                    "message": item["message"],
+                },
+                skill="manualize",
+                phase="validate",
+                artifact="manual",
+                path=args.manual,
+                next_command=retry,
+            )
+            for item in result["errors"]
+        ]
+        result["errors"] = diagnostics
+        result["diagnostics"] = diagnostics
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return int(not result["semantic_valid"])
 
 

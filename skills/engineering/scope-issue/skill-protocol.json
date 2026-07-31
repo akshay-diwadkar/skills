@@ -64,7 +64,7 @@
         "allowed_phases": ["selection"],
         "success_phase": "selection",
         "steps": [
-          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
+          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"},
           {"argv": ["{python}", "{skill_dir}/scripts/fetch_github_issues.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}", "--no-comments", "--output", "{run_dir}/issues.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
         ]
       },
@@ -73,7 +73,7 @@
         "allowed_phases": ["complete"],
         "success_phase": "complete",
         "steps": [
-          {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_file}", "--repo-root", "{repo_root}", "--issue-json", "{input.issue_json}", "--execution-ready"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+          {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_file}", "--repo-root", "{repo_root}", "--issue-json", "{input.issue_json}", "--execution-ready", "--format", "json"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}
         ]
       },
       {
@@ -97,15 +97,15 @@
       "allowed_phases": ["drafting"],
       "success_phase": "classification_review",
       "steps": [
-        {"argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "scope-issue", "--repo-root", "{repo_root}", "--source", "{input.plan_output}"], "repeat": [], "capture_stdout": "classification", "diagnostics_json": false, "failure": "blocked"}
+        {"argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "scope-issue", "--repo-root", "{repo_root}", "--source", "{input.plan_output}"], "repeat": [], "capture_stdout": "classification", "diagnostics_json": true, "failure": "blocked"}
       ]
     },
     "apply_classification": {
       "allowed_phases": ["classification_review"],
       "success_phase": "complete",
       "steps": [
-        {"argv": ["{python}", "{skill_dir}/scripts/apply_issue_classification.py", "--classification", "{run_dir}/classification.json", "--repo-root", "{repo_root}", "{input.plan_output}"], "repeat": [{"input": "classification_override", "flag": "--override-file"}], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
-        {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_output}", "--repo-root", "{repo_root}", "--issue-json", "{run_dir}/selected-issue.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+        {"argv": ["{python}", "{skill_dir}/scripts/apply_issue_classification.py", "--classification", "{run_dir}/classification.json", "--repo-root", "{repo_root}", "{input.plan_output}"], "repeat": [{"input": "classification_override", "flag": "--override-file"}], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"},
+        {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_output}", "--repo-root", "{repo_root}", "--issue-json", "{run_dir}/selected-issue.json", "--format", "json"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}
       ]
     }
   }

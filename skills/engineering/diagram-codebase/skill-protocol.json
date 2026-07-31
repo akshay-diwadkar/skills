@@ -84,7 +84,7 @@
       "allowed_phases": ["built"],
       "success_phase": "complete",
       "steps": [
-        {"argv": ["{python}", "{skill_dir}/scripts/validate_diagram.py", "{input.output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+        {"argv": ["{python}", "{skill_dir}/scripts/validate_diagram.py", "{input.output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}
       ]
     }
   }

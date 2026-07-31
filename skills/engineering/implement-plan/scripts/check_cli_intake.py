@@ -5,20 +5,40 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
+from _diagnostic_contract import normalize_diagnostic
 
-def _diagnostic(path: str) -> dict[str, Any]:
-    return {
-        "code": "bundle.dirty_target",
-        "message": f"Planned target already had uncommitted changes at intake: {path}.",
-        "hint": (
-            "Preserve the target and use the direct compatibility workflow only after "
-            "explicit user authorization."
-        ),
-        "path": path,
-    }
+
+def _diagnostic(path: str, bundle: Path | None = None) -> dict[str, Any]:
+    message = f"Planned target already had uncommitted changes at intake: {path}."
+    hint = (
+        "Preserve the target and use the direct compatibility workflow only after "
+        "explicit user authorization."
+    )
+    return normalize_diagnostic(
+        {
+            "code": "bundle.dirty_target",
+            "category": "unsafe_state",
+            "message": message,
+            "hint": hint,
+            "record": path,
+            "field": "initial_dirty",
+            "supporting_evidence": [message],
+            "required_action": "Restore the planned target to its recorded clean intake state, then restart the run.",
+            "valid_repairs": [
+                "Preserve the existing work outside this run and restore the target to a clean intake state.",
+                "Finish and record the existing work before starting a new implementation run.",
+            ],
+        },
+        skill="implement-plan",
+        phase="start",
+        artifact="implementation-bundle",
+        path=bundle or "implementation.json",
+        next_command=None,
+    )
 
 
 def main() -> int:
@@ -33,9 +53,12 @@ def main() -> int:
             targets.add(row["path"])
     dirty = bundle.get("workspace", {}).get("initial_dirty", {})
     dirty_targets = sorted(targets & set(dirty) if isinstance(dirty, dict) else set())
-    diagnostics = [_diagnostic(path) for path in dirty_targets]
+    retry = {"argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], "cwd": str(Path.cwd())}
+    diagnostics = [_diagnostic(path, args.bundle) for path in dirty_targets]
+    for item in diagnostics:
+        item["next_command"] = retry
     if args.format == "json":
-        print(json.dumps({"valid": not diagnostics, "diagnostics": diagnostics}, indent=2))
+        print(json.dumps({"valid": not diagnostics, "diagnostics": diagnostics}, sort_keys=True, separators=(",", ":")))
     else:
         for item in diagnostics:
             print(f"Error [{item['code']}]: {item['message']} Fix: {item['hint']}")

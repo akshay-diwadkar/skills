@@ -590,7 +590,17 @@ def main(argv: list[str] | None = None) -> int:
     handoff = args.handoff_file.read_text(encoding="utf-8") if args.handoff_file else None
     diagnostics = validate(_read(args.report), args.path, args.scope, args.stage, args.repo_root, handoff)
     if args.format == "json":
-        print(json.dumps({"valid": not diagnostics, "diagnostics": [item.to_dict() for item in diagnostics]}, indent=2))
+        retry = {"argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], "cwd": str(Path.cwd())}
+        print(
+            json.dumps(
+                {
+                    "valid": not diagnostics,
+                    "diagnostics": [item.to_dict(path=args.report or "stdin", next_command=retry) for item in diagnostics],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     elif diagnostics:
         print("Optimization check findings:")
         for item in diagnostics:

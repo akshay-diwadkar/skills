@@ -7,6 +7,8 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from _diagnostic_contract import normalize_diagnostic
+
 EVIDENCE_HEADING = "Evidence Ledger"
 REQUIRED_SECTIONS = (
     "Problem & Scope",
@@ -63,8 +65,20 @@ class Diagnostic:
         location = f"line {self.line}: " if self.line is not None else ""
         return f"{self.code}: {location}{self.message}"
 
-    def as_dict(self) -> dict[str, str | int | None]:
-        return asdict(self)
+    def as_dict(
+        self,
+        *,
+        path: str | Path = "design-handoff.md",
+        next_command: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return normalize_diagnostic(
+            asdict(self),
+            skill="design-codebase",
+            phase="validate",
+            artifact="design-handoff",
+            path=path,
+            next_command=next_command,
+        )
 
 
 @dataclass(frozen=True)

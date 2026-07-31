@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.1.1
+version: 1.2.0
 ---
 
 # Design Codebase

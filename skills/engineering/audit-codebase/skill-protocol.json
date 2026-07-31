@@ -108,34 +108,34 @@
       "allowed_phases": ["audit_context"],
       "success_phase": "audit_context",
       "steps": [
-        {"argv": ["{python}", "{skill_dir}/scripts/apply_audit_classification.py", "--bundle", "{input.bundle}", "--severity", "{input.severity}"], "repeat": [{"input": "categories", "flag": "--category"}], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+        {"argv": ["{python}", "{skill_dir}/scripts/apply_audit_classification.py", "--bundle", "{input.bundle}", "--severity", "{input.severity}"], "repeat": [{"input": "categories", "flag": "--category"}], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}
       ]
     },
     "checkpoint_context": {
       "allowed_phases": ["audit_context"],
       "success_phase": "risk_surfaces",
-      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "audit_context"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "audit_context"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}]
     },
     "checkpoint_surfaces": {
       "allowed_phases": ["risk_surfaces"],
       "success_phase": "coverage",
-      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "risk_surfaces"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "risk_surfaces"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}]
     },
     "checkpoint_coverage": {
       "allowed_phases": ["coverage"],
       "success_phase": "candidates",
-      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "coverage"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "coverage"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}]
     },
     "checkpoint_candidates": {
       "allowed_phases": ["candidates"],
       "success_phase": "issues",
-      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "candidates"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+      "steps": [{"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "candidates"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}]
     },
     "validate": {
       "allowed_phases": ["issues"],
       "success_phase": "reviewed",
       "steps": [
-        {"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
+        {"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}", "--format", "json"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"},
         {"argv": ["{python}", "{skill_dir}/scripts/checkpoint_audit_bundle.py", "save", "--checkpoint", "{input.checkpoint}", "--input", "{input.bundle}", "--phase", "issues"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}
       ]
     },
@@ -144,15 +144,15 @@
         "when": {"publication": ["local"]},
         "allowed_phases": ["reviewed"],
         "success_phase": "complete",
-        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}]
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/validate_audit_bundle.py", "{input.bundle}", "--format", "json"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}]
       },
       {
         "when": {"publication": ["publish"]},
         "allowed_phases": ["reviewed"],
         "success_phase": "publication_review",
         "steps": [
-          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
-          {"argv": ["{python}", "{skill_dir}/scripts/publish_github_issues.py", "--input", "{input.bundle}", "--github-repo-url", "{input.github_repo}", "--env", "{input.env_file}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+          {"argv": ["{python}", "{skill_dir}/scripts/check_github_env.py", "--env", "{input.env_file}", "--github-repo-url", "{input.github_repo}"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"},
+          {"argv": ["{python}", "{skill_dir}/scripts/publish_github_issues.py", "--input", "{input.bundle}", "--github-repo-url", "{input.github_repo}", "--env", "{input.env_file}"], "repeat": [], "capture_stdout": null, "diagnostics_json": true, "failure": "blocked"}
         ]
       }
     ],

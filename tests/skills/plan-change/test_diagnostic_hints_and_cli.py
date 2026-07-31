@@ -38,12 +38,15 @@ def test_every_literal_diagnostic_code_has_a_plain_language_hint() -> None:
 def test_diagnostic_text_and_json_include_the_hint() -> None:
     diagnostic = Diagnostic("fact.stale", "fingerprints changed", 12)
     assert "Likely fix:" in str(diagnostic)
-    assert diagnostic.to_dict() == {
-        "code": "fact.stale",
-        "message": "fingerprints changed",
-        "line": 12,
-        "hint": DIAGNOSTIC_HINTS["fact.stale"],
-    }
+    payload = diagnostic.to_dict()
+    assert payload["code"] == "fact.stale"
+    assert payload["message"] == "fingerprints changed"
+    assert payload["line"] == 12
+    assert payload["hint"] == DIAGNOSTIC_HINTS["fact.stale"]
+    assert payload["category"] == "stale_evidence"
+    assert payload["skill"] == "plan-change"
+    assert payload["valid_repairs"] == [DIAGNOSTIC_HINTS["fact.stale"]]
+    assert payload["supporting_evidence"] == ["fingerprints changed"]
 
 
 @pytest.mark.parametrize(
