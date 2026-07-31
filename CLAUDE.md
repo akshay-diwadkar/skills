@@ -43,6 +43,29 @@ installation or distributed behavior. After any required bump, run
 `python tools/validation/validate_repository.py` before pushing or opening a
 pull request.
 
+## Release validation
+
+Before merging any pull request, require the `Pre-release Validation` workflow
+to pass. Do not merge a version-changing pull request while any required check
+is failing.
+
+When a change adds or removes a validator, validator dependency, skill runtime
+requirement, or release input, update
+`tools/validation/release-requirements.txt` in the same pull request. Keep the
+pre-release and publish workflows on that shared requirements file. Add or
+update repository tests that verify the release contract.
+
+Run the release validation path before merge:
+
+```bash
+python -m pip install -r tools/validation/release-requirements.txt
+python tools/validation/validate_repository.py
+```
+
+After merging a version change, monitor `Publish Release` through completion.
+If it fails, inspect the workflow logs, fix the root cause, and rerun the
+workflow only after the fix reaches `main`.
+
 ## Github
 
 Whenever told to push changes or raise a pull request make sure to monitor the workflow test.
