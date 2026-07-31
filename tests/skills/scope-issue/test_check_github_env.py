@@ -125,12 +125,14 @@ class CheckGitHubEnvTests(unittest.TestCase):
                     normalize_github_repo_target(raw)
 
     def test_skill_docs_mention_scripts(self):
-        docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("scripts/check_github_env.py", docs)
-        self.assertIn("scripts/fetch_github_issues.py", docs)
+        manifest = (SKILL_ROOT / "skill-protocol.json").read_text(encoding="utf-8")
+        self.assertIn("scripts/check_github_env.py", manifest)
+        self.assertIn("scripts/fetch_github_issues.py", manifest)
 
     def test_skill_docs_preserve_opt_in_execution_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
+        docs += (SKILL_ROOT / "references" / "execution-and-follow-up.md").read_text(encoding="utf-8")
+        docs = " ".join(docs.split())
         self.assertIn("Planning is GitHub-read-only", docs)
         self.assertIn("opt-in only", docs)
         self.assertIn("after explicit user authorization", docs)
@@ -143,6 +145,9 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_require_validated_single_issue_handoff(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
+        docs += (SKILL_ROOT / "references" / "planning-rubric.md").read_text(encoding="utf-8")
+        docs += (SKILL_ROOT / "references" / "execution-and-follow-up.md").read_text(encoding="utf-8")
+        docs = " ".join(docs.split())
         self.assertIn("plan one issue per pass", docs.lower())
         self.assertIn("Issue Claims (Untrusted)", docs)
         self.assertIn("ready-for-senior-plan", docs)

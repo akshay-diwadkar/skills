@@ -40,7 +40,11 @@
       "status": "in_progress",
       "next_action": "complete_and_validate_optimization_plan",
       "next_command": "validate",
-      "required_reads": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md", "{input.report}"],
+      "required_reads": ["{input.report}"],
+      "conditional_reads": [
+        {"input": "path", "values": ["fast"], "paths": ["{skill_dir}/references/fast-path.md"]},
+        {"input": "path", "values": ["full"], "paths": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md"]}
+      ],
       "allowed_writes": ["{input.report}"],
       "forbidden_actions": ["write_installed_skill", "write_target_repository", "implement_without_authorization"]
     },
@@ -48,7 +52,11 @@
       "status": "in_progress",
       "next_action": "complete_authorized_candidate_and_validation_evidence",
       "next_command": "validate",
-      "required_reads": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md", "{input.report}"],
+      "required_reads": ["{input.report}"],
+      "conditional_reads": [
+        {"input": "path", "values": ["fast"], "paths": ["{skill_dir}/references/fast-path.md"]},
+        {"input": "path", "values": ["full"], "paths": ["{skill_dir}/references/glossary.md", "{skill_dir}/references/optimization-protocol.md", "{skill_dir}/references/optimization-rubric.md"]}
+      ],
       "allowed_writes": ["{input.report}", "{repo_root}"],
       "forbidden_actions": ["write_installed_skill", "implement_outside_selected_candidate", "retain_failed_or_inconclusive_patch"]
     },

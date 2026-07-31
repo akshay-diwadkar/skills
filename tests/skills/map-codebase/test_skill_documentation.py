@@ -36,11 +36,8 @@ def test_skill_and_references_do_not_duplicate_bullets() -> None:
 
 
 def test_untracked_default_and_opt_out_are_both_explicit() -> None:
-    skill = SKILL_MD.read_text(encoding="utf-8")
     contract = (REFERENCES_DIR / "knowledge-contract.md").read_text(encoding="utf-8")
 
-    assert "untracked files are included by default" in skill
-    assert "`include_untracked = false`" in skill
     assert "untracked files by default" in contract
     assert "`include_untracked = false`" in contract
 

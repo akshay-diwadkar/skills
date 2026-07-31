@@ -28,7 +28,7 @@
       "status": "in_progress",
       "next_action": "complete_and_validate_handoff",
       "next_command": "validate",
-      "required_reads": ["{skill_dir}/references/handoff-template.md", "{input.draft}"],
+      "required_reads": ["{skill_dir}/references/design-protocol.md", "{skill_dir}/references/handoff-template.md", "{input.draft}"],
       "allowed_writes": ["{input.draft}"],
       "forbidden_actions": ["write_installed_skill", "write_target_repository", "write_implementation_plan"]
     },

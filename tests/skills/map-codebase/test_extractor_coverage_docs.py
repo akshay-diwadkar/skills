@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 SKILL_DIR = ROOT / "skills" / "engineering" / "map-codebase"
 EXTRACTION_DIR = SKILL_DIR / "scripts" / "knowledge" / "extraction"
-DOCUMENT = SKILL_DIR / "SKILL.md"
+DOCUMENT = SKILL_DIR / "references" / "extractor-coverage.md"
 BEGIN = "<!-- BEGIN EXTRACTOR COVERAGE -->"
 END = "<!-- END EXTRACTOR COVERAGE -->"
 
@@ -37,6 +37,7 @@ def test_coverage_table_matches_extractor_modules_exactly() -> None:
 
 def test_tree_sitter_scope_coverage_is_explicit() -> None:
     text = DOCUMENT.read_text(encoding="utf-8")
+    normalized = " ".join(text.split())
     assert "Full tree-sitter extraction" in text
     assert "scope-aware symbols, full-body ranges, and imports" in text
-    assert "Missing tree-sitter grammars fail with an actionable error" in text
+    assert "Missing tree-sitter grammars fail with an actionable error" in normalized

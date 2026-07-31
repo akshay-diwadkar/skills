@@ -103,3 +103,9 @@ Generated artifacts may be updated only when named by the plan or produced deter
 6. Fill final status, changed paths, deviations, risks, and report summary. Empty deviation and residual-risk arrays are valid when truthful at every tier.
 7. Run `finalize_implementation.py` and repair bundle or implementation omissions until it passes and stamps a validation receipt.
 8. Report `complete` only after checker success. A blocked or partial run must leave exact unresolved records and a safe, accurately described workspace.
+
+Report the plan source, contract version, tier, planned and mechanical changes,
+exact command results, final status, residual risks, unresolved records, and
+required follow-up. Never claim weaker-model reliability unless the
+provider-neutral live evaluation suite has no hard failures, median score at
+least 90, and every run at least 80 for the named model.

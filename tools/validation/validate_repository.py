@@ -8,11 +8,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from measure_skill_load import validate_report as validate_skill_load_report  # noqa: E402
 
 from tools.skill_protocol import validate_manifest  # noqa: E402
 
@@ -60,6 +62,9 @@ LATEST_RELEASE_BADGE_RE = re.compile(
     r"\[!\[Latest Release\]\((?P<badge_url>[^)]+)\)\]\((?P<target_url>[^)]+)\)"
 )
 LATEST_RELEASE_URL = "https://github.com/akshay-diwadkar/skills/releases/latest"
+MARKDOWN_LINK_RE = re.compile(
+    r"!?\[[^\]]*\]\((?:<(?P<bracketed>[^>]+)>|(?P<plain>[^)\s]+))(?:\s+['\"][^)]*['\"])?\)"
+)
 EXPECTED_MARKETPLACE_GROUPS = {
     "engineering-skills": {
         "./skills/engineering/audit-codebase",
@@ -666,6 +671,53 @@ def validate_script_references(skill_dir: Path) -> list[str]:
     return errors
 
 
+def validate_markdown_references(skill_dir: Path) -> list[str]:
+    """Validate local Markdown targets and direct progressive-disclosure links."""
+    errors: list[str] = []
+    skill_root = skill_dir.resolve()
+    repository_root = ROOT.resolve()
+    skill_md = skill_dir / "SKILL.md"
+    directly_linked: set[Path] = set()
+
+    for document in sorted(skill_dir.rglob("*.md")):
+        if "__pycache__" in document.parts:
+            continue
+        text = document.read_text(encoding="utf-8")
+        for match in MARKDOWN_LINK_RE.finditer(text):
+            raw_target = match.group("bracketed") or match.group("plain")
+            if raw_target.startswith("#"):
+                continue
+            parsed = urlsplit(raw_target)
+            if parsed.scheme or parsed.netloc:
+                continue
+            relative = unquote(parsed.path).replace("\\", "/")
+            if not relative:
+                continue
+            target = (document.parent / relative).resolve()
+            label = document.relative_to(ROOT)
+            if not target.is_relative_to(repository_root):
+                errors.append(f"{label}: local Markdown link escapes the repository: {raw_target}")
+                continue
+            if document == skill_md and not target.is_relative_to(skill_root):
+                errors.append(f"{label}: SKILL.md link escapes its skill package: {raw_target}")
+                continue
+            if not target.exists():
+                errors.append(f"{label}: local Markdown link target does not exist: {raw_target}")
+                continue
+            if document == skill_md:
+                directly_linked.add(target)
+
+    references_dir = skill_dir / "references"
+    if references_dir.is_dir():
+        for reference in sorted(references_dir.rglob("*.md")):
+            if reference.resolve() not in directly_linked:
+                errors.append(
+                    f"{skill_md.relative_to(ROOT)}: reference is not linked directly: "
+                    f"{reference.relative_to(skill_dir).as_posix()}"
+                )
+    return errors
+
+
 def validate_skill_protocol(skill_dir: Path) -> list[str]:
     """Validate the required common CLI contract for executable skills."""
     manifest_path = skill_dir / "skill-protocol.json"
@@ -746,9 +798,11 @@ def main() -> int:
     errors.extend(validate_router_contract())
     errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())
+    errors.extend(validate_skill_load_report())
     for skill_dir in skills:
         errors.extend(validate_skill_package(skill_dir))
         errors.extend(validate_script_references(skill_dir))
+        errors.extend(validate_markdown_references(skill_dir))
         errors.extend(validate_skill_protocol(skill_dir))
     errors.extend(validate_retired_surfaces())
     errors.extend(validate_legacy_plan_contracts())

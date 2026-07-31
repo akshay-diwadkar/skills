@@ -1,12 +1,10 @@
-# Explicit invocation policy
+# Progressive-disclosure skill interfaces
 
-This minor release classifies every skill as user-invoked, model-invoked, or
-both and certifies that policy for Claude Code, Codex, and GitHub Copilot.
-Implementation, publication, external-write, and external-output workflows are
-blocked from implicit activation, while lightweight read-only routing and
-codebase mapping remain available to the model.
+This patch release refactors every top-level skill file into a concise operating
+interface while preserving invocation, authority, validation, finalization, and
+artifact contracts. Phase-specific protocols and edge cases now live behind
+direct references surfaced by the common CLI.
 
-Repository validation now checks the neutral policy registry, provider
-adapters, real skill references, and authority-sensitive capabilities.
-Skills CLI 1.5.21 installation coverage verifies the complete collection and
-each individual skill on every certified platform.
+Repository validation now rejects broken or orphaned skill references, verifies
+that mandatory rules remain discoverable through `required_reads`, and checks a
+vendored-tokenizer report showing a 62.65% reduction in initial skill tokens.
