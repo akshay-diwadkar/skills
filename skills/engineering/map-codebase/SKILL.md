@@ -1,7 +1,11 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 2.1.0
+version: 2.2.0
+metadata:
+  invocation: model-invoked
+disable-model-invocation: false
+user-invocable: false
 ---
 
 # Map Codebase
@@ -45,6 +49,9 @@ Use `--budget N` to cap the source ranges returned across requested phases.
 - Medium confidence is not verified ownership.
 - Missing or stale knowledge never blocks direct source inspection.
 - `status`, default `resolve`, and `validate` are read-only.
+- When invoked implicitly, remain on the read-only `status`, `resolve`, and
+  `validate` paths. Do not build, refresh, record analytics, link documents, or
+  generate workflows without explicit user authority for that write.
 - `--record-analytics` is opt-in and writes `analytics.jsonl`.
 - Build, refresh, analytics, document linking, and workflow generation require write permission.
 

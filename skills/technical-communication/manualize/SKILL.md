@@ -1,7 +1,11 @@
 ---
 name: manualize
 description: Write or audit source-grounded technical manuals, procedures, runbooks, guides, notices, error messages, and reference documentation. Use when technical content must preserve supplied facts while following deterministic controlled-language and operational-completeness checks.
-version: 2.1.0
+version: 2.2.0
+metadata:
+  invocation: both
+disable-model-invocation: false
+user-invocable: true
 ---
 
 # Manualize
@@ -23,6 +27,10 @@ Resolve `skill-root` as this directory. Run bundled scripts by absolute path, pa
 ## Select the Operation
 
 Use `operation: write` to create or revise a document with authorization. Use `operation: audit` to inspect an existing document. Audit is read-only unless the user explicitly authorizes remediation.
+
+Implicit invocation never supplies write or remediation authority. If the
+request does not explicitly authorize document creation, revision, or audit
+remediation, select `operation: audit` and keep the source document unchanged.
 
 Select `profile: strict` for safety-critical procedures, commands, warnings, notices, and error recovery. Select `profile: standard` for explanatory or reference content unless risk requires strict.
 

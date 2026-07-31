@@ -1,13 +1,12 @@
-# Repair-ready structured diagnostics
+# Explicit invocation policy
 
-This minor release gives every blocking skill gate a shared, deterministic
-diagnostic contract. JSON failures now identify the owning skill, phase,
-artifact, record, field, and path; explain why the failure matters; provide
-local evidence and strictness-preserving repairs; and return a replayable next
-command. Existing human diagnostics, exit codes, and validation rules remain
-unchanged.
+This minor release classifies every skill as user-invoked, model-invoked, or
+both and certifies that policy for Claude Code, Codex, and GitHub Copilot.
+Implementation, publication, external-write, and external-output workflows are
+blocked from implicit activation, while lightweight read-only routing and
+codebase mapping remain available to the model.
 
-The common CLI accepts only canonical child diagnostics, converts unexpected
-legacy or process failures into stable adapter diagnostics, and retains legacy
-JSON aliases for existing consumers. Standalone skill installations carry the
-same synchronized standard-library runtime.
+Repository validation now checks the neutral policy registry, provider
+adapters, real skill references, and authority-sensitive capabilities.
+Skills CLI 1.5.21 installation coverage verifies the complete collection and
+each individual skill on every certified platform.

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -9,6 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools" / "validation"))
 
 import run_mypy  # noqa: E402
 import validate_repository as validator  # noqa: E402
+import validate_skills_cli_install as install_validator  # noqa: E402
 
 CANONICAL_SKILLS = {
     ("engineering", "audit-codebase"),
@@ -78,9 +81,85 @@ def test_skill_metadata_and_tracked_references_use_canonical_names_only() -> Non
             assert path.relative_to(REPO_ROOT).as_posix() in allowed_legacy_locations
 
 
-def test_skill_packages_have_no_platform_metadata() -> None:
-    assert all(not (skill / "agents").exists() for skill in validator.discover_skills())
+def test_skill_packages_have_valid_invocation_metadata() -> None:
+    assert validator.validate_invocation_policy() == []
+    assert all((skill / "agents" / "openai.yaml").is_file() for skill in validator.discover_skills())
     assert validator.validate_retired_surfaces() == []
+
+
+def test_certified_platforms_have_complete_installation_coverage() -> None:
+    assert validator.validate_certified_platform_coverage() == []
+    assert set(install_validator.INSTALL_ROOTS) == set(validator.CERTIFIED_PLATFORMS)
+    assert install_validator.CLI_VERSION == validator.SKILLS_CLI_VERSION
+
+
+def test_invocation_safety_capabilities_require_user_invocation() -> None:
+    capabilities = {
+        skill.name: validator.derive_invocation_safety_capabilities(skill)
+        for skill in validator.discover_skills()
+    }
+    assert {name for name, values in capabilities.items() if values} == {
+        "audit-codebase",
+        "diagram-codebase",
+        "implement-plan",
+        "optimize-codebase",
+        "scope-issue",
+    }
+    assert "publication" in capabilities["audit-codebase"]
+    assert "external-output" in capabilities["diagram-codebase"]
+    assert {"implementation", "repository-write"} <= capabilities["implement-plan"]
+    assert "repository-write" in capabilities["optimize-codebase"]
+    assert "external-write" in capabilities["scope-issue"]
+
+
+def test_invocation_registry_rejects_missing_stale_and_unknown_entries(tmp_path: Path) -> None:
+    payload = json.loads(validator.INVOCATION_POLICY_PATH.read_text(encoding="utf-8"))
+    payload["skills"].pop("map-codebase")
+    payload["skills"]["retired-skill"] = "both"
+    payload["skills"]["manualize"] = "sometimes"
+    path = tmp_path / "invocation-policy.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    errors = validator.validate_invocation_policy(path)
+    assert any("missing skills: ['map-codebase']" in error for error in errors)
+    assert any("references unknown skills: ['retired-skill']" in error for error in errors)
+    assert any("manualize has unsupported invocation mode 'sometimes'" in error for error in errors)
+
+
+def test_invocation_validation_rejects_unsafe_implicit_policy(tmp_path: Path) -> None:
+    source = REPO_ROOT / "skills" / "engineering" / "implement-plan"
+    skill = tmp_path / "implement-plan"
+    shutil.copytree(source, skill)
+
+    errors = validator.validate_skill_invocation_metadata(skill, "both")
+    assert any("authority-required capabilities" in error for error in errors)
+
+
+def test_invocation_validation_rejects_malformed_openai_policy(tmp_path: Path) -> None:
+    source = REPO_ROOT / "skills" / "engineering" / "map-codebase"
+    skill = tmp_path / "map-codebase"
+    shutil.copytree(source, skill)
+    (skill / "agents" / "openai.yaml").write_text("policy: maybe\n", encoding="utf-8")
+
+    errors = validator.validate_skill_invocation_metadata(skill, "model-invoked")
+    assert any("unsupported or malformed policy" in error for error in errors)
+
+
+def test_invocation_validation_rejects_frontmatter_adapter_mismatch(tmp_path: Path) -> None:
+    source = REPO_ROOT / "skills" / "engineering" / "plan-change"
+    skill = tmp_path / "plan-change"
+    shutil.copytree(source, skill)
+    skill_md = skill / "SKILL.md"
+    skill_md.write_text(
+        skill_md.read_text(encoding="utf-8").replace(
+            "disable-model-invocation: false",
+            "disable-model-invocation: true",
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validator.validate_skill_invocation_metadata(skill, "both")
+    assert any("disable-model-invocation must be false for both" in error for error in errors)
 
 
 def test_package_and_independent_skill_versions_are_valid() -> None:
@@ -88,10 +167,10 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version_description() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
-    assert versions["map-codebase"] == "2.1.0"
-    assert versions["plan-change"] == "2.1.0"
-    assert versions["implement-plan"] == "1.2.0"
-    assert set(versions.values()) == {"1.2.0", "2.1.0"}
+    assert versions["map-codebase"] == "2.2.0"
+    assert versions["plan-change"] == "2.2.0"
+    assert versions["implement-plan"] == "1.3.0"
+    assert set(versions.values()) == {"1.3.0", "2.2.0"}
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")
