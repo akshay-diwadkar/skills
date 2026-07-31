@@ -1,0 +1,37 @@
+{
+  "premature-abstraction": {
+    "required_concepts": ["second-use test", "locality"],
+    "outcome_any": ["keep local", "do not generalize", "reject generalization"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "shallow-wrapper": {
+    "required_concepts": ["deletion test", "depth"],
+    "outcome_any": ["remove wrapper", "delete wrapper", "inline wrapper"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "genuine-seam": {
+    "required_concepts": ["volatility", "coupling direction"],
+    "outcome_any": ["gateway", "adapter", "seam"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "wrong-ownership": {
+    "required_concepts": ["owner", "boundary"],
+    "outcome_any": ["pricing owns", "domain owns", "move ownership"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "high-propagation": {
+    "required_concepts": ["propagation", "contract"],
+    "outcome_any": ["centralize", "stable contract", "translation boundary"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "poor-locality": {
+    "required_concepts": ["locality", "owner"],
+    "outcome_any": ["co-locate", "consolidate", "one owner"],
+    "forbidden": ["implementation plan", "edit src/"]
+  },
+  "consolidation": {
+    "required_concepts": ["deletion test", "locality"],
+    "outcome_any": ["consolidate", "merge", "combine"],
+    "forbidden": ["implementation plan", "edit src/"]
+  }
+}

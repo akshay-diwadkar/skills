@@ -23,7 +23,9 @@ python /absolute/plan-change/scripts/prepare_plan.py \
 Use `scope-issue` when an issue must be reconciled with the checkout before
 planning. Use `design-codebase` when ownership, boundary, or abstraction must
 be decided first. A finalized design handoff retains its eight design sections
-and carries SHA-256 bindings for every local evidence range.
+and carries SHA-256 bindings for every local evidence range. Structural choices
+also state coupling direction and cite repository evidence; other vocabulary is
+used only when it improves the decision.
 
 ## `request_sha256`
 

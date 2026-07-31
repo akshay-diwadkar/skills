@@ -1,11 +1,10 @@
-# Bounded subagent delegation
+# Compact repository-design vocabulary
 
-This minor release adds provider-neutral, optional delegation contracts to
-`plan-change`, `audit-codebase`, `design-codebase`, and `implement-plan`.
-Bounded read-only scouts and reviewers can broaden evidence collection without
-receiving decision, editing, artifact, or publication authority.
+This minor release gives `design-codebase` a concise, evidence-led vocabulary
+for ownership, boundaries, contracts, design depth, change pressure, locality,
+abstraction tests, and coupling direction.
 
-Every role now has explicit inputs, scope, output schema, token budget, and stop
-condition. Deterministic reconciliation handles conflicts, duplicates,
-omissions, and malicious evidence, while an equivalent sequential fallback
-keeps platforms without subagent support fully supported.
+The existing eight-section handoff remains directly consumable by
+`plan-change`. New validators reject unsupported structural claims without
+requiring every vocabulary term, and seven focused fixtures cover common weak
+design decisions from premature abstraction through consolidation.

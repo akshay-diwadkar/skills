@@ -17,6 +17,7 @@ PREPARE_PLAN = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "pr
 def make_repo(root: Path) -> Path:
     (root / "payments").mkdir(parents=True)
     (root / "checkout").mkdir()
+    (root / "subscriptions").mkdir()
     (root / "tests").mkdir()
     (root / "payments" / "service.py").write_text(
         "import provider_sdk\n"
@@ -44,6 +45,13 @@ def make_repo(root: Path) -> Path:
         "    result = checkout(10)\n"
         "    assert result is not None\n"
         "\n",
+        encoding="utf-8",
+    )
+    (root / "subscriptions" / "renew.py").write_text(
+        "from payments.service import charge_payment\n"
+        "\n"
+        "def renew(amount, payment_token):\n"
+        "    return charge_payment(amount, 'USD', payment_token)\n",
         encoding="utf-8",
     )
     return root
@@ -101,7 +109,7 @@ def test_finalizer_backfills_all_local_evidence_hashes(tmp_path: Path) -> None:
     )
 
     finalized = (output / "handoff.md").read_text(encoding="utf-8")
-    assert finalized.count(" | sha256: ") == 3
+    assert finalized.count(" | sha256: ") == 4
     result = subprocess.run(
         [
             sys.executable,
@@ -210,7 +218,7 @@ def test_checker_verify_evidence_requires_complete_hashes(tmp_path: Path) -> Non
         text=True,
     )
     assert verified.returncode == 1
-    assert verified.stderr.count("evidence.sha256.missing") == 3
+    assert verified.stderr.count("evidence.sha256.missing") == 4
 
 
 def test_handoff_is_a_valid_plan_change_request_file(tmp_path: Path) -> None:
