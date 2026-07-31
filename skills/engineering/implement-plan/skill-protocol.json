@@ -101,7 +101,7 @@
           ],
           "repeat": [],
           "capture_stdout": null,
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         },
         {
@@ -160,7 +160,7 @@
           ],
           "repeat": [],
           "capture_stdout": null,
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         },
         {

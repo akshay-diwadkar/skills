@@ -64,6 +64,14 @@ compact JSON object and one newline to stdout and writes nothing to stderr.
 Human mode writes a concise summary to stdout and failure diagnostics to
 stderr.
 
+Every JSON diagnostic follows `tools/diagnostics/diagnostic.schema.json`.
+It names the owning skill, phase, artifact, record, field, and path; explains
+why the failure matters; lists only repairs that preserve validation
+strictness; includes local supporting evidence; and supplies a replayable
+argv command when a safe retry exists. Repair the reported artifact or provide
+the unavailable prerequisite. Never bypass, suppress, downgrade, or weaken a
+validation gate.
+
 - `0`: a usable response was produced successfully
 - `2`: invalid invocation, manifest, input, state identity, or path
 - `3`: prerequisites, phase gates, or validation block progress

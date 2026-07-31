@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from _diagnostic_contract import normalize_diagnostic
+
 REFERENCE_DIR = Path(__file__).resolve().parents[1] / "references"
 CONTRACT_PATH = REFERENCE_DIR / "optimization-contract.json"
 HANDOFF_CONTRACT_PATH = REFERENCE_DIR / "handoff-contract.json"
@@ -24,13 +26,25 @@ class Diagnostic:
         severity = "warning" if self.is_warning else "error"
         return f"{self.code} ({severity}){location} {self.message}"
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "code": self.code,
-            "message": self.message,
-            "line": self.line,
-            "severity": "warning" if self.is_warning else "error",
-        }
+    def to_dict(
+        self,
+        *,
+        path: str | Path = "optimization.md",
+        next_command: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return normalize_diagnostic(
+            {
+                "code": self.code,
+                "message": self.message,
+                "line": self.line,
+                "severity": "warning" if self.is_warning else "error",
+            },
+            skill="optimize-codebase",
+            phase="validate",
+            artifact="optimization-report",
+            path=path,
+            next_command=next_command,
+        )
 
 
 def _load(path: Path, version: int, name: str) -> dict[str, Any]:

@@ -46,6 +46,7 @@ def main() -> int:
     tooling = [
         ROOT / "tools" / "validation",
         ROOT / "tools" / "benchmarks",
+        ROOT / "tools" / "diagnostics",
         ROOT / "tools" / "skill_protocol",
         ROOT / "tools" / "skill_cli.py",
         ROOT / "tests" / "benchmarks",

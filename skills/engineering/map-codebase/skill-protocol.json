@@ -60,14 +60,14 @@
           "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "1", "--format", "json"],
           "repeat": [],
           "capture_stdout": "ownership",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         },
         {
           "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "map-codebase", "--repo-root", "{repo_root}", "--source", "{run_dir}/ownership.json"],
           "repeat": [],
           "capture_stdout": "classification",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         }
       ]
@@ -80,14 +80,14 @@
           "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "2", "--format", "json"],
           "repeat": [],
           "capture_stdout": "constraints",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         },
         {
           "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "map-codebase", "--repo-root", "{repo_root}", "--source", "{run_dir}/constraints.json"],
           "repeat": [],
           "capture_stdout": "classification",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         }
       ]
@@ -100,14 +100,14 @@
           "argv": ["{python}", "{skill_dir}/scripts/resolve_task.py", "{input.task}", "--repo-root", "{repo_root}", "--phase", "3", "--format", "json"],
           "repeat": [],
           "capture_stdout": "impacts",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         },
         {
           "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "map-codebase", "--repo-root", "{repo_root}", "--source", "{run_dir}/impacts.json"],
           "repeat": [],
           "capture_stdout": "classification",
-          "diagnostics_json": false,
+          "diagnostics_json": true,
           "failure": "blocked"
         }
       ]

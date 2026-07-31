@@ -6,10 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from _diagnostic_contract import normalize_diagnostic
 from jsonschema import Draft7Validator
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
@@ -292,7 +294,33 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError) as exc:
         print(json.dumps({"file": args.manual.name, "profile": args.profile, "error": str(exc)}, indent=2))
         return 2
-    print(json.dumps(result, indent=2))
+    retry = {
+        "argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+        "cwd": str(Path.cwd()),
+    }
+    result["violations"] = [
+        normalize_diagnostic(
+            {
+                **item,
+                "code": item["rule_id"],
+                "message": item["issue"],
+                "record": f"line {item['line']}",
+                "field": "sentence",
+                "required_action": item["fix"],
+                "valid_repairs": [item["fix"]],
+                "supporting_evidence": [item["sentence"]],
+            },
+            skill="manualize",
+            phase="validate",
+            artifact="manual",
+            path=args.manual,
+            next_command=retry,
+        )
+        for item in result["violations"]
+    ]
+    if result["violations"]:
+        result["diagnostics"] = result["violations"]
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return int(any(item["severity"] == "error" for item in result["violations"]))
 
 

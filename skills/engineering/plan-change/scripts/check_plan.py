@@ -62,10 +62,24 @@ def main() -> int:
         text, args.tier, args.repo_root.resolve(), require_finalized=args.require_finalized, baseline=baseline, inventory=inventory
     )
     if args.format == "json":
+        retry = {"argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], "cwd": str(Path.cwd())}
         print(
             json.dumps(
-                {"valid": not diagnostics, "contract_version": 5, "diagnostics": [x.to_dict() for x in diagnostics]},
-                indent=2,
+                {
+                    "valid": not diagnostics,
+                    "contract_version": 5,
+                    "diagnostics": [
+                        x.to_dict(
+                            skill="plan-change",
+                            artifact="plan",
+                            path=args.path or "stdin",
+                            next_command=retry,
+                        )
+                        for x in diagnostics
+                    ],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
             )
         )
     else:

@@ -17,6 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, Sequence
 
+_diagnostics = importlib.import_module("tools.diagnostics" if __package__ else "_diagnostic_contract")
+diagnostic_command = _diagnostics.command
+is_canonical = _diagnostics.is_canonical
+normalize_diagnostic = _diagnostics.normalize_diagnostic
+
 PROTOCOL_VERSION = "1.0"
 STATE_FILE = ".skill-cli-state.json"
 MANIFEST_FILE = "skill-protocol.json"
@@ -73,14 +78,39 @@ def _diagnostic(
     *,
     severity: str = "error",
     details: dict[str, Any] | None = None,
+    skill: str = "skill-protocol",
+    phase: str = "validate",
+    artifact: str = "skill-protocol",
+    path: str | Path = ".",
+    next_command: dict[str, Any] | None = None,
+    category: str | None = None,
+    required_action: str | None = None,
+    valid_repairs: Sequence[str] | None = None,
+    supporting_evidence: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "code": code,
         "severity": severity,
         "message": message,
         "hint": hint,
         "details": details or {},
     }
+    if category is not None:
+        payload["category"] = category
+    if required_action is not None:
+        payload["required_action"] = required_action
+    if valid_repairs is not None:
+        payload["valid_repairs"] = list(valid_repairs)
+    if supporting_evidence is not None:
+        payload["supporting_evidence"] = list(supporting_evidence)
+    return normalize_diagnostic(
+        payload,
+        skill=skill,
+        phase=phase,
+        artifact=artifact,
+        path=path,
+        next_command=next_command,
+    )
 
 
 def _empty_envelope(skill: str = "unknown") -> dict[str, Any]:
@@ -106,7 +136,9 @@ def _error_envelope(error: ProtocolError, skill: str = "unknown") -> dict[str, A
     envelope = _empty_envelope(skill)
     envelope["status"] = "blocked" if error.exit_code == EXIT_BLOCKED else "error"
     envelope["blocking_reasons"] = [error.code]
-    envelope["diagnostics"] = [_diagnostic(error.code, error.message, error.hint)]
+    envelope["diagnostics"] = [
+        _diagnostic(error.code, error.message, error.hint, skill=skill, artifact="invocation")
+    ]
     return envelope
 
 
@@ -777,13 +809,29 @@ def _phase_envelope(
                 }
                 for path in condition["paths"]
             )
+    retry = _next_command(context, "next" if phase["next_command"] else None)
+    normalized_diagnostics = [
+        normalize_diagnostic(
+            {
+                **item,
+                "skill": context.skill,
+                "phase": phase_name,
+            },
+            skill=context.skill,
+            phase=phase_name,
+            artifact="workflow",
+            path=context.run_dir or context.repo_root,
+            next_command=item.get("next_command") or retry,
+        )
+        for item in diagnostics or []
+    ]
     envelope = _empty_envelope(context.skill)
     envelope.update(
         {
             "status": "blocked" if blocking_reasons else phase["status"],
             "phase": phase_name,
             "next_action": phase["next_action"],
-            "next_command": _next_command(context, "next" if phase["next_command"] else None),
+            "next_command": retry,
             "required_reads": reads,
             "required_inputs": _required_inputs(
                 context.manifest,
@@ -793,7 +841,7 @@ def _phase_envelope(
             "allowed_writes": [_resolve_display_path(path, context) for path in phase["allowed_writes"]],
             "forbidden_actions": phase["forbidden_actions"],
             "blocking_reasons": blocking_reasons or [],
-            "diagnostics": diagnostics or [],
+            "diagnostics": normalized_diagnostics,
             "artifacts": _artifact_list(context),
         }
     )
@@ -990,6 +1038,18 @@ def _doctor(context: Context) -> tuple[int, dict[str, Any]]:
         if mode == "stateful" and context.manifest.get("classification") is not None
         else _required_inputs(context.manifest, context.inputs, first_command)
     )
+    doctor_retry = _next_command(context, "doctor")
+    diagnostics = [
+        normalize_diagnostic(
+            {**item, "skill": context.skill, "phase": "doctor"},
+            skill=context.skill,
+            phase="doctor",
+            artifact="prerequisite",
+            path=context.skill_dir,
+            next_command=doctor_retry,
+        )
+        for item in diagnostics
+    ]
     envelope = _empty_envelope(context.skill)
     envelope.update(
         {
@@ -1260,26 +1320,62 @@ def _apply_classification(context: Context, state: dict[str, Any]) -> tuple[int,
     return EXIT_OK, _phase_envelope(context, success_phase)
 
 
-def _child_diagnostics(stdout: str) -> list[dict[str, Any]]:
+def _child_diagnostics(
+    stdout: str,
+    *,
+    context: Context,
+    command_name: str,
+    argv: Sequence[str],
+) -> list[dict[str, Any]]:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
         return []
-    raw = payload.get("diagnostics") if isinstance(payload, dict) else None
+    raw: object
+    if isinstance(payload, list):
+        raw = payload
+    elif isinstance(payload, dict):
+        raw = payload.get("diagnostics")
+        if raw is None:
+            raw = payload.get("errors")
+        if raw is None:
+            raw = payload.get("violations")
+    else:
+        raw = None
     if not isinstance(raw, list):
         return []
     diagnostics: list[dict[str, Any]] = []
     for item in raw:
-        if not isinstance(item, dict):
-            continue
-        diagnostics.append(
-            _diagnostic(
-                str(item.get("code", "adapter.validation")),
-                str(item.get("message", "Skill validation failed.")),
-                str(item.get("hint", "Repair the reported validation problem and retry.")),
-                details={key: value for key, value in item.items() if key not in {"code", "message", "hint"}},
+        if not is_canonical(item):
+            diagnostics.append(
+                normalize_diagnostic(
+                    {
+                        "code": "adapter.diagnostic_contract_invalid",
+                        "category": "contract_contradiction",
+                        "message": "Wrapped validator returned a noncanonical diagnostic object.",
+                        "hint": "Update the wrapped validator to emit every required repair-ready diagnostic field.",
+                        "details": {"child_diagnostic": item},
+                        "supporting_evidence": [json.dumps(item, sort_keys=True, default=str)],
+                    },
+                    skill=context.skill,
+                    phase=command_name,
+                    artifact=Path(argv[1]).name if len(argv) > 1 else "validator",
+                    path=argv[1] if len(argv) > 1 else context.repo_root,
+                    next_command=diagnostic_command(argv, context.repo_root),
+                )
             )
-        )
+            continue
+        normalized = normalize_diagnostic(
+                item,
+                skill=context.skill,
+                phase=command_name,
+                artifact=Path(argv[1]).name if len(argv) > 1 else "validator",
+                path=argv[1] if len(argv) > 1 else context.repo_root,
+                next_command=diagnostic_command(argv, context.repo_root),
+            )
+        normalized.setdefault("hint", normalized["required_action"])
+        normalized.setdefault("details", {})
+        diagnostics.append(normalized)
     return diagnostics
 
 
@@ -1302,7 +1398,16 @@ def _run_command(
             check=False,
         )
         if result.returncode:
-            diagnostics = _child_diagnostics(result.stdout) if step["diagnostics_json"] else []
+            diagnostics = (
+                _child_diagnostics(
+                    result.stdout,
+                    context=context,
+                    command_name=command_name,
+                    argv=argv,
+                )
+                if step["diagnostics_json"]
+                else []
+            )
             if not diagnostics:
                 message = result.stderr.strip() or result.stdout.strip() or f"child exited {result.returncode}"
                 diagnostics = [
@@ -1311,6 +1416,20 @@ def _run_command(
                         message,
                         "Use the diagnostic from the wrapped skill, repair the run, and retry.",
                         details={"returncode": result.returncode},
+                        skill=context.skill,
+                        phase=command_name,
+                        artifact=Path(argv[1]).name if len(argv) > 1 else "validator",
+                        path=argv[1] if len(argv) > 1 else context.repo_root,
+                        next_command=diagnostic_command(argv, context.repo_root),
+                        required_action=(
+                            "Repair the reported artifact at the captured command path, "
+                            "then run the exact next_command."
+                        ),
+                        valid_repairs=(
+                            "Correct the local value named by the captured validator message.",
+                            "Provide the missing local prerequisite named by the captured validator message.",
+                        ),
+                        supporting_evidence=(message, f"child return code: {result.returncode}"),
                     )
                 ]
             exit_code = EXIT_BLOCKED if step["failure"] == "blocked" else EXIT_OPERATIONAL

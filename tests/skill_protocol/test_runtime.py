@@ -440,6 +440,28 @@ def test_child_failure_and_invalid_diagnostic_json_are_actionable(tmp_path: Path
     assert response["diagnostics"][0]["details"]["returncode"] == 1
 
 
+def test_noncanonical_child_diagnostic_is_rejected_with_local_repair(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["commands"]["validate"]["steps"][0]["diagnostics_json"] = True
+    skill = create_skill(tmp_path, payload)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = tmp_path / "run"
+    assert invoke(skill, repo, "--run-dir", str(run), "--format", "json", "start").returncode == 0
+    (skill / "scripts" / "workflow.py").write_text(
+        "print('{\"diagnostics\":[{\"code\":\"legacy.failure\",\"message\":\"broken\"}]}')\n"
+        "raise SystemExit(1)\n",
+        encoding="utf-8",
+    )
+    result = invoke(skill, repo, "--run-dir", str(run), "--format", "json", "validate")
+    assert result.returncode == 4
+    diagnostic = json_result(result)["diagnostics"][0]
+    assert diagnostic["code"] == "adapter.diagnostic_contract_invalid"
+    assert diagnostic["category"] == "contract_contradiction"
+    assert diagnostic["path"].endswith("workflow.py")
+    assert diagnostic["next_command"]["argv"][1].endswith("workflow.py")
+
+
 def test_tampered_state_is_rejected(tmp_path: Path) -> None:
     skill = create_skill(tmp_path)
     repo = tmp_path / "repo"

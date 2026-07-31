@@ -15,6 +15,9 @@ from typing import Any, Iterable
 
 from plan_contract_data import CONTRACT
 
+_diagnostics = importlib.import_module("tools.diagnostics" if __package__ else "_diagnostic_contract")
+normalize_diagnostic = _diagnostics.normalize_diagnostic
+
 VERSION = int(CONTRACT["contract_version"])
 MARKER = str(CONTRACT["marker"])
 TIERS = tuple(str(value) for value in CONTRACT["tiers"])
@@ -192,8 +195,28 @@ class Diagnostic:
             + f": {self.message} Likely fix: {self.hint}"
         )
 
-    def to_dict(self) -> dict[str, Any]:
-        return {**dataclasses.asdict(self), "hint": self.hint}
+    def to_dict(
+        self,
+        *,
+        skill: str | None = None,
+        phase: str = "validate",
+        artifact: str = "plan",
+        path: str | Path = "plan.md",
+        next_command: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        owner = skill or (
+            Path(__file__).resolve().parents[1].name
+            if Path(__file__).resolve().parent.name == "scripts"
+            else "plan-change"
+        )
+        return normalize_diagnostic(
+            {**dataclasses.asdict(self), "hint": self.hint},
+            skill=owner,
+            phase=phase,
+            artifact=artifact,
+            path=path,
+            next_command=next_command,
+        )
 
 
 @dataclasses.dataclass(frozen=True)

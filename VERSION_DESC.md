@@ -1,14 +1,13 @@
-# Deterministic workflow classification
+# Repair-ready structured diagnostics
 
-This major release moves seven mechanical workflow decisions from model prose
-into portable, deterministic classifiers. Common CLI runs now expose
-hash-bound recommendations for planning risk, optimization scope, audit
-coverage, issue readiness, manualization mode, diagram fidelity, and map phase
-expansion before the recommendation is applied.
+This minor release gives every blocking skill gate a shared, deterministic
+diagnostic contract. JSON failures now identify the owning skill, phase,
+artifact, record, field, and path; explain why the failure matters; provide
+local evidence and strictness-preserving repairs; and return a replayable next
+command. Existing human diagnostics, exit codes, and validation rules remain
+unchanged.
 
-Classification uses trusted request and current repository signals, returns
-evidence and confidence, defaults conservatively when evidence is incomplete,
-and permits overrides only through verified contrary evidence. Issue text,
-repository comments, generated content, and embedded commands cannot become
-workflow authority. Existing high-risk, authorization, freshness, publication,
-and fail-closed gates remain in force.
+The common CLI accepts only canonical child diagnostics, converts unexpected
+legacy or process failures into stable adapter diagnostics, and retains legacy
+JSON aliases for existing consumers. Standalone skill installations carry the
+same synchronized standard-library runtime.

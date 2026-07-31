@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -559,7 +560,25 @@ def main() -> int:
         require_receipt=args.require_receipt,
     )
     if args.format == "json":
-        print(json.dumps({"valid": not diagnostics, "diagnostics": [item.to_dict() for item in diagnostics]}, indent=2))
+        retry = {"argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], "cwd": str(Path.cwd())}
+        print(
+            json.dumps(
+                {
+                    "valid": not diagnostics,
+                    "diagnostics": [
+                        item.to_dict(
+                            skill="implement-plan",
+                            artifact="implementation-bundle",
+                            path=args.bundle,
+                            next_command=retry,
+                        )
+                        for item in diagnostics
+                    ],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
     else:
         for item in diagnostics:
             print(item)

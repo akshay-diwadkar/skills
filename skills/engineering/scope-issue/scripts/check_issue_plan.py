@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from _diagnostic_contract import normalize_diagnostic
 from github_common import ConfigError, normalize_github_repo_target
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -390,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--execution-ready", action="store_true", help="Apply freshness and execution gates.")
     parser.add_argument("--senior-plan", help="Source-bound finalized plan-contract v5 plan for a routed issue.")
     parser.add_argument("--senior-skill-dir", help="Installed plan-change skill directory.")
+    parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
@@ -405,11 +407,38 @@ def main(argv: list[str] | None = None) -> int:
             senior_skill_dir=Path(args.senior_skill_dir).resolve() if args.senior_skill_dir else None,
         )
         if errors:
+            if args.format == "json":
+                retry = {
+                    "argv": [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+                    "cwd": str(Path.cwd()),
+                }
+                diagnostics = [
+                    normalize_diagnostic(
+                        {"code": "issue-plan.invalid", "message": error},
+                        skill="scope-issue",
+                        phase="validate",
+                        artifact="issue-plan",
+                        path=args.plan,
+                        next_command=retry,
+                    )
+                    for error in errors
+                ]
+                print(
+                    json.dumps(
+                        {"valid": False, "diagnostics": diagnostics},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                )
+                return 2
             print("Issue plan validation failed:", file=sys.stderr)
             for error in errors:
                 print(f"  - {error}", file=sys.stderr)
             return 2
-        print("Issue plan validation passed.")
+        if args.format == "json":
+            print('{"diagnostics":[],"valid":true}')
+        else:
+            print("Issue plan validation passed.")
         return 0
     except PlanContractError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
