@@ -53,7 +53,7 @@ def inline_runtime_assets(html):
     return html
 
 
-def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False):
+def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False, fidelity=None):
     payload_path = Path(payload_path)
     output_path = Path(output_path)
 
@@ -84,6 +84,14 @@ def build_diagram(payload_path, output_path, overwrite=False, create_dirs=False)
         raise ValueError('Payload must contain an object field named "diagram".')
     if not isinstance(metadata, dict):
         raise ValueError('Payload must contain an object field named "metadata".')
+    if fidelity is not None:
+        for owner, name in ((diagram, "diagram"), (metadata, "metadata")):
+            existing = owner.get("fidelity")
+            if existing is not None and existing != fidelity:
+                raise ValueError(
+                    f"{name}.fidelity {existing!r} conflicts with deterministic classification {fidelity!r}."
+                )
+            owner["fidelity"] = fidelity
 
     diagram_literal = (
         "const DIAGRAM_DATA = "
@@ -120,13 +128,18 @@ def parse_args(argv):
     parser.add_argument("--output", required=True, help="Path to output .html file.")
     parser.add_argument("--create-dirs", action="store_true", help="Create a missing output directory.")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite an existing output file.")
+    parser.add_argument(
+        "--fidelity",
+        choices=("narrative-architecture", "exact-code-graph", "executive-concept-map"),
+        help="Deterministic classified fidelity; conflicting payload values fail closed.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv or sys.argv[1:])
     try:
-        output = build_diagram(args.data, args.output, args.overwrite, args.create_dirs)
+        output = build_diagram(args.data, args.output, args.overwrite, args.create_dirs, args.fidelity)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

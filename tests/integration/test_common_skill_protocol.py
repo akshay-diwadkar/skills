@@ -91,12 +91,17 @@ def test_plan_change_common_protocol_lifecycle_preserves_installed_skill(tmp_pat
         "start",
     )
     assert start_result.returncode == 0
-    assert started["phase"] == "drafting"
+    assert started["phase"] == "classification_review"
+    assert started["result"]["recommendation"]["values"]["tier"] == "tiny"
     assert started["next_command"]["argv"][1] == str(CLI)
 
     status_result, status = run(*common, "status")
     assert status_result.returncode == 0
-    assert status["phase"] == "drafting"
+    assert status["phase"] == "classification_review"
+
+    apply_result, applied = run(*common, "next")
+    assert apply_result.returncode == 0
+    assert applied["phase"] == "drafting"
 
     blocked_result, blocked = run(*common, "next")
     assert blocked_result.returncode == 3
@@ -148,6 +153,9 @@ def test_plan_change_common_protocol_blocks_stale_evidence(tmp_path: Path) -> No
         repo=target,
     )
     assert started.returncode == 0
+    applied, response = run(*common, "next", repo=target)
+    assert applied.returncode == 0
+    assert response["phase"] == "drafting"
     (run_dir / "draft.md").write_text(tiny_example(), encoding="utf-8")
     source = target / "src" / "names.py"
     source.write_text(source.read_text(encoding="utf-8") + "\n# concurrent change\n", encoding="utf-8")

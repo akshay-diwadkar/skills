@@ -14,11 +14,13 @@
     {"name": "issue_json", "kind": "path", "required": false, "repeatable": false, "description": "Fresh selected-issue JSON for execution gating.", "choices": []},
     {"name": "pr_number", "kind": "string", "required": false, "repeatable": false, "description": "Merged pull request number.", "choices": []},
     {"name": "base", "kind": "string", "required": false, "repeatable": false, "description": "Expected merged base branch.", "choices": []},
-    {"name": "verification_summary", "kind": "path", "required": false, "repeatable": false, "description": "Approved post-merge verification summary.", "choices": []}
+    {"name": "verification_summary", "kind": "path", "required": false, "repeatable": false, "description": "Approved post-merge verification summary.", "choices": []},
+    {"name": "classification_override", "kind": "path", "required": false, "repeatable": false, "description": "Hash-bound contrary readiness evidence.", "choices": []}
   ],
   "artifacts": [
     {"name": "issues", "path": "issues.json", "media_type": "application/json"},
-    {"name": "selected_issue", "path": "selected-issue.json", "media_type": "application/json"}
+    {"name": "selected_issue", "path": "selected-issue.json", "media_type": "application/json"},
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"}
   ],
   "phases": {
     "selection": {
@@ -36,6 +38,15 @@
       "required_reads": ["{run_dir}/selected-issue.json", "{skill_dir}/references/planning-rubric.md", "{input.plan_output}"],
       "allowed_writes": ["{input.plan_output}"],
       "forbidden_actions": ["write_installed_skill", "write_target_repository", "comment_on_github", "execute_issue"]
+    },
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_readiness_and_validate_issue_plan",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json", "{input.plan_output}"],
+      "result_artifact": "classification",
+      "allowed_writes": ["{input.plan_output}"],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "comment_on_github", "override_without_contrary_evidence"]
     },
     "complete": {
       "status": "complete",
@@ -84,8 +95,16 @@
     },
     "validate": {
       "allowed_phases": ["drafting"],
+      "success_phase": "classification_review",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "scope-issue", "--repo-root", "{repo_root}", "--source", "{input.plan_output}"], "repeat": [], "capture_stdout": "classification", "diagnostics_json": false, "failure": "blocked"}
+      ]
+    },
+    "apply_classification": {
+      "allowed_phases": ["classification_review"],
       "success_phase": "complete",
       "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/apply_issue_classification.py", "--classification", "{run_dir}/classification.json", "--repo-root", "{repo_root}", "{input.plan_output}"], "repeat": [{"input": "classification_override", "flag": "--override-file"}], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"},
         {"argv": ["{python}", "{skill_dir}/scripts/check_issue_plan.py", "{input.plan_output}", "--repo-root", "{repo_root}", "--issue-json", "{run_dir}/selected-issue.json"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
       ]
     }

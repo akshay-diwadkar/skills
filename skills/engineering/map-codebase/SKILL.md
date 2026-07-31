@@ -1,10 +1,15 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 1.2.0
+version: 2.0.0
 ---
 
 # Map Codebase
+
+Every common CLI `start` or `next` resolver response includes a deterministic
+phase-expansion recommendation in `result`. Expand only while its observable
+confidence, freshness, requested-phase, or unresolved-trigger evidence requires
+it; source verification remains authoritative.
 
 Use compact machine knowledge for navigation. Source is always authoritative.
 

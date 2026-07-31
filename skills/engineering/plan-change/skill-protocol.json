@@ -3,6 +3,15 @@
   "skill": "plan-change",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill_and_repo",
+  "classification": {
+    "phase": "classification_review",
+    "artifact": "classification",
+    "required_inputs": ["request_file"],
+    "controlled_inputs": ["tier", "intent", "risk_domain", "tier_signal"],
+    "override_input": "classification_override",
+    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "plan-change", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
+    "repeat": [{"input": "anchor", "flag": "--anchor"}]
+  },
   "requirements": [
     {"distribution": "tree-sitter", "specifier": "==0.25.2"},
     {"distribution": "tree-sitter-javascript", "specifier": "==0.25.0"},
@@ -53,15 +62,41 @@
       "repeatable": true,
       "description": "Plausible plan risk domain.",
       "choices": []
+    },
+    {
+      "name": "tier_signal",
+      "kind": "string",
+      "required": false,
+      "repeatable": true,
+      "description": "Typed tier signal supplied by deterministic classification.",
+      "choices": []
+    },
+    {
+      "name": "classification_override",
+      "kind": "path",
+      "required": false,
+      "repeatable": false,
+      "description": "Hash-bound contrary evidence for overriding classification.",
+      "choices": []
     }
   ],
   "artifacts": [
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"},
     {"name": "baseline", "path": "baseline.json", "media_type": "application/json"},
     {"name": "inventory", "path": "inventory.json", "media_type": "application/json"},
     {"name": "draft", "path": "draft.md", "media_type": "text/markdown"},
     {"name": "final", "path": "final.md", "media_type": "text/markdown"}
   ],
   "phases": {
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_deterministic_classification",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json"],
+      "result_artifact": "classification",
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
+    },
     "drafting": {
       "status": "in_progress",
       "next_action": "complete_or_repair_draft",
@@ -127,6 +162,7 @@
             "{input.request_file}",
             "--run-dir",
             "{run_dir}",
+            "--reuse-classified-run",
             "--tier",
             "{input.tier}",
             "--intent",
@@ -134,7 +170,8 @@
           ],
           "repeat": [
             {"input": "anchor", "flag": "--anchor"},
-            {"input": "risk_domain", "flag": "--risk-domain"}
+            {"input": "risk_domain", "flag": "--risk-domain"},
+            {"input": "tier_signal", "flag": "--tier-signal"}
           ],
           "capture_stdout": null,
           "diagnostics_json": false,

@@ -179,8 +179,9 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
     values: dict[str, list[str]] = {
         "map-codebase": ["task=locate the application entrypoint"],
         "design-codebase": [f"draft={existing}", f"output_dir={output_dir}"],
-        "audit-codebase": [f"bundle={existing}", f"checkpoint={tmp_path / 'checkpoint.json'}"],
+        "audit-codebase": [f"request_file={existing}", f"bundle={existing}", f"checkpoint={tmp_path / 'checkpoint.json'}"],
         "optimize-codebase": [
+            f"request_file={existing}",
             "path=full",
             "scope=targeted",
             "stage=plan",
@@ -189,12 +190,14 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
         ],
         "scope-issue": ["operation=execution-gate"],
         "diagram-codebase": [
+            f"request_file={existing}",
             f"data={existing}",
             f"output={tmp_path / 'diagram.html'}",
             "create_dirs=no",
             "overwrite=no",
         ],
         "manualize": [
+            f"request_file={existing}",
             "operation=audit",
             "profile=standard",
             f"manual={existing}",

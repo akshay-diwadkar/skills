@@ -3,18 +3,39 @@
   "skill": "optimize-codebase",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill_and_repo",
+  "classification": {
+    "phase": "classification_review",
+    "artifact": "classification",
+    "required_inputs": ["request_file"],
+    "controlled_inputs": ["path", "scope"],
+    "override_input": "classification_override",
+    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "optimize-codebase", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
+    "repeat": []
+  },
   "requirements": [],
   "inputs": [
+    {"name": "request_file", "kind": "path", "required": true, "repeatable": false, "description": "Trusted optimization request file.", "choices": []},
     {"name": "path", "kind": "choice", "required": true, "repeatable": false, "description": "Optimization fast or full path.", "choices": ["fast", "full"]},
     {"name": "scope", "kind": "choice", "required": true, "repeatable": false, "description": "Targeted or sweep scope.", "choices": ["targeted", "sweep"]},
     {"name": "stage", "kind": "choice", "required": true, "repeatable": false, "description": "Plan or explicitly authorized implementation stage.", "choices": ["plan", "implementation"]},
     {"name": "report", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "Absolute optimization report path.", "choices": []},
-    {"name": "implementation_authorized", "kind": "choice", "required": true, "repeatable": false, "description": "Whether repository implementation was explicitly authorized.", "choices": ["no", "yes"]}
+    {"name": "implementation_authorized", "kind": "choice", "required": true, "repeatable": false, "description": "Whether repository implementation was explicitly authorized.", "choices": ["no", "yes"]},
+    {"name": "classification_override", "kind": "path", "required": false, "repeatable": false, "description": "Hash-bound contrary classification evidence.", "choices": []}
   ],
   "artifacts": [
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"},
     {"name": "report", "path": "{input.report}", "media_type": "text/markdown", "external": true}
   ],
   "phases": {
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_deterministic_classification",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json"],
+      "result_artifact": "classification",
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
+    },
     "drafting_plan": {
       "status": "in_progress",
       "next_action": "complete_and_validate_optimization_plan",
