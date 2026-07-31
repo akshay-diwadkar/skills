@@ -146,11 +146,15 @@
       "phase": "drafting",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 2250,
+      "max_tokens": 2550,
       "expires": "2027-07-31",
-      "rationale": "Design drafting loads the bounded independent-review contract while preserving primary design and handoff authority.",
-      "supporting_paths": ["references/delegation-protocol.md"],
-      "protected_rule_ids": ["design.delegation-authority"]
+      "rationale": "Design drafting loads the bounded independent-review contract plus the compact shared vocabulary and claim-support gates, while preserving primary design and handoff authority.",
+      "supporting_paths": [
+        "references/delegation-protocol.md",
+        "references/design-protocol.md",
+        "references/handoff-template.md"
+      ],
+      "protected_rule_ids": ["design.delegation-authority", "design.one-artifact", "design.no-edit-validated"]
     },
     {
       "id": "design-codebase-bounded-delegation-portfolio",
@@ -158,11 +162,16 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 3500,
+      "max_tokens": 4100,
       "expires": "2027-07-31",
-      "rationale": "The complete design reference portfolio includes the bounded review contract and equivalent sequential fallback.",
-      "supporting_paths": ["references/delegation-protocol.md"],
-      "protected_rule_ids": ["design.delegation-authority"]
+      "rationale": "The complete design reference portfolio includes the bounded review contract, the compact vocabulary and claim-support protocol, the handoff template, and worked examples, with equivalent sequential fallback.",
+      "supporting_paths": [
+        "references/delegation-protocol.md",
+        "references/design-protocol.md",
+        "references/handoff-template.md",
+        "references/worked-examples.md"
+      ],
+      "protected_rule_ids": ["design.delegation-authority", "design.one-artifact", "design.no-edit-validated"]
     },
     {
       "id": "implement-plan-bounded-delegation-phase",
