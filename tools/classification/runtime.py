@@ -112,7 +112,7 @@ def _trusted_sources(root: Path) -> list[Path]:
 
 
 def _repo_observations(root: Path, needles: dict[str, tuple[str, ...]]) -> dict[str, list[Path]]:
-    found = {name: [] for name in needles}
+    found: dict[str, list[Path]] = {name: [] for name in needles}
     trusted = {path.resolve() for path in _trusted_sources(root)}
     pattern = "|".join(
         re.escape(term)
