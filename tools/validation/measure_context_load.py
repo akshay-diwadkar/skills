@@ -553,10 +553,51 @@ def validate_report(
     errors: list[str] = []
     if committed != current:
         errors.append(f"{label}: generated report is stale; run measure_context_load.py --write")
+        errors.extend(_report_differences(committed, current))
     errors.extend(budget_errors(current, config))
     if compare_ref:
         errors.extend(delta_errors(current, _git_report(compare_ref, root), config))
     return errors
+
+
+def _report_differences(expected: Any, actual: Any, path: str = "report", limit: int = 20) -> list[str]:
+    differences: list[str] = []
+
+    def visit(left: Any, right: Any, current_path: str) -> None:
+        if len(differences) >= limit:
+            return
+        if type(left) is not type(right):
+            differences.append(
+                f"{current_path}: committed type {type(left).__name__}, measured type {type(right).__name__}"
+            )
+            return
+        if isinstance(left, dict):
+            for key in sorted(set(left) | set(right)):
+                if key not in left:
+                    differences.append(f"{current_path}.{key}: missing from committed report")
+                elif key not in right:
+                    differences.append(f"{current_path}.{key}: missing from measured report")
+                else:
+                    visit(left[key], right[key], f"{current_path}.{key}")
+                if len(differences) >= limit:
+                    return
+            return
+        if isinstance(left, list):
+            if len(left) != len(right):
+                differences.append(f"{current_path}: committed length {len(left)}, measured length {len(right)}")
+                return
+            for index, (left_item, right_item) in enumerate(zip(left, right, strict=True)):
+                visit(left_item, right_item, f"{current_path}[{index}]")
+                if len(differences) >= limit:
+                    return
+            return
+        if left != right:
+            differences.append(f"{current_path}: committed {left!r}, measured {right!r}")
+
+    visit(expected, actual, path)
+    if len(differences) == limit:
+        differences.append("report: additional differences omitted")
+    return differences
 
 
 def markdown_summary(report: Mapping[str, Any], base: Mapping[str, Any] | None = None) -> str:

@@ -150,3 +150,11 @@ def test_summary_reports_per_skill_totals_and_changes() -> None:
     summary = context_load.markdown_summary(measured, base)
     assert "| manualize |" in summary
     assert "| +5 |" in summary
+
+
+def test_stale_report_diagnostics_name_changed_fields() -> None:
+    expected = {"skills": {"fixture": {"metrics": {"top_level": 10}}}}
+    actual = {"skills": {"fixture": {"metrics": {"top_level": 11}}}}
+    assert context_load._report_differences(expected, actual) == [
+        "report.skills.fixture.metrics.top_level: committed 10, measured 11"
+    ]
