@@ -202,11 +202,17 @@ python tools/validation/run_mypy.py
 # Validate skill structure and metadata
 python tools/validation/validate_repository.py
 
+# Regenerate or verify committed context-load evidence
+python tools/validation/measure_context_load.py --write
+python tools/validation/measure_context_load.py --check
+
 # Run the test suite
 python -m pytest -q
 ```
 
 Benchmark fixtures, methodology, limitations, baselines, and the cross-skill migration matrix are documented in [`benchmarks/`](benchmarks/README.md).
+That directory also documents the blocking context-load budgets, generated
+per-skill totals, pull-request deltas, and exception policy.
 
 ## Publishing a release
 

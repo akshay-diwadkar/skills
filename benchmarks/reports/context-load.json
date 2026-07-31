@@ -1,0 +1,885 @@
+{
+  "aggregate_metrics": {
+    "phase_references": 27083,
+    "pre_action": 8011,
+    "repair_diagnostic": 2471,
+    "tool_output": 2054,
+    "top_level": 5957,
+    "worst_context": 60650,
+    "worst_references": 52222
+  },
+  "baseline": {
+    "requirements": [
+      "offline_tokenizer_hash_verified",
+      "canonical_runtime_output",
+      "cross_platform_report_check",
+      "complete_skill_inventory"
+    ],
+    "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
+    "status": "established"
+  },
+  "config_sha256": "2a164a1332c04ab2eb21eefec7fb72f0caf7e074bc2e297717581bc84046b39c",
+  "schema_version": 2,
+  "skills": {
+    "audit-codebase": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 2654,
+        "pre_action": 840,
+        "repair_diagnostic": 215,
+        "tool_output": 186,
+        "top_level": 654,
+        "worst_context": 5499,
+        "worst_references": 4630
+      },
+      "path": "skills/engineering/audit-codebase/SKILL.md",
+      "phases": {
+        "audit_context": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/audit-bundle.md",
+              "references/audit-protocol.md"
+            ],
+            "tokens": 2654
+          },
+          "worst": {
+            "paths": [
+              "references/audit-bundle.md",
+              "references/audit-protocol.md"
+            ],
+            "tokens": 2654
+          }
+        },
+        "candidates": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/audit-rubric.md"
+            ],
+            "tokens": 786
+          },
+          "worst": {
+            "paths": [
+              "references/audit-rubric.md"
+            ],
+            "tokens": 786
+          }
+        },
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "coverage": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "issues": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "publication_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "reviewed": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "risk_surfaces": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/deep-analysis-patterns.md"
+            ],
+            "tokens": 551
+          },
+          "worst": {
+            "paths": [
+              "references/deep-analysis-patterns.md"
+            ],
+            "tokens": 551
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "9f3c3c81cf02c50956667ff496b180f26fa1a4853ca07ccfb0339ababecac602",
+      "worst_reference_paths": [
+        "references/audit-bundle.md",
+        "references/audit-protocol.md",
+        "references/audit-rubric.md",
+        "references/deep-analysis-patterns.md",
+        "references/ecosystem-optimization.md"
+      ]
+    },
+    "design-codebase": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 1352,
+        "pre_action": 725,
+        "repair_diagnostic": 227,
+        "tool_output": 172,
+        "top_level": 553,
+        "worst_context": 3349,
+        "worst_references": 2569
+      },
+      "path": "skills/engineering/design-codebase/SKILL.md",
+      "phases": {
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "drafting": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/design-protocol.md",
+              "references/handoff-template.md"
+            ],
+            "tokens": 1352
+          },
+          "worst": {
+            "paths": [
+              "references/design-protocol.md",
+              "references/handoff-template.md"
+            ],
+            "tokens": 1352
+          }
+        },
+        "validated": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "3be551ea0233b56a737fd82b5666c8b6e1a8e49009942182b0488e8fca83a576",
+      "worst_reference_paths": [
+        "references/design-protocol.md",
+        "references/handoff-template.md",
+        "references/worked-examples.md"
+      ]
+    },
+    "diagram-codebase": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 0,
+        "pre_action": 762,
+        "repair_diagnostic": 217,
+        "tool_output": 211,
+        "top_level": 551,
+        "worst_context": 5063,
+        "worst_references": 4295
+      },
+      "path": "skills/engineering/diagram-codebase/SKILL.md",
+      "phases": {
+        "built": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "05004616d7c4cc6d9d0d94185f084ca7a785bc8a3afefc59f72c32a2d5ededfc",
+      "worst_reference_paths": [
+        "references/html-output-guide.md",
+        "references/question-framework.md"
+      ]
+    },
+    "implement-plan": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 4935,
+        "pre_action": 815,
+        "repair_diagnostic": 228,
+        "tool_output": 162,
+        "top_level": 653,
+        "worst_context": 6255,
+        "worst_references": 5374
+      },
+      "path": "skills/engineering/implement-plan/SKILL.md",
+      "phases": {
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "implementing": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/code-quality-checklist.md",
+              "references/implementation-contract.json",
+              "references/implementation-hazards.md",
+              "references/implementation-protocols.md"
+            ],
+            "tokens": 4935
+          },
+          "worst": {
+            "paths": [
+              "references/code-quality-checklist.md",
+              "references/implementation-contract.json",
+              "references/implementation-hazards.md",
+              "references/implementation-protocols.md"
+            ],
+            "tokens": 4935
+          }
+        },
+        "validated": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "fab23ffdfd2e50aa5a2d1ecc9cbdc26a8a3fb10dbb923d43b3390dfa67e5a65d",
+      "worst_reference_paths": [
+        "references/cli-compatibility.md",
+        "references/code-quality-checklist.md",
+        "references/implementation-contract.json",
+        "references/implementation-hazards.md",
+        "references/implementation-protocols.md"
+      ]
+    },
+    "manualize": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 1026,
+        "pre_action": 831,
+        "repair_diagnostic": 214,
+        "tool_output": 211,
+        "top_level": 620,
+        "worst_context": 1991,
+        "worst_references": 1157
+      },
+      "path": "skills/technical-communication/manualize/SKILL.md",
+      "phases": {
+        "auditing": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/audit-report.md",
+              "references/mte-1.md",
+              "references/operation-protocols.md"
+            ],
+            "tokens": 749
+          },
+          "worst": {
+            "paths": [
+              "references/audit-report.md",
+              "references/mte-1.md",
+              "references/operation-protocols.md"
+            ],
+            "tokens": 749
+          }
+        },
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [
+            {
+              "condition": {
+                "input": "operation",
+                "values": [
+                  "write"
+                ]
+              },
+              "paths": [],
+              "tokens": 0
+            },
+            {
+              "condition": {
+                "input": "operation",
+                "values": [
+                  "audit"
+                ]
+              },
+              "paths": [],
+              "tokens": 0
+            }
+          ],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "drafting": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/manual-bundle.md",
+              "references/mte-1.md",
+              "references/operation-protocols.md",
+              "references/source-grounding.md"
+            ],
+            "tokens": 1026
+          },
+          "worst": {
+            "paths": [
+              "references/manual-bundle.md",
+              "references/mte-1.md",
+              "references/operation-protocols.md",
+              "references/source-grounding.md"
+            ],
+            "tokens": 1026
+          }
+        },
+        "validated": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "6a61193db596b2e379cb678452c0ce469ca50f7a800096a760d98cc59e990a94",
+      "worst_reference_paths": [
+        "references/audit-report.md",
+        "references/manual-bundle.md",
+        "references/mte-1.md",
+        "references/operation-protocols.md",
+        "references/source-grounding.md"
+      ]
+    },
+    "map-codebase": {
+      "category": "model_helper",
+      "metrics": {
+        "phase_references": 0,
+        "pre_action": 721,
+        "repair_diagnostic": 224,
+        "tool_output": 162,
+        "top_level": 559,
+        "worst_context": 3812,
+        "worst_references": 3029
+      },
+      "path": "skills/engineering/map-codebase/SKILL.md",
+      "phases": {
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "constraints": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "ownership": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "a5a4f298ec7bffd9fe3233987475eac9cea768d73a6762d808346f0fcf26350f",
+      "worst_reference_paths": [
+        "references/benchmark.md",
+        "references/example-walkthrough.md",
+        "references/extractor-coverage.md",
+        "references/knowledge-contract.md",
+        "references/resolver-design.md"
+      ]
+    },
+    "optimize-codebase": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 3426,
+        "pre_action": 863,
+        "repair_diagnostic": 215,
+        "tool_output": 204,
+        "top_level": 659,
+        "worst_context": 10182,
+        "worst_references": 9308
+      },
+      "path": "skills/engineering/optimize-codebase/SKILL.md",
+      "phases": {
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "drafting_implementation": {
+          "conditional": [
+            {
+              "condition": {
+                "input": "path",
+                "values": [
+                  "fast"
+                ]
+              },
+              "paths": [
+                "references/fast-path.md"
+              ],
+              "tokens": 330
+            },
+            {
+              "condition": {
+                "input": "path",
+                "values": [
+                  "full"
+                ]
+              },
+              "paths": [
+                "references/glossary.md",
+                "references/optimization-protocol.md",
+                "references/optimization-rubric.md"
+              ],
+              "tokens": 3096
+            }
+          ],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [
+              "references/fast-path.md",
+              "references/glossary.md",
+              "references/optimization-protocol.md",
+              "references/optimization-rubric.md"
+            ],
+            "tokens": 3426
+          }
+        },
+        "drafting_plan": {
+          "conditional": [
+            {
+              "condition": {
+                "input": "path",
+                "values": [
+                  "fast"
+                ]
+              },
+              "paths": [
+                "references/fast-path.md"
+              ],
+              "tokens": 330
+            },
+            {
+              "condition": {
+                "input": "path",
+                "values": [
+                  "full"
+                ]
+              },
+              "paths": [
+                "references/glossary.md",
+                "references/optimization-protocol.md",
+                "references/optimization-rubric.md"
+              ],
+              "tokens": 3096
+            }
+          ],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [
+              "references/fast-path.md",
+              "references/glossary.md",
+              "references/optimization-protocol.md",
+              "references/optimization-rubric.md"
+            ],
+            "tokens": 3426
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "d755d03ddbcfc551fc23be1d316a44e0889c904e00eda42c370c40a7d2cd98b4",
+      "worst_reference_paths": [
+        "references/docs-research-protocol.md",
+        "references/ecosystem-leverage.md",
+        "references/fast-path.md",
+        "references/glossary.md",
+        "references/handoff-contract.json",
+        "references/optimization-contract.json",
+        "references/optimization-patterns.md",
+        "references/optimization-protocol.md",
+        "references/optimization-rubric.md",
+        "references/worked-examples.md"
+      ]
+    },
+    "plan-change": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 12403,
+        "pre_action": 825,
+        "repair_diagnostic": 214,
+        "tool_output": 176,
+        "top_level": 649,
+        "worst_context": 19768,
+        "worst_references": 18905
+      },
+      "path": "skills/engineering/plan-change/SKILL.md",
+      "phases": {
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "drafting": {
+          "conditional": [
+            {
+              "condition": {
+                "input": "tier",
+                "values": [
+                  "standard",
+                  "high-risk"
+                ]
+              },
+              "paths": [
+                "references/worked-examples.md"
+              ],
+              "tokens": 6910
+            }
+          ],
+          "required": {
+            "paths": [
+              "references/adversarial-verification.md",
+              "references/cognitive-protocols.md",
+              "references/glossary.md",
+              "references/plan-contract.md",
+              "references/task-playbooks.md"
+            ],
+            "tokens": 5493
+          },
+          "worst": {
+            "paths": [
+              "references/adversarial-verification.md",
+              "references/cognitive-protocols.md",
+              "references/glossary.md",
+              "references/plan-contract.md",
+              "references/task-playbooks.md",
+              "references/worked-examples.md"
+            ],
+            "tokens": 12403
+          }
+        },
+        "validated": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "2722bbbe412b5305af3deb4430b651b6e07f59b67e17fbd6fa90282f38ca332e",
+      "worst_reference_paths": [
+        "references/adversarial-verification.md",
+        "references/cli-compatibility.md",
+        "references/cognitive-protocols.md",
+        "references/glossary.md",
+        "references/plan-contract.json",
+        "references/plan-contract.md",
+        "references/task-playbooks.md",
+        "references/validation-evidence.md",
+        "references/worked-examples.md"
+      ]
+    },
+    "route-engineering-work": {
+      "category": "router",
+      "metrics": {
+        "phase_references": 0,
+        "pre_action": 594,
+        "repair_diagnostic": 227,
+        "tool_output": 153,
+        "top_level": 441,
+        "worst_context": 1331,
+        "worst_references": 663
+      },
+      "path": "skills/engineering/route-engineering-work/SKILL.md",
+      "phases": {},
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "c25079ed8ac1c7c6c44c982a754de2ae71d23a34ccadd5a09e425a67efeb9cfc",
+      "worst_reference_paths": [
+        "references/routing-policy.md"
+      ]
+    },
+    "scope-issue": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 1287,
+        "pre_action": 1035,
+        "repair_diagnostic": 490,
+        "tool_output": 417,
+        "top_level": 618,
+        "worst_context": 3400,
+        "worst_references": 2292
+      },
+      "path": "skills/engineering/scope-issue/SKILL.md",
+      "phases": {
+        "classification_review": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [
+            {
+              "condition": {
+                "input": "operation",
+                "values": [
+                  "execution-gate",
+                  "post-merge"
+                ]
+              },
+              "paths": [
+                "references/execution-and-follow-up.md"
+              ],
+              "tokens": 358
+            }
+          ],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [
+              "references/execution-and-follow-up.md"
+            ],
+            "tokens": 358
+          }
+        },
+        "drafting": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/planning-rubric.md"
+            ],
+            "tokens": 1287
+          },
+          "worst": {
+            "paths": [
+              "references/planning-rubric.md"
+            ],
+            "tokens": 1287
+          }
+        },
+        "selection": {
+          "conditional": [],
+          "required": {
+            "paths": [
+              "references/planning-rubric.md"
+            ],
+            "tokens": 1287
+          },
+          "worst": {
+            "paths": [
+              "references/planning-rubric.md"
+            ],
+            "tokens": 1287
+          }
+        }
+      },
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "676d3ae56ca0d6cb663304299b43b0c1a9a1cbc7f0abfe2be560a725d8aece1d",
+      "worst_reference_paths": [
+        "references/execution-and-follow-up.md",
+        "references/issue-plan-contract.json",
+        "references/planning-rubric.md"
+      ]
+    }
+  },
+  "tokenizer": "cl100k_base (vendored, SHA-256 verified)"
+}
