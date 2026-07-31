@@ -117,14 +117,14 @@ def test_markdown_reference_validation_rejects_missing_escape_and_orphan(
     assert any("reference is not linked directly" in error for error in errors)
 
 
-def test_skill_load_report_is_current() -> None:
-    assert validator.validate_skill_load_report() == []
+def test_context_load_report_is_current() -> None:
+    assert validator.validate_context_load_report() == []
 
 
-def test_skill_load_report_rejects_stale_after_metrics(tmp_path: Path) -> None:
-    report_path = ROOT / "benchmarks" / "reports" / "skill-top-level-load.json"
+def test_context_load_report_rejects_stale_metrics(tmp_path: Path) -> None:
+    report_path = ROOT / "benchmarks" / "reports" / "context-load.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report["skills"]["manualize"]["after"]["tokens"] += 1
-    stale = tmp_path / "skill-top-level-load.json"
+    report["skills"]["manualize"]["metrics"]["top_level"] += 1
+    stale = tmp_path / "context-load.json"
     stale.write_text(json.dumps(report), encoding="utf-8")
-    assert any("stale after metrics for manualize" in error for error in validator.validate_skill_load_report(stale))
+    assert any("generated report is stale" in error for error in validator.validate_context_load_report(stale))

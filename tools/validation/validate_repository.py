@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from measure_skill_load import validate_report as validate_skill_load_report  # noqa: E402
+from measure_context_load import validate_report as validate_context_load_report  # noqa: E402
 
 from tools.skill_protocol import validate_manifest  # noqa: E402
 
@@ -798,7 +798,7 @@ def main() -> int:
     errors.extend(validate_router_contract())
     errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())
-    errors.extend(validate_skill_load_report())
+    errors.extend(validate_context_load_report())
     for skill_dir in skills:
         errors.extend(validate_skill_package(skill_dir))
         errors.extend(validate_script_references(skill_dir))

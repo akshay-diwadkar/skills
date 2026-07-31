@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "status": "established",
+    "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
+    "requirements": [
+      "offline_tokenizer_hash_verified",
+      "canonical_runtime_output",
+      "cross_platform_report_check",
+      "complete_skill_inventory"
+    ]
+  },
+  "category_budgets": {
+    "router": {"top_level": 500, "pre_action": 750, "worst_references": 800},
+    "model_helper": {"top_level": 650, "pre_action": 900, "worst_references": 3500},
+    "user_orchestrator": {"top_level": 750, "pre_action": 1250, "worst_references": 10000}
+  },
+  "shared_budgets": {
+    "phase_references": 6000,
+    "tool_output": 500,
+    "repair_diagnostic": 600
+  },
+  "delta_budgets": {
+    "top_level": 32,
+    "pre_action": 64,
+    "phase_references": 128,
+    "worst_references": 256,
+    "tool_output": 64,
+    "repair_diagnostic": 64
+  },
+  "large_reduction_percent": 15,
+  "skills": {
+    "audit-codebase": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "request_file",
+      "representative_inputs": {
+        "request_file": "{fixture_file}",
+        "bundle": "{fixture_file}",
+        "checkpoint": "{future_file}"
+      }
+    },
+    "design-codebase": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "draft",
+      "representative_inputs": {
+        "draft": "{fixture_file}",
+        "output_dir": "{fixture_dir}"
+      }
+    },
+    "diagram-codebase": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "request_file",
+      "representative_inputs": {
+        "request_file": "{fixture_file}",
+        "fidelity": "narrative-architecture",
+        "data": "{fixture_file}",
+        "output": "{future_file}",
+        "create_dirs": "no",
+        "overwrite": "no"
+      }
+    },
+    "implement-plan": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "plan_file",
+      "representative_inputs": {"plan_file": "{fixture_file}"}
+    },
+    "map-codebase": {
+      "category": "model_helper",
+      "diagnostic_input": "task",
+      "representative_inputs": {"task": "locate the application entrypoint"}
+    },
+    "manualize": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "request_file",
+      "representative_inputs": {
+        "request_file": "{fixture_file}",
+        "operation": "write",
+        "profile": "strict",
+        "manual": "{fixture_file}",
+        "bundle": "{fixture_file}",
+        "glossary": "{fixture_file}"
+      }
+    },
+    "optimize-codebase": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "request_file",
+      "representative_inputs": {
+        "request_file": "{fixture_file}",
+        "path": "fast",
+        "scope": "targeted",
+        "stage": "plan",
+        "report": "{future_file}",
+        "implementation_authorized": "no"
+      }
+    },
+    "plan-change": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "request_file",
+      "representative_inputs": {
+        "request_file": "{fixture_file}",
+        "tier": "tiny",
+        "intent": "feature"
+      }
+    },
+    "route-engineering-work": {
+      "category": "router",
+      "diagnostic_input": "request",
+      "representative_inputs": {"request": "Choose the planning workflow."}
+    },
+    "scope-issue": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "operation",
+      "representative_inputs": {"operation": "plan"}
+    }
+  },
+  "exceptions": [
+    {
+      "id": "plan-change-drafting-contract-examples",
+      "skill": "plan-change",
+      "metric": "phase_references",
+      "phase": "drafting",
+      "direction": "increase",
+      "max_tokens": 13000,
+      "expires": "2027-07-31",
+      "rationale": "The drafting phase conditionally discloses the v5 plan contract, cognitive protocols, adversarial checks, task playbooks, glossary, and tiered worked examples needed to produce validator-compatible plans.",
+      "supporting_paths": [
+        "references/plan-contract.md",
+        "references/worked-examples.md"
+      ],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
+    },
+    {
+      "id": "plan-change-reference-portfolio",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "increase",
+      "max_tokens": 20000,
+      "expires": "2027-07-31",
+      "rationale": "The complete reference portfolio covers the v5 validation contract, evidence binding, safety protocols, tier playbooks, compatibility, and worked examples; individual runs load only the applicable phase branch.",
+      "supporting_paths": [
+        "references/plan-contract.md",
+        "references/validation-evidence.md",
+        "references/worked-examples.md"
+      ],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
+    }
+  ]
+}
