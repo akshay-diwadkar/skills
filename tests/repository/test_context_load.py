@@ -52,6 +52,14 @@ def test_runtime_normalization_removes_machine_paths_and_is_separator_independen
     }
 
 
+def test_text_hashes_are_independent_of_checkout_line_endings(tmp_path: Path) -> None:
+    lf = tmp_path / "lf.json"
+    crlf = tmp_path / "crlf.json"
+    lf.write_bytes(b'{"value": 1}\n')
+    crlf.write_bytes(b'{"value": 1}\r\n')
+    assert context_load._sha256_file(lf) == context_load._sha256_file(crlf)
+
+
 def test_phase_measurement_follows_transitive_and_conditional_references(tmp_path: Path) -> None:
     skill = tmp_path / "fixture"
     references = skill / "references"

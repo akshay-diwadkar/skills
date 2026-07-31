@@ -64,7 +64,7 @@ def _sha256_bytes(value: bytes) -> str:
 
 
 def _sha256_file(path: Path) -> str:
-    return _sha256_bytes(path.read_bytes())
+    return _sha256_bytes(_read_utf8(path).encode("utf-8"))
 
 
 def _read_utf8(path: Path) -> str:
@@ -290,7 +290,7 @@ def _source_hash(skill: Path, reference_paths: Iterable[Path]) -> str:
     for path in sorted(path.resolve() for path in paths if path.is_file()):
         digest.update(path.relative_to(skill.resolve()).as_posix().encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        digest.update(_read_utf8(path).encode("utf-8"))
         digest.update(b"\0")
     return digest.hexdigest()
 
