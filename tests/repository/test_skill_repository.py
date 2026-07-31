@@ -244,6 +244,14 @@ def test_publish_release_workflow_uses_version_description() -> None:
     assert "paths:\n      - VERSION" in workflow
     assert "workflow_dispatch:" in workflow
     assert "contents: write" in workflow
+    dependency_install = (
+        "python -m pip install -r skills/engineering/map-codebase/requirements.txt"
+    )
+    assert "actions/setup-python@v6" in workflow
+    assert dependency_install in workflow
+    assert workflow.index(dependency_install) < workflow.index(
+        "python tools/validation/validate_repository.py"
+    )
     assert "VERSION_DESC.md must be updated in the same push as VERSION." in workflow
     assert "--notes-file VERSION_DESC.md" in workflow
     assert "github.ref == 'refs/heads/main'" in workflow
