@@ -191,7 +191,7 @@ Rules:
 Run:
 
 ```bash
-python /path/to/diagram-codebase/scripts/validate_diagram.py <path-to-output.html>
+python scripts/validate_diagram.py /absolute/path/to/output.html
 ```
 
 The script checks:

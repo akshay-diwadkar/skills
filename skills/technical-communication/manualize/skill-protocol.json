@@ -42,7 +42,7 @@
       "status": "in_progress",
       "next_action": "validate_manual_and_bundle",
       "next_command": "validate",
-      "required_reads": ["{skill_dir}/references/mte-1.md", "{skill_dir}/references/manual-bundle.md", "{skill_dir}/references/source-grounding.md", "{input.manual}", "{input.bundle}", "{input.glossary}"],
+      "required_reads": ["{skill_dir}/references/mte-1.md", "{skill_dir}/references/manual-bundle.md", "{skill_dir}/references/source-grounding.md", "{skill_dir}/references/operation-protocols.md", "{input.manual}", "{input.bundle}", "{input.glossary}"],
       "allowed_writes": ["{input.manual}", "{input.bundle}"],
       "forbidden_actions": ["write_installed_skill", "invent_source_facts"]
     },
@@ -58,7 +58,7 @@
       "status": "in_progress",
       "next_action": "run_read_only_audit",
       "next_command": "audit_report",
-      "required_reads": ["{skill_dir}/references/mte-1.md", "{skill_dir}/references/audit-report.md", "{input.manual}", "{input.bundle}", "{input.glossary}"],
+      "required_reads": ["{skill_dir}/references/mte-1.md", "{skill_dir}/references/audit-report.md", "{skill_dir}/references/operation-protocols.md", "{input.manual}", "{input.bundle}", "{input.glossary}"],
       "allowed_writes": ["{run_dir}/manual-audit.json"],
       "forbidden_actions": ["write_installed_skill", "write_target_repository", "modify_manual", "modify_bundle", "modify_glossary", "remediate_without_authorization"]
     },

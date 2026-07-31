@@ -7,7 +7,10 @@ SKILL = ROOT / "skills" / "technical-communication" / "manualize"
 
 
 def test_skill_documents_operations_profiles_and_validation_pipeline() -> None:
-    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    documents = [(SKILL / "SKILL.md").read_text(encoding="utf-8")]
+    documents.extend(path.read_text(encoding="utf-8") for path in (SKILL / "references").glob("*.md"))
+    text = "\n".join(documents)
+    normalized = " ".join(text.split())
     for required in (
         "operation: write",
         "operation: audit",
@@ -20,9 +23,9 @@ def test_skill_documents_operations_profiles_and_validation_pipeline() -> None:
         "manual-audit.json",
     ):
         assert required in text
-    assert "Never claim official ASD-STE100 compliance" in text
-    assert "approved-word dictionary" in text
-    assert "validation does not establish independent factual truth" in text
+    assert "never claim official ASD-STE100 compliance" in normalized
+    assert "approved-word dictionary" in normalized
+    assert "Validation does not establish independent factual truth" in normalized
 
 
 def test_every_shipped_reference_schema_and_template_is_meaningful() -> None:

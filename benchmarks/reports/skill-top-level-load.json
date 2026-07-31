@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "tokenizer": "cl100k_base (vendored, integrity-checked)",
+  "baseline_revision": "8ca6a3773c4346e766601686181b38cdbb7239d5",
+  "maximum_top_level_lines": 100,
+  "minimum_aggregate_reduction_percent": 30.0,
+  "before_total_tokens": 15949,
+  "after_total_tokens": 5957,
+  "aggregate_reduction_percent": 62.65,
+  "skills": {
+    "audit-codebase": {"path": "skills/engineering/audit-codebase/SKILL.md", "before": {"lines": 104, "tokens": 1812}, "after": {"lines": 65, "tokens": 654}},
+    "design-codebase": {"path": "skills/engineering/design-codebase/SKILL.md", "before": {"lines": 148, "tokens": 1217}, "after": {"lines": 59, "tokens": 553}},
+    "diagram-codebase": {"path": "skills/engineering/diagram-codebase/SKILL.md", "before": {"lines": 88, "tokens": 1479}, "after": {"lines": 62, "tokens": 551}},
+    "implement-plan": {"path": "skills/engineering/implement-plan/SKILL.md", "before": {"lines": 183, "tokens": 2376}, "after": {"lines": 65, "tokens": 653}},
+    "map-codebase": {"path": "skills/engineering/map-codebase/SKILL.md", "before": {"lines": 143, "tokens": 1481}, "after": {"lines": 61, "tokens": 559}},
+    "optimize-codebase": {"path": "skills/engineering/optimize-codebase/SKILL.md", "before": {"lines": 162, "tokens": 1892}, "after": {"lines": 68, "tokens": 659}},
+    "plan-change": {"path": "skills/engineering/plan-change/SKILL.md", "before": {"lines": 164, "tokens": 1779}, "after": {"lines": 64, "tokens": 649}},
+    "route-engineering-work": {"path": "skills/engineering/route-engineering-work/SKILL.md", "before": {"lines": 64, "tokens": 515}, "after": {"lines": 51, "tokens": 441}},
+    "scope-issue": {"path": "skills/engineering/scope-issue/SKILL.md", "before": {"lines": 163, "tokens": 2343}, "after": {"lines": 62, "tokens": 618}},
+    "manualize": {"path": "skills/technical-communication/manualize/SKILL.md", "before": {"lines": 67, "tokens": 1055}, "after": {"lines": 64, "tokens": 620}}
+  }
+}

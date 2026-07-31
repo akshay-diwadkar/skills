@@ -39,10 +39,11 @@ def test_worked_examples_document_valid_finalization_order_and_all_families() ->
 
 
 def test_glossary_is_required_before_prepare_plan() -> None:
-    text = (
-        ROOT / "skills" / "engineering" / "plan-change" / "SKILL.md"
-    ).read_text(encoding="utf-8")
-    assert text.index("references/glossary.md") < text.index("scripts/prepare_plan.py")
+    manifest = json.loads(
+        (ROOT / "skills" / "engineering" / "plan-change" / "skill-protocol.json").read_text(encoding="utf-8")
+    )
+    reads = manifest["phases"]["drafting"]["required_reads"]
+    assert reads.index("{skill_dir}/references/glossary.md") < reads.index("{run_dir}/draft.md")
 
 
 @pytest.mark.parametrize(

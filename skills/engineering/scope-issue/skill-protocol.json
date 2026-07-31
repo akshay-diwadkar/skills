@@ -53,6 +53,9 @@
       "next_action": null,
       "next_command": null,
       "required_reads": [],
+      "conditional_reads": [
+        {"input": "operation", "values": ["execution-gate", "post-merge"], "paths": ["{skill_dir}/references/execution-and-follow-up.md"]}
+      ],
       "allowed_writes": [],
       "forbidden_actions": ["write_installed_skill", "close_issue", "apply_labels"]
     }

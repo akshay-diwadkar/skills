@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.3.0
+version: 1.3.1
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -10,139 +10,50 @@ user-invocable: true
 
 # Design Codebase
 
-Decide **what** the target design is and **why** it is the right structural
-choice. Inspect the repository without editing implementation files. Finish
-with one validated `handoff.md` that can be passed, largely unedited, to
+## Purpose and authority
+
+Decide what the target design is and why it is the right structural choice.
+Inspect the repository without editing implementation files. Produce one
+validated `handoff.md` for `plan-change`.
+
+Stop at design. Never classify implementation tier, perform a full propagation
+sweep, prescribe file-level edits, write test or execution blueprints, order
+migrations or rollout, or attack an implementation. Those responsibilities
+belong to `plan-change`. Paths are evidence locators, not edit instructions.
+
+## Start
+
+Resolve `skill-root` to this directory, keep working state outside it, and pass
+absolute repository, draft, and output paths:
+
+```bash
+python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
+  --run-dir /absolute/run --input draft=/absolute/run/draft.md \
+  --input output_dir=/absolute/output --format json doctor
+```
+
+Run each returned `next_command.argv` with its returned `cwd`. Read only the
+current `required_reads`, write only `allowed_writes`, and stop on every
+`blocking_reason`.
+
+## Next-step loop
+
+1. Follow the seven completion gates in [Design Protocol](references/design-protocol.md).
+2. Draft the exact eight-section shape in [Handoff Template](references/handoff-template.md).
+3. Use [Worked Example](references/worked-examples.md) only when structural-alternative or interface-contract calibration is needed.
+4. Run `next` to validate, then run the returned finalization command without editing the validated draft.
+
+Keep claims grounded in current evidence. Compare genuinely different
+boundaries or ownership models, define caller-visible signatures, defaults,
+nullability, and errors, and leave only planner-owned grounding questions.
+
+## Completion and recovery
+
+Complete only when phase `complete` returns exactly
+`/absolute/output/handoff.md`, evidence verification passes, and no other
+primary artifact exists. Pass that file to
 `plan-change/scripts/prepare_plan.py --request-file`.
 
-Use `scripts/cli.py` as the primary executable entrypoint. Start with absolute
-`draft` and `output_dir` inputs; `next` validates the draft and then finalizes
-and verifies `handoff.md`. Existing checker and finalizer commands remain
-supported lower-level interfaces.
-
-## Out of Scope
-
-Read this section before extending the skill.
-
-Stop at a decided, justified design. Never:
-
-- classify work as tiny, standard, high-risk, or any other tier;
-- perform a full-repository propagation sweep;
-- propose file-level edits, exact code diffs, or change-specification records;
-- write test or execution blueprints;
-- order migrations, rollout slices, or rollback actions; or
-- attack a proposed implementation.
-
-Those responsibilities belong to `plan-change`. Interface names, signatures,
-defaults, nullability, and caller-visible errors are design decisions and
-remain in scope. Repository paths may appear only as evidence locators, not as
-instructions to edit those files.
-
-## Working Rules
-
-- Ground claims in current repository evidence before deciding.
-- Prefer the design with the best functionality-to-interface ratio: hide
-  volatile or coupled detail while exposing only what callers must control.
-- Compare structural alternatives, not parameter variations of one design.
-- Treat consolidation as a real alternative when shallow pieces change
-  together.
-- Resolve design decisions here. Leave only implementation grounding and
-  reconciliation questions to the planner.
-- Keep working notes internal. The sole primary artifact is `handoff.md`.
-
-## Skill Directory and Output
-
-Resolve `skill-root` as the directory containing this file and `repo-root` as
-the absolute target repository path. Use absolute paths for the repository,
-draft, and output directory. Never write working state into the installed skill
-directory.
-
-Read `references/handoff-template.md` before drafting. Use
-`references/worked-examples.md` when calibration is needed.
-
-## Gates
-
-Complete Gates 1-7 in order.
-
-### Gate 1: Frame the Pressure
-
-Restate the problem for a reader with no prior assessment context. Bound the
-behavior and ownership under design without expanding into repository-wide
-triage. Complete the gate when the pressure and exclusions are supported by
-evidence.
-
-### Gate 2: Build the Evidence Ledger
-
-Record only evidence that supports a design claim. Use the ledger syntax in
-`references/handoff-template.md`; cite repository locations precisely and
-distinguish repository, request, runtime, and external evidence. Complete the
-gate when every material design claim can cite a defined `[E-n]` record.
-Local evidence may include an exact line-range `sha256`; finalization computes
-it when omitted.
-
-### Gate 3: Compare Structural Choices
-
-Describe the current structure, a chosen structure, and at least one genuinely
-distinct alternative. Give each design a boundary, owner, and core abstraction.
-Reject parameter-only alternatives. Complete the gate only when one alternative
-changes the core abstraction and also changes boundary or ownership, and that
-alternative cites evidence not cited by the chosen design rationale.
-
-### Gate 4: Choose Design Depth
-
-Select the design whose exposed interface earns the functionality it provides.
-Explain what it hides, what it exposes, and why this ratio improves on today.
-Evaluate consolidation whenever tightly coupled shallow pieces created the
-pressure. Complete the gate when the choice and rejection rationale are cited.
-
-### Gate 5: Define the Caller Contract
-
-Compare today and the proposed public or shared signatures, defaults,
-nullability, and caller-visible errors. State whether the error surface will
-`shrink`, remain `flat`, or `grow`; justify growth explicitly. Complete the gate
-when a caller can understand the proposed contract without an implementation
-plan.
-
-### Gate 6: Complete the Handoff
-
-Fill all eight design sections from `references/handoff-template.md`. State
-whether the design covers at least two present-day use patterns or is
-intentionally narrow, what a third pattern would change, caller documentation
-obligations, and any planner-owned questions. Use explicit evidenced
-conclusions instead of placeholders, including when consolidation is not
-applicable or no planner questions remain.
-
-Check the draft:
-
-```bash
-python scripts/check_assessment.py \
-  --repo-root /absolute/path/to/repository \
-  /absolute/path/to/draft.md
-```
-
-Complete the gate only when the checker exits successfully.
-
-### Gate 7: Finalize One Handoff
-
-Finalize into an output directory:
-
-```bash
-python scripts/finalize_assessment.py \
-  --repo-root /absolute/path/to/repository \
-  --output-dir /absolute/path/to/output \
-  /absolute/path/to/draft.md
-```
-
-The finalizer emits exactly one document, `/absolute/path/to/output/handoff.md`.
-It verifies supplied evidence hashes and backfills every missing local hash.
-Before handoff, verify the finalized evidence bindings:
-
-```bash
-python scripts/check_assessment.py \
-  --repo-root /absolute/path/to/repository \
-  --verify-evidence \
-  /absolute/path/to/output/handoff.md
-```
-
-Submit `handoff.md` as the sole primary artifact and direct `plan-change` to
-use it as `prepare_plan.py --request-file`.
+If validation fails, repair the draft named by the diagnostic and rerun the
+validator. If repository evidence changed, refresh the affected evidence before
+retrying. Never edit a validated draft or hand off an unverified document.

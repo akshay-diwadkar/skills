@@ -1,7 +1,7 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 2.2.0
+version: 2.2.1
 metadata:
   invocation: model-invoked
 disable-model-invocation: false
@@ -10,134 +10,52 @@ user-invocable: false
 
 # Map Codebase
 
-Every common CLI `start` or `next` resolver response includes a deterministic
-phase-expansion recommendation in `result`. Expand only while its observable
-confidence, freshness, requested-phase, or unresolved-trigger evidence requires
-it; source verification remains authoritative.
+## Purpose and authority
 
-Use compact machine knowledge for navigation. Source is always authoritative.
+Use compact repository knowledge to locate ownership, constraints, and impacts;
+verify every conclusion in current source. Never preload maps or all symbol
+shards. Medium confidence is not verified ownership, and missing or stale
+knowledge never blocks direct source inspection.
 
-Use command-first `scripts/cli.py` calls below for the existing public CLI.
-For the common progressive protocol, place global options first:
+Implicit invocation is read-only. Do not build, refresh, record analytics,
+modify agent documents, or generate workflows without explicit write authority.
 
-```bash
-python scripts/cli.py --repo-root /absolute/repo --run-dir /absolute/run \
-  --input task="locate authentication ownership" --format json start
-python scripts/cli.py --repo-root /absolute/repo --run-dir /absolute/run --format json next
-```
+## Start
 
-The first response returns ownership references; later `next` calls return
-constraints and impacts without preloading later phases.
-
-## Quick Start
-
-1. Resolve absolute skill and repository paths.
-2. Check knowledge: `python scripts/cli.py status --repo-root /absolute/repo --format json`
-3. Build only if missing, invalid, or stale: `python scripts/cli.py build --repo-root /absolute/repo`
-4. Resolve phase 1: `python scripts/cli.py resolve "<task>" --repo-root /absolute/repo --phase 1 --format json`
-5. Read only returned targets and verify their source contracts.
-6. Expand to phase 2 or 3 only when the result names an expansion trigger.
-7. After one coherent change set, refresh and validate.
-
-Use `--compact` for paths, confidence, token estimates, and budget details without scoring evidence.
-Use `--budget N` to cap the source ranges returned across requested phases.
-
-### Rules
-
-- Never preload repository maps or symbol shards.
-- Do not use `--phase all` except for explicit debugging or human inspection.
-- Medium confidence is not verified ownership.
-- Missing or stale knowledge never blocks direct source inspection.
-- `status`, default `resolve`, and `validate` are read-only.
-- When invoked implicitly, remain on the read-only `status`, `resolve`, and
-  `validate` paths. Do not build, refresh, record analytics, link documents, or
-  generate workflows without explicit user authority for that write.
-- `--record-analytics` is opt-in and writes `analytics.jsonl`.
-- Build, refresh, analytics, document linking, and workflow generation require write permission.
-
-## Commands
+Resolve `skill-root` to this directory and choose an external run directory:
 
 ```bash
-python scripts/cli.py doctor --repo-root /absolute/repo
-python scripts/cli.py build --repo-root /absolute/repo [--dry-run]
-python scripts/cli.py status --repo-root /absolute/repo --format json
-python scripts/cli.py resolve "<task>" --repo-root /absolute/repo --phase 1 \
-  --format json [--compact] [--budget N] [--record-analytics]
-python scripts/cli.py refresh --repo-root /absolute/repo --changed-file /absolute/repo/file.py
-python scripts/cli.py validate --repo-root /absolute/repo
-python scripts/cli.py link-docs --repo-root /absolute/repo
-python scripts/cli.py generate-workflow --repo-root /absolute/repo --revision <40-char-sha>
+python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
+  --run-dir /absolute/run --input task="locate authentication ownership" \
+  --format json doctor
 ```
 
-<!-- EXTENDED REFERENCE — Read only for edge cases or contract changes -->
+Run the returned `next_command.argv` with its returned `cwd`. Read only
+`required_reads`, verify their named source targets, and stop on every
+`blocking_reason`.
 
-## Extractor Coverage
+## Next-step loop
 
-<!-- BEGIN EXTRACTOR COVERAGE -->
-| Extractor | Inputs | Coverage |
-| --- | --- | --- |
-| `python.py` | Python | Full AST extraction |
-| `javascript.py` | JavaScript, TypeScript, JSX, TSX | Full tree-sitter extraction |
-| `lexical.py` | Go, Rust, Java, C, C++ | Full tree-sitter extraction |
-| `csharp.py` | C# | Full tree-sitter extraction |
-| `configuration.py` | Repository configuration | Structural metadata and commands |
-<!-- END EXTRACTOR COVERAGE -->
+1. Resolve ownership first; stop when the owner and source contract are verified.
+2. Run `next` only when the response names an unresolved constraint trigger.
+3. Expand to impacts only when the constraints response names an impact trigger.
+4. After an authorized coherent change set, refresh and validate knowledge.
 
-Install `requirements.txt` before building. Missing tree-sitter grammars fail with an actionable error.
-Tree-sitter extractors provide scope-aware symbols, full-body ranges, and imports.
+Use [Knowledge Contract](references/knowledge-contract.md) for freshness,
+scope, write authority, agent-document, and workflow rules. Use
+[Resolver Design](references/resolver-design.md) only for ranking or phase
+diagnosis, [Worked Resolver Walkthrough](references/example-walkthrough.md) for
+partial-staleness recovery, [Extractor Coverage](references/extractor-coverage.md)
+for language support, and [Resolver Benchmark](references/benchmark.md) for
+measured limitations. Do not use `--phase all` except for explicit debugging or
+human inspection.
 
-## Freshness and Scope
+## Completion and recovery
 
-- Build when artifacts are missing, invalid, or require a full rebuild.
-- Refresh safe changed-file deltas or metadata-only revisions.
-- Schema, extractor, configuration, and artifact mismatches require rebuilding.
-- Safe non-ignored untracked files are included by default.
-- `include_untracked = false` applies to build, status, refresh, and explicit changed files.
-- The resolved knowledge directory is excluded from indexing and repository metadata.
+Complete when the requested phase stop condition is met in current source; a
+phase `complete` response additionally supplies verified impact candidates.
 
-Read [Knowledge Contract](references/knowledge-contract.md) for exact freshness semantics.
-See the [Worked Example](references/example-walkthrough.md) for a partial-staleness workflow.
-
-## Resolver Contract
-
-- Every resolved task has one `primary_owner`; explicit multi-owner requests may add evidence-backed `co_owners`.
-- Plausible but unselected files are `alternatives`, never equal owners.
-- `constraints` and `impacts` are separate phase outputs. Legacy `targets` remains the requested-phase projection.
-- Resolution status is `resolved`, `ambiguous`, or `abstain`.
-- Exact paths and symbols take precedence over task vocabulary.
-- Contrastive phrases exclude concepts, subsystems, component types, or roles from ownership.
-- Mixed implementation tasks remain source-owned.
-- Explicit test creation and test-file work are test-owned.
-- Exact symbols use the inverted index; only shortlisted symbol shards are loaded.
-- Configuration targets use bounded active structural ranges.
-- Relationships are directional and one hop.
-
-Read [Resolver Design](references/resolver-design.md) for scoring and phase construction.
-Read [Resolver Benchmark](references/benchmark.md) for measured retrieval quality.
-
-## Agent Documents
-
-- Unified `build` and `refresh` ensure one managed knowledge reference in `AGENTS.md` and `CLAUDE.md`.
-- Standalone build and refresh scripts provide the same finalization.
-- Importable build and refresh APIs write artifacts only.
-- Missing instruction files are created; user content outside managed blocks is preserved.
-- `<!-- OPT-OUT MAP-CODEBASE -->` skips one instruction file.
-- Two-file finalization failures roll back both instruction files.
-- `link-docs` repairs references; `--create-missing` remains a compatibility no-op.
-
-## Workflow Generation
-
-Workflow creation is opt-in and requires an immutable runtime revision:
-
-```bash
-python scripts/cli.py generate-workflow --repo-root /absolute/repo \
-  --revision <40-character-commit-sha>
-```
-
-Normal knowledge commands never create or modify workflows.
-
-## Errors
-
-- Expected operational errors produce concise stderr diagnostics and non-zero exits.
-- `status` preserves its machine-readable zero-exit compatibility policy.
-- Resolve errors include build and direct-source recovery suggestions.
+For missing, invalid, or stale knowledge, follow the status recommendation and
+build or refresh only with write authority. On resolver failure, use its bounded
+fallback searches and inspect source directly. Never treat generated knowledge
+as more authoritative than the repository.

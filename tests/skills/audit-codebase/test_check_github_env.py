@@ -120,11 +120,12 @@ class CheckGitHubEnvTests(unittest.TestCase):
                     checker.normalize_github_repo_target(raw)
 
     def test_skill_docs_document_gh_cli_configuration(self):
-        docs = SKILL_PATH.read_text(encoding="utf-8")
-        self.assertIn("scripts/check_github_env.py", docs)
-        self.assertIn("scripts/publish_github_issues.py", docs)
-        self.assertIn("--publish", docs)
-        self.assertIn("Never publish or close issues implicitly", docs)
+        docs = " ".join(SKILL_PATH.read_text(encoding="utf-8").split())
+        manifest = (SKILL_PATH.parent / "skill-protocol.json").read_text(encoding="utf-8")
+        self.assertIn("scripts/check_github_env.py", manifest)
+        self.assertIn("scripts/publish_github_issues.py", manifest)
+        self.assertIn("--publish", manifest)
+        self.assertIn("never edit the target repository or publish, close, or modify issues implicitly", docs)
 
 
 if __name__ == "__main__":
