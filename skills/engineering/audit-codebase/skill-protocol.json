@@ -50,7 +50,7 @@
       "status": "in_progress",
       "next_action": "complete_and_checkpoint_risk_surfaces",
       "next_command": "checkpoint_surfaces",
-      "required_reads": ["{skill_dir}/references/deep-analysis-patterns.md", "{input.bundle}"],
+      "required_reads": ["{skill_dir}/references/delegation-protocol.md", "{skill_dir}/references/deep-analysis-patterns.md", "{input.bundle}"],
       "allowed_writes": ["{input.bundle}", "{input.checkpoint}"],
       "forbidden_actions": ["write_installed_skill", "write_target_repository", "publish_github_issue"]
     },

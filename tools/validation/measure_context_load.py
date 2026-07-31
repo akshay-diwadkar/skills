@@ -342,6 +342,8 @@ def _validate_config(config: Mapping[str, Any], root: Path) -> list[str]:
             errors.append(f"{exception_id}: exception has unknown skill or metric")
         if exception.get("direction") not in {"increase", "decrease"}:
             errors.append(f"{exception_id}: exception direction must be increase or decrease")
+        if exception.get("scope") not in {None, "delta"}:
+            errors.append(f"{exception_id}: exception scope must be delta when supplied")
         if not str(exception.get("rationale", "")).strip():
             errors.append(f"{exception_id}: exception requires a rationale")
         try:
@@ -432,7 +434,13 @@ def _default_limit(config: Mapping[str, Any], row: Mapping[str, Any], metric: st
 
 
 def _matching_exception(
-    config: Mapping[str, Any], skill: str, metric: str, phase: str | None, direction: str
+    config: Mapping[str, Any],
+    skill: str,
+    metric: str,
+    phase: str | None,
+    direction: str,
+    *,
+    scope: str,
 ) -> Mapping[str, Any] | None:
     for exception in config.get("exceptions", []):
         if (
@@ -440,6 +448,7 @@ def _matching_exception(
             and exception.get("metric") == metric
             and exception.get("direction") == direction
             and exception.get("phase") == phase
+            and exception.get("scope") in {None, scope}
         ):
             return exception
     return None
@@ -454,7 +463,9 @@ def budget_errors(report: Mapping[str, Any], config: Mapping[str, Any]) -> list[
         for metric in ("top_level", "pre_action", "worst_references", "tool_output", "repair_diagnostic"):
             value = int(row["metrics"][metric])
             default = _default_limit(config, row, metric)
-            exception = _matching_exception(config, name, metric, None, "increase")
+            exception = _matching_exception(
+                config, name, metric, None, "increase", scope="absolute"
+            )
             limit = int(exception["max_tokens"]) if exception is not None else default
             if value > default and exception is not None:
                 used.add(str(exception["id"]))
@@ -463,13 +474,19 @@ def budget_errors(report: Mapping[str, Any], config: Mapping[str, Any]) -> list[
         phase_default = int(config["shared_budgets"]["phase_references"])
         for phase, phase_row in row["phases"].items():
             value = int(phase_row["worst"]["tokens"])
-            exception = _matching_exception(config, name, "phase_references", phase, "increase")
+            exception = _matching_exception(
+                config, name, "phase_references", phase, "increase", scope="absolute"
+            )
             limit = int(exception["max_tokens"]) if exception is not None else phase_default
             if value > phase_default and exception is not None:
                 used.add(str(exception["id"]))
             if value > limit:
                 errors.append(f"{name}:{phase}: phase_references {value} exceeds budget {limit}")
-    configured = {str(item["id"]) for item in config.get("exceptions", []) if item.get("direction") == "increase"}
+    configured = {
+        str(item["id"])
+        for item in config.get("exceptions", [])
+        if item.get("direction") == "increase" and item.get("scope") != "delta"
+    }
     for exception_id in sorted(configured - used):
         errors.append(f"{exception_id}: context-load exception is stale or unnecessary")
     return errors
@@ -521,13 +538,17 @@ def delta_errors(
             delta = current - previous
             allowance = int(config["delta_budgets"][metric])
             if delta > allowance:
-                exception = _matching_exception(config, name, metric, phase, "increase")
+                exception = _matching_exception(
+                    config, name, metric, phase, "increase", scope="delta"
+                )
                 if exception is None or current > int(exception["max_tokens"]):
                     suffix = f":{phase}" if phase else ""
                     errors.append(f"{name}{suffix}: {metric} increased by {delta}, budget {allowance}")
             reduction_allowance = max(allowance, int(previous * reduction_percent / 100))
             if -delta > reduction_allowance:
-                exception = _matching_exception(config, name, metric, phase, "decrease")
+                exception = _matching_exception(
+                    config, name, metric, phase, "decrease", scope="delta"
+                )
                 if exception is None:
                     suffix = f":{phase}" if phase else ""
                     errors.append(

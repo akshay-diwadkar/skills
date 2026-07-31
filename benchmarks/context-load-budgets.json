@@ -115,16 +115,92 @@
   },
   "exceptions": [
     {
+      "id": "audit-codebase-bounded-delegation-phase",
+      "skill": "audit-codebase",
+      "metric": "phase_references",
+      "phase": "risk_surfaces",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1500,
+      "expires": "2027-07-31",
+      "rationale": "Risk-surface inspection loads the bounded category-scout contract so parallel and sequential collection preserve one authority model.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["audit.delegation-authority"]
+    },
+    {
+      "id": "audit-codebase-bounded-delegation-portfolio",
+      "skill": "audit-codebase",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 5500,
+      "expires": "2027-07-31",
+      "rationale": "The complete audit reference portfolio includes the bounded category-scout contract required for provider-neutral fallback and reconciliation.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["audit.delegation-authority"]
+    },
+    {
+      "id": "design-codebase-bounded-delegation-phase",
+      "skill": "design-codebase",
+      "metric": "phase_references",
+      "phase": "drafting",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 2250,
+      "expires": "2027-07-31",
+      "rationale": "Design drafting loads the bounded independent-review contract while preserving primary design and handoff authority.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["design.delegation-authority"]
+    },
+    {
+      "id": "design-codebase-bounded-delegation-portfolio",
+      "skill": "design-codebase",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 3500,
+      "expires": "2027-07-31",
+      "rationale": "The complete design reference portfolio includes the bounded review contract and equivalent sequential fallback.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["design.delegation-authority"]
+    },
+    {
+      "id": "implement-plan-bounded-delegation-phase",
+      "skill": "implement-plan",
+      "metric": "phase_references",
+      "phase": "implementing",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 5800,
+      "expires": "2027-07-31",
+      "rationale": "Implementation loads the bounded post-change review contract without transferring edit, recovery, or completion authority.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["implement.delegation-authority"]
+    },
+    {
+      "id": "implement-plan-bounded-delegation-portfolio",
+      "skill": "implement-plan",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 6250,
+      "expires": "2027-07-31",
+      "rationale": "The complete implementation reference portfolio includes bounded fidelity, convention, and coverage reviews with sequential fallback.",
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["implement.delegation-authority"]
+    },
+    {
       "id": "plan-change-drafting-contract-examples",
       "skill": "plan-change",
       "metric": "phase_references",
       "phase": "drafting",
       "direction": "increase",
-      "max_tokens": 13000,
+      "max_tokens": 13250,
       "expires": "2027-07-31",
       "rationale": "The drafting phase conditionally discloses the v5 plan contract, cognitive protocols, adversarial checks, task playbooks, glossary, and tiered worked examples needed to produce validator-compatible plans.",
       "supporting_paths": [
         "references/plan-contract.md",
+        "references/delegation-protocol.md",
         "references/worked-examples.md"
       ],
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]

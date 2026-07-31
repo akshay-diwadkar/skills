@@ -32,7 +32,7 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
-    assert "version: 1.3.1" in text
+    assert "version: 1.4.0" in text
     assert "--verify-evidence" in protocol
 
 

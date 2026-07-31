@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-version: 1.3.1
+version: 1.4.0
 metadata:
   implementation-contract: "3"
   invocation: user-invoked
@@ -43,10 +43,11 @@ Run each returned `next_command.argv` with its returned `cwd`. Read only
 ## Next-step loop
 
 1. Apply the intake, snapshots, dependency order, propagation, verification, and reconciliation rules in [Implementation Protocols](references/implementation-protocols.md).
-2. Treat [Implementation Contract](references/implementation-contract.json) as authoritative for fields, statuses, plan versions, and safety policy.
-3. Apply [Code Quality Checklist](references/code-quality-checklist.md) to every touched file and final result.
-4. Use [Implementation Hazards](references/implementation-hazards.md) at the matching stop condition; never restore a whole file, worktree, or branch automatically.
-5. Use [Direct CLI Compatibility](references/cli-compatibility.md) only for supported lower-level entry points, including explicitly authorized dirty-target incorporation.
+2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only review; the primary retains authority.
+3. Treat [Implementation Contract](references/implementation-contract.json) as authoritative for fields, statuses, plan versions, and safety policy.
+4. Apply [Code Quality Checklist](references/code-quality-checklist.md) to every touched file and final result.
+5. Use [Implementation Hazards](references/implementation-hazards.md) at the matching stop condition; never restore a whole file, worktree, or branch automatically.
+6. Use [Direct CLI Compatibility](references/cli-compatibility.md) only for supported lower-level entry points, including explicitly authorized dirty-target incorporation.
 
 Implement every planned branch, error, side effect, blueprint, and test. Allow
 unplanned edits only through the Mechanical Propagation Gate. Attribute a

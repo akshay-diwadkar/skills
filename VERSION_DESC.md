@@ -1,10 +1,11 @@
-# Progressive-disclosure skill interfaces
+# Bounded subagent delegation
 
-This patch release refactors every top-level skill file into a concise operating
-interface while preserving invocation, authority, validation, finalization, and
-artifact contracts. Phase-specific protocols and edge cases now live behind
-direct references surfaced by the common CLI.
+This minor release adds provider-neutral, optional delegation contracts to
+`plan-change`, `audit-codebase`, `design-codebase`, and `implement-plan`.
+Bounded read-only scouts and reviewers can broaden evidence collection without
+receiving decision, editing, artifact, or publication authority.
 
-Repository validation now rejects broken or orphaned skill references, verifies
-that mandatory rules remain discoverable through `required_reads`, and checks a
-vendored-tokenizer report showing a 62.65% reduction in initial skill tokens.
+Every role now has explicit inputs, scope, output schema, token budget, and stop
+condition. Deterministic reconciliation handles conflicts, duplicates,
+omissions, and malicious evidence, while an equivalent sequential fallback
+keeps platforms without subagent support fully supported.

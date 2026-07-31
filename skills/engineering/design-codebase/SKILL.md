@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.3.1
+version: 1.4.0
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -39,9 +39,10 @@ current `required_reads`, write only `allowed_writes`, and stop on every
 ## Next-step loop
 
 1. Follow the seven completion gates in [Design Protocol](references/design-protocol.md).
-2. Draft the exact eight-section shape in [Handoff Template](references/handoff-template.md).
-3. Use [Worked Example](references/worked-examples.md) only when structural-alternative or interface-contract calibration is needed.
-4. Run `next` to validate, then run the returned finalization command without editing the validated draft.
+2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only review; the primary retains authority.
+3. Draft the exact eight-section shape in [Handoff Template](references/handoff-template.md).
+4. Use [Worked Example](references/worked-examples.md) only when structural-alternative or interface-contract calibration is needed.
+5. Run `next` to validate, then run the returned finalization command without editing the validated draft.
 
 Keep claims grounded in current evidence. Compare genuinely different
 boundaries or ownership models, define caller-visible signatures, defaults,

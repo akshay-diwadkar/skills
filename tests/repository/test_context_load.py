@@ -115,7 +115,12 @@ def test_delta_growth_and_large_unexplained_reduction_block() -> None:
     assert any("increased by 33" in error for error in context_load.delta_errors(grown, base, budgets))
 
     reduced = copy.deepcopy(base)
-    reduced["skills"]["audit-codebase"]["metrics"]["worst_references"] -= 700
+    previous = reduced["skills"]["audit-codebase"]["metrics"]["worst_references"]
+    allowance = max(
+        budgets["delta_budgets"]["worst_references"],
+        int(previous * budgets["large_reduction_percent"] / 100),
+    )
+    reduced["skills"]["audit-codebase"]["metrics"]["worst_references"] -= allowance + 1
     assert any("content-reduction exception" in error for error in context_load.delta_errors(reduced, base, budgets))
 
 
@@ -141,6 +146,33 @@ def test_stale_and_expired_exceptions_are_rejected() -> None:
     expired = copy.deepcopy(budgets)
     expired["exceptions"][0]["expires"] = "2000-01-01"
     assert any("expired" in error for error in context_load._validate_config(expired, ROOT))
+
+
+def test_delta_only_exception_does_not_relax_absolute_budget() -> None:
+    base = report()
+    budgets = config()
+    measured = copy.deepcopy(base)
+    measured["skills"]["audit-codebase"]["metrics"]["top_level"] += 33
+    budgets["exceptions"].append(
+        {
+            "id": "audit-top-level-delta",
+            "skill": "audit-codebase",
+            "metric": "top_level",
+            "direction": "increase",
+            "scope": "delta",
+            "max_tokens": measured["skills"]["audit-codebase"]["metrics"]["top_level"],
+            "expires": "2099-01-01",
+            "rationale": "Fixture proving that comparison-only exceptions remain bounded.",
+            "supporting_paths": ["references/audit-protocol.md"],
+            "protected_rule_ids": ["audit.read-only"],
+        }
+    )
+
+    assert context_load.budget_errors(base, budgets) == []
+    assert context_load.delta_errors(measured, base, budgets) == []
+
+    measured["skills"]["audit-codebase"]["metrics"]["top_level"] += 1
+    assert any("increased by 34" in error for error in context_load.delta_errors(measured, base, budgets))
 
 
 def test_summary_reports_per_skill_totals_and_changes() -> None:

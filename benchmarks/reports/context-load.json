@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
-    "phase_references": 27083,
-    "pre_action": 8011,
+    "phase_references": 29317,
+    "pre_action": 8126,
     "repair_diagnostic": 2471,
     "tool_output": 2054,
-    "top_level": 5957,
-    "worst_context": 60650,
-    "worst_references": 52222
+    "top_level": 6072,
+    "worst_context": 63751,
+    "worst_references": 55208
   },
   "baseline": {
     "requirements": [
@@ -18,19 +18,19 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "2a164a1332c04ab2eb21eefec7fb72f0caf7e074bc2e297717581bc84046b39c",
+  "config_sha256": "0f4777564dba6b5b45740a27b3fc35269d1cfc59c15ec42edad0c3d7a778145c",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 2654,
-        "pre_action": 840,
+        "pre_action": 869,
         "repair_diagnostic": 215,
         "tool_output": 186,
-        "top_level": 654,
-        "worst_context": 5499,
-        "worst_references": 4630
+        "top_level": 683,
+        "worst_context": 6280,
+        "worst_references": 5382
       },
       "path": "skills/engineering/audit-codebase/SKILL.md",
       "phases": {
@@ -136,40 +136,43 @@
           "conditional": [],
           "required": {
             "paths": [
-              "references/deep-analysis-patterns.md"
+              "references/deep-analysis-patterns.md",
+              "references/delegation-protocol.md"
             ],
-            "tokens": 551
+            "tokens": 1303
           },
           "worst": {
             "paths": [
-              "references/deep-analysis-patterns.md"
+              "references/deep-analysis-patterns.md",
+              "references/delegation-protocol.md"
             ],
-            "tokens": 551
+            "tokens": 1303
           }
         }
       },
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "b6a01c08c82f6af8a7c6f3082861011ff38f1629b59d316ca5174cde37275dd3",
+      "source_hash": "9cc94c183a6d12e5945649d4d9cd3e8563461dc50500a14888c8ef4e529154cf",
       "worst_reference_paths": [
         "references/audit-bundle.md",
         "references/audit-protocol.md",
         "references/audit-rubric.md",
         "references/deep-analysis-patterns.md",
+        "references/delegation-protocol.md",
         "references/ecosystem-optimization.md"
       ]
     },
     "design-codebase": {
       "category": "user_orchestrator",
       "metrics": {
-        "phase_references": 1352,
-        "pre_action": 725,
+        "phase_references": 2166,
+        "pre_action": 753,
         "repair_diagnostic": 227,
         "tool_output": 172,
-        "top_level": 553,
-        "worst_context": 3349,
-        "worst_references": 2569
+        "top_level": 581,
+        "worst_context": 4191,
+        "worst_references": 3383
       },
       "path": "skills/engineering/design-codebase/SKILL.md",
       "phases": {
@@ -188,17 +191,19 @@
           "conditional": [],
           "required": {
             "paths": [
+              "references/delegation-protocol.md",
               "references/design-protocol.md",
               "references/handoff-template.md"
             ],
-            "tokens": 1352
+            "tokens": 2166
           },
           "worst": {
             "paths": [
+              "references/delegation-protocol.md",
               "references/design-protocol.md",
               "references/handoff-template.md"
             ],
-            "tokens": 1352
+            "tokens": 2166
           }
         },
         "validated": {
@@ -216,8 +221,9 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "634f376690d019cb80da3728bf62c345770d61847280449a7086e36b9af51737",
+      "source_hash": "2a13c8cb72837d3aca5c886e01ae9076e83110a8e8f81e614b0e51a625a3f273",
       "worst_reference_paths": [
+        "references/delegation-protocol.md",
         "references/design-protocol.md",
         "references/handoff-template.md",
         "references/worked-examples.md"
@@ -282,13 +288,13 @@
     "implement-plan": {
       "category": "user_orchestrator",
       "metrics": {
-        "phase_references": 4935,
-        "pre_action": 815,
+        "phase_references": 5690,
+        "pre_action": 843,
         "repair_diagnostic": 228,
         "tool_output": 162,
-        "top_level": 653,
-        "worst_context": 6255,
-        "worst_references": 5374
+        "top_level": 681,
+        "worst_context": 7038,
+        "worst_references": 6129
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
       "phases": {
@@ -308,20 +314,22 @@
           "required": {
             "paths": [
               "references/code-quality-checklist.md",
+              "references/delegation-protocol.md",
               "references/implementation-contract.json",
               "references/implementation-hazards.md",
               "references/implementation-protocols.md"
             ],
-            "tokens": 4935
+            "tokens": 5690
           },
           "worst": {
             "paths": [
               "references/code-quality-checklist.md",
+              "references/delegation-protocol.md",
               "references/implementation-contract.json",
               "references/implementation-hazards.md",
               "references/implementation-protocols.md"
             ],
-            "tokens": 4935
+            "tokens": 5690
           }
         },
         "validated": {
@@ -339,10 +347,11 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "e3f7f0bcf06b520725564da3d439231a4470d3e6e441d6b9ea56d9ab9bde2845",
+      "source_hash": "7f607726a275fd01aeab4ccd9b8a76111a24b8d9748a2d1e81d1ac308dd9214d",
       "worst_reference_paths": [
         "references/cli-compatibility.md",
         "references/code-quality-checklist.md",
+        "references/delegation-protocol.md",
         "references/implementation-contract.json",
         "references/implementation-hazards.md",
         "references/implementation-protocols.md"
@@ -669,13 +678,13 @@
     "plan-change": {
       "category": "user_orchestrator",
       "metrics": {
-        "phase_references": 12403,
-        "pre_action": 825,
+        "phase_references": 13068,
+        "pre_action": 855,
         "repair_diagnostic": 214,
         "tool_output": 176,
-        "top_level": 649,
-        "worst_context": 19768,
-        "worst_references": 18905
+        "top_level": 679,
+        "worst_context": 20463,
+        "worst_references": 19570
       },
       "path": "skills/engineering/plan-change/SKILL.md",
       "phases": {
@@ -721,22 +730,24 @@
             "paths": [
               "references/adversarial-verification.md",
               "references/cognitive-protocols.md",
+              "references/delegation-protocol.md",
               "references/glossary.md",
               "references/plan-contract.md",
               "references/task-playbooks.md"
             ],
-            "tokens": 5493
+            "tokens": 6158
           },
           "worst": {
             "paths": [
               "references/adversarial-verification.md",
               "references/cognitive-protocols.md",
+              "references/delegation-protocol.md",
               "references/glossary.md",
               "references/plan-contract.md",
               "references/task-playbooks.md",
               "references/worked-examples.md"
             ],
-            "tokens": 12403
+            "tokens": 13068
           }
         },
         "validated": {
@@ -754,11 +765,12 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "d5e39b9f98a860c260e4f7005338269216f78779872cf366634fd7e3605f8399",
+      "source_hash": "2c5a254b03a6503f3622f1c40fe3bf58c33697b90ebcfef8215cd1a0c0596b34",
       "worst_reference_paths": [
         "references/adversarial-verification.md",
         "references/cli-compatibility.md",
         "references/cognitive-protocols.md",
+        "references/delegation-protocol.md",
         "references/glossary.md",
         "references/plan-contract.json",
         "references/plan-contract.md",
