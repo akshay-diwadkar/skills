@@ -243,6 +243,12 @@ def test_publish_release_workflow_uses_version_description() -> None:
     workflow = (REPO_ROOT / ".github" / "workflows" / "publish-release.yml").read_text(
         encoding="utf-8"
     )
+    for requirements in (
+        "skills/engineering/plan-change/requirements.txt",
+        "skills/engineering/map-codebase/requirements.txt",
+        "skills/technical-communication/manualize/requirements.txt",
+    ):
+        assert f"python -m pip install -r {requirements}" in workflow
     assert "paths:\n      - VERSION" in workflow
     assert "workflow_dispatch:" in workflow
     assert "contents: write" in workflow
