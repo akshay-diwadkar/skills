@@ -27,7 +27,7 @@ TOKENIZER_PATH = (
 )
 REPORT_REPOSITORY_PATH = "benchmarks/reports/context-load.json"
 LINK_RE = re.compile(r"!?\[[^\]]*\]\((?:<([^>]+)>|([^\)\s]+))")
-ABSOLUTE_PATH_RE = re.compile(r"(?:^|[\s\"'])(?:[A-Za-z]:/|/(?:Users|home|private|tmp|var)/)")
+ABSOLUTE_PATH_RE = re.compile(r"(?:^|[\s\"'])(?:[A-Za-z]:/|/[A-Za-z0-9_.-]+/)")
 METRICS = (
     "top_level",
     "pre_action",
@@ -111,6 +111,7 @@ def _runtime_substitutions(root: Path, skill: Path, temp: Path, run_dir: Path) -
         (str(skill.resolve()), "{skill_dir}"),
         (str(root.resolve()), "{repo_root}"),
         (str(temp.resolve()), "{temp_dir}"),
+        (sys.executable, "{python}"),
         (str(Path(sys.executable).resolve()), "{python}"),
     ]
     return sorted(values, key=lambda item: len(item[0]), reverse=True)

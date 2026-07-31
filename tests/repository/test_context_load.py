@@ -50,6 +50,8 @@ def test_runtime_normalization_removes_machine_paths_and_is_separator_independen
         "argv": ["{skill_dir}/scripts/cli.py", "{run_dir}"],
         "cwd": "{repo_root}",
     }
+    with pytest.raises(ValueError, match="absolute path"):
+        context_load._normalize_value({"python": "/opt/python/bin/python"}, [])
 
 
 def test_text_hashes_are_independent_of_checkout_line_endings(tmp_path: Path) -> None:
