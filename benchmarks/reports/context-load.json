@@ -151,7 +151,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "55fde0ed4f11db0a211f84e5371f112d9938b6e64669998531d46b7191fec018",
+      "source_hash": "b6a01c08c82f6af8a7c6f3082861011ff38f1629b59d316ca5174cde37275dd3",
       "worst_reference_paths": [
         "references/audit-bundle.md",
         "references/audit-protocol.md",
@@ -216,7 +216,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "576581b223ad2dfa8fb06a765c39927b3f5612b763ea0bce0f360a5fd152ba0d",
+      "source_hash": "634f376690d019cb80da3728bf62c345770d61847280449a7086e36b9af51737",
       "worst_reference_paths": [
         "references/design-protocol.md",
         "references/handoff-template.md",
@@ -273,7 +273,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "b295b48766ef4865c093103418812d29136f70134fd62a548b914231cd537d9b",
+      "source_hash": "e94bbb0206b5bad346129f1f2bcd7cea507cf59d7d4b8441dec87b1a7a0ebe62",
       "worst_reference_paths": [
         "references/html-output-guide.md",
         "references/question-framework.md"
@@ -339,7 +339,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "2d70af106edadaf7a6533aaa8aac73e30a77ad3fd59b5af39bb81af6aa7c975b",
+      "source_hash": "e3f7f0bcf06b520725564da3d439231a4470d3e6e441d6b9ea56d9ab9bde2845",
       "worst_reference_paths": [
         "references/cli-compatibility.md",
         "references/code-quality-checklist.md",
@@ -459,7 +459,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "0ad0c19843ea410a8ce5beb76030d3fd86c204bd95de48791f691be4090d78b8",
+      "source_hash": "d16b57ff498ef71d9856d1d62fac5cfa46743a34cdda85f1185c4a6700cd212b",
       "worst_reference_paths": [
         "references/audit-report.md",
         "references/manual-bundle.md",
@@ -518,7 +518,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "2a691ddb3096eb5e684c07702d4cd889e298fb43a1e3e98d31a3cd43ba607ca1",
+      "source_hash": "5414bf4c64df7d7d1eac1900c24605e1ef7cfc84694b998ba9d9a308001ee8c5",
       "worst_reference_paths": [
         "references/benchmark.md",
         "references/example-walkthrough.md",
@@ -652,7 +652,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "b50ae232713e673e531dd71635f3945962483af2cdc53713e853ddb8180b6e4a",
+      "source_hash": "6555f1a87e1913fa72dac8540c782d9115fe6236f7bcdc8125a3544d59d91068",
       "worst_reference_paths": [
         "references/docs-research-protocol.md",
         "references/ecosystem-leverage.md",
@@ -754,7 +754,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "9c093e3224e612420f33a50738245351b45ca4e187e848e51b4c7684d4b5fce6",
+      "source_hash": "d5e39b9f98a860c260e4f7005338269216f78779872cf366634fd7e3605f8399",
       "worst_reference_paths": [
         "references/adversarial-verification.md",
         "references/cli-compatibility.md",
@@ -783,7 +783,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "f62d92149b8445560c688b3c4f8da77177d4fc40dd941c023c61ff19ee393cdc",
+      "source_hash": "158008f0c4abca05d23c928e16daca07ea691ee8c2d1528672b2fe1fe1ce2c4b",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]
@@ -873,7 +873,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "12ee5a43158e20bf104ab093e006075fd98524f901a8e9878b01b07f7f7c2a19",
+      "source_hash": "72f44208b53a6411aad91af7df96294b9162302d63baf4cf1c3740086b8fd0a6",
       "worst_reference_paths": [
         "references/execution-and-follow-up.md",
         "references/issue-plan-contract.json",

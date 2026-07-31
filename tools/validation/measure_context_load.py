@@ -288,7 +288,8 @@ def _source_hash(skill: Path, reference_paths: Iterable[Path]) -> str:
         *reference_paths,
     }
     digest = hashlib.sha256()
-    for path in sorted(path.resolve() for path in paths if path.is_file()):
+    resolved_paths = [path.resolve() for path in paths if path.is_file()]
+    for path in sorted(resolved_paths, key=lambda item: item.relative_to(skill.resolve()).as_posix()):
         digest.update(path.relative_to(skill.resolve()).as_posix().encode("utf-8"))
         digest.update(b"\0")
         digest.update(_read_utf8(path).encode("utf-8"))
