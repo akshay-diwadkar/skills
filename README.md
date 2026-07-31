@@ -1,7 +1,7 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=2.1.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=2.2.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -64,7 +64,7 @@ flowchart LR
 
 ## Install and use
 
-The [`skills` CLI](https://www.skills.sh/docs/cli) can discover and install the packages for supported AI coding agents.
+The [`skills` CLI](https://www.skills.sh/docs/cli) can discover and install the packages for AI coding agents. Invocation policy is certified for Claude Code, Codex, and GitHub Copilot; installation to other CLI targets remains portable on a best-effort basis without a repository guarantee that the host enforces invocation metadata.
 
 The installer groups the collection into **Engineering Skills** and
 **Technical Communication Skills**, so you can quickly select the part of the
@@ -78,7 +78,7 @@ npx skills add akshay-diwadkar/skills --list
 
 ### 2. Install the collection or one skill
 
-Install all skills and choose the target agent when prompted:
+Install all skills and choose a certified target agent when prompted:
 
 ```bash
 npx skills add akshay-diwadkar/skills --skill '*'
@@ -91,6 +91,12 @@ npx skills add akshay-diwadkar/skills --skill plan-change
 ```
 
 Add `--global` to make an installation available across projects, or use `--agent <agent-name>` to select a supported agent explicitly.
+
+Certified agent names are `claude-code`, `codex`, and `github-copilot`. For example:
+
+```bash
+npx skills add akshay-diwadkar/skills --skill '*' --agent codex
+```
 
 ### 3. Ask for the workflow you need
 
@@ -116,7 +122,19 @@ Audit this repository for security risks and missing tests.
 Write an installation runbook from the checked-in configuration and scripts.
 ```
 
-The selected agent decides when to invoke an installed skill based on its name and description. You can mention the skill explicitly when you want a particular workflow.
+### Invocation behavior
+
+Every skill declares one provider-neutral invocation mode. Claude Code and GitHub Copilot enforce the mode through `SKILL.md` frontmatter; Codex enforces implicit activation through `agents/openai.yaml`.
+
+| Mode | Skills | Behavior |
+| --- | --- | --- |
+| `model-invoked` | `route-engineering-work`, `map-codebase` | Available for lightweight read-only assistance without a direct user invocation. Hidden from the Claude Code and GitHub Copilot user menus. |
+| `both` | `plan-change`, `design-codebase`, `manualize` | May be selected by the model or invoked directly. Existing workflow gates still require explicit authority before writes or remediation. |
+| `user-invoked` | `implement-plan`, `audit-codebase`, `optimize-codebase`, `scope-issue`, `diagram-codebase` | Never activated implicitly on certified platforms. Invoke it directly when you want the workflow. |
+
+Invoke a skill with `/skill-name` in Claude Code or GitHub Copilot. In Codex, type `$skill-name` or use `/skills`. Codex supports disabling implicit invocation but does not expose a model-only user-visibility control, so its `model-invoked` skills can still be selected explicitly.
+
+Invocation metadata controls activation, not authority. Destructive operations, repository implementation, publication, external writes, and document remediation retain their workflow-specific confirmation and authorization gates.
 
 ### Common executable protocol
 
@@ -162,7 +180,8 @@ acquires write permission implicitly.
 
 ## Requirements and compatibility
 
-- **Skill installation:** Node.js with `npx`, plus an agent supported by the `skills` CLI.
+- **Certified skill installation:** Node.js with `npx`, plus Claude Code, Codex, or GitHub Copilot.
+- **Other Skills CLI agents:** Package installation may work, but invocation-policy enforcement is not certified by this repository.
 - **Bundled runtime scripts:** Python 3.11 or newer.
 - **Skill-specific packages:** Install the `requirements.txt` inside a skill directory when that skill includes one.
 - **Repository verification:** CI exercises the suite on Linux, macOS, and Windows with Python 3.11 and 3.12.

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "certified_platforms": {
+    "claude-code": {
+      "metadata_surface": "SKILL.md frontmatter",
+      "supports_implicit_policy": true,
+      "supports_user_visibility": true
+    },
+    "codex": {
+      "metadata_surface": "agents/openai.yaml",
+      "supports_implicit_policy": true,
+      "supports_user_visibility": false
+    },
+    "github-copilot": {
+      "metadata_surface": "SKILL.md frontmatter",
+      "supports_implicit_policy": true,
+      "supports_user_visibility": true
+    }
+  },
+  "skills": {
+    "audit-codebase": "user-invoked",
+    "design-codebase": "both",
+    "diagram-codebase": "user-invoked",
+    "implement-plan": "user-invoked",
+    "map-codebase": "model-invoked",
+    "manualize": "both",
+    "optimize-codebase": "user-invoked",
+    "plan-change": "both",
+    "route-engineering-work": "model-invoked",
+    "scope-issue": "user-invoked"
+  }
+}

@@ -21,6 +21,8 @@ VERSION_PATH = ROOT / "VERSION"
 README_PATH = ROOT / "README.md"
 VERSION_DESCRIPTION_PATH = ROOT / "VERSION_DESC.md"
 MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
+INVOCATION_POLICY_PATH = ROOT / "invocation-policy.json"
+QUALITY_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "quality.yml"
 ROUTER_SCHEMA_PATH = (
     ROOT / "skills" / "engineering" / "route-engineering-work" / "schemas" / "routing-decision.schema.json"
 )
@@ -30,6 +32,30 @@ SEMVER_RE = re.compile(
     r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+INVOCATION_MODES = {"user-invoked", "model-invoked", "both"}
+SKILLS_CLI_VERSION = "1.5.21"
+CERTIFIED_PLATFORMS = {
+    "claude-code": {
+        "metadata_surface": "SKILL.md frontmatter",
+        "supports_implicit_policy": True,
+        "supports_user_visibility": True,
+    },
+    "codex": {
+        "metadata_surface": "agents/openai.yaml",
+        "supports_implicit_policy": True,
+        "supports_user_visibility": False,
+    },
+    "github-copilot": {
+        "metadata_surface": "SKILL.md frontmatter",
+        "supports_implicit_policy": True,
+        "supports_user_visibility": True,
+    },
+}
+FRONTMATTER_POLICY = {
+    "user-invoked": {"disable-model-invocation": "true", "user-invocable": "true"},
+    "model-invoked": {"disable-model-invocation": "false", "user-invocable": "false"},
+    "both": {"disable-model-invocation": "false", "user-invocable": "true"},
+}
 LATEST_RELEASE_BADGE_RE = re.compile(
     r"\[!\[Latest Release\]\((?P<badge_url>[^)]+)\)\]\((?P<target_url>[^)]+)\)"
 )
@@ -97,8 +123,9 @@ ALLOWED_TOP_LEVEL = {
     "README.md",
     "CHANGELOG.md",
     "skill-protocol.json",
+    "agents",
 }
-FORBIDDEN_PARTS = {"agents", "evals", "fixtures", "__pycache__"}
+FORBIDDEN_PARTS = {"evals", "fixtures", "__pycache__"}
 ALLOWED_DOMAIN_FILES = {"README.md"}
 RETIRED_PATHS = (
     "catalog",
@@ -187,6 +214,238 @@ def validate_frontmatter(skill_dir: Path) -> list[str]:
             f"{skill_md.relative_to(ROOT)}: version "
             f"{version.group(1).strip()!r} is not valid Semantic Versioning"
         )
+    return errors
+
+
+def _frontmatter(skill_dir: Path) -> str | None:
+    skill_md = skill_dir / "SKILL.md"
+    if not skill_md.is_file():
+        return None
+    text = skill_md.read_text(encoding="utf-8")
+    if not text.startswith("---\n") or "---" not in text[4:]:
+        return None
+    return text.split("---", 2)[1]
+
+
+def _frontmatter_field(frontmatter: str, field: str) -> str | None:
+    match = re.search(rf"^{re.escape(field)}:\s*(\S.*?)\s*$", frontmatter, re.MULTILINE)
+    return match.group(1) if match else None
+
+
+def _metadata_field(frontmatter: str, field: str) -> str | None:
+    metadata = re.search(
+        r"^metadata:\s*\n(?P<body>(?:^[ \t]+[^\n]*(?:\n|$))*)",
+        frontmatter,
+        re.MULTILINE,
+    )
+    if metadata is None:
+        return None
+    match = re.search(
+        rf"^[ \t]+{re.escape(field)}:\s*(\S.*?)\s*$",
+        metadata.group("body"),
+        re.MULTILINE,
+    )
+    return match.group(1) if match else None
+
+
+def _load_json_object(path: Path, label: str) -> tuple[dict[str, object] | None, list[str]]:
+    if not path.is_file():
+        return None, [f"Missing {label}"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, [f"{label}: invalid JSON: {exc}"]
+    if not isinstance(payload, dict):
+        return None, [f"{label}: root must be an object"]
+    return payload, []
+
+
+def derive_invocation_safety_capabilities(skill_dir: Path) -> set[str]:
+    """Derive capabilities that must never be exposed through implicit invocation."""
+    capabilities: set[str] = set()
+    manifest_path = skill_dir / "skill-protocol.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            manifest = {}
+        if isinstance(manifest, dict):
+            phases = manifest.get("phases", {})
+            if isinstance(phases, dict):
+                for phase in phases.values():
+                    if not isinstance(phase, dict):
+                        continue
+                    writes = phase.get("allowed_writes", [])
+                    if isinstance(writes, list) and "{repo_root}" in writes:
+                        capabilities.add("repository-write")
+            artifacts = manifest.get("artifacts", [])
+            if isinstance(artifacts, list) and any(
+                isinstance(artifact, dict) and artifact.get("external") is True
+                for artifact in artifacts
+            ):
+                capabilities.add("external-output")
+            commands = manifest.get("commands", {})
+            if isinstance(commands, dict) and any("publish" in str(name) for name in commands):
+                capabilities.add("publication")
+
+    scripts = skill_dir / "scripts"
+    if scripts.is_dir() and any(
+        any(token in path.stem for token in ("post_merge", "publish_"))
+        for path in scripts.glob("*.py")
+    ):
+        capabilities.add("external-write")
+    if skill_dir.name == "implement-plan":
+        capabilities.add("implementation")
+    return capabilities
+
+
+def validate_skill_invocation_metadata(skill_dir: Path, mode: str) -> list[str]:
+    relative = skill_dir.relative_to(ROOT) if skill_dir.is_relative_to(ROOT) else skill_dir
+    prefix = f"{relative}/SKILL.md"
+    frontmatter = _frontmatter(skill_dir)
+    if frontmatter is None:
+        return [f"{prefix}: cannot validate invocation metadata without frontmatter"]
+
+    errors: list[str] = []
+    actual_mode = _metadata_field(frontmatter, "invocation")
+    if actual_mode != mode:
+        errors.append(f"{prefix}: metadata.invocation must be {mode!r}")
+
+    expected_frontmatter = FRONTMATTER_POLICY.get(mode)
+    if expected_frontmatter is None:
+        errors.append(f"{prefix}: unsupported invocation mode {mode!r}")
+    else:
+        for field, expected in expected_frontmatter.items():
+            actual = _frontmatter_field(frontmatter, field)
+            if actual != expected:
+                errors.append(f"{prefix}: {field} must be {expected} for {mode}")
+
+    agents_dir = skill_dir / "agents"
+    openai_path = agents_dir / "openai.yaml"
+    if not openai_path.is_file():
+        errors.append(f"{relative}/agents/openai.yaml: missing Codex invocation policy")
+    else:
+        text = openai_path.read_text(encoding="utf-8")
+        match = re.fullmatch(
+            r"policy:\s*\n  allow_implicit_invocation:\s*(true|false)\s*\n?",
+            text,
+        )
+        if match is None:
+            errors.append(f"{relative}/agents/openai.yaml: unsupported or malformed policy")
+        else:
+            expected = "false" if mode == "user-invoked" else "true"
+            if match.group(1) != expected:
+                errors.append(
+                    f"{relative}/agents/openai.yaml: allow_implicit_invocation must be {expected} for {mode}"
+                )
+    if agents_dir.is_dir():
+        unexpected = sorted(
+            path.relative_to(skill_dir).as_posix()
+            for path in agents_dir.rglob("*")
+            if path.is_file() and path != openai_path
+        )
+        for path in unexpected:
+            errors.append(f"{relative}/{path}: unsupported provider metadata")
+
+    dangerous = derive_invocation_safety_capabilities(skill_dir)
+    if dangerous and mode != "user-invoked":
+        errors.append(
+            f"{prefix}: {mode} conflicts with authority-required capabilities: "
+            + ", ".join(sorted(dangerous))
+        )
+    if mode == "model-invoked":
+        manifest_path = skill_dir / "skill-protocol.json"
+        if manifest_path.is_file():
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                manifest = {}
+            phases = manifest.get("phases", {}) if isinstance(manifest, dict) else {}
+            writes = [
+                value
+                for phase in phases.values()
+                if isinstance(phase, dict)
+                for value in phase.get("allowed_writes", [])
+            ] if isinstance(phases, dict) else []
+            if writes:
+                errors.append(f"{prefix}: model-invoked protocol phases must be read-only")
+    return errors
+
+
+def validate_invocation_policy(
+    path: Path | None = None,
+    skill_dirs: list[Path] | None = None,
+) -> list[str]:
+    path = path or INVOCATION_POLICY_PATH
+    skill_dirs = skill_dirs or discover_skills()
+    label = path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+    payload, errors = _load_json_object(path, label)
+    if payload is None:
+        return errors
+
+    if set(payload) != {"schema_version", "certified_platforms", "skills"}:
+        errors.append(f"{label}: fields must be schema_version, certified_platforms, and skills")
+    if payload.get("schema_version") != 1:
+        errors.append(f"{label}: schema_version must be 1")
+    if payload.get("certified_platforms") != CERTIFIED_PLATFORMS:
+        errors.append(f"{label}: certified_platforms must match the supported provider adapters")
+
+    modes = payload.get("skills")
+    if not isinstance(modes, dict) or not all(
+        isinstance(name, str) and isinstance(mode, str) for name, mode in modes.items()
+    ):
+        errors.append(f"{label}: skills must map skill names to invocation modes")
+        return errors
+
+    discovered = {skill.name: skill for skill in skill_dirs}
+    if set(modes) != set(discovered):
+        missing = sorted(set(discovered) - set(modes))
+        stale = sorted(set(modes) - set(discovered))
+        if missing:
+            errors.append(f"{label}: missing skills: {missing}")
+        if stale:
+            errors.append(f"{label}: references unknown skills: {stale}")
+    for name, mode in modes.items():
+        if mode not in INVOCATION_MODES:
+            errors.append(f"{label}: {name} has unsupported invocation mode {mode!r}")
+        elif name in discovered:
+            errors.extend(validate_skill_invocation_metadata(discovered[name], mode))
+    return errors
+
+
+def validate_certified_platform_coverage(
+    readme_path: Path | None = None,
+    workflow_path: Path | None = None,
+) -> list[str]:
+    """Keep documented invocation support and the CI installation matrix aligned."""
+    readme_path = readme_path or README_PATH
+    workflow_path = workflow_path or QUALITY_WORKFLOW_PATH
+    errors: list[str] = []
+    expected = set(CERTIFIED_PLATFORMS)
+
+    if not readme_path.is_file():
+        errors.append("Missing README.md")
+    else:
+        text = readme_path.read_text(encoding="utf-8")
+        match = re.search(r"^Certified agent names are (?P<names>.+?)\. For example:$", text, re.MULTILINE)
+        names = set(re.findall(r"`([^`]+)`", match.group("names"))) if match else set()
+        if names != expected:
+            errors.append(f"README.md: certified agent names must be exactly {sorted(expected)}")
+
+    if not workflow_path.is_file():
+        errors.append("Missing .github/workflows/quality.yml")
+    else:
+        text = workflow_path.read_text(encoding="utf-8")
+        match = re.search(r"^\s*agent:\s*\[([^]]+)\]\s*$", text, re.MULTILINE)
+        names = {name.strip() for name in match.group(1).split(",")} if match else set()
+        if names != expected:
+            errors.append(
+                ".github/workflows/quality.yml: Skills CLI agent matrix must match certified platforms"
+            )
+        if f"skills@{SKILLS_CLI_VERSION}" not in text:
+            errors.append(
+                f".github/workflows/quality.yml: grouped discovery must pin skills@{SKILLS_CLI_VERSION}"
+            )
     return errors
 
 
@@ -482,6 +741,8 @@ def main() -> int:
     errors.extend(validate_version_description())
     errors.extend(validate_readme_release_link())
     errors.extend(validate_marketplace())
+    errors.extend(validate_invocation_policy(skill_dirs=skills))
+    errors.extend(validate_certified_platform_coverage())
     errors.extend(validate_router_contract())
     errors.extend(validate_versioning_instructions())
     errors.extend(validate_domain_layout())

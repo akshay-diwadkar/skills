@@ -120,26 +120,27 @@ jobs:
           -m "not fixtures and not benchmark and not benchmark_slow" -q
 
   npx-install:
-    name: npx Grouped Installation
+    name: Skills CLI Installation (${{ matrix.agent }})
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [claude-code, codex, github-copilot]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
       - name: Verify grouped discovery
+        if: matrix.agent == 'codex'
         env:
           FORCE_COLOR: "0"
           NO_COLOR: "1"
         run: |
-          npx --yes skills@1.5.20 add "$GITHUB_WORKSPACE" --list | tee "$RUNNER_TEMP/skills-list.txt"
+          npx --yes skills@1.5.21 add "$GITHUB_WORKSPACE" --list | tee "$RUNNER_TEMP/skills-list.txt"
           python tools/validation/validate_npx_output.py "$RUNNER_TEMP/skills-list.txt"
-      - name: Install the complete collection
-        env:
-          FORCE_COLOR: "0"
-          NO_COLOR: "1"
-        run: |
-          mkdir -p "$RUNNER_TEMP/skills-consumer"
-          cd "$RUNNER_TEMP/skills-consumer"
-          npx --yes skills@1.5.20 add "$GITHUB_WORKSPACE" --skill '*' --agent codex --copy --yes
-          test "$(find . -type f -name SKILL.md | wc -l)" -eq 10
+      - name: Verify complete and individual installations
+        run: python tools/validation/validate_skills_cli_install.py --agent "${{ matrix.agent }}"
