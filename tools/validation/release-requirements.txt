@@ -1,0 +1,3 @@
+-r ../../skills/engineering/plan-change/requirements.txt
+-r ../../skills/engineering/map-codebase/requirements.txt
+-r ../../skills/technical-communication/manualize/requirements.txt

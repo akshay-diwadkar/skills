@@ -243,18 +243,12 @@ def test_publish_release_workflow_uses_version_description() -> None:
     workflow = (REPO_ROOT / ".github" / "workflows" / "publish-release.yml").read_text(
         encoding="utf-8"
     )
-    for requirements in (
-        "skills/engineering/plan-change/requirements.txt",
-        "skills/engineering/map-codebase/requirements.txt",
-        "skills/technical-communication/manualize/requirements.txt",
-    ):
-        assert f"python -m pip install -r {requirements}" in workflow
+    dependency_install = (
+        "python -m pip install -r tools/validation/release-requirements.txt"
+    )
     assert "paths:\n      - VERSION" in workflow
     assert "workflow_dispatch:" in workflow
     assert "contents: write" in workflow
-    dependency_install = (
-        "python -m pip install -r skills/engineering/map-codebase/requirements.txt"
-    )
     assert "actions/setup-python@v6" in workflow
     assert dependency_install in workflow
     assert workflow.index(dependency_install) < workflow.index(
@@ -265,6 +259,27 @@ def test_publish_release_workflow_uses_version_description() -> None:
     assert "github.ref == 'refs/heads/main'" in workflow
     assert "github.actor == github.repository_owner" in workflow
     assert "pull_request:" not in workflow
+
+
+def test_pre_release_workflow_matches_release_validation_environment() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "pre-release.yml").read_text(
+        encoding="utf-8"
+    )
+    requirements = (
+        REPO_ROOT / "tools" / "validation" / "release-requirements.txt"
+    ).read_text(encoding="utf-8")
+
+    assert "pull_request:" in workflow
+    assert "branches: [main]" in workflow
+    assert "contents: read" in workflow
+    assert "python -m pip install -r tools/validation/release-requirements.txt" in workflow
+    assert "python tools/validation/validate_repository.py" in workflow
+    for skill_requirements in (
+        "skills/engineering/plan-change/requirements.txt",
+        "skills/engineering/map-codebase/requirements.txt",
+        "skills/technical-communication/manualize/requirements.txt",
+    ):
+        assert skill_requirements in requirements
 
 
 def test_pipeline_readmes_and_skill_changelog_are_supported_resources() -> None:
