@@ -1,7 +1,7 @@
 ---
 name: plan-change
 description: Produce a proof-carrying, repository-grounded v5 implementation plan that is complete enough for deterministic downstream execution. Use when a user asks to plan a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository.
-version: 2.2.1
+version: 2.3.0
 metadata:
   plan-contract: "5"
   invocation: both
@@ -42,10 +42,11 @@ hash-bound contrary-evidence artifact proves an override.
 
 1. Use [Glossary](references/glossary.md) for record vocabulary and [Plan Contract](references/plan-contract.md) for the authoritative v5 shape.
 2. Ground and reconcile with [Cognitive Protocols](references/cognitive-protocols.md); compute evidence hashes, never estimate them.
-3. Read only the matching branch in [Task Playbooks](references/task-playbooks.md).
-4. Use [Worked Examples](references/worked-examples.md) only for standard or high-risk calibration.
-5. Apply every required attack in [Adversarial Verification](references/adversarial-verification.md).
-6. Validate, repair the named record, finalize, then validate the receipt-bearing output again.
+3. Use [Bounded Delegation Protocol](references/delegation-protocol.md) only for optional read-only evidence collection or independent review; keep all decisions and artifact changes with the primary agent.
+4. Read only the matching branch in [Task Playbooks](references/task-playbooks.md).
+5. Use [Worked Examples](references/worked-examples.md) only for standard or high-risk calibration.
+6. Apply every required attack in [Adversarial Verification](references/adversarial-verification.md).
+7. Validate, repair the named record, finalize, then validate the receipt-bearing output again.
 
 Use [Direct CLI Compatibility](references/cli-compatibility.md) only for lower-level
 commands. Use [Validation Evidence](references/validation-evidence.md) only when

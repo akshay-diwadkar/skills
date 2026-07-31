@@ -120,11 +120,12 @@
       "metric": "phase_references",
       "phase": "drafting",
       "direction": "increase",
-      "max_tokens": 13000,
+      "max_tokens": 13250,
       "expires": "2027-07-31",
       "rationale": "The drafting phase conditionally discloses the v5 plan contract, cognitive protocols, adversarial checks, task playbooks, glossary, and tiered worked examples needed to produce validator-compatible plans.",
       "supporting_paths": [
         "references/plan-contract.md",
+        "references/delegation-protocol.md",
         "references/worked-examples.md"
       ],
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]

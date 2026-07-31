@@ -115,7 +115,12 @@ def test_delta_growth_and_large_unexplained_reduction_block() -> None:
     assert any("increased by 33" in error for error in context_load.delta_errors(grown, base, budgets))
 
     reduced = copy.deepcopy(base)
-    reduced["skills"]["audit-codebase"]["metrics"]["worst_references"] -= 700
+    previous = reduced["skills"]["audit-codebase"]["metrics"]["worst_references"]
+    allowance = max(
+        budgets["delta_budgets"]["worst_references"],
+        int(previous * budgets["large_reduction_percent"] / 100),
+    )
+    reduced["skills"]["audit-codebase"]["metrics"]["worst_references"] -= allowance + 1
     assert any("content-reduction exception" in error for error in context_load.delta_errors(reduced, base, budgets))
 
 

@@ -39,6 +39,7 @@
         "{input.plan_file}",
         "{skill_dir}/references/implementation-contract.json",
         "{skill_dir}/references/implementation-protocols.md",
+        "{skill_dir}/references/delegation-protocol.md",
         "{skill_dir}/references/code-quality-checklist.md",
         "{skill_dir}/references/implementation-hazards.md",
         "{run_dir}/implementation.json"
