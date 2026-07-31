@@ -43,7 +43,7 @@ read only `required_reads`, write only `allowed_writes`, and stop on every
 ## Next-step loop
 
 1. Frame and reconcile the audit using [Audit Protocol](references/audit-protocol.md).
-2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) only for optional read-only category scouts; keep coverage, promotion, drafting, and publication authority with the primary agent.
+2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only category scouts; the primary retains authority.
 3. Maintain the exact artifact shape in [Audit Bundle Contract](references/audit-bundle.md).
 4. Inspect every applicable risk surface with [Deep Analysis Patterns](references/deep-analysis-patterns.md).
 5. Read [Ecosystem Optimization](references/ecosystem-optimization.md) only after local evidence selects an ecosystem candidate.

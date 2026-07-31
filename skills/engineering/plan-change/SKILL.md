@@ -42,7 +42,7 @@ hash-bound contrary-evidence artifact proves an override.
 
 1. Use [Glossary](references/glossary.md) for record vocabulary and [Plan Contract](references/plan-contract.md) for the authoritative v5 shape.
 2. Ground and reconcile with [Cognitive Protocols](references/cognitive-protocols.md); compute evidence hashes, never estimate them.
-3. Use [Bounded Delegation Protocol](references/delegation-protocol.md) only for optional read-only evidence collection or independent review; keep all decisions and artifact changes with the primary agent.
+3. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only evidence or review; the primary retains authority.
 4. Read only the matching branch in [Task Playbooks](references/task-playbooks.md).
 5. Use [Worked Examples](references/worked-examples.md) only for standard or high-risk calibration.
 6. Apply every required attack in [Adversarial Verification](references/adversarial-verification.md).

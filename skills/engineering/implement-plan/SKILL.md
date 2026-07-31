@@ -43,7 +43,7 @@ Run each returned `next_command.argv` with its returned `cwd`. Read only
 ## Next-step loop
 
 1. Apply the intake, snapshots, dependency order, propagation, verification, and reconciliation rules in [Implementation Protocols](references/implementation-protocols.md).
-2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) only for optional read-only post-implementation review; keep edits, recovery, bundle changes, and completion decisions with the primary agent.
+2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only review; the primary retains authority.
 3. Treat [Implementation Contract](references/implementation-contract.json) as authoritative for fields, statuses, plan versions, and safety policy.
 4. Apply [Code Quality Checklist](references/code-quality-checklist.md) to every touched file and final result.
 5. Use [Implementation Hazards](references/implementation-hazards.md) at the matching stop condition; never restore a whole file, worktree, or branch automatically.
