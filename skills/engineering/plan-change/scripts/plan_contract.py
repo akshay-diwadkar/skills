@@ -31,17 +31,26 @@ def _domain_blueprint(domain: str) -> list[str]:
     ]
 
 
-def render_scaffold(tier: str, intent: str, domains: list[str] | None = None) -> str:
+def render_scaffold(
+    tier: str,
+    intent: str,
+    domains: list[str] | None = None,
+    tier_signals: list[str] | None = None,
+) -> str:
     domains = domains or []
+    tier_signals = tier_signals or []
     if tier not in TIERS or intent not in INTENTS or len(domains) != len(set(domains)) or not set(domains) <= RISK_DOMAINS:
         raise ValueError("unsupported plan classification")
     if tier != "high-risk" and domains:
         raise ValueError("risk domains require high-risk tier")
     if tier == "high-risk" and not domains:
         raise ValueError("high-risk scaffolds require at least one risk domain")
+    allowed_signals = set(CONTRACT["tier_signals"])
+    if len(tier_signals) != len(set(tier_signals)) or not set(tier_signals) <= allowed_signals:
+        raise ValueError("unsupported tier signal")
     metadata = {
-        "provisional": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": []},
-        "final": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": []},
+        "provisional": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": tier_signals},
+        "final": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": tier_signals},
     }
     obligation_rows = [(domain, obligation) for domain in domains for obligation in OBLIGATIONS[domain]]
     grouped_tests: list[tuple[str, list[str], str]] = []

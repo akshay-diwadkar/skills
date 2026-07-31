@@ -3,17 +3,41 @@
   "skill": "audit-codebase",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill_and_repo",
+  "classification": {
+    "phase": "classification_review",
+    "artifact": "classification",
+    "required_inputs": ["request_file"],
+    "controlled_inputs": ["categories", "severity"],
+    "override_input": "classification_override",
+    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "audit-codebase", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
+    "repeat": []
+  },
   "requirements": [],
   "inputs": [
+    {"name": "request_file", "kind": "path", "required": true, "repeatable": false, "description": "Trusted audit request file.", "choices": []},
+    {"name": "categories", "kind": "string", "required": false, "repeatable": true, "description": "Deterministically applicable audit categories.", "choices": []},
+    {"name": "severity", "kind": "choice", "required": false, "repeatable": false, "description": "Deterministic default severity threshold.", "choices": ["critical", "high", "medium", "low"]},
     {"name": "bundle", "kind": "path", "required": true, "repeatable": false, "description": "In-progress audit bundle JSON.", "choices": []},
     {"name": "checkpoint", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "External atomic audit checkpoint path.", "choices": []},
     {"name": "publication", "kind": "choice", "required": false, "required_for": ["publication_decision"], "repeatable": false, "description": "Stop locally or begin the approved publish path.", "choices": ["local", "publish"]},
     {"name": "github_repo", "kind": "string", "required": false, "repeatable": false, "description": "Approved GitHub owner/repository destination.", "choices": []},
     {"name": "env_file", "kind": "path", "required": false, "repeatable": false, "description": "Explicit GitHub environment file.", "choices": []},
-    {"name": "publish_confirmation", "kind": "choice", "required": false, "required_for": ["publish_issues"], "repeatable": false, "description": "Explicit confirmation after reviewing the dry run.", "choices": ["yes"]}
+    {"name": "publish_confirmation", "kind": "choice", "required": false, "required_for": ["publish_issues"], "repeatable": false, "description": "Explicit confirmation after reviewing the dry run.", "choices": ["yes"]},
+    {"name": "classification_override", "kind": "path", "required": false, "repeatable": false, "description": "Hash-bound contrary classification evidence.", "choices": []}
   ],
-  "artifacts": [],
+  "artifacts": [
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"}
+  ],
   "phases": {
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_deterministic_classification",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json"],
+      "result_artifact": "classification",
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
+    },
     "audit_context": {
       "status": "in_progress",
       "next_action": "complete_and_checkpoint_audit_context",
@@ -80,7 +104,13 @@
     }
   },
   "commands": {
-    "start": {"allowed_phases": ["audit_context"], "success_phase": "audit_context", "steps": []},
+    "start": {
+      "allowed_phases": ["audit_context"],
+      "success_phase": "audit_context",
+      "steps": [
+        {"argv": ["{python}", "{skill_dir}/scripts/apply_audit_classification.py", "--bundle", "{input.bundle}", "--severity", "{input.severity}"], "repeat": [{"input": "categories", "flag": "--category"}], "capture_stdout": null, "diagnostics_json": false, "failure": "blocked"}
+      ]
+    },
     "checkpoint_context": {
       "allowed_phases": ["audit_context"],
       "success_phase": "risk_surfaces",

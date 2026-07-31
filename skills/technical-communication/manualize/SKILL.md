@@ -1,10 +1,15 @@
 ---
 name: manualize
 description: Write or audit source-grounded technical manuals, procedures, runbooks, guides, notices, error messages, and reference documentation. Use when technical content must preserve supplied facts while following deterministic controlled-language and operational-completeness checks.
-version: 1.1.0
+version: 2.0.0
 ---
 
 # Manualize
+
+Start the common CLI with `request_file`. Its deterministic result selects the
+read-only/write operation and controlled-language profile; `next` applies the
+selection. Ambiguous authorization stays read-only and incomplete risk evidence
+uses the strict profile.
 
 Use MTE-1 to make technical information explicit, executable, and traceable to supplied sources. MTE-1 is an original controlled-English system inspired by ASD-STE100. Never claim official ASD-STE100 compliance. This skill does not contain or reproduce the ASD-STE100 approved-word dictionary.
 

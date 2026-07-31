@@ -489,6 +489,7 @@ def main() -> int:
     for script in (
         "generate_plan_contract.py",
         "sync_plan_runtime.py",
+        "sync_classification_runtime.py",
         "sync_skill_protocol_runtime.py",
     ):
         result = subprocess.run(

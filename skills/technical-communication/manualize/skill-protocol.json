@@ -3,20 +3,41 @@
   "skill": "manualize",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill_and_repo",
+  "classification": {
+    "phase": "classification_review",
+    "artifact": "classification",
+    "required_inputs": ["request_file"],
+    "controlled_inputs": ["operation", "profile"],
+    "override_input": "classification_override",
+    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "manualize", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
+    "repeat": []
+  },
   "requirements": [
     {"distribution": "jsonschema", "specifier": ">=4.0"}
   ],
   "inputs": [
+    {"name": "request_file", "kind": "path", "required": true, "repeatable": false, "description": "Trusted manualization request file.", "choices": []},
     {"name": "operation", "kind": "choice", "required": true, "repeatable": false, "description": "Authorized write or read-only audit operation.", "choices": ["write", "audit"]},
     {"name": "profile", "kind": "choice", "required": true, "repeatable": false, "description": "Controlled-language profile.", "choices": ["strict", "standard"]},
     {"name": "manual", "kind": "path", "required": true, "repeatable": false, "description": "Manual Markdown path.", "choices": []},
     {"name": "bundle", "kind": "path", "required": true, "repeatable": false, "description": "Manual bundle JSON path.", "choices": []},
-    {"name": "glossary", "kind": "path", "required": true, "repeatable": false, "description": "Glossary JSON path.", "choices": []}
+    {"name": "glossary", "kind": "path", "required": true, "repeatable": false, "description": "Glossary JSON path.", "choices": []},
+    {"name": "classification_override", "kind": "path", "required": false, "repeatable": false, "description": "Hash-bound contrary classification evidence.", "choices": []}
   ],
   "artifacts": [
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"},
     {"name": "audit", "path": "manual-audit.json", "media_type": "application/json"}
   ],
   "phases": {
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_deterministic_classification",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json"],
+      "result_artifact": "classification",
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
+    },
     "drafting": {
       "status": "in_progress",
       "next_action": "validate_manual_and_bundle",

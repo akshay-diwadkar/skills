@@ -3,17 +3,39 @@
   "skill": "diagram-codebase",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill",
+  "classification": {
+    "phase": "classification_review",
+    "artifact": "classification",
+    "required_inputs": ["request_file"],
+    "controlled_inputs": ["fidelity"],
+    "override_input": "classification_override",
+    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "diagram-codebase", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
+    "repeat": []
+  },
   "requirements": [],
   "inputs": [
+    {"name": "request_file", "kind": "path", "required": true, "repeatable": false, "description": "Trusted diagram request file.", "choices": []},
+    {"name": "fidelity", "kind": "choice", "required": true, "repeatable": false, "description": "Deterministically selected diagram fidelity.", "choices": ["narrative-architecture", "exact-code-graph", "executive-concept-map"]},
     {"name": "data", "kind": "path", "required": true, "repeatable": false, "description": "Approved diagram payload JSON.", "choices": []},
     {"name": "output", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "Approved output HTML path.", "choices": []},
     {"name": "create_dirs", "kind": "choice", "required": true, "repeatable": false, "description": "Explicit permission to create a missing output directory.", "choices": ["no", "yes"]},
-    {"name": "overwrite", "kind": "choice", "required": true, "repeatable": false, "description": "Explicit permission to overwrite an existing output.", "choices": ["no", "yes"]}
+    {"name": "overwrite", "kind": "choice", "required": true, "repeatable": false, "description": "Explicit permission to overwrite an existing output.", "choices": ["no", "yes"]},
+    {"name": "classification_override", "kind": "path", "required": false, "repeatable": false, "description": "Hash-bound contrary classification evidence.", "choices": []}
   ],
   "artifacts": [
+    {"name": "classification", "path": "classification.json", "media_type": "application/json"},
     {"name": "diagram", "path": "{input.output}", "media_type": "text/html", "external": true}
   ],
   "phases": {
+    "classification_review": {
+      "status": "ready",
+      "next_action": "apply_deterministic_classification",
+      "next_command": "apply_classification",
+      "required_reads": ["{run_dir}/classification.json"],
+      "result_artifact": "classification",
+      "allowed_writes": [],
+      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
+    },
     "built": {
       "status": "in_progress",
       "next_action": "validate_generated_diagram",
@@ -37,25 +59,25 @@
         "when": {"create_dirs": ["no"], "overwrite": ["no"]},
         "allowed_phases": ["built"],
         "success_phase": "built",
-        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--fidelity", "{input.fidelity}"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
       },
       {
         "when": {"create_dirs": ["yes"], "overwrite": ["no"]},
         "allowed_phases": ["built"],
         "success_phase": "built",
-        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--create-dirs"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--fidelity", "{input.fidelity}", "--create-dirs"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
       },
       {
         "when": {"create_dirs": ["no"], "overwrite": ["yes"]},
         "allowed_phases": ["built"],
         "success_phase": "built",
-        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--fidelity", "{input.fidelity}", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
       },
       {
         "when": {"create_dirs": ["yes"], "overwrite": ["yes"]},
         "allowed_phases": ["built"],
         "success_phase": "built",
-        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--create-dirs", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
+        "steps": [{"argv": ["{python}", "{skill_dir}/scripts/build_diagram.py", "--data", "{input.data}", "--output", "{input.output}", "--fidelity", "{input.fidelity}", "--create-dirs", "--overwrite"], "repeat": [], "capture_stdout": null, "diagnostics_json": false, "failure": "operational"}]
       }
     ],
     "validate": {

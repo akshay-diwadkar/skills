@@ -158,6 +158,31 @@ def _copy_fixture(destination: Path) -> None:
     )
 
 
+def _classify_request(repo: Path, request_path: Path) -> dict[str, Any]:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS / "classify_workflow.py"),
+            "--kind",
+            "plan-change",
+            "--repo-root",
+            str(repo),
+            "--source",
+            str(request_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode:
+        raise RuntimeError(f"classify_workflow.py failed: {result.stderr.strip()}")
+    payload = json.loads(result.stdout)
+    recommendation = payload["recommendation"]
+    if recommendation["status"] != "ready":
+        raise RuntimeError("decision-quality fixture requires a ready deterministic classification")
+    return dict(recommendation["values"])
+
+
 def evaluate(
     adapter: list[str],
     weaker_model: str,
@@ -179,6 +204,7 @@ def evaluate(
                     _copy_fixture(repo)
                     request_path = temp_root / "request.md"
                     request_path.write_text(prompt, encoding="utf-8")
+                    classification = _classify_request(repo, request_path)
                     run_dir = temp_root / "run"
                     prepared = subprocess.run(
                         [
@@ -191,11 +217,21 @@ def evaluate(
                             "--run-dir",
                             str(run_dir),
                             "--tier",
-                            str(rubric["tier"]),
+                            str(classification["tier"]),
                             "--intent",
-                            str(rubric["intent"]),
+                            str(classification["intent"]),
                             "--anchor",
                             str(rubric["anchor"]),
+                            *[
+                                value
+                                for domain in classification["risk_domain"]
+                                for value in ("--risk-domain", str(domain))
+                            ],
+                            *[
+                                value
+                                for signal in classification["tier_signal"]
+                                for value in ("--tier-signal", str(signal))
+                            ],
                         ],
                         capture_output=True,
                         text=True,
@@ -218,8 +254,10 @@ def evaluate(
                         "load_skill": load_skill,
                         "skill_root": str(SKILL_ROOT) if load_skill else None,
                         "planning": {
-                            "tier": rubric["tier"],
-                            "intent": rubric["intent"],
+                            "tier": classification["tier"],
+                            "intent": classification["intent"],
+                            "risk_domains": classification["risk_domain"],
+                            "tier_signals": classification["tier_signal"],
                             "anchor": rubric["anchor"],
                             "baseline": str(run_dir / "baseline.json"),
                             "inventory": str(run_dir / "inventory.json"),
@@ -233,7 +271,7 @@ def evaluate(
                         if path.is_file()
                     )
                     grounding_valid, diagnostic_codes = _check_plan(
-                        plan_text, repo, run_dir, str(rubric["tier"])
+                        plan_text, repo, run_dir, str(classification["tier"])
                     )
                     decision = score_decision_quality(plan_text, rubric)
                     runs.append(

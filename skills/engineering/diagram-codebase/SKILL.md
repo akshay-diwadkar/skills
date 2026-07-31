@@ -1,10 +1,15 @@
 ---
 name: diagram-codebase
 description: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
-version: 1.1.0
+version: 2.0.0
 ---
 
 # Diagram Codebase
+
+Start the common CLI with `request_file` before building. Review the
+deterministic fidelity result, then run `next` to apply it. The default remains
+`narrative-architecture`; non-default fidelity requires explicit trusted
+audience or implementation-purpose evidence.
 
 Grill to a shared model, plan the diagram, then build through the bundled template and validators. Default to `narrative-architecture` for mixed stakeholder, developer, and manager audiences unless the user explicitly asks for `exact-code-graph` or `executive-concept-map`.
 

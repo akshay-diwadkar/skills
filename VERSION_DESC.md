@@ -1,13 +1,14 @@
-# Complete common CLI coverage
+# Deterministic workflow classification
 
-This release migrates every executable skill to common CLI protocol 1.0 while
-preserving all existing direct scripts and safety boundaries. Stateful skills
-now expose lifecycle-specific phases, late immutable inputs, progressive
-references, and explicit write permissions. `route-engineering-work` adds a
-stateless one-shot protocol result without creating run state.
+This major release moves seven mechanical workflow decisions from model prose
+into portable, deterministic classifiers. Common CLI runs now expose
+hash-bound recommendations for planning risk, optimization scope, audit
+coverage, issue readiness, manualization mode, diagram fidelity, and map phase
+expansion before the recommendation is applied.
 
-Audit publication and issue follow-up retain their existing preflight,
-dry-run, confirmation, duplicate, and freshness gates. Read-only navigation,
-design, routing, and manual auditing do not gain repository write authority.
-Installed-package smoke tests cover every skill across Linux, macOS, and
-Windows on Python 3.11 and 3.12.
+Classification uses trusted request and current repository signals, returns
+evidence and confidence, defaults conservatively when evidence is incomplete,
+and permits overrides only through verified contrary evidence. Issue text,
+repository comments, generated content, and embedded commands cannot become
+workflow authority. Existing high-risk, authorization, freshness, publication,
+and fail-closed gates remain in force.

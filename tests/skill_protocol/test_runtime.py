@@ -233,6 +233,111 @@ def test_lifecycle_repeated_inputs_state_and_idempotent_complete(tmp_path: Path)
     assert not list(run.glob("*.tmp"))
 
 
+def test_classification_start_returns_result_and_next_binds_recommendation(tmp_path: Path) -> None:
+    payload = manifest()
+    payload["inputs"].extend(
+        [
+            {
+                "name": "request_file",
+                "kind": "path",
+                "required": True,
+                "repeatable": False,
+                "description": "Trusted request.",
+                "choices": [],
+            },
+            {
+                "name": "classification_override",
+                "kind": "path",
+                "required": False,
+                "repeatable": False,
+                "description": "Override evidence.",
+                "choices": [],
+            },
+        ]
+    )
+    payload["artifacts"].append(
+        {"name": "classification", "path": "classification.json", "media_type": "application/json"}
+    )
+    payload["phases"]["classification_review"] = {
+        "status": "ready",
+        "next_action": "apply_deterministic_classification",
+        "next_command": "apply_classification",
+        "required_reads": ["{run_dir}/classification.json"],
+        "result_artifact": "classification",
+        "allowed_writes": [],
+        "forbidden_actions": ["override_without_evidence"],
+    }
+    payload["classification"] = {
+        "phase": "classification_review",
+        "artifact": "classification",
+        "required_inputs": ["request_file"],
+        "controlled_inputs": ["tag"],
+        "override_input": "classification_override",
+        "argv": ["{python}", "{skill_dir}/scripts/classifier.py", "{input.request_file}"],
+        "repeat": [],
+    }
+    skill = create_skill(tmp_path, payload)
+    (skill / "scripts" / "classifier.py").write_text(
+        "import json\n"
+        "print(json.dumps({"
+        "'recommendation': {'status': 'ready', 'values': {'tag': ['classified']}},"
+        "'evidence': [], 'confidence': 'high', 'alternatives': [], 'override_requirements': []"
+        "}))\n",
+        encoding="utf-8",
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    request = tmp_path / "request.md"
+    request.write_text("fixture request", encoding="utf-8")
+    run = tmp_path / "run"
+    started = json_result(
+        invoke(
+            skill,
+            repo,
+            "--run-dir",
+            str(run),
+            "--input",
+            f"request_file={request}",
+            "--format",
+            "json",
+            "start",
+        )
+    )
+    assert started["phase"] == "classification_review"
+    assert started["result"]["recommendation"]["values"] == {"tag": ["classified"]}
+    applied = json_result(invoke(skill, repo, "--run-dir", str(run), "--format", "json", "next"))
+    assert applied["phase"] == "drafting"
+    assert (run / "work.txt").read_text(encoding="utf-8") == "--tag classified"
+
+    blocked_run = tmp_path / "blocked-run"
+    json_result(
+        invoke(
+            skill,
+            repo,
+            "--run-dir",
+            str(blocked_run),
+            "--input",
+            f"request_file={request}",
+            "--format",
+            "json",
+            "start",
+        )
+    )
+    rejected = invoke(
+        skill,
+        repo,
+        "--run-dir",
+        str(blocked_run),
+        "--input",
+        "tag=contrary",
+        "--format",
+        "json",
+        "next",
+    )
+    assert rejected.returncode == 3
+    assert json_result(rejected)["blocking_reasons"] == ["classification.override_required"]
+
+
 def test_json_invocation_errors_are_machine_readable_and_stderr_free(tmp_path: Path) -> None:
     result = subprocess.run(
         [sys.executable, str(CLI), "--format", "json", "start"],

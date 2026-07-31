@@ -1,10 +1,14 @@
 ---
 name: optimize-codebase
 description: Run a multi-gate, evidence-backed optimization process for a named performance, build, CI, dependency, maintainability, or developer-experience workflow. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery; implementation requires explicit authorization, with a strict Quick-Win fast path for already-authorized single-symbol changes.
-version: 1.1.0
+version: 2.0.0
 ---
 
 # Optimize Codebase
+
+Start the common CLI with `request_file`; do not guess path or scope. Review
+the deterministic classification in `result`, then run `next` to apply it.
+Override only with hash-bound contrary request or current-source evidence.
 
 Select an execution path before producing an artifact. Evidence selects the leverage point; ecosystem documentation only validates an evidence-selected mechanism.
 

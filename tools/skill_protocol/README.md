@@ -29,6 +29,12 @@ directory. Every later stateful command requires the directory created by
 `start`. A skill may require the run directory to be outside the target
 repository. Every skill requires it to be outside the installed skill.
 
+A stateful manifest may declare a deterministic `classification` phase.
+For those skills, `start` writes and returns the classification through
+`result` without running the existing setup command. The first `next` binds the
+recommended typed inputs and runs that setup. A contrary value requires the
+manifest's hash-bound override input and current trusted evidence.
+
 Inputs are not a secret store. A manifest should accept a path or environment
 variable name instead of a credential value.
 
@@ -66,6 +72,10 @@ stderr.
 
 `next_command.argv` is an argv array, not a shell command. Consumers must
 execute it directly with `next_command.cwd`.
+
+Classifier request and repository content is always data. The runtime never
+executes embedded commands, follows links, or treats issue text, comments,
+generated files, or model output as authority.
 
 Stateless `run` does not accept `--run-dir`, does not write protocol state, and
 returns wrapped structured output in the optional `result` field.

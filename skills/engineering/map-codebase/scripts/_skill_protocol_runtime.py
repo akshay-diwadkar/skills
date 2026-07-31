@@ -208,8 +208,8 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
         "phases",
         "commands",
     }
-    if not required_fields <= set(data) or set(data) - required_fields - {"mode"}:
-        errors.append(f"manifest fields must contain {sorted(required_fields)} with optional mode")
+    if not required_fields <= set(data) or set(data) - required_fields - {"mode", "classification"}:
+        errors.append(f"manifest fields must contain {sorted(required_fields)} with optional mode and classification")
     if data.get("protocol_version") != PROTOCOL_VERSION:
         errors.append(f"protocol_version must be {PROTOCOL_VERSION!r}")
     mode = data.get("mode", "stateful")
@@ -289,6 +289,43 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
             if "path_policy" in item and item.get("kind") != "path":
                 errors.append(f"input {name!r} path_policy is only valid for path inputs")
 
+    classification = data.get("classification")
+    if classification is not None:
+        fields = {
+            "phase", "artifact", "required_inputs", "controlled_inputs",
+            "override_input", "argv", "repeat",
+        }
+        if not isinstance(classification, dict) or set(classification) != fields:
+            errors.append("classification must contain the complete classification contract")
+        else:
+            for key in ("required_inputs", "controlled_inputs"):
+                values = classification.get(key)
+                if not isinstance(values, list) or not all(value in input_names for value in values):
+                    errors.append(f"classification {key} must reference declared inputs")
+            if classification.get("override_input") not in input_names:
+                errors.append("classification override_input must reference a declared input")
+            argv = classification.get("argv")
+            if not isinstance(argv, list) or not argv or not all(isinstance(value, str) for value in argv):
+                errors.append("classification argv must be a non-empty string array")
+            else:
+                for value in argv:
+                    try:
+                        _validate_template(value, input_names)
+                    except ProtocolError as exc:
+                        errors.append(exc.message)
+            repeat = classification.get("repeat")
+            if not isinstance(repeat, list):
+                errors.append("classification repeat must be an array")
+            else:
+                for item in repeat:
+                    if (
+                        not isinstance(item, dict)
+                        or set(item) != {"input", "flag"}
+                        or item.get("input") not in input_names
+                        or not isinstance(item.get("flag"), str)
+                    ):
+                        errors.append("classification contains an invalid repeat expansion")
+
     artifacts = data.get("artifacts")
     artifact_names: set[str] = set()
     if not isinstance(artifacts, list):
@@ -340,7 +377,7 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
             if (
                 not isinstance(phase, dict)
                 or not required_phase_fields <= set(phase)
-                or phase_fields - required_phase_fields not in (set(), {"conditional_reads"})
+                or phase_fields - required_phase_fields - {"conditional_reads", "result_artifact"}
             ):
                 errors.append(f"phase {phase_name!r} must contain the complete phase contract")
                 continue
@@ -385,6 +422,17 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
                             _validate_template(value, input_names)
                         except ProtocolError as exc:
                             errors.append(exc.message)
+            result_artifact = phase.get("result_artifact")
+            if result_artifact is not None and (
+                not isinstance(result_artifact, str) or result_artifact not in artifact_names
+            ):
+                errors.append(f"phase {phase_name!r} result_artifact must reference a declared artifact")
+
+    if isinstance(classification, dict):
+        if classification.get("phase") not in phase_names:
+            errors.append("classification phase must reference a declared phase")
+        if classification.get("artifact") not in artifact_names:
+            errors.append("classification artifact must reference a declared artifact")
 
     commands = data.get("commands")
     if not isinstance(commands, dict):
@@ -481,7 +529,12 @@ def validate_manifest(data: Any, *, skill_dir: Path | None = None) -> list[str]:
                             errors.append(f"command {command_name!r} script is missing or escapes the skill: {script}")
     for phase_name, phase in phases.items() if isinstance(phases, dict) else []:
         next_command = phase.get("next_command") if isinstance(phase, dict) else None
-        if next_command is not None and next_command not in commands:
+        synthetic = (
+            isinstance(classification, dict)
+            and phase_name == classification.get("phase")
+            and next_command == "apply_classification"
+        )
+        if next_command is not None and next_command not in commands and not synthetic:
             errors.append(f"phase {phase_name!r} references unknown command {next_command!r}")
     declared_writes = {
         value
@@ -744,6 +797,26 @@ def _phase_envelope(
             "artifacts": _artifact_list(context),
         }
     )
+    result_artifact = phase.get("result_artifact")
+    if result_artifact:
+        definition = next(
+            item for item in context.manifest["artifacts"] if item["name"] == result_artifact
+        )
+        assert context.run_dir is not None
+        result_path = context.run_dir / definition["path"]
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProtocolError(
+                "classification.result_invalid",
+                f"cannot read classification result: {result_path}",
+                f"Restart classification. Details: {exc}",
+            ) from exc
+        envelope["result"] = result
+        controlled = set(context.manifest.get("classification", {}).get("controlled_inputs", []))
+        envelope["required_inputs"] = [
+            item for item in envelope["required_inputs"] if item["name"] not in controlled
+        ]
     return envelope
 
 
@@ -912,7 +985,11 @@ def _doctor(context: Context) -> tuple[int, dict[str, Any]]:
             )
     mode = context.manifest.get("mode", "stateful")
     first_command = "run" if mode == "stateless" else "start"
-    required_inputs = _required_inputs(context.manifest, context.inputs, first_command)
+    required_inputs = (
+        _classification_missing(context)
+        if mode == "stateful" and context.manifest.get("classification") is not None
+        else _required_inputs(context.manifest, context.inputs, first_command)
+    )
     envelope = _empty_envelope(context.skill)
     envelope.update(
         {
@@ -955,6 +1032,232 @@ def _build_argv(step: dict[str, Any], context: Context, run_dir: Path) -> list[s
                 "Repair the manifest script path.",
             )
     return argv
+
+
+def _classification_argv(context: Context, run_dir: Path) -> list[str]:
+    config = context.manifest["classification"]
+    argv = [_expand(token, context, run_dir) for token in config["argv"]]
+    for expansion in config["repeat"]:
+        values = context.inputs.get(expansion["input"], [])
+        if isinstance(values, str):
+            values = [values]
+        for value in values:
+            argv.extend([expansion["flag"], value])
+    return argv
+
+
+def _classification_artifact_path(context: Context, run_dir: Path) -> Path:
+    name = context.manifest["classification"]["artifact"]
+    artifact = next(item for item in context.manifest["artifacts"] if item["name"] == name)
+    return run_dir / artifact["path"]
+
+
+def _classification_missing(context: Context) -> list[dict[str, Any]]:
+    required = set(context.manifest["classification"]["required_inputs"])
+    definitions = {item["name"]: item for item in context.manifest["inputs"]}
+    return [
+        {
+            "name": definitions[name]["name"],
+            "kind": definitions[name]["kind"],
+            "required": True,
+            "repeatable": definitions[name]["repeatable"],
+            "description": definitions[name]["description"],
+        }
+        for name in sorted(required)
+        if name not in context.inputs
+    ]
+
+
+def _run_initial_classification(
+    context: Context,
+    run_dir: Path,
+) -> tuple[int, list[dict[str, Any]], list[str]]:
+    argv = _classification_argv(context, run_dir)
+    try:
+        result = subprocess.run(
+            argv,
+            cwd=context.skill_dir,
+            capture_output=True,
+            text=True,
+            shell=False,
+            check=False,
+        )
+    except OSError as exc:
+        diagnostic = _diagnostic(
+            "classification.execution_failed",
+            f"classifier could not start: {exc}",
+            "Repair the installed classifier and restart.",
+        )
+        return EXIT_OPERATIONAL, [diagnostic], [diagnostic["code"]]
+    if result.returncode:
+        diagnostic = _diagnostic(
+            "classification.failed",
+            result.stderr.strip() or f"classifier exited {result.returncode}",
+            "Repair the observable inputs and restart classification.",
+        )
+        return EXIT_BLOCKED, [diagnostic], [diagnostic["code"]]
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        diagnostic = _diagnostic(
+            "classification.output_invalid",
+            f"classifier did not return JSON: {exc}",
+            "Repair the installed classifier and restart.",
+        )
+        return EXIT_OPERATIONAL, [diagnostic], [diagnostic["code"]]
+    required = {"recommendation", "evidence", "confidence", "alternatives", "override_requirements"}
+    if not isinstance(payload, dict) or set(payload) != required:
+        diagnostic = _diagnostic(
+            "classification.output_invalid",
+            "classifier result does not match the required contract",
+            "Repair the installed classifier and restart.",
+        )
+        return EXIT_OPERATIONAL, [diagnostic], [diagnostic["code"]]
+    target = _classification_artifact_path(context, run_dir)
+    _atomic_json(target, payload)
+    return EXIT_OK, [], []
+
+
+def _apply_classification(context: Context, state: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    assert context.run_dir is not None
+    path = _classification_artifact_path(context, context.run_dir)
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+        recommendation = result["recommendation"]
+        recommended = recommendation["values"]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise ProtocolError(
+            "classification.result_invalid",
+            f"cannot apply classification: {exc}",
+            "Restart the classified run.",
+            EXIT_BLOCKED,
+        ) from exc
+    config = context.manifest["classification"]
+    definitions = {item["name"]: item for item in context.manifest["inputs"]}
+    conflicts: dict[str, Any] = {}
+    for name in config["controlled_inputs"]:
+        value = recommended.get(name)
+        if name in context.inputs and context.inputs[name] != value:
+            conflicts[name] = context.inputs[name]
+    effective = dict(recommended)
+    if recommendation.get("status") != "ready" and not conflicts:
+        error = ProtocolError(
+            "classification.product_input_required",
+            "classification cannot proceed without concrete contrary evidence",
+            "Provide a hash-bound classification_override artifact through the returned input.",
+            EXIT_BLOCKED,
+        )
+        return error.exit_code, _phase_envelope(
+            context,
+            state["phase"],
+            diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+            blocking_reasons=[error.code],
+        )
+    if conflicts:
+        override_name = config["override_input"]
+        override_value = context.inputs.get(override_name)
+        if not isinstance(override_value, str):
+            error = ProtocolError(
+                "classification.override_required",
+                "classification inputs differ from the recorded recommendation",
+                "Provide a hash-bound override artifact with concrete contrary evidence.",
+                EXIT_BLOCKED,
+            )
+            return error.exit_code, _phase_envelope(
+                context,
+                state["phase"],
+                diagnostics=[_diagnostic(error.code, error.message, error.hint, details={"fields": sorted(conflicts)})],
+                blocking_reasons=[error.code],
+            )
+        argv = [
+            *_classification_argv(context, context.run_dir),
+            "--classification",
+            str(path),
+            "--override-file",
+            override_value,
+            "--verify-override",
+        ]
+        verified = subprocess.run(
+            argv,
+            cwd=context.skill_dir,
+            capture_output=True,
+            text=True,
+            shell=False,
+            check=False,
+        )
+        if verified.returncode:
+            error = ProtocolError(
+                "classification.override_invalid",
+                verified.stderr.strip() or "classification override was rejected",
+                "Repair the hash-bound contrary evidence and retry.",
+                EXIT_BLOCKED,
+            )
+            return error.exit_code, _phase_envelope(
+                context,
+                state["phase"],
+                diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+                blocking_reasons=[error.code],
+            )
+        try:
+            effective = json.loads(verified.stdout)
+        except json.JSONDecodeError as exc:
+            raise ProtocolError(
+                "classification.override_invalid",
+                f"override verifier returned invalid JSON: {exc}",
+                "Repair the installed classifier.",
+                EXIT_OPERATIONAL,
+            ) from exc
+        if any(effective.get(name) != value for name, value in conflicts.items()):
+            error = ProtocolError(
+                "classification.override_mismatch",
+                "verified override values do not match the contrary CLI inputs",
+                "Make the override artifact values exactly match the requested classification values.",
+                EXIT_BLOCKED,
+            )
+            return error.exit_code, _phase_envelope(
+                context,
+                state["phase"],
+                diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+                blocking_reasons=[error.code],
+            )
+    for name in config["controlled_inputs"]:
+        value = effective.get(name)
+        if value is None:
+            continue
+        definition = definitions[name]
+        if definition["repeatable"] and not isinstance(value, list):
+            value = [value]
+        context.inputs[name] = value
+    missing = _required_inputs(context.manifest, context.inputs, "start")
+    required_missing = [item for item in missing if item["required"]]
+    if required_missing:
+        error = ProtocolError(
+            "input.required",
+            "missing required inputs: " + ", ".join(item["name"] for item in required_missing),
+            "Pass every remaining workflow input to next.",
+            EXIT_BLOCKED,
+        )
+        envelope = _phase_envelope(
+            context,
+            state["phase"],
+            diagnostics=[_diagnostic(error.code, error.message, error.hint)],
+            blocking_reasons=[error.code],
+        )
+        envelope["required_inputs"] = missing
+        return error.exit_code, envelope
+    command = _command_variant(context, "start")
+    _write_state(context, state["phase"])
+    exit_code, diagnostics, reasons = _run_command(context, "start", context.run_dir)
+    if exit_code:
+        return exit_code, _phase_envelope(
+            context,
+            state["phase"],
+            diagnostics=diagnostics,
+            blocking_reasons=reasons,
+        )
+    success_phase = command["success_phase"]
+    _write_state(context, success_phase)
+    return EXIT_OK, _phase_envelope(context, success_phase)
 
 
 def _child_diagnostics(stdout: str) -> list[dict[str, Any]]:
@@ -1037,6 +1340,54 @@ def _run_command(
 def _start(context: Context) -> tuple[int, dict[str, Any]]:
     if context.run_dir is None:
         raise ProtocolError("path.run_dir_required", "--run-dir is required for start", "Pass a new run directory.")
+    classification = context.manifest.get("classification")
+    if classification is not None:
+        missing = _classification_missing(context)
+        if missing:
+            error = ProtocolError(
+                "input.required",
+                "missing classification inputs: " + ", ".join(item["name"] for item in missing),
+                "Pass every required classification input.",
+            )
+            envelope = _error_envelope(error, context.skill)
+            envelope["required_inputs"] = missing
+            return error.exit_code, envelope
+        if context.run_dir.exists():
+            raise ProtocolError(
+                "state.run_exists",
+                f"start requires a new run directory: {context.run_dir}",
+                "Choose a path that does not exist, or use status for the existing run.",
+            )
+        parent = context.run_dir.parent
+        if not parent.is_dir():
+            raise ProtocolError(
+                "path.run_parent_missing",
+                f"run directory parent does not exist: {parent}",
+                "Create or choose an existing parent directory.",
+            )
+        staging = Path(tempfile.mkdtemp(prefix=f".{context.run_dir.name}.", suffix=".staging", dir=parent))
+        try:
+            exit_code, diagnostics, reasons = _run_initial_classification(context, staging)
+            if exit_code:
+                shutil.rmtree(staging, ignore_errors=True)
+                envelope = _empty_envelope(context.skill)
+                envelope.update(
+                    {
+                        "status": "blocked" if exit_code == EXIT_BLOCKED else "error",
+                        "blocking_reasons": reasons,
+                        "diagnostics": diagnostics,
+                        "required_inputs": missing,
+                    }
+                )
+                return exit_code, envelope
+            staging.rename(context.run_dir)
+        except BaseException:
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+            raise
+        phase = classification["phase"]
+        _write_state(context, phase)
+        return EXIT_OK, _phase_envelope(context, phase)
     missing = _required_inputs(context.manifest, context.inputs, "start")
     required_missing = [item for item in missing if item["required"]]
     if required_missing:
@@ -1156,6 +1507,9 @@ def _next(context: Context) -> tuple[int, dict[str, Any]]:
     state = _load_state(context)
     _merge_state_inputs(context, state)
     phase_name = state["phase"]
+    classification = context.manifest.get("classification")
+    if classification is not None and phase_name == classification["phase"]:
+        return _apply_classification(context, state)
     next_command = context.manifest["phases"][phase_name]["next_command"]
     if next_command is None:
         return EXIT_OK, _phase_envelope(context, phase_name)
