@@ -32,7 +32,7 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
-    assert "version: 1.4.0" in text
+    assert "version: 1.5.0" in text
     assert "--verify-evidence" in protocol
 
 
@@ -51,6 +51,28 @@ def test_template_is_the_single_shape_source() -> None:
     assert template.count("## Evidence Ledger") == 1
     for heading in expected:
         assert template.count(f"## {heading}") == 1
+    assert template.count("- Coupling direction:") == 2
+
+
+def test_shared_vocabulary_is_compact_and_gate_integrated() -> None:
+    protocol = (SKILL / "references" / "design-protocol.md").read_text(encoding="utf-8")
+    definitions = {
+        "Owner": "Repository area responsible",
+        "Boundary": "Point where responsibility",
+        "Contract": "Caller-visible inputs",
+        "Depth": "Useful behavior hidden",
+        "Volatility": "Likelihood that a detail changes",
+        "Propagation": "Number and distance",
+        "Locality": "Degree to which related behavior",
+        "Deletion test": "Remove an abstraction",
+        "Second-use test": "Generalize only when",
+        "Coupling direction": "Direction in which dependency knowledge",
+    }
+    for term, definition in definitions.items():
+        assert protocol.count(f"| {term} |") == 1
+        assert definition in protocol
+    assert "Do not score them or turn\nthem into a checklist." in protocol
+    assert protocol.count("## ") == 7
 
 
 def test_pipeline_documentation_and_changelog_are_present() -> None:

@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
-    "phase_references": 29317,
-    "pre_action": 8126,
+    "phase_references": 29672,
+    "pre_action": 8141,
     "repair_diagnostic": 2471,
     "tool_output": 2054,
-    "top_level": 6072,
-    "worst_context": 63751,
-    "worst_references": 55208
+    "top_level": 6087,
+    "worst_context": 64463,
+    "worst_references": 55905
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "0f4777564dba6b5b45740a27b3fc35269d1cfc59c15ec42edad0c3d7a778145c",
+  "config_sha256": "7f557bdd42fdf88394a422eee66e024fd7fa7e181d0bfe98f19d85fa152906d0",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -166,13 +166,13 @@
     "design-codebase": {
       "category": "user_orchestrator",
       "metrics": {
-        "phase_references": 2166,
-        "pre_action": 753,
+        "phase_references": 2521,
+        "pre_action": 768,
         "repair_diagnostic": 227,
         "tool_output": 172,
-        "top_level": 581,
-        "worst_context": 4191,
-        "worst_references": 3383
+        "top_level": 596,
+        "worst_context": 4903,
+        "worst_references": 4080
       },
       "path": "skills/engineering/design-codebase/SKILL.md",
       "phases": {
@@ -195,7 +195,7 @@
               "references/design-protocol.md",
               "references/handoff-template.md"
             ],
-            "tokens": 2166
+            "tokens": 2521
           },
           "worst": {
             "paths": [
@@ -203,7 +203,7 @@
               "references/design-protocol.md",
               "references/handoff-template.md"
             ],
-            "tokens": 2166
+            "tokens": 2521
           }
         },
         "validated": {
@@ -221,7 +221,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "2a13c8cb72837d3aca5c886e01ae9076e83110a8e8f81e614b0e51a625a3f273",
+      "source_hash": "af5fdbe7c6fc7c76a210fb21bb0e0285a254b8c23d7844321f5eb503afdedc93",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/design-protocol.md",

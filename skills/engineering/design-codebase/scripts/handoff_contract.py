@@ -97,6 +97,7 @@ class StructuralDesign:
     boundary: str
     owner: str
     core_abstraction: str
+    coupling_direction: str
 
 
 @dataclass(frozen=True)
@@ -382,6 +383,7 @@ def _design(body: str) -> StructuralDesign | None:
         "boundary": _field_from_section(body, "Boundary"),
         "owner": _field_from_section(body, "Owner"),
         "core_abstraction": _field_from_section(body, "Core abstraction"),
+        "coupling_direction": _field_from_section(body, "Coupling direction"),
     }
     if not all(
         len(re.sub(r"[^a-z0-9]+", "", value.casefold())) >= 3
@@ -393,7 +395,7 @@ def _design(body: str) -> StructuralDesign | None:
 
 
 def _normalized(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", value.casefold())
+    return re.sub(r"[^a-z0-9]+", "", CITATION_RE.sub("", value).casefold())
 
 
 def _meaningful_terms(value: str) -> set[str]:
@@ -438,7 +440,7 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
         diagnostics.append(
             Diagnostic(
                 "chosen.structure.missing",
-                "Chosen design requires substantive Boundary, Owner, and Core abstraction fields.",
+                "Chosen design requires substantive Boundary, Owner, Core abstraction, and Coupling direction fields.",
             )
         )
         return diagnostics
@@ -459,7 +461,7 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
             diagnostics.append(
                 Diagnostic(
                     "alternative.structure.missing",
-                    f"Alternative '{start.group('name').strip()}' requires substantive Boundary, Owner, and Core abstraction fields.",
+                    f"Alternative '{start.group('name').strip()}' requires substantive Boundary, Owner, Core abstraction, and Coupling direction fields.",
                 )
             )
             continue
@@ -489,13 +491,14 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
         and (
             _normalized(item.boundary) != _normalized(chosen.boundary)
             or _normalized(item.owner) != _normalized(chosen.owner)
+            or _normalized(item.coupling_direction) != _normalized(chosen.coupling_direction)
         )
     ]
     if alternatives and not structurally_distinct:
         diagnostics.append(
             Diagnostic(
                 "alternative.structural.none",
-                "At least one alternative must change the core abstraction and the boundary or owner.",
+                "At least one alternative must change the core abstraction and the boundary, owner, or coupling direction.",
             )
         )
     chosen_citations = set(CITATION_RE.findall(chosen_body))
@@ -508,6 +511,93 @@ def _validate_alternatives(chosen_body: str, alternatives_body: str) -> list[Dia
                 "At least one structurally distinct alternative must cite evidence not cited by the chosen design rationale.",
             )
         )
+    return diagnostics
+
+
+def _claim_support_diagnostics(
+    value: str,
+    label: str,
+    evidence: dict[str, Evidence],
+) -> list[Diagnostic]:
+    if not value:
+        return []
+    citations = set(CITATION_RE.findall(value))
+    if not citations:
+        return [
+            Diagnostic(
+                "design.claim.uncited",
+                f"Design claim '{label}' requires an inline evidence citation.",
+            )
+        ]
+    if not any(
+        identifier in evidence and evidence[identifier].source in LOCAL_SOURCES
+        for identifier in citations
+    ):
+        return [
+            Diagnostic(
+                "design.claim.repository_evidence_missing",
+                f"Design claim '{label}' requires code, test, configuration, or schema evidence.",
+            )
+        ]
+    return []
+
+
+def _validate_design_claim_support(
+    chosen_body: str,
+    alternatives_body: str,
+    sections: dict[str, str],
+    evidence: dict[str, Evidence],
+) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for field in (
+        "Boundary",
+        "Owner",
+        "Core abstraction",
+        "Coupling direction",
+        "Design",
+        "Hidden details",
+        "Exposed controls",
+        "Depth rationale",
+    ):
+        diagnostics.extend(
+            _claim_support_diagnostics(
+                _field_from_section(chosen_body, field),
+                f"chosen {field}",
+                evidence,
+            )
+        )
+
+    starts = list(re.finditer(r"^### Alternative:\s*(?P<name>.+)$", alternatives_body, re.MULTILINE))
+    for index, start in enumerate(starts):
+        end = starts[index + 1].start() if index + 1 < len(starts) else len(alternatives_body)
+        block = alternatives_body[start.end() : end]
+        name = start.group("name").strip()
+        for field in ("Boundary", "Owner", "Core abstraction", "Coupling direction", "Rejected because"):
+            diagnostics.extend(
+                _claim_support_diagnostics(
+                    _field_from_section(block, field),
+                    f"alternative '{name}' {field}",
+                    evidence,
+                )
+            )
+
+    optional_fields = ("Volatility", "Propagation", "Locality", "Deletion test", "Second-use test")
+    for section_name, body in sections.items():
+        if section_name == EVIDENCE_HEADING:
+            continue
+        for field in optional_fields:
+            for match in re.finditer(
+                rf"^- {re.escape(field)}:\s*(?P<value>.+)$",
+                body,
+                re.MULTILINE | re.IGNORECASE,
+            ):
+                diagnostics.extend(
+                    _claim_support_diagnostics(
+                        match.group("value").strip(),
+                        f"{section_name} {field}",
+                        evidence,
+                    )
+                )
     return diagnostics
 
 
@@ -712,6 +802,14 @@ def validate_handoff(
     )
     chosen_body = sections.get("Chosen Design & Depth Rationale", "")
     interface_body = sections.get("Target Interface Contract", "")
+    diagnostics.extend(
+        _validate_design_claim_support(
+            chosen_body,
+            sections.get("Alternatives Considered", ""),
+            sections,
+            evidence,
+        )
+    )
     diagnostics.extend(_validate_depth_rationale(chosen_body))
     diagnostics.extend(_validate_interface(interface_body))
     diagnostics.extend(_validate_generality(sections.get("Generality Justification", "")))

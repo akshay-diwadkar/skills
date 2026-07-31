@@ -18,6 +18,7 @@ from handoff_contract import validate_handoff  # noqa: E402
 def make_repo(root: Path) -> Path:
     (root / "payments").mkdir()
     (root / "checkout").mkdir()
+    (root / "subscriptions").mkdir()
     (root / "tests").mkdir()
     (root / "payments" / "service.py").write_text(
         "import provider_sdk\n"
@@ -45,6 +46,13 @@ def make_repo(root: Path) -> Path:
         "    result = checkout(10)\n"
         "    assert result is not None\n"
         "\n",
+        encoding="utf-8",
+    )
+    (root / "subscriptions" / "renew.py").write_text(
+        "from payments.service import charge_payment\n"
+        "\n"
+        "def renew(amount, payment_token):\n"
+        "    return charge_payment(amount, 'USD', payment_token)\n",
         encoding="utf-8",
     )
     return root
@@ -179,7 +187,8 @@ def test_evidence_hashes_are_optional_until_complete_verification(tmp_path: Path
     for digest in (
         "383f9a66d5763c7a293a22f6388a418a7fba3f8979b35aa7c31fb404d0372c19",
         "dcf982001e19cb93ac5b5bbf888233b985f8a933b53623ad2f71b3f1153f7e0d",
-        "e5315c9858912d0b35c027fc7f9927dcb1cd0f266bc29b7f6d2d10cf3ac69e29",
+            "e5315c9858912d0b35c027fc7f9927dcb1cd0f266bc29b7f6d2d10cf3ac69e29",
+            "62ff00c332b7013d83e706504014f2ea6e552adb83fa6bb16f63a9ac11ab3b2a",
     ):
         without_hashes = without_hashes.replace(f" | sha256: {digest}", "")
 
@@ -189,7 +198,7 @@ def test_evidence_hashes_are_optional_until_complete_verification(tmp_path: Path
         repo,
         require_evidence_hashes=True,
     )
-    assert [item.code for item in diagnostics].count("evidence.sha256.missing") == 3
+    assert [item.code for item in diagnostics].count("evidence.sha256.missing") == 4
 
 
 def test_evidence_hash_matches_plan_change_hash_excerpt(tmp_path: Path) -> None:
@@ -215,7 +224,7 @@ def test_evidence_hash_matches_plan_change_hash_excerpt(tmp_path: Path) -> None:
     assert parsed.evidence["E-2"].sha256 == excerpt_hash
 
 
-def test_alternative_must_change_abstraction_and_boundary_or_owner(tmp_path: Path) -> None:
+def test_alternative_must_change_abstraction_and_boundary_owner_or_coupling(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     chosen_core = "PaymentGateway protocol using ChargeRequest, PaymentResult, and domain payment errors"
     same_core = example().replace(
@@ -226,11 +235,18 @@ def test_alternative_must_change_abstraction_and_boundary_or_owner(tmp_path: Pat
 
     parameter_variant = (
         example()
-        .replace(
-            "Checkout and subscription flows call concrete functions owned by the payment service module",
-            "Domain payment operations to provider integration",
-        )
-        .replace("- Owner: Payment service", "- Owner: Payments integration")
+            .replace(
+                "Checkout and subscription flows call concrete functions owned by the payment service module",
+                "Domain payment operations to provider integration",
+            )
+            .replace(
+                "Payment service owns provider calls and domain orchestration",
+                "Payments integration owns provider translation and its invariants",
+            )
+            .replace(
+                "Domain workflows depend directly on payment-service functions and provider-shaped values",
+                "Checkout and subscriptions depend inward on the domain payment contract; provider knowledge remains behind the integration boundary",
+            )
     )
     assert "alternative.structural.none" in codes(parameter_variant, repo)
     assert "alternative.structural.none" not in codes(example(), repo)
@@ -250,8 +266,8 @@ def test_fake_distinct_alternative_requires_distinct_evidence(tmp_path: Path) ->
             "Gateway protocol composed of charge request, result, and stable payment errors",
         )
         .replace(
-            "less coherent boundary. [E-2] [E-3]",
-            "less coherent boundary. [E-2] [E-4]",
+            "less coherent boundary. [E-3] [E-4] [E-5]",
+            "less coherent boundary. [E-2] [E-3] [E-5]",
         )
     )
     result_codes = codes(fake_distinct, repo)
@@ -287,9 +303,10 @@ def test_generality_requires_two_patterns_or_an_intentionally_narrow_decision(tm
     repo = make_repo(tmp_path)
     one_pattern = example().replace(
         "Both need the same stable charge result and failure\n"
-        "semantics despite different orchestration. If a third pattern required\n"
+        "semantics despite different orchestration. The second-use test therefore admits\n"
+        "the shared charge contract without provider-specific branches. If a third pattern required\n"
         "authorization without capture, the contract would add a distinct operation or\n"
-        "request variant rather than expose provider SDK types. [E-2] [E-3]",
+        "request variant rather than expose provider SDK types. [E-3] [E-5]",
         "The checkout pattern needs the stable charge result. If a third pattern appeared,\n"
         "the contract would add a distinct operation rather than expose provider SDK types. [E-2]",
     )
@@ -307,11 +324,63 @@ def test_depth_rationale_must_name_hidden_details_and_exposed_controls(tmp_path:
     restated_design = example().replace(
         "One charge operation and three domain types hide four provider concepts already used by independent callers, "
         "while callers retain every control that changes payment behavior. This has a higher functionality-to-interface "
-        "ratio than exposing the SDK request and exception families directly. [E-2] [E-4]",
+        "ratio than exposing the SDK request and exception families directly. [E-2] [E-3]",
         "Callers submit a domain-owned `ChargeRequest` to `PaymentGateway.charge`; the integration owner translates "
         "provider requests, results, and exceptions. [E-2]",
     )
     assert "design.depth.unsubstantiated" in codes(restated_design, repo)
+
+
+def test_structural_claims_require_inline_repository_evidence(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    uncited = example().replace(
+        "Payments integration owns provider translation and its invariants [E-2]",
+        "Payments integration owns provider translation and its invariants",
+        1,
+    )
+    assert "design.claim.uncited" in codes(uncited, repo)
+
+    request_only = example().replace(
+        "Payments integration owns provider translation and its invariants [E-2]",
+        "Payments integration owns provider translation and its invariants [E-1]",
+        1,
+    )
+    assert "design.claim.repository_evidence_missing" in codes(request_only, repo)
+
+
+def test_optional_vocabulary_is_checked_only_when_asserted(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    without_optional = "\n".join(
+        line
+        for line in example().splitlines()
+        if not line.startswith(("- Volatility:", "- Propagation:", "- Locality:"))
+    )
+    assert codes(without_optional, repo) == set()
+
+    uncited_optional = example().replace(
+        "Provider request and exception types can change independently of checkout and subscription policy [E-2] [E-3] [E-5]",
+        "Provider request and exception types can change independently of checkout and subscription policy",
+    )
+    assert "design.claim.uncited" in codes(uncited_optional, repo)
+
+
+def test_coupling_direction_can_make_an_alternative_structurally_distinct(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    coupling_only = (
+        example()
+        .replace(
+            "Checkout and subscription flows call concrete functions owned by the payment service module",
+            "Domain payment operations to provider integration",
+        )
+        .replace(
+            "Payment service owns provider calls and domain orchestration",
+            "Payments integration owns provider translation and its invariants",
+        )
+    )
+    assert "alternative.structural.none" not in codes(coupling_only, repo)
+
+    missing = example().replace("- Coupling direction:", "- Dependency flow:", 1)
+    assert "chosen.structure.missing" in codes(missing, repo)
 
 
 def test_consolidation_requires_structural_reasoning(tmp_path: Path) -> None:

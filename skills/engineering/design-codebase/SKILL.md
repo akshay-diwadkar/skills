@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.4.0
+version: 1.5.0
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -46,7 +46,8 @@ current `required_reads`, write only `allowed_writes`, and stop on every
 
 Keep claims grounded in current evidence. Compare genuinely different
 boundaries or ownership models, define caller-visible signatures, defaults,
-nullability, and errors, and leave only planner-owned grounding questions.
+nullability, and errors, and leave only planner-owned grounding questions. Use
+the protocol's shared vocabulary only where it sharpens the decision.
 
 ## Completion and recovery
 
