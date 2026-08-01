@@ -114,6 +114,39 @@
   },
   "exceptions": [
     {
+      "id": "plan-change-v6-top-level-reduction",
+      "skill": "plan-change",
+      "metric": "top_level",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The v6 agent-first workflow replaces stateful discovery and repeated validation guidance with one concise native-exploration and sealing workflow while retaining every protected authority and safety rule.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v6-pre-action-reduction",
+      "skill": "plan-change",
+      "metric": "pre_action",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The stateless protocol removes phase state, inventory, classification, scaffold, and baseline reads so pre-action context contains only the required request and draft inputs.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v6-reference-reduction",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The v6 reference portfolio intentionally removes the v5 inventory, delegation, adversarial, compatibility, glossary, and scaffold manuals in favor of three compact task-selected references.",
+      "supporting_paths": ["references/plan-contract.md", "references/task-guidance.md", "references/evidence-kinds.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
       "id": "audit-codebase-bounded-delegation-phase",
       "skill": "audit-codebase",
       "metric": "phase_references",
