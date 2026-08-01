@@ -54,9 +54,9 @@ snapshots. Advocates argue assigned cases but have no decision authority.
    reviewer confidence as authority.
 4. Treat missing, partial, blocked, malformed, redirected, or over-budget
    results as omissions. Rerun each affected contract sequentially exactly
-   once; on another failure, record a terminal omission and block finalization.
-5. The primary agent alone updates the draft, chooses the design, and validates
-   and finalizes the single handoff artifact.
+   once; on another failure, record a terminal omission and block sealing.
+5. The primary agent alone updates the draft, chooses the design, and seals the
+   single handoff artifact.
 
 When subagents are unavailable or intentionally skipped, the primary agent
 executes all four roles sequentially with identical inputs, scope, envelope,

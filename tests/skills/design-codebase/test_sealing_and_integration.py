@@ -6,11 +6,17 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "skills" / "engineering" / "design-codebase" / "scripts"))
+
+import _diagnostic_contract  # noqa: E402
+import handoff_contract  # noqa: E402
+import seal_assessment  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
 SKILL = ROOT / "skills" / "engineering" / "design-codebase"
-FINALIZER = SKILL / "scripts" / "finalize_assessment.py"
-CHECKER = SKILL / "scripts" / "check_assessment.py"
+SEALER = SKILL / "scripts" / "seal_assessment.py"
 SEAL_PLAN = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "seal_plan.py"
 
 
@@ -61,20 +67,27 @@ def example() -> str:
     return (SKILL / "references" / "worked-examples.md").read_text(encoding="utf-8")
 
 
-def test_finalizer_emits_only_deterministic_handoff(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path / "repo")
-    draft = tmp_path / "draft.md"
-    draft.write_text(example().replace("\n", "\r\n"), encoding="utf-8")
-    output = tmp_path / "output"
+def seal_command(repo: Path, output: Path, draft: Path, *, json_output: bool = False) -> list[str]:
     command = [
         sys.executable,
-        str(FINALIZER),
+        str(SEALER),
         "--repo-root",
         str(repo),
         "--output-dir",
         str(output),
-        str(draft),
     ]
+    if json_output:
+        command.extend(("--format", "json"))
+    command.append(str(draft))
+    return command
+
+
+def test_sealer_emits_only_deterministic_handoff(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    draft = tmp_path / "draft.md"
+    draft.write_text(example().replace("\n", "\r\n"), encoding="utf-8")
+    output = tmp_path / "output"
+    command = seal_command(repo, output, draft)
     first = subprocess.run(command, capture_output=True, text=True, check=True)
     first_text = (output / "handoff.md").read_text(encoding="utf-8")
     second = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -87,42 +100,27 @@ def test_finalizer_emits_only_deterministic_handoff(tmp_path: Path) -> None:
     assert "design-assessment-contract" not in first_text
 
 
-def test_finalizer_backfills_all_local_evidence_hashes(tmp_path: Path) -> None:
+def test_sealer_backfills_all_local_evidence_hashes(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     draft = tmp_path / "draft.md"
     unhashed = re.sub(r" \| sha256: [0-9a-f]{64}", "", example())
     draft.write_text(unhashed, encoding="utf-8")
     output = tmp_path / "output"
     subprocess.run(
-        [
-            sys.executable,
-            str(FINALIZER),
-            "--repo-root",
-            str(repo),
-            "--output-dir",
-            str(output),
-            str(draft),
-        ],
+        seal_command(repo, output, draft),
         capture_output=True,
         text=True,
         check=True,
     )
 
-    finalized = (output / "handoff.md").read_text(encoding="utf-8")
-    assert finalized.count(" | sha256: ") == 4
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(CHECKER),
-            "--repo-root",
-            str(repo),
-            "--verify-evidence",
-            str(output / "handoff.md"),
-        ],
-        capture_output=True,
-        text=True,
+    sealed = (output / "handoff.md").read_text(encoding="utf-8")
+    assert sealed.count(" | sha256: ") == 4
+    _parsed, diagnostics = handoff_contract.validate_handoff(
+        sealed,
+        repo,
+        require_evidence_hashes=True,
     )
-    assert result.returncode == 0, result.stderr
+    assert diagnostics == []
 
 
 def test_invalid_draft_writes_nothing(tmp_path: Path) -> None:
@@ -131,22 +129,39 @@ def test_invalid_draft_writes_nothing(tmp_path: Path) -> None:
     draft.write_text(example().replace("## Problem & Scope", "## Missing"), encoding="utf-8")
     output = tmp_path / "output"
     result = subprocess.run(
-        [
-            sys.executable,
-            str(FINALIZER),
-            "--repo-root",
-            str(repo),
-            "--output-dir",
-            str(output),
-            str(draft),
-        ],
+        seal_command(repo, output, draft),
         capture_output=True,
         text=True,
     )
 
     assert result.returncode == 1
-    assert "Cannot finalize invalid design handoff" in result.stderr
+    assert "Cannot seal invalid design handoff" in result.stderr
     assert not output.exists()
+
+
+def test_invalid_draft_preserves_existing_artifact_without_write_attempt(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    draft = tmp_path / "invalid.md"
+    draft.write_text(example().replace("## Problem & Scope", "## Missing"), encoding="utf-8")
+    output = tmp_path / "output"
+    output.mkdir()
+    destination = output / "handoff.md"
+    destination.write_text("existing sealed artifact\n", encoding="utf-8")
+
+    with patch.object(seal_assessment, "_write_atomic") as write_atomic:
+        result = seal_assessment.main(
+            [
+                "--repo-root",
+                str(repo),
+                "--output-dir",
+                str(output),
+                str(draft),
+            ]
+        )
+
+    assert result == 1
+    write_atomic.assert_not_called()
+    assert destination.read_text(encoding="utf-8") == "existing sealed artifact\n"
 
 
 def test_stale_supplied_hash_writes_nothing(tmp_path: Path) -> None:
@@ -162,15 +177,7 @@ def test_stale_supplied_hash_writes_nothing(tmp_path: Path) -> None:
     )
     output = tmp_path / "output"
     result = subprocess.run(
-        [
-            sys.executable,
-            str(FINALIZER),
-            "--repo-root",
-            str(repo),
-            "--output-dir",
-            str(output),
-            str(draft),
-        ],
+        seal_command(repo, output, draft),
         capture_output=True,
         text=True,
     )
@@ -179,46 +186,19 @@ def test_stale_supplied_hash_writes_nothing(tmp_path: Path) -> None:
     assert not output.exists()
 
 
-def test_checker_json_interface(tmp_path: Path) -> None:
+def test_sealer_json_failure_is_canonical(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
-    draft = tmp_path / "draft.md"
-    draft.write_text(example(), encoding="utf-8")
+    draft = tmp_path / "invalid.md"
+    draft.write_text(example().replace("## Problem & Scope", "## Missing"), encoding="utf-8")
     result = subprocess.run(
-        [
-            sys.executable,
-            str(CHECKER),
-            "--repo-root",
-            str(repo),
-            "--format",
-            "json",
-            str(draft),
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert json.loads(result.stdout) == []
-
-
-def test_checker_verify_evidence_requires_complete_hashes(tmp_path: Path) -> None:
-    repo = make_repo(tmp_path / "repo")
-    draft = tmp_path / "draft.md"
-    draft.write_text(re.sub(r" \| sha256: [0-9a-f]{64}", "", example()), encoding="utf-8")
-    base_command = [
-        sys.executable,
-        str(CHECKER),
-        "--repo-root",
-        str(repo),
-        str(draft),
-    ]
-    assert subprocess.run(base_command, capture_output=True, text=True).returncode == 0
-    verified = subprocess.run(
-        [*base_command[:-1], "--verify-evidence", str(draft)],
+        seal_command(repo, tmp_path / "unused", draft, json_output=True),
         capture_output=True,
         text=True,
     )
-    assert verified.returncode == 1
-    assert verified.stderr.count("evidence.sha256.missing") == 4
+    assert result.returncode == 1
+    diagnostics = json.loads(result.stdout)
+    assert diagnostics
+    assert all(_diagnostic_contract.is_canonical(item) for item in diagnostics)
 
 
 def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
@@ -227,15 +207,7 @@ def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
     draft.write_text(example(), encoding="utf-8")
     output = tmp_path / "design-output"
     subprocess.run(
-        [
-            sys.executable,
-            str(FINALIZER),
-            "--repo-root",
-            str(repo),
-            "--output-dir",
-            str(output),
-            str(draft),
-        ],
+        seal_command(repo, output, draft),
         capture_output=True,
         text=True,
         check=True,
@@ -289,35 +261,20 @@ T-1: covers: SC-1, CH-1 | given: checkout and renewal payment scenarios | when: 
     assert not list(tmp_path.rglob("inventory.json"))
 
 
-def test_verify_evidence_detects_source_mutation_before_handoff(tmp_path: Path) -> None:
+def test_sealer_reports_source_mutation_before_handoff(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     draft = tmp_path / "draft.md"
     draft.write_text(example(), encoding="utf-8")
     output = tmp_path / "design-output"
     subprocess.run(
-        [
-            sys.executable,
-            str(FINALIZER),
-            "--repo-root",
-            str(repo),
-            "--output-dir",
-            str(output),
-            str(draft),
-        ],
+        seal_command(repo, output, draft),
         capture_output=True,
         text=True,
         check=True,
     )
     handoff = output / "handoff.md"
     fresh = subprocess.run(
-        [
-            sys.executable,
-            str(CHECKER),
-            "--repo-root",
-            str(repo),
-            "--verify-evidence",
-            str(handoff),
-        ],
+        seal_command(repo, tmp_path / "verify-output", handoff),
         capture_output=True,
         text=True,
     )
@@ -332,17 +289,62 @@ def test_verify_evidence_detects_source_mutation_before_handoff(tmp_path: Path) 
         encoding="utf-8",
     )
     stale = subprocess.run(
-        [
-            sys.executable,
-            str(CHECKER),
-            "--repo-root",
-            str(repo),
-            "--verify-evidence",
-            str(handoff),
-        ],
+        seal_command(repo, tmp_path / "stale-output", handoff, json_output=True),
         capture_output=True,
         text=True,
     )
     assert stale.returncode == 1
-    assert "evidence.sha256.mismatch" in stale.stderr
-    assert "checkout/process.py:1-6" in stale.stderr
+    diagnostics = json.loads(stale.stdout)
+    assert any(item["code"] == "evidence.sha256.mismatch" for item in diagnostics)
+    assert any("checkout/process.py:1-6" in item["message"] for item in diagnostics)
+
+
+def test_seal_handoff_is_one_pass_and_caches_local_evidence(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    text = example().replace(
+        "- [E-5] source: code | locator: subscriptions/renew.py:1-4 | anchor: renew | sha256: 62ff00c332b7013d83e706504014f2ea6e552adb83fa6bb16f63a9ac11ab3b2a | claim:",
+        "- [E-5] source: code | locator: payments/service.py:3-7 | anchor: charge_payment | claim:",
+    )
+    section_calls = 0
+    evidence_calls = 0
+    reads: list[Path] = []
+    hashes = 0
+    original_sections = handoff_contract._parse_sections
+    original_evidence = handoff_contract._parse_evidence
+    original_read_text = Path.read_text
+    original_hash = handoff_contract.excerpt_sha256
+
+    def count_sections(value: str):
+        nonlocal section_calls
+        section_calls += 1
+        return original_sections(value)
+
+    def count_evidence(body: str, full_text: str):
+        nonlocal evidence_calls
+        evidence_calls += 1
+        return original_evidence(body, full_text)
+
+    def count_read(path: Path, *args, **kwargs):
+        reads.append(path.resolve())
+        return original_read_text(path, *args, **kwargs)
+
+    def count_hash(lines: list[str], start: int, end: int) -> str:
+        nonlocal hashes
+        hashes += 1
+        return original_hash(lines, start, end)
+
+    with (
+        patch.object(handoff_contract, "_parse_sections", side_effect=count_sections),
+        patch.object(handoff_contract, "_parse_evidence", side_effect=count_evidence),
+        patch.object(Path, "read_text", new=count_read),
+        patch.object(handoff_contract, "excerpt_sha256", side_effect=count_hash),
+    ):
+        _parsed, diagnostics, sealed = handoff_contract.seal_handoff(text, repo)
+
+    assert diagnostics == []
+    assert section_calls == 1
+    assert evidence_calls == 1
+    assert len(reads) == 3
+    assert len(set(reads)) == 3
+    assert hashes == 4
+    assert sealed.count(" | sha256: ") == 4

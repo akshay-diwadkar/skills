@@ -256,6 +256,65 @@
       "rationale": "Issue planning returns a compact seal result instead of inventory and classifier payloads.",
       "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": []
+    },
+    {
+      "id": "optimize-codebase-reference-consolidation",
+      "skill": "optimize-codebase",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The optimization portfolio consolidates duplicated protocol, research, rubric, pattern, and example guidance into two compact contracts while preserving fast-path and machine contracts.",
+      "supporting_paths": [
+        "references/fast-path.md",
+        "references/optimization-contract.json",
+        "references/handoff-contract.json",
+        "references/optimization-contract.md",
+        "references/optimization-techniques.md"
+      ],
+      "protected_rule_ids": ["optimize.explicit-implementation", "optimize.fast-all-criteria", "optimize.revert-inconclusive"]
+    },
+    {
+      "id": "audit-codebase-reference-consolidation",
+      "skill": "audit-codebase",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The audit portfolio merges bundle, protocol, rubric, risk-pattern, and ecosystem guidance into compact contract and technique references without weakening authority, publication, or read-only rules.",
+      "supporting_paths": [
+        "references/delegation-protocol.md",
+        "references/audit-contract.md",
+        "references/audit-techniques.md"
+      ],
+      "protected_rule_ids": ["audit.read-only", "audit.untrusted-authority", "audit.delegation-authority", "audit.publish-confirmation"]
+    },
+    {
+      "id": "implement-plan-reference-consolidation",
+      "skill": "implement-plan",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The implementation portfolio merges protocol, quality, hazard, and compatibility guidance into compact execution and recovery contracts while preserving intake, dirty-state, recovery, and delegation rules.",
+      "supporting_paths": [
+        "references/delegation-protocol.md",
+        "references/implementation-contract.json",
+        "references/implementation-contract.md",
+        "references/safety-and-recovery.md"
+      ],
+      "protected_rule_ids": ["implement.strict-intake", "implement.preserve-dirty", "implement.no-whole-restore", "implement.delegation-authority"]
+    },
+    {
+      "id": "diagram-codebase-reference-consolidation",
+      "skill": "diagram-codebase",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The diagram question and renderer guides are merged into one payload and fidelity contract while preserving plan-mode, permission, and renderer safety rules.",
+      "supporting_paths": ["references/diagram-output-guide.md"],
+      "protected_rule_ids": ["diagram.plan-mode", "diagram.separate-permissions", "diagram.no-alternate-renderer"]
     }
   ]
 }

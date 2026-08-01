@@ -114,6 +114,15 @@ def test_absolute_budget_overrun_blocks_and_current_exceptions_are_used() -> Non
 def test_delta_growth_and_large_unexplained_reduction_block() -> None:
     base = report()
     budgets = config()
+    budgets["exceptions"] = [
+        exception
+        for exception in budgets["exceptions"]
+        if not (
+            exception.get("skill") == "audit-codebase"
+            and exception.get("metric") == "worst_references"
+            and exception.get("direction") == "decrease"
+        )
+    ]
     grown = copy.deepcopy(base)
     grown["skills"]["audit-codebase"]["metrics"]["top_level"] += 33
     assert any("increased by 33" in error for error in context_load.delta_errors(grown, base, budgets))

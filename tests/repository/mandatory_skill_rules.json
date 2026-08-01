@@ -12,7 +12,7 @@
   {"id":"diagram.no-alternate-renderer","skill":"diagram-codebase","source":"SKILL.md","surface":"doctor","text":"Never hand-code an alternate renderer"},
   {"id":"implement.strict-intake","skill":"implement-plan","source":"SKILL.md","surface":"doctor","text":"Reject ambiguous, unfinalized, unsupported, receipt-mismatched"},
   {"id":"implement.preserve-dirty","skill":"implement-plan","source":"SKILL.md","surface":"doctor","text":"Preserve unrelated dirty work"},
-  {"id":"implement.no-whole-restore","skill":"implement-plan","source":"references/implementation-protocols.md","surface":"doctor","text":"Never restore an entire file, worktree, index, commit, or branch automatically"},
+  {"id":"implement.no-whole-restore","skill":"implement-plan","source":"references/safety-and-recovery.md","surface":"doctor","text":"Never restore an entire file, worktree, index, commit, or branch automatically"},
   {"id":"implement.delegation-authority","skill":"implement-plan","source":"references/delegation-protocol.md","surface":"doctor","text":"The primary agent owns edits"},
   {"id":"map.source-authority","skill":"map-codebase","source":"SKILL.md","surface":"doctor","text":"verify every conclusion in current source"},
   {"id":"map.no-preload","skill":"map-codebase","source":"SKILL.md","surface":"doctor","text":"Never preload maps"},

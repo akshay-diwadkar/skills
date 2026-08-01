@@ -45,10 +45,13 @@ def build_entries() -> list[dict[str, Any]]:
     for area in areas:
         root = ROOT / area["path"]
         included = set(area.get("fixtures", []))
+        # Test imports can create runtime caches beside fixture directories;
+        # catalog entries must mirror the fixture-tree cache exclusions.
+        runtime_directories = {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", "__pycache__"}
         fixtures = [
             path
             for path in root.iterdir()
-            if path.is_dir() and (not included or path.name in included)
+            if path.is_dir() and path.name not in runtime_directories and (not included or path.name in included)
         ]
         for fixture in sorted(fixtures):
             meaningful, total = _counts(fixture)
