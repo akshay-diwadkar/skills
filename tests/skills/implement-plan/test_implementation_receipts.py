@@ -12,9 +12,8 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
-PLAN_SCRIPTS = ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 IMPLEMENT_SCRIPTS = ROOT / "skills" / "engineering" / "implement-plan" / "scripts"
-sys.path.insert(0, str(PLAN_SCRIPTS))
+sys.path.insert(0, str(IMPLEMENT_SCRIPTS))
 from plan_runtime import finalized_text, parse_plan  # noqa: E402
 
 HELPER_SPEC = importlib.util.spec_from_file_location(
@@ -24,7 +23,6 @@ assert HELPER_SPEC and HELPER_SPEC.loader
 HELPERS = importlib.util.module_from_spec(HELPER_SPEC)
 HELPER_SPEC.loader.exec_module(HELPERS)
 
-sys.path.insert(0, str(IMPLEMENT_SCRIPTS))
 import implementation_contract  # noqa: E402
 from check_implementation import _implementation_binding_diagnostics, validate_bundle  # noqa: E402
 from implementation_contract import (  # noqa: E402

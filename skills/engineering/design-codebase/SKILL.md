@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 1.5.0
+version: 1.5.1
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -54,7 +54,8 @@ the protocol's shared vocabulary only where it sharpens the decision.
 Complete only when phase `complete` returns exactly
 `/absolute/output/handoff.md`, evidence verification passes, and no other
 primary artifact exists. Pass that file to
-`plan-change/scripts/prepare_plan.py --request-file`.
+`plan-change` as `request_file`; the planning agent writes the separate v6
+draft after native exploration and seals both inputs with the stateless run.
 
 If validation fails, repair the draft named by the diagnostic and rerun the
 validator. If repository evidence changed, refresh the affected evidence before

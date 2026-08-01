@@ -1,22 +1,9 @@
-# Decision-quality A/B evaluation
+# Plan-change machine-pipeline benchmark
 
-`run_decision_quality_ab.py` uses the repository's provider-neutral JSON adapter
-protocol. The adapter reads one JSON request from stdin and returns
-`{"plan_markdown":"..."}` on stdout. It must honor `model_label`, `load_skill`,
-and `skill_root`; the control condition receives `load_skill: false` and a null
-skill root.
+`tools/benchmark_sealing.py` measures equivalent tiny, standard, and high-risk
+fixtures through the removed v5 prepare/validate/finalize phases and v6 sealing
+with one in-process timing boundary. It excludes agent exploration, drafting,
+model calls, judge scoring, tool-call accounting, and token accounting.
 
-Run it with one provider adapter and two distinct model labels:
-
-```bash
-python tests/skills/plan-change/evals/run_decision_quality_ab.py \
-  --adapter python /absolute/path/to/provider_adapter.py \
-  --weaker-model weaker-model-id \
-  --stronger-model stronger-model-id \
-  --output /tmp/plan-change-decision-quality.json
-```
-
-The report keeps schema/grounding validity from `check_plan.py` separate from
-held-out decision-quality scores and shows the with-skill minus without-skill
-delta for each model. No live score movement is claimed until this command is
-run with real model adapters.
+The v6 results are sealing-only microbenchmarks. This repository contains no
+live provider/model comparison or end-to-end agent parity claim.

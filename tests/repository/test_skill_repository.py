@@ -168,11 +168,13 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "2.2.1"
-    assert versions["plan-change"] == "2.3.0"
+    assert versions["plan-change"] == "3.0.0"
     assert versions["audit-codebase"] == "2.3.0"
-    assert versions["design-codebase"] == "1.5.0"
-    assert versions["implement-plan"] == "1.4.0"
-    assert set(versions.values()) == {"1.3.1", "1.4.0", "1.5.0", "2.2.1", "2.3.0"}
+    assert versions["design-codebase"] == "1.5.1"
+    assert versions["implement-plan"] == "1.5.0"
+    assert versions["scope-issue"] == "2.3.0"
+    assert versions["optimize-codebase"] == "2.2.2"
+    assert "3.0.0" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")
@@ -275,7 +277,7 @@ def test_pre_release_workflow_matches_release_validation_environment() -> None:
     assert "python -m pip install -r tools/validation/release-requirements.txt" in workflow
     assert "python tools/validation/validate_repository.py" in workflow
     for skill_requirements in (
-        "skills/engineering/plan-change/requirements.txt",
+        "structured-evidence-requirements.txt",
         "skills/engineering/map-codebase/requirements.txt",
         "skills/technical-communication/manualize/requirements.txt",
     ):

@@ -7,7 +7,7 @@ from types import ModuleType
 
 
 def scaffold_module(root: Path) -> ModuleType:
-    path = root / "skills" / "engineering" / "plan-change" / "scripts" / "plan_contract.py"
+    path = root / "skills" / "engineering" / "implement-plan" / "scripts" / "plan_contract.py"
     spec = importlib.util.spec_from_file_location("hardening_scaffold_contract", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

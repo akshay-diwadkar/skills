@@ -1,4 +1,4 @@
-"""Strict v5 plan intake and implementation-contract v3 scaffolding."""
+"""Versioned plan intake and implementation-contract v3 scaffolding."""
 
 from __future__ import annotations
 
@@ -10,8 +10,11 @@ from difflib import unified_diff
 from pathlib import Path
 from typing import Any
 
-from plan_runtime import Diagnostic, Plan, validate_plan
-from plan_runtime import parse_plan as _parse_plan
+import plan_runtime as plan_v5_runtime
+import plan_v6_runtime
+
+Diagnostic = plan_v5_runtime.Diagnostic
+Plan = Any
 
 
 def load_contract() -> dict[str, Any]:
@@ -146,8 +149,31 @@ def repository_state(root: Path) -> dict[str, Any]:
     }
 
 
-def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
-    return _parse_plan(text)
+def parse_plan(text: str) -> tuple[Plan | None, list[Any]]:
+    version = plan_contract_version(text)
+    if version == 5:
+        return plan_v5_runtime.parse_plan(text)
+    if version == 6:
+        plan, diagnostics = plan_v6_runtime.parse_plan(plan_v6_runtime.canonical_body(text))
+        proof_matches = list(plan_v6_runtime.PROOF_RE.finditer(text))
+        receipt_matches = list(plan_v6_runtime.VALIDATION_RE.finditer(text))
+        if plan is not None and len(proof_matches) == 1 and len(receipt_matches) == 1:
+            try:
+                proof = json.loads(proof_matches[0].group("json"))
+                binding = proof.get("binding") if isinstance(proof, dict) else None
+                if isinstance(binding, dict):
+                    plan = __import__("dataclasses").replace(
+                        plan,
+                        binding=binding,
+                        receipt={
+                            "body": receipt_matches[0].group("body"),
+                            "proof": receipt_matches[0].group("proof"),
+                        },
+                    )
+            except json.JSONDecodeError:
+                pass
+        return plan, diagnostics
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
 
 
 def plan_contract_version(text: str) -> int | None:
@@ -156,8 +182,18 @@ def plan_contract_version(text: str) -> int | None:
 
 
 def validate_v5_repository_binding(text: str, root: Path) -> list[Diagnostic]:
-    _, diagnostics = validate_plan(text, root, require_finalized=True)
+    _, diagnostics = plan_v5_runtime.validate_plan(text, root, require_finalized=True)
     return diagnostics
+
+
+def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
+    version = plan_contract_version(text)
+    if version == 5:
+        return plan_v5_runtime.validate_plan(text, root, require_finalized=True)
+    if version == 6:
+        plan, diagnostics, _view = plan_v6_runtime.verify_sealed_plan(text, root)
+        return plan, diagnostics
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
 
 
 def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id: str) -> dict[str, Any]:
@@ -170,7 +206,7 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         raise ValueError(
             f"contract.unsupported: plan-contract version {version!r} is not supported or deprecated"
         )
-    plan, diagnostics = validate_plan(text, repo_root, require_finalized=True)
+    plan, diagnostics = validate_plan_text(text, repo_root)
     if diagnostics or plan is None:
         raise ValueError("invalid plan:\n" + "\n".join(str(item) for item in diagnostics))
     if output_path.is_relative_to(repo_root) and not (repo_root / ".gitignore").is_file():

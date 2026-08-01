@@ -98,8 +98,7 @@
       "diagnostic_input": "request_file",
       "representative_inputs": {
         "request_file": "{fixture_file}",
-        "tier": "tiny",
-        "intent": "feature"
+        "draft_file": "{fixture_file}"
       }
     },
     "route-engineering-work": {
@@ -114,6 +113,39 @@
     }
   },
   "exceptions": [
+    {
+      "id": "plan-change-v6-top-level-reduction",
+      "skill": "plan-change",
+      "metric": "top_level",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The v6 agent-first workflow replaces stateful discovery and repeated validation guidance with one concise native-exploration and sealing workflow while retaining every protected authority and safety rule.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v6-pre-action-reduction",
+      "skill": "plan-change",
+      "metric": "pre_action",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The stateless protocol removes phase state, inventory, classification, scaffold, and baseline reads so pre-action context contains only the required request and draft inputs.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v6-reference-reduction",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The v6 reference portfolio intentionally removes the v5 inventory, delegation, adversarial, compatibility, glossary, and scaffold manuals in favor of three compact task-selected references.",
+      "supporting_paths": ["references/plan-contract.md", "references/task-guidance.md", "references/evidence-kinds.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
     {
       "id": "audit-codebase-bounded-delegation-phase",
       "skill": "audit-codebase",
@@ -197,37 +229,6 @@
       "rationale": "The complete implementation reference portfolio includes bounded fidelity, convention, and coverage reviews with sequential fallback.",
       "supporting_paths": ["references/delegation-protocol.md"],
       "protected_rule_ids": ["implement.delegation-authority"]
-    },
-    {
-      "id": "plan-change-drafting-contract-examples",
-      "skill": "plan-change",
-      "metric": "phase_references",
-      "phase": "drafting",
-      "direction": "increase",
-      "max_tokens": 13250,
-      "expires": "2027-07-31",
-      "rationale": "The drafting phase conditionally discloses the v5 plan contract, cognitive protocols, adversarial checks, task playbooks, glossary, and tiered worked examples needed to produce validator-compatible plans.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/delegation-protocol.md",
-        "references/worked-examples.md"
-      ],
-      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
-    },
-    {
-      "id": "plan-change-reference-portfolio",
-      "skill": "plan-change",
-      "metric": "worst_references",
-      "direction": "increase",
-      "max_tokens": 20000,
-      "expires": "2027-07-31",
-      "rationale": "The complete reference portfolio covers the v5 validation contract, evidence binding, safety protocols, tier playbooks, compatibility, and worked examples; individual runs load only the applicable phase branch.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/validation-evidence.md",
-        "references/worked-examples.md"
-      ],
-      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
     }
   ]
 }

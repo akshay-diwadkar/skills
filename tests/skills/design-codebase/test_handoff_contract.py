@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess
+import hashlib
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -201,26 +201,12 @@ def test_evidence_hashes_are_optional_until_complete_verification(tmp_path: Path
     assert [item.code for item in diagnostics].count("evidence.sha256.missing") == 4
 
 
-def test_evidence_hash_matches_plan_change_hash_excerpt(tmp_path: Path) -> None:
+def test_evidence_hash_matches_v6_excerpt_canonicalization(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     parsed, diagnostics = validate_handoff(example(), repo)
     assert diagnostics == []
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "hash_excerpt.py"),
-            "--path",
-            str(repo / "payments" / "service.py"),
-            "--start-line",
-            "1",
-            "--end-line",
-            "7",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    excerpt_hash = result.stdout.splitlines()[0].partition(": ")[2]
+    lines = (repo / "payments" / "service.py").read_text(encoding="utf-8").splitlines()
+    excerpt_hash = hashlib.sha256(("\n".join(lines[:7]) + "\n").encode()).hexdigest()
     assert parsed.evidence["E-2"].sha256 == excerpt_hash
 
 

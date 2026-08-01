@@ -1,4 +1,4 @@
-"""Render strict v5 scaffolds from generated canonical contract data."""
+"""Render deprecated v5 fixtures for one-release implementation compatibility."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ GENERIC_ATTACKS = tuple(str(value) for value in CONTRACT["required_attacks"])
 
 
 def load_contract() -> dict[str, Any]:
-    """Return generated canonical data without reading repository JSON at runtime."""
     return CONTRACT
 
 
@@ -31,12 +30,7 @@ def _domain_blueprint(domain: str) -> list[str]:
     ]
 
 
-def render_scaffold(
-    tier: str,
-    intent: str,
-    domains: list[str] | None = None,
-    tier_signals: list[str] | None = None,
-) -> str:
+def render_scaffold(tier: str, intent: str, domains: list[str] | None = None, tier_signals: list[str] | None = None) -> str:
     domains = domains or []
     tier_signals = tier_signals or []
     if tier not in TIERS or intent not in INTENTS or len(domains) != len(set(domains)) or not set(domains) <= RISK_DOMAINS:
@@ -45,9 +39,6 @@ def render_scaffold(
         raise ValueError("risk domains require high-risk tier")
     if tier == "high-risk" and not domains:
         raise ValueError("high-risk scaffolds require at least one risk domain")
-    allowed_signals = set(CONTRACT["tier_signals"])
-    if len(tier_signals) != len(set(tier_signals)) or not set(tier_signals) <= allowed_signals:
-        raise ValueError("unsupported tier signal")
     metadata = {
         "provisional": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": tier_signals},
         "final": {"intent": intent, "risk_domains": domains, "tier": tier, "tier_signals": tier_signals},
@@ -74,95 +65,42 @@ def render_scaffold(
         "- F-1: kind: function-signature | path: REPLACE_CURRENT_PATH | lines: REPLACE_CURRENT_RANGE | anchor: REPLACE_CURRENT_ANCHOR | excerpt-sha256: REPLACE_CURRENT_HASH | file-sha256: REPLACE_CURRENT_FILE_HASH | observation: describe current branches errors calls and side effects | parameters: REPLACE_EXACT_SIGNATURE | returns: REPLACE_EXACT_RETURN | async: false",
         "",
         "## Decisions",
-        "- D-1: selected: name the exact repository-local behavior and ordering | evidence: F-1 | rejected: name the nearest viable repository-local alternative | drawback: state its concrete caller contract test or rollout cost",
+        "- D-1: selected: name exact repository behavior and ordering | evidence: F-1 | rejected: nearest viable repository alternative | drawback: concrete caller contract test or rollout cost",
     ]
     if tier != "tiny":
         rows.append("- C-1: constraint: preserve declared behavior | evidence: F-1")
-    rows.extend(
-        [
-            "",
-            "## Implementation Specification",
-            "- CH-1: path: REPLACE_CURRENT_PATH | anchor: REPLACE_CURRENT_ANCHOR | status: existing | locality: local-production | reversibility: reversible | evidence: F-1 | change: specify propagation consumer caller boundary input literal implementation branches ordering side effects and exact behavior; do not defer any material behavior",
-        ]
-    )
+    rows += [
+        "", "## Implementation Specification",
+        "- CH-1: path: REPLACE_CURRENT_PATH | anchor: REPLACE_CURRENT_ANCHOR | status: existing | locality: local-production | reversibility: reversible | evidence: F-1 | change: specify propagation consumer caller boundary input literal implementation branches ordering side effects and exact behavior",
+    ]
     if tier == "standard":
-        rows.extend(
-            [
-                "",
-                "### Execution Blueprint: CH-1 — hardest flow [type: pseudocode; domains: none]",
-                "```pseudocode",
-                "read exact input -> validate named condition -> select named branch -> perform ordered effect -> return exact result",
-                "```",
-            ]
-        )
+        rows += ["", "### Execution Blueprint: CH-1 — hardest flow [type: pseudocode; domains: none]", "```pseudocode", "read exact input -> validate named condition -> select named branch -> perform ordered effect -> return exact result", "```"]
     for domain in domains:
-        rows.extend(["", *_domain_blueprint(domain)])
-    rows.extend(
-        [
-            "",
-            "## Propagation Record",
-            "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed",
-            "",
-            "## Boundary Traces",
-            "- B-1: class: named external or shared boundary | path: F-1 | flow: caller input -> named current anchor -> observable result",
-            "",
-            "## Domain Obligations",
-        ]
-    )
+        rows += ["", *_domain_blueprint(domain)]
+    rows += ["", "## Propagation Record", "- P-1: owner: CH-1 | because: F-1 | surface: direct-caller | disposition: changed", "", "## Boundary Traces", "- B-1: class: named external or shared boundary | path: F-1 | flow: caller input -> named current anchor -> observable result", "", "## Domain Obligations"]
     for number, (domain, obligation) in enumerate(obligation_rows, 1):
         alias = CONTRACT["obligation_aliases"][obligation][0]
         test_id = obligation_tests[(domain, obligation)]
-        rows.append(
-            f"- O-{number}: domain: {domain} | obligation: {obligation} | status: satisfied | "
-            f"coverage: {alias} behavior is owned by CH-1 and verified by {test_id} | "
-            f"evidence: F-1 | decision: D-1 | changes: CH-1 | tests: {test_id}"
-        )
-    rows.extend(
-        [
-            "",
-            "## Traceability",
-            "| Criterion / constraint | Changes | Tests |",
-            "|---|---|---|",
-            f"| SC-1 | CH-1 | {', '.join(tests)} |",
-        ]
-    )
+        rows.append(f"- O-{number}: domain: {domain} | obligation: {obligation} | status: satisfied | coverage: {alias} behavior is owned by CH-1 and verified by {test_id} | evidence: F-1 | decision: D-1 | changes: CH-1 | tests: {test_id}")
+    rows += ["", "## Traceability", "| Criterion / constraint | Changes | Tests |", "|---|---|---|", f"| SC-1 | CH-1 | {', '.join(tests)} |"]
     if tier != "tiny":
         rows.append(f"| C-1 | CH-1 | {', '.join(tests)} |")
     command = "python -m pytest" if tier == "tiny" else "python -m pytest tests/REPLACE_TARGETED_TEST.py"
-    rows.extend(
-        [
-            "",
-            "## Verification",
-            f"- T-1: given: exact setup input and dependency state | when: named entry point runs | then: exact propagation consumer caller boundary input literal implementation branch ordering side effect output error persisted state or external-call expectation | command: {command}",
-        ]
-    )
+    rows += ["", "## Verification", f"- T-1: given: exact setup input and dependency state | when: named entry point runs | then: exact propagation consumer caller boundary input literal implementation branch ordering side effect output error persisted state or external-call expectation | command: {command}"]
     for domain, obligations, test_id in grouped_tests:
         concepts = ", ".join(CONTRACT["obligation_aliases"][obligation][0] for obligation in obligations)
-        attacks = ", ".join(
-            alias
-            for attack in DOMAIN_ATTACKS.get(domain, ())
-            for alias in CONTRACT["attack_aliases"][attack][:1]
-        )
-        rows.append(
-            f"- {test_id}: given: {domain} boundary with exact {concepts} preconditions | "
-            f"when: named related obligation paths run | then: exact {concepts} outcomes and {attacks} attack behavior are verified | "
-            f"command: python -m pytest tests/REPLACE_{domain}.py"
-        )
-    rows.extend(["", "## Risks, Assumptions, and Attack"])
+        attacks = ", ".join(alias for attack in DOMAIN_ATTACKS.get(domain, ()) for alias in CONTRACT["attack_aliases"][attack][:1])
+        rows.append(f"- {test_id}: given: {domain} boundary with exact {concepts} preconditions | when: named related obligation paths run | then: exact {concepts} outcomes and {attacks} attack behavior are verified | command: python -m pytest tests/REPLACE_{domain}.py")
+    rows += ["", "## Risks, Assumptions, and Attack"]
     for attack in GENERIC_ATTACKS:
-        rows.append(
-            f"- A-{attack}: status: repaired | finding: describe the concrete {attack} failure mode and affected boundary | evidence: F-1 | resolution: CH-1, T-1"
-        )
-    emitted_attacks: set[str] = set()
+        rows.append(f"- A-{attack}: status: repaired | finding: concrete {attack} failure mode and affected boundary | evidence: F-1 | resolution: CH-1, T-1")
+    emitted: set[str] = set()
     for domain in domains:
         domain_test = obligation_tests[(domain, OBLIGATIONS[domain][0])]
         for attack in sorted(DOMAIN_ATTACKS.get(domain, ())):
-            if attack in emitted_attacks:
-                continue
-            emitted_attacks.add(attack)
-            rows.append(
-                f"- A-{attack}: status: repaired | finding: describe the concrete {domain} {attack} failure mode and exact outcome | evidence: F-1 | resolution: CH-1, {domain_test}"
-            )
+            if attack not in emitted:
+                emitted.add(attack)
+                rows.append(f"- A-{attack}: status: repaired | finding: concrete {domain} {attack} failure mode and exact outcome | evidence: F-1 | resolution: CH-1, {domain_test}")
     if tier == "high-risk":
         rows.append("- R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: named concrete risk")
     return "\n".join(rows) + "\n"

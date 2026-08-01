@@ -12,17 +12,72 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_installed_plan_change_scaffold_is_v5(tmp_path: Path) -> None:
+def test_installed_plan_change_exposes_only_v6_sealer(tmp_path: Path) -> None:
     skill = ROOT / "skills" / "engineering" / "plan-change"
-    result = subprocess.run(
-        [sys.executable, "scripts/scaffold_plan.py", "--tier", "standard", "--intent", "feature"],
-        cwd=skill,
-        capture_output=True,
-        text=True,
+    scripts = {path.name for path in (skill / "scripts").glob("*.py")}
+    assert "seal_plan.py" in scripts
+    assert not {"prepare_plan.py", "check_plan.py", "finalize_plan.py", "hash_excerpt.py", "plan_inventory.py", "scaffold_plan.py"} & scripts
+
+
+def test_installed_plan_change_fails_closed_without_optional_tree_sitter(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "engineering" / "plan-change"
+    installed = tmp_path / "installed" / "plan-change"
+    shutil.copytree(source, installed)
+    assert not (installed / "requirements.txt").exists()
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "names.js").write_text(
+        "function caller() {\n  return callee();\n}\n\n", encoding="utf-8"
     )
-    assert result.returncode == 0
-    assert "<!-- plan-contract: 5 -->" in result.stdout
-    assert "Execution Blueprint:" in result.stdout
+    request = tmp_path / "request.md"
+    request.write_text("Preserve JavaScript delegation.\n", encoding="utf-8")
+    draft = tmp_path / "draft.md"
+    plan = """# Preserve JavaScript delegation
+
+<!-- plan-contract: 6 -->
+<!-- plan-metadata: {"intent":"refactor","tier":"tiny","risk_domains":[]} -->
+
+## Outcome
+SC-1: given: a JavaScript caller | when: delegation executes | then: the callee result is returned | unchanged: direct delegation remains stable
+
+## Evidence
+F-1: kind: call-edge | path: src/names.js | lines: 1-4 | anchor: caller | claim: caller delegates to callee | caller: caller | callee: callee
+
+## Implementation
+CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | change: preserve direct callee delegation while reorganizing the surrounding module implementation | locality: local | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: a JavaScript input | when: targeted tests execute | then: caller returns the callee result | command: npm test -- names
+"""
+    draft.write_text(plan, encoding="utf-8")
+    command = [
+        sys.executable,
+        "-S",
+        str(installed / "scripts" / "seal_plan.py"),
+        "--repo-root",
+        str(repo),
+        "--request-file",
+        str(request),
+        "--draft",
+        str(draft),
+    ]
+
+    structured = subprocess.run(command, capture_output=True, text=True, check=False)
+
+    assert structured.returncode == 1
+    diagnostic = json.loads(structured.stdout)["diagnostics"][0]
+    assert diagnostic["code"] == "fact.structured"
+    assert diagnostic["record"] == "F-1"
+    assert diagnostic["path"] == "src/names.js"
+    assert "tree_sitter_javascript" in diagnostic["required_action"]
+
+    draft.write_text(
+        plan.replace("kind: call-edge", "kind: source").replace(" | caller: caller | callee: callee", ""),
+        encoding="utf-8",
+    )
+    source_result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert source_result.returncode == 0, source_result.stdout + source_result.stderr
+    assert '"verified_kind":"source"' in source_result.stdout
 
 
 def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
@@ -94,26 +149,22 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
     for name, inputs in (
         (
             "plan-change",
-            [
-                f"request_file={request}",
-                "tier=tiny",
-                "intent=bug-fix",
-            ],
+            [f"request_file={request}", f"draft_file={plan}"],
         ),
         ("implement-plan", [f"plan_file={plan}"]),
     ):
         source = ROOT / "skills" / "engineering" / name
         installed = tmp_path / "installed" / name
         shutil.copytree(source, installed)
-        run = tmp_path / f"{name}-run"
         argv = [
             sys.executable,
             str(installed / "scripts" / "cli.py"),
             "--repo-root",
             str(repo),
-            "--run-dir",
-            str(run),
         ]
+        if name != "plan-change":
+            run = tmp_path / f"{name}-run"
+            argv.extend(["--run-dir", str(run)])
         for value in inputs:
             argv.extend(["--input", value])
         argv.extend(["--format", "json", "doctor"])

@@ -9,12 +9,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-PLAN_SCRIPTS = ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 IMPLEMENT_SKILL = ROOT / "skills" / "engineering" / "implement-plan"
 IMPLEMENT_SCRIPTS = IMPLEMENT_SKILL / "scripts"
 CLI = IMPLEMENT_SCRIPTS / "cli.py"
 
-sys.path.insert(0, str(PLAN_SCRIPTS))
+sys.path.insert(0, str(IMPLEMENT_SCRIPTS))
 from plan_runtime import finalized_text, parse_plan  # type: ignore[import-not-found] # noqa: E402
 
 HELPER_SPEC = importlib.util.spec_from_file_location(
@@ -25,7 +24,6 @@ assert HELPER_SPEC and HELPER_SPEC.loader
 HELPERS = importlib.util.module_from_spec(HELPER_SPEC)
 HELPER_SPEC.loader.exec_module(HELPERS)
 
-sys.path.insert(0, str(IMPLEMENT_SCRIPTS))
 from implementation_contract import repository_state, sha256_file  # type: ignore[import-not-found] # noqa: E402
 
 

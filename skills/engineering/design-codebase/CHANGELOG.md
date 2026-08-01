@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1 - 2026-08-01
+
+- Update the plan-change handoff to the stateless request-plus-v6-draft flow.
+
 ## 1.5.0 - 2026-07-31
 
 - Add a compact, evidence-led vocabulary for ownership, boundaries, contracts,

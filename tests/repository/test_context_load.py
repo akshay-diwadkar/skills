@@ -33,7 +33,11 @@ def test_report_covers_every_skill_and_every_reference_file() -> None:
             if path.is_file()
         }
         assert set(row["worst_reference_paths"]) == expected, name
-    assert "references/plan-contract.json" in measured["skills"]["plan-change"]["worst_reference_paths"]
+    assert set(measured["skills"]["plan-change"]["worst_reference_paths"]) == {
+        "references/evidence-kinds.md",
+        "references/plan-contract.md",
+        "references/task-guidance.md",
+    }
 
 
 def test_runtime_normalization_removes_machine_paths_and_is_separator_independent() -> None:

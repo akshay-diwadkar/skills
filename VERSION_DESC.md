@@ -1,10 +1,11 @@
-# Compact repository-design vocabulary
+# Agent-first plan-contract v6
 
-This minor release gives `design-codebase` a concise, evidence-led vocabulary
-for ownership, boundaries, contracts, design depth, change pressure, locality,
-abstraction tests, and coupling direction.
+This major release replaces plan-change's stateful v5 discovery pipeline with
+native agent exploration and one-pass sealing of an agent-authored v6 draft.
+The new runtime verifies only cited files, computes proof hashes automatically,
+binds targeted repository evidence, and remains insensitive to unrelated
+repository size and changes.
 
-The existing eight-section handoff remains directly consumable by
-`plan-change`. New validators reject unsupported structural claims without
-requiring every vocabulary term, and seven focused fixtures cover common weak
-design decisions from premature abstraction through consolidation.
+Implement-plan and scope-issue accept v6 while retaining isolated deprecated v5
+readers for one release. Design and optimization handoffs no longer depend on
+the removed preparation, inventory, or excerpt-hashing commands.

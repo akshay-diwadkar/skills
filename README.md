@@ -1,7 +1,7 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=2.4.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=3.0.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -23,7 +23,7 @@ Each skill is a self-contained package with focused instructions and, where need
 | Skill | Use it when you need to… |
 | --- | --- |
 | [`route-engineering-work`](skills/engineering/route-engineering-work/SKILL.md) | Select one suite workflow for an engineering request without executing it. |
-| [`plan-change`](skills/engineering/plan-change/SKILL.md) | Turn a feature, bug fix, refactor, migration, or integration request into a decision-complete implementation plan. |
+| [`plan-change`](skills/engineering/plan-change/SKILL.md) | Explore natively, write one v6 draft, and seal cited repository proof in one pass. |
 | [`implement-plan`](skills/engineering/implement-plan/SKILL.md) | Execute an approved plan as a minimal patch while preserving repository patterns and uncommitted work. |
 | [`scope-issue`](skills/engineering/scope-issue/SKILL.md) | Triage GitHub issues and plan one selected issue against the local checkout. |
 | [`audit-codebase`](skills/engineering/audit-codebase/SKILL.md) | Find confirmed bugs, security or performance risks, test gaps, and maintainability problems. |

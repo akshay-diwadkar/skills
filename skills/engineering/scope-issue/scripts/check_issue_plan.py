@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import subprocess
@@ -313,26 +314,36 @@ def validate_senior_plan(
     errors = [f"senior plan missing source marker: {marker}" for marker in required_markers if marker not in text]
     marker = re.findall(r"<!--\s*plan-contract:\s*(\d+)\s*-->", text)
     metadata_match = re.search(r"^<!-- plan-metadata: (.+) -->$", text, re.MULTILINE)
-    if marker != ["5"] or not metadata_match:
-        errors.append("senior plan must use finalized plan-contract version 5")
+    if marker not in (["5"], ["6"]) or not metadata_match:
+        errors.append("senior plan must use finalized plan-contract version 5 or 6")
         return errors
     try:
-        tier = json.loads(metadata_match.group(1))["final"]["tier"]
+        metadata_value = json.loads(metadata_match.group(1))
+        tier = metadata_value["tier"] if marker == ["6"] else metadata_value["final"]["tier"]
     except (json.JSONDecodeError, KeyError, TypeError):
-        errors.append("senior plan has malformed v5 final tier metadata")
+        errors.append("senior plan has malformed tier metadata")
         return errors
-    checker = senior_skill_dir / "scripts" / "check_plan.py"
-    if not checker.is_file():
-        errors.append(f"senior plan checker not found: {checker}")
-        return errors
-    result = subprocess.run(
-        [sys.executable, str(checker), "--tier", tier, "--repo-root", str(repo_root), "--require-finalized", str(plan_path)],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        detail = (result.stdout + result.stderr).strip()
-        errors.append(f"senior plan checker failed: {detail}")
+    if marker == ["6"]:
+        runtime_path = senior_skill_dir / "scripts" / "plan_runtime.py"
+        if not runtime_path.is_file():
+            errors.append(f"senior plan runtime not found: {runtime_path}")
+            return errors
+        spec = importlib.util.spec_from_file_location("senior_plan_v6_runtime", runtime_path)
+        if spec is None or spec.loader is None:
+            errors.append(f"cannot load senior plan runtime: {runtime_path}")
+            return errors
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        plan, diagnostics, _view = module.verify_sealed_plan(text, repo_root)
+        if diagnostics or plan is None or plan.tier != tier:
+            errors.append("senior plan v6 receipt or repository binding is invalid: " + "; ".join(str(item) for item in diagnostics))
+    else:
+        from plan_runtime import validate_plan as validate_v5_plan
+
+        plan, diagnostics = validate_v5_plan(text, repo_root, require_finalized=True)
+        if diagnostics or plan is None or plan.tier != tier:
+            errors.append("deprecated senior plan v5 receipt or repository binding is invalid: " + "; ".join(str(item) for item in diagnostics))
     return errors
 
 
@@ -389,7 +400,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", required=True, help="Local checkout used for planning.")
     parser.add_argument("--issue-json", required=True, help="Fresh normalized selected-issue JSON.")
     parser.add_argument("--execution-ready", action="store_true", help="Apply freshness and execution gates.")
-    parser.add_argument("--senior-plan", help="Source-bound finalized plan-contract v5 plan for a routed issue.")
+    parser.add_argument("--senior-plan", help="Source-bound sealed v6 plan (or deprecated finalized v5 plan) for a routed issue.")
     parser.add_argument("--senior-skill-dir", help="Installed plan-change skill directory.")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     return parser

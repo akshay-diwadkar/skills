@@ -1,256 +1,54 @@
 {
   "protocol_version": "1.0",
+  "mode": "stateless",
   "skill": "plan-change",
   "minimum_python": "3.11",
   "run_dir_policy": "outside_skill_and_repo",
-  "classification": {
-    "phase": "classification_review",
-    "artifact": "classification",
-    "required_inputs": ["request_file"],
-    "controlled_inputs": ["tier", "intent", "risk_domain", "tier_signal"],
-    "override_input": "classification_override",
-    "argv": ["{python}", "{skill_dir}/scripts/classify_workflow.py", "--kind", "plan-change", "--repo-root", "{repo_root}", "--source", "{input.request_file}"],
-    "repeat": [{"input": "anchor", "flag": "--anchor"}]
-  },
-  "requirements": [
-    {"distribution": "tree-sitter", "specifier": "==0.25.2"},
-    {"distribution": "tree-sitter-javascript", "specifier": "==0.25.0"},
-    {"distribution": "tree-sitter-typescript", "specifier": "==0.23.2"},
-    {"distribution": "tree-sitter-kotlin", "specifier": "==1.1.0"},
-    {"distribution": "tree-sitter-go", "specifier": "==0.25.0"},
-    {"distribution": "tree-sitter-java", "specifier": "==0.23.5"},
-    {"distribution": "tree-sitter-rust", "specifier": "==0.24.2"},
-    {"distribution": "tree-sitter-ruby", "specifier": "==0.23.1"}
-  ],
+  "requirements": [],
   "inputs": [
     {
       "name": "request_file",
       "kind": "path",
       "required": true,
       "repeatable": false,
-      "description": "Absolute path to the planning request.",
-      "choices": []
+      "description": "Existing absolute path to the trusted planning request.",
+      "choices": [],
+      "path_policy": "existing"
     },
     {
-      "name": "tier",
-      "kind": "choice",
-      "required": true,
-      "repeatable": false,
-      "description": "Selected plan-contract risk tier.",
-      "choices": ["tiny", "standard", "high-risk"]
-    },
-    {
-      "name": "intent",
-      "kind": "choice",
-      "required": true,
-      "repeatable": false,
-      "description": "Selected planning intent.",
-      "choices": ["feature", "bug-fix", "refactor"]
-    },
-    {
-      "name": "anchor",
-      "kind": "string",
-      "required": false,
-      "repeatable": true,
-      "description": "Grounded repository PATH[:SYMBOL] inventory seed.",
-      "choices": []
-    },
-    {
-      "name": "risk_domain",
-      "kind": "string",
-      "required": false,
-      "repeatable": true,
-      "description": "Plausible plan risk domain.",
-      "choices": []
-    },
-    {
-      "name": "tier_signal",
-      "kind": "string",
-      "required": false,
-      "repeatable": true,
-      "description": "Typed tier signal supplied by deterministic classification.",
-      "choices": []
-    },
-    {
-      "name": "classification_override",
+      "name": "draft_file",
       "kind": "path",
-      "required": false,
+      "required": true,
       "repeatable": false,
-      "description": "Hash-bound contrary evidence for overriding classification.",
-      "choices": []
+      "description": "Existing absolute path to the agent-authored v6 draft.",
+      "choices": [],
+      "path_policy": "existing"
     }
   ],
   "artifacts": [
-    {"name": "classification", "path": "classification.json", "media_type": "application/json"},
-    {"name": "baseline", "path": "baseline.json", "media_type": "application/json"},
-    {"name": "inventory", "path": "inventory.json", "media_type": "application/json"},
-    {"name": "draft", "path": "draft.md", "media_type": "text/markdown"},
     {"name": "final", "path": "final.md", "media_type": "text/markdown"}
   ],
-  "phases": {
-    "classification_review": {
-      "status": "ready",
-      "next_action": "apply_deterministic_classification",
-      "next_command": "apply_classification",
-      "required_reads": ["{run_dir}/classification.json"],
-      "result_artifact": "classification",
-      "allowed_writes": [],
-      "forbidden_actions": ["write_installed_skill", "write_target_repository", "override_without_contrary_evidence"]
-    },
-    "drafting": {
-      "status": "in_progress",
-      "next_action": "complete_or_repair_draft",
-      "next_command": "validate",
-      "required_reads": [
-        "{input.request_file}",
-        "{skill_dir}/references/glossary.md",
-        "{skill_dir}/references/plan-contract.md",
-        "{skill_dir}/references/cognitive-protocols.md",
-        "{skill_dir}/references/delegation-protocol.md",
-        "{skill_dir}/references/task-playbooks.md",
-        "{skill_dir}/references/adversarial-verification.md",
-        "{run_dir}/baseline.json",
-        "{run_dir}/inventory.json",
-        "{run_dir}/draft.md"
-      ],
-      "conditional_reads": [
-        {
-          "input": "tier",
-          "values": ["standard", "high-risk"],
-          "paths": ["{skill_dir}/references/worked-examples.md"]
-        }
-      ],
-      "allowed_writes": ["{run_dir}/draft.md"],
-      "forbidden_actions": [
-        "write_installed_skill",
-        "write_target_repository",
-        "finalize_unvalidated_draft"
-      ]
-    },
-    "validated": {
-      "status": "ready",
-      "next_action": "finalize",
-      "next_command": "finalize",
-      "required_reads": ["{run_dir}/draft.md"],
-      "allowed_writes": ["{run_dir}/final.md"],
-      "forbidden_actions": ["write_installed_skill", "write_target_repository", "edit_validated_draft"]
-    },
-    "complete": {
-      "status": "complete",
-      "next_action": null,
-      "next_command": null,
-      "required_reads": ["{run_dir}/final.md"],
-      "allowed_writes": [],
-      "forbidden_actions": [
-        "write_installed_skill",
-        "write_target_repository",
-        "modify_finalized_artifact"
-      ]
-    }
-  },
+  "phases": {},
   "commands": {
-    "start": {
-      "allowed_phases": ["drafting"],
-      "success_phase": "drafting",
+    "run": {
+      "allowed_phases": [],
+      "success_phase": null,
       "steps": [
         {
           "argv": [
             "{python}",
-            "{skill_dir}/scripts/prepare_plan.py",
+            "{skill_dir}/scripts/seal_plan.py",
             "--repo-root",
             "{repo_root}",
             "--request-file",
             "{input.request_file}",
-            "--run-dir",
-            "{run_dir}",
-            "--reuse-classified-run",
-            "--tier",
-            "{input.tier}",
-            "--intent",
-            "{input.intent}"
-          ],
-          "repeat": [
-            {"input": "anchor", "flag": "--anchor"},
-            {"input": "risk_domain", "flag": "--risk-domain"},
-            {"input": "tier_signal", "flag": "--tier-signal"}
-          ],
-          "capture_stdout": null,
-          "diagnostics_json": false,
-          "failure": "operational"
-        }
-      ]
-    },
-    "validate": {
-      "allowed_phases": ["drafting", "validated"],
-      "success_phase": "validated",
-      "steps": [
-        {
-          "argv": [
-            "{python}",
-            "{skill_dir}/scripts/check_plan.py",
-            "--tier",
-            "{input.tier}",
-            "--repo-root",
-            "{repo_root}",
-            "--baseline",
-            "{run_dir}/baseline.json",
-            "--inventory",
-            "{run_dir}/inventory.json",
-            "--format",
-            "json",
-            "{run_dir}/draft.md"
-          ],
-          "repeat": [],
-          "capture_stdout": null,
-          "diagnostics_json": true,
-          "failure": "blocked"
-        }
-      ]
-    },
-    "finalize": {
-      "allowed_phases": ["validated"],
-      "success_phase": "complete",
-      "steps": [
-        {
-          "argv": [
-            "{python}",
-            "{skill_dir}/scripts/finalize_plan.py",
-            "--tier",
-            "{input.tier}",
-            "--repo-root",
-            "{repo_root}",
-            "--baseline",
-            "{run_dir}/baseline.json",
-            "--inventory",
-            "{run_dir}/inventory.json",
-            "{run_dir}/draft.md"
+            "--draft",
+            "{input.draft_file}"
           ],
           "repeat": [],
           "capture_stdout": "final",
-          "diagnostics_json": false,
-          "failure": "operational"
-        },
-        {
-          "argv": [
-            "{python}",
-            "{skill_dir}/scripts/check_plan.py",
-            "--tier",
-            "{input.tier}",
-            "--repo-root",
-            "{repo_root}",
-            "--baseline",
-            "{run_dir}/baseline.json",
-            "--inventory",
-            "{run_dir}/inventory.json",
-            "--require-finalized",
-            "--format",
-            "json",
-            "{run_dir}/final.md"
-          ],
-          "repeat": [],
-          "capture_stdout": null,
           "diagnostics_json": true,
-          "failure": "operational"
+          "failure": "blocked"
         }
       ]
     }
