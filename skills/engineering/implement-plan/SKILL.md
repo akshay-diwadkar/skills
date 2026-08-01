@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-version: 2.0.0
+version: 3.1.0
 metadata:
   implementation-contract: "3"
   invocation: user-invoked
@@ -28,13 +28,13 @@ concurrent target change.
 
 ## Start
 
-Resolve `skill-root` to this directory. Use a new run directory outside both
-the installed skill and target repository, and pass the exact finalized plan:
+Resolve `skill-root` to this directory and pass the exact sealed plan plus an
+agent-owned implementation bundle:
 
 ```bash
 python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
-  --run-dir /absolute/run --input plan_file=/absolute/final-plan.md \
-  --format json doctor
+  --input plan_file=/absolute/final-plan.md \
+  --input bundle=/absolute/implementation.json --format json doctor
 ```
 
 Run each returned `next_command.argv` with its returned `cwd`. Read only
@@ -43,12 +43,11 @@ Run each returned `next_command.argv` with its returned `cwd`. Read only
 
 ## Next-step loop
 
-1. Apply the intake, snapshots, dependency order, propagation, verification, and reconciliation rules in [Implementation Protocols](references/implementation-protocols.md).
+1. Apply the intake, snapshots, dependency order, propagation, verification, and reconciliation rules in [Implementation Contract](references/implementation-contract.md).
 2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only review; the primary retains authority.
 3. Treat [Implementation Contract](references/implementation-contract.json) as authoritative for fields, statuses, plan versions, and safety policy.
-4. Apply [Code Quality Checklist](references/code-quality-checklist.md) to every touched file and final result.
-5. Use [Implementation Hazards](references/implementation-hazards.md) at the matching stop condition; never restore a whole file, worktree, or branch automatically.
-6. Use [Direct CLI Compatibility](references/cli-compatibility.md) only for supported lower-level entry points, including explicitly authorized dirty-target incorporation.
+4. Apply the quality and compatibility checks in [Implementation Contract](references/implementation-contract.md).
+5. Use [Safety and Recovery](references/safety-and-recovery.md) at the matching stop condition; never restore a whole file, worktree, or branch automatically.
 
 Implement every planned branch, error, side effect, blueprint, and test. Allow
 unplanned edits only through the Mechanical Propagation Gate. Attribute a
@@ -57,7 +56,7 @@ baseline.
 
 ## Completion and recovery
 
-Complete only when phase `complete` returns a validator-passing
+Complete only when sealing returns a validator-passing
 `implementation.json` with status `complete` and a matching v3 SHA-256 receipt.
 Report the plan version, changes, propagation, exact checks, residual risks,
 and unresolved records.

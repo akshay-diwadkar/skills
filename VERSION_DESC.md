@@ -1,6 +1,6 @@
-# Agent-first runtime migration
+# Agent-first runtime migration cleanup
 
-This breaking release makes `map-codebase` the sole scripted discovery skill.
-All other runtimes take agent-selected artifacts and cited paths, seal once,
-and never classify or inventory an unrelated repository. Deprecated v5 plan
-readers and multi-phase classifier lifecycles are removed.
+This release completes the one-pass runtime cleanup: design handoffs seal once
+with cached evidence reads and canonical diagnostics, absorbed reference
+portfolios are consolidated within context budgets, and retired classifier and
+diff scripts are removed. Skill versions now identify the cleaned contracts.

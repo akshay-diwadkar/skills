@@ -1,7 +1,7 @@
 # Design Handoff Template
 
 Use this exact heading order. Replace every `REPLACE_*` value with substantive
-content. The checker rejects missing, duplicate, reordered, unknown, empty, and
+content. The sealer rejects missing, duplicate, reordered, unknown, empty, and
 placeholder sections.
 
 Evidence records use this syntax:
@@ -15,7 +15,7 @@ Allowed sources are `request`, `code`, `test`, `configuration`, `schema`,
 `runtime`, and `external`. Code, test, configuration, and schema evidence must
 use a repository-relative `path:start-end` locator. Their optional `sha256`
 binds the exact inclusive line range using UTF-8 text, LF joins, and one final
-LF; finalization backfills it when omitted. The optional anchor must occur
+LF; sealing backfills it when omitted. The optional anchor must occur
 inside the cited range. Other source types must not carry `sha256`. External
 evidence must use an HTTP(S) URL. At least one structurally distinct
 alternative must cite an evidence record not cited by the chosen rationale.

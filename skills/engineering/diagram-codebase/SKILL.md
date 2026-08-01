@@ -1,7 +1,7 @@
 ---
 name: diagram-codebase
 description: Create self-contained HTML diagrams of systems, architectures, workflows, and code relationships. Use when the user asks for a diagram, an architecture picture, or a workflow visualization, or wants to communicate a design visually.
-version: 3.0.0
+version: 3.1.0
 metadata:
   invocation: user-invoked
 disable-model-invocation: true
@@ -12,10 +12,11 @@ user-invocable: true
 
 ## Purpose and authority
 
-Ground a shared system model, obtain approval, then build one self-contained
-HTML diagram with the bundled template. Default to `narrative-architecture`;
-use another fidelity only from trusted audience or implementation-purpose
-evidence.
+Ground a shared model, obtain approval, then build one self-contained HTML
+diagram with the bundled template. Default to `narrative-architecture`.
+Minimum payload: title, fidelity, nodes, labeled edges, and agent metadata.
+Use `exact-code-graph` only for code-symbol review and
+`executive-concept-map` only for business ownership and outcomes.
 
 Do not create, overwrite, save, or verify diagram files in conversational Plan
 Mode. Model approval, directory creation, overwrite permission, and execution
@@ -28,10 +29,9 @@ After approval and outside Plan Mode, use absolute paths:
 
 ```bash
 python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
-  --run-dir /absolute/run --input request_file=/absolute/request.md \
   --input fidelity=narrative-architecture --input data=/absolute/payload.json \
   --input output=/absolute/diagram.html --input create_dirs=no \
-  --input overwrite=no --format json doctor
+  --input overwrite=no --format json run
 ```
 
 Run each returned `next_command.argv` with its returned `cwd`. Read only
@@ -42,12 +42,12 @@ the matching user permission.
 ## Next-step loop
 
 Inspect repository evidence before asking questions. Follow the phased
-[Question Framework](references/question-framework.md) until purpose, audience,
+[Diagram Output Guide](references/diagram-output-guide.md) until purpose, audience,
 fidelity, entities, relationships, omissions, evidence policy, output path, and
 verification are confirmed. Emit one approved plan before creating files.
 
 Build the approved `diagram` and `metadata` payload using the taxonomy and
-shape in [HTML Output Guide](references/html-output-guide.md). Obtain explicit
+shape in [Diagram Output Guide](references/diagram-output-guide.md). Obtain explicit
 permission for a missing directory or existing target, then run each returned
 command until validation reaches phase `complete`.
 

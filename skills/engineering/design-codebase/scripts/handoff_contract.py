@@ -232,7 +232,8 @@ def _validate_local_evidence(
     repo_root: Path,
     *,
     require_evidence_hashes: bool,
-) -> list[Diagnostic]:
+    file_cache: dict[Path, list[str]],
+) -> tuple[list[Diagnostic], str | None]:
     match = LOCAL_LOCATOR_RE.fullmatch(item.locator)
     if not match:
         return [
@@ -241,7 +242,7 @@ def _validate_local_evidence(
                 f"[{item.identifier}] local evidence requires relative path:start-end.",
                 item.line,
             )
-        ]
+        ], None
     relative = Path(match.group("path"))
     if relative.is_absolute():
         return [
@@ -250,7 +251,7 @@ def _validate_local_evidence(
                 f"[{item.identifier}] repository locator must be relative.",
                 item.line,
             )
-        ]
+        ], None
     target = (repo_root / relative).resolve()
     try:
         target.relative_to(repo_root)
@@ -261,7 +262,7 @@ def _validate_local_evidence(
                 f"[{item.identifier}] locator escapes the repository.",
                 item.line,
             )
-        ]
+        ], None
     if not target.is_file():
         return [
             Diagnostic(
@@ -269,8 +270,10 @@ def _validate_local_evidence(
                 f"[{item.identifier}] cited file does not exist: {relative.as_posix()}.",
                 item.line,
             )
-        ]
-    lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
+        ], None
+    if target not in file_cache:
+        file_cache[target] = target.read_text(encoding="utf-8", errors="replace").splitlines()
+    lines = file_cache[target]
     start = int(match.group("start"))
     end = int(match.group("end") or start)
     if end < start or end > len(lines):
@@ -280,7 +283,7 @@ def _validate_local_evidence(
                 f"[{item.identifier}] line range {start}-{end} is outside the {len(lines)}-line file.",
                 item.line,
             )
-        ]
+        ], None
     if item.anchor and item.anchor not in "\n".join(lines[start - 1 : end]):
         return [
             Diagnostic(
@@ -288,7 +291,8 @@ def _validate_local_evidence(
                 f"[{item.identifier}] anchor '{item.anchor}' is absent from the cited range.",
                 item.line,
             )
-        ]
+        ], None
+    current_hash = excerpt_sha256(lines, start, end)
     if item.sha256 is None:
         if require_evidence_hashes:
             return [
@@ -297,8 +301,8 @@ def _validate_local_evidence(
                     f"[{item.identifier}] local evidence requires sha256 when evidence verification is enabled.",
                     item.line,
                 )
-            ]
-        return []
+            ], current_hash
+        return [], current_hash
     if not re.fullmatch(r"[0-9a-f]{64}", item.sha256):
         return [
             Diagnostic(
@@ -306,8 +310,7 @@ def _validate_local_evidence(
                 f"[{item.identifier}] sha256 must be exactly 64 lowercase hexadecimal characters.",
                 item.line,
             )
-        ]
-    current_hash = excerpt_sha256(lines, start, end)
+        ], current_hash
     if item.sha256 != current_hash:
         return [
             Diagnostic(
@@ -315,8 +318,8 @@ def _validate_local_evidence(
                 f"[{item.identifier}] sha256 does not match current content at {item.locator}; evidence is stale.",
                 item.line,
             )
-        ]
-    return []
+        ], current_hash
+    return [], current_hash
 
 
 def _validate_evidence(
@@ -324,8 +327,10 @@ def _validate_evidence(
     repo_root: Path,
     *,
     require_evidence_hashes: bool,
-) -> list[Diagnostic]:
+    file_cache: dict[Path, list[str]],
+) -> tuple[list[Diagnostic], dict[str, str]]:
     diagnostics: list[Diagnostic] = []
+    hashes: dict[str, str] = {}
     for item in evidence.values():
         if item.source not in EVIDENCE_SOURCES:
             diagnostics.append(
@@ -336,13 +341,15 @@ def _validate_evidence(
                 )
             )
         elif item.source in LOCAL_SOURCES:
-            diagnostics.extend(
-                _validate_local_evidence(
-                    item,
-                    repo_root,
-                    require_evidence_hashes=require_evidence_hashes,
-                )
+            local_diagnostics, current_hash = _validate_local_evidence(
+                item,
+                repo_root,
+                require_evidence_hashes=require_evidence_hashes,
+                file_cache=file_cache,
             )
+            diagnostics.extend(local_diagnostics)
+            if current_hash is not None:
+                hashes[item.identifier] = current_hash
         elif item.source == "request" and item.locator != "user-request":
             diagnostics.append(
                 Diagnostic(
@@ -375,7 +382,7 @@ def _validate_evidence(
                     item.line,
                 )
             )
-    return diagnostics
+    return diagnostics, hashes
 
 
 def _design(body: str) -> StructuralDesign | None:
@@ -751,27 +758,35 @@ def _validate_planner_questions(chosen_body: str, questions_body: str) -> list[D
     return []
 
 
-def validate_handoff(
-    text: str,
-    repo_root: Path,
-    *,
-    require_evidence_hashes: bool = False,
-) -> tuple[ParsedHandoff, list[Diagnostic]]:
-    """Parse and validate one design handoff against the current repository."""
+def _parse_handoff(text: str) -> tuple[str, ParsedHandoff, list[Diagnostic]]:
+    """Normalize and parse a handoff exactly once."""
     normalized = normalize_markdown(text)
-    resolved_root = repo_root.resolve()
     sections, diagnostics = _parse_sections(normalized)
     diagnostics.extend(_validate_title(normalized))
     evidence, evidence_diagnostics = _parse_evidence(sections.get(EVIDENCE_HEADING, ""), normalized)
     diagnostics.extend(evidence_diagnostics)
-    diagnostics.extend(
-        _validate_evidence(
-            evidence,
-            resolved_root,
-            require_evidence_hashes=require_evidence_hashes,
-        )
-    )
+    return normalized, ParsedHandoff(sections=sections, evidence=evidence), diagnostics
 
+
+def _validate_parsed_handoff(
+    normalized: str,
+    parsed: ParsedHandoff,
+    repo_root: Path,
+    *,
+    require_evidence_hashes: bool,
+    file_cache: dict[Path, list[str]],
+) -> tuple[list[Diagnostic], dict[str, str]]:
+    """Run every structural validator against one parsed handoff."""
+    diagnostics: list[Diagnostic] = []
+    evidence_diagnostics, hashes = _validate_evidence(
+        parsed.evidence,
+        repo_root.resolve(),
+        require_evidence_hashes=require_evidence_hashes,
+        file_cache=file_cache,
+    )
+    diagnostics.extend(evidence_diagnostics)
+
+    sections = parsed.sections
     for name in REQUIRED_SECTIONS:
         body = sections.get(name, "")
         if not _substantive(body):
@@ -786,7 +801,7 @@ def validate_handoff(
             diagnostics.append(
                 Diagnostic("section.citation.missing", f"Section '## {name}' requires evidence citation.")
             )
-        for identifier in sorted(citations - set(evidence)):
+        for identifier in sorted(citations - set(parsed.evidence)):
             diagnostics.append(
                 Diagnostic(
                     "section.citation.undefined",
@@ -807,7 +822,7 @@ def validate_handoff(
             chosen_body,
             sections.get("Alternatives Considered", ""),
             sections,
-            evidence,
+            parsed.evidence,
         )
     )
     diagnostics.extend(_validate_depth_rationale(chosen_body))
@@ -826,49 +841,82 @@ def validate_handoff(
             sections.get("Open Questions for the Planner", ""),
         )
     )
-    return ParsedHandoff(sections=sections, evidence=evidence), diagnostics
+    return diagnostics, hashes
 
 
-def backfill_evidence_hashes(text: str, repo_root: Path) -> str:
-    """Insert missing hashes for valid local evidence records."""
-    normalized = normalize_markdown(text)
-    sections, section_diagnostics = _parse_sections(normalized)
-    if section_diagnostics:
-        raise ValueError("cannot backfill evidence hashes in an invalid handoff shape")
-    ledger_body = sections.get(EVIDENCE_HEADING, "")
-    evidence, evidence_diagnostics = _parse_evidence(ledger_body, normalized)
-    if evidence_diagnostics:
-        raise ValueError("cannot backfill malformed evidence records")
+def validate_handoff(
+    text: str,
+    repo_root: Path,
+    *,
+    require_evidence_hashes: bool = False,
+) -> tuple[ParsedHandoff, list[Diagnostic]]:
+    """Parse and validate one design handoff against the current repository."""
+    normalized, parsed, diagnostics = _parse_handoff(text)
+    validation_diagnostics, _hashes = _validate_parsed_handoff(
+        normalized,
+        parsed,
+        repo_root,
+        require_evidence_hashes=require_evidence_hashes,
+        file_cache={},
+    )
+    diagnostics.extend(validation_diagnostics)
+    return parsed, diagnostics
 
-    replacements: dict[str, str] = {}
-    resolved_root = repo_root.resolve()
-    for item in evidence.values():
-        if item.source not in LOCAL_SOURCES or item.sha256 is not None:
-            continue
-        locator = LOCAL_LOCATOR_RE.fullmatch(item.locator)
-        if locator is None:
-            raise ValueError(f"[{item.identifier}] has an invalid local locator")
-        target = (resolved_root / Path(locator.group("path"))).resolve()
-        lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
-        start = int(locator.group("start"))
-        end = int(locator.group("end") or start)
-        replacements[item.identifier] = excerpt_sha256(lines, start, end)
+
+def _insert_missing_hashes(
+    normalized: str,
+    evidence: dict[str, Evidence],
+    hashes: dict[str, str],
+) -> str:
+    """Insert computed hashes without reparsing the handoff."""
+    missing = {
+        identifier: hashes[identifier]
+        for identifier, item in evidence.items()
+        if item.sha256 is None and identifier in hashes
+    }
+    if not missing:
+        return normalized
+
+    evidence_body = re.search(
+        r"^## Evidence Ledger\s*$\n(?P<body>.*?)(?=^## |\Z)",
+        normalized,
+        re.MULTILINE | re.DOTALL,
+    )
+    if evidence_body is None:
+        return normalized
 
     def insert_hash(match: re.Match[str]) -> str:
-        identifier = match.group("id")
-        digest = replacements.get(identifier)
+        digest = missing.get(match.group("id"))
         if digest is None:
             return match.group(0)
         fields = match.group("fields")
         marker = " | claim:"
         claim_offset = fields.find(marker)
         if claim_offset < 0:
-            raise ValueError(f"[{identifier}] has no claim field")
+            return match.group(0)
         with_hash = fields[:claim_offset] + f" | sha256: {digest}" + fields[claim_offset:]
-        return f"- [{identifier}] {with_hash}"
+        return f"- [{match.group('id')}] {with_hash}"
 
-    hashed_ledger = EVIDENCE_RE.sub(insert_hash, ledger_body)
-    ledger_offset = normalized.find(ledger_body)
-    if ledger_offset < 0:
-        raise ValueError("cannot locate Evidence Ledger content")
-    return normalized[:ledger_offset] + hashed_ledger + normalized[ledger_offset + len(ledger_body) :]
+    body = evidence_body.group("body")
+    hashed_body = EVIDENCE_RE.sub(insert_hash, body)
+    return normalized[: evidence_body.start("body")] + hashed_body + normalized[evidence_body.end("body") :]
+
+
+def seal_handoff(
+    text: str,
+    repo_root: Path,
+) -> tuple[ParsedHandoff, list[Diagnostic], str]:
+    """Validate and reseal one handoff in memory without reparsing it."""
+    normalized, parsed, diagnostics = _parse_handoff(text)
+    file_cache: dict[Path, list[str]] = {}
+    validation_diagnostics, hashes = _validate_parsed_handoff(
+        normalized,
+        parsed,
+        repo_root,
+        require_evidence_hashes=False,
+        file_cache=file_cache,
+    )
+    diagnostics.extend(validation_diagnostics)
+    if diagnostics:
+        return parsed, diagnostics, normalized
+    return parsed, diagnostics, _insert_missing_hashes(normalized, parsed.evidence, hashes)

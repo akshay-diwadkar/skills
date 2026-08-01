@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 2.0.0
+version: 2.1.0
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -23,13 +23,13 @@ belong to `plan-change`. Paths are evidence locators, not edit instructions.
 
 ## Start
 
-Resolve `skill-root` to this directory, keep working state outside it, and pass
-absolute repository, draft, and output paths:
+Resolve `skill-root` to this directory and pass absolute repository, draft, and
+output paths:
 
 ```bash
 python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
-  --run-dir /absolute/run --input draft=/absolute/run/draft.md \
-  --input output_dir=/absolute/output --format json doctor
+  --input draft=/absolute/draft.md \
+  --input output_dir=/absolute/output --format json run
 ```
 
 Run each returned `next_command.argv` with its returned `cwd`. Read only the
@@ -42,7 +42,8 @@ current `required_reads`, write only `allowed_writes`, and stop on every
 2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only review; the primary retains authority.
 3. Draft the exact eight-section shape in [Handoff Template](references/handoff-template.md).
 4. Use [Worked Example](references/worked-examples.md) only when structural-alternative or interface-contract calibration is needed.
-5. Run `next` to validate, then run the returned finalization command without editing the validated draft.
+5. Run the stateless `run` command once to seal the draft; it validates,
+   backfills local evidence hashes, and writes the single handoff atomically.
 
 Keep claims grounded in current evidence. Compare genuinely different
 boundaries or ownership models, define caller-visible signatures, defaults,
@@ -57,6 +58,7 @@ primary artifact exists. Pass that file to
 `plan-change` as `request_file`; the planning agent writes the separate v6
 draft after native exploration and seals both inputs with the stateless run.
 
-If validation fails, repair the draft named by the diagnostic and rerun the
-validator. If repository evidence changed, refresh the affected evidence before
-retrying. Never edit a validated draft or hand off an unverified document.
+If sealing fails, repair the draft named by the diagnostic and rerun the same
+seal command. If repository evidence changed, refresh the affected evidence
+before retrying. Never edit a validated draft or hand off an unverified
+document.

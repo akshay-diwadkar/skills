@@ -6,7 +6,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "SKILL.md"
-GLOSSARY = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "references" / "glossary.md"
+CONTRACT = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "references" / "optimization-contract.md"
 SCRIPTS = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
@@ -24,33 +24,25 @@ def test_contract_declares_first_class_paths_and_exact_shapes() -> None:
     assert contract["max_sweep_candidates_per_wave"] == 3
 
 
-def test_glossary_is_required_before_full_path_evidence() -> None:
+def test_compact_contract_is_required_before_full_path_evidence() -> None:
     text = SKILL.read_text(encoding="utf-8")
 
-    assert text.index("references/glossary.md") < text.index("references/optimization-protocol.md")
+    assert "references/optimization-contract.md" in text
+    assert "references/optimization-techniques.md" in text
 
 
-def test_glossary_covers_contract_and_handoff_vocabulary() -> None:
+def test_compact_contract_covers_contract_and_handoff_vocabulary() -> None:
     contract = load_contract()
-    text = GLOSSARY.read_text(encoding="utf-8")
+    text = CONTRACT.read_text(encoding="utf-8")
 
-    for prefix in contract["record_prefixes"]:
-        assert f"`{prefix}-n`" in text
     for coordinate in (*contract["paths"], *contract["scopes"], *contract["stages"]):
         assert f"`{coordinate}`" in text
-    for band in contract["candidate_bands"]:
-        assert f"`{band}`" in text
-    for state in contract["handoff_states"]:
-        assert f"`{state}`" in text
     for required in (
-        "Measured baseline",
-        "`bounded-static` baseline",
-        "`blocked` baseline",
-        "Comparable baseline",
-        "literal `path:symbol` anchor",
-        "separate validated `request.md`",
-        "`Tier`, `Intent`, and `Risk domains`",
-        "../../plan-change/references/glossary.md",
+        "baseline",
+        "verification",
+        "rollback",
+        "Implementation remains unauthorized",
+        "canonical result",
     ):
         assert required in text
 
