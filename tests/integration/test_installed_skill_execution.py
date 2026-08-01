@@ -132,7 +132,7 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     assert result.stderr == ""
     decision = json.loads(result.stdout)
     assert decision["primary_skill"] == "plan-change"
-    assert decision["prerequisites"] == ["map-codebase"]
+    assert decision["prerequisites"] == []
     assert decision["follow_up"] == ["implement-plan"]
     assert decision["forbidden_actions"][-1] == "execute_selected_workflow"
     assert snapshot() == before
@@ -151,7 +151,7 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
             "plan-change",
             [f"request_file={request}", f"draft_file={plan}"],
         ),
-        ("implement-plan", [f"plan_file={plan}"]),
+        ("implement-plan", [f"plan_file={plan}", f"bundle={plan}"]),
     ):
         source = ROOT / "skills" / "engineering" / name
         installed = tmp_path / "installed" / name
@@ -230,25 +230,21 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
     values: dict[str, list[str]] = {
         "map-codebase": ["task=locate the application entrypoint"],
         "design-codebase": [f"draft={existing}", f"output_dir={output_dir}"],
-        "audit-codebase": [f"request_file={existing}", f"bundle={existing}", f"checkpoint={tmp_path / 'checkpoint.json'}"],
+        "audit-codebase": [f"bundle={existing}"],
         "optimize-codebase": [
-            f"request_file={existing}",
             "path=full",
             "scope=targeted",
             "stage=plan",
-            f"report={tmp_path / 'report.md'}",
-            "implementation_authorized=no",
+            f"report={existing}",
         ],
-        "scope-issue": ["operation=execution-gate"],
+        "scope-issue": [f"issue_json={existing}", f"plan={existing}"],
         "diagram-codebase": [
-            f"request_file={existing}",
             f"data={existing}",
             f"output={tmp_path / 'diagram.html'}",
             "create_dirs=no",
             "overwrite=no",
         ],
         "manualize": [
-            f"request_file={existing}",
             "operation=audit",
             "profile=standard",
             f"manual={existing}",
@@ -272,7 +268,8 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
     assert result.returncode == 0, result.stdout + result.stderr
     response = json.loads(result.stdout)
     assert response["status"] == "ready"
-    assert response["next_command"]["argv"][1] == str(installed / "scripts" / "cli.py")
+    if response["next_command"] is not None:
+        assert response["next_command"]["argv"][1] == str(installed / "scripts" / "cli.py")
     after = {
         path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in installed.rglob("*")
@@ -307,5 +304,5 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
     response = json.loads(result.stdout)
     assert response["status"] == "complete"
     assert response["result"]["primary_skill"] == "plan-change"
-    assert response["result"]["prerequisites"] == ["map-codebase"]
+    assert response["result"]["prerequisites"] == []
     assert not list(tmp_path.rglob(".skill-cli-state.json"))

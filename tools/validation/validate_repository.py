@@ -178,7 +178,7 @@ def discover_skills() -> list[Path]:
         for domain in SKILLS_ROOT.iterdir()
         if domain.is_dir()
         for skill in domain.iterdir()
-        if skill.is_dir()
+        if skill.is_dir() and (skill / "SKILL.md").is_file()
     )
 
 

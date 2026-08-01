@@ -34,7 +34,9 @@ def discover_skill_scopes() -> list[tuple[str, list[Path], list[Path]]]:
             [skill_dir / "scripts"],
         )
         for domain_dir in sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
-        for skill_dir in sorted(path for path in domain_dir.iterdir() if path.is_dir())
+        for skill_dir in sorted(
+            path for path in domain_dir.iterdir() if path.is_dir() and (path / "SKILL.md").is_file()
+        )
     ]
 
 

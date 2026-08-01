@@ -100,15 +100,11 @@ def test_invocation_safety_capabilities_require_user_invocation() -> None:
     }
     assert {name for name, values in capabilities.items() if values} == {
         "audit-codebase",
-        "diagram-codebase",
         "implement-plan",
-        "optimize-codebase",
         "scope-issue",
     }
-    assert "publication" in capabilities["audit-codebase"]
-    assert "external-output" in capabilities["diagram-codebase"]
+    assert "external-write" in capabilities["audit-codebase"]
     assert {"implementation", "repository-write"} <= capabilities["implement-plan"]
-    assert "repository-write" in capabilities["optimize-codebase"]
     assert "external-write" in capabilities["scope-issue"]
 
 
@@ -169,11 +165,11 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "2.2.1"
     assert versions["plan-change"] == "3.0.0"
-    assert versions["audit-codebase"] == "2.3.0"
-    assert versions["design-codebase"] == "1.5.1"
-    assert versions["implement-plan"] == "1.5.0"
-    assert versions["scope-issue"] == "2.3.0"
-    assert versions["optimize-codebase"] == "2.2.2"
+    assert versions["audit-codebase"] == "3.0.0"
+    assert versions["design-codebase"] == "2.0.0"
+    assert versions["implement-plan"] == "2.0.0"
+    assert versions["scope-issue"] == "3.0.0"
+    assert versions["optimize-codebase"] == "3.0.0"
     assert "3.0.0" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")

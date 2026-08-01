@@ -1,7 +1,7 @@
 ---
 name: audit-codebase
 description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, and draft GitHub issues from confirmed findings. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-version: 2.3.0
+version: 3.0.0
 metadata:
   audit-contract: "1"
   invocation: user-invoked

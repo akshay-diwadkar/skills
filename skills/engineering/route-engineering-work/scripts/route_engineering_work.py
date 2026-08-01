@@ -166,6 +166,7 @@ class RepositoryFacts:
     repository_available: bool = False
     approved_plan_available: bool = False
     issue_context_available: bool = False
+    repository_navigation_inadequate: bool = False
 
 
 @dataclass(frozen=True)
@@ -276,7 +277,7 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
             return make_decision(
                 "plan-change",
                 "explicit_map_plan_implementation_chain",
-                prerequisites=("map-codebase",),
+                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
                 follow_up=("implement-plan",),
             )
         if {"design-codebase", "plan-change"}.issubset(explicit_set):
@@ -292,7 +293,7 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
             return make_decision(
                 "plan-change",
                 "implementation_requires_approved_plan",
-                prerequisites=("map-codebase",) if "map-codebase" in explicit_set else (),
+                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
                 follow_up=("implement-plan",),
             )
         if "plan-change" in explicit_set and "implement-plan" in explicit_set:
@@ -331,7 +332,7 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "design-codebase",
             "structural_design_requested",
-            prerequisites=("map-codebase",) if orientation_requested else (),
+            prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
             follow_up=follow_up,
         )
 
@@ -351,7 +352,7 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "plan-change",
             "source_change_requires_plan",
-            prerequisites=("map-codebase",) if orientation_requested else (),
+            prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
             follow_up=follow_up,
         )
 
@@ -373,6 +374,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, help="Existing repository directory")
     parser.add_argument("--approved-plan", type=Path, help="Existing approved plan file")
     parser.add_argument("--issue-number", type=int, help="Known positive GitHub issue number")
+    parser.add_argument(
+        "--repository-navigation-inadequate",
+        choices=("true",),
+        help="Explicit caller signal that native navigation was insufficient.",
+    )
     return parser
 
 
@@ -403,6 +409,7 @@ def validated_inputs(
         repository_available=args.repo_root is not None,
         approved_plan_available=args.approved_plan is not None,
         issue_context_available=args.issue_number is not None,
+        repository_navigation_inadequate=args.repository_navigation_inadequate == "true",
     )
 
 

@@ -1,4 +1,4 @@
-"""Versioned plan intake and implementation-contract v3 scaffolding."""
+"""Versioned plan intake and implementation-contract v4 scaffolding."""
 
 from __future__ import annotations
 
@@ -10,10 +10,9 @@ from difflib import unified_diff
 from pathlib import Path
 from typing import Any
 
-import plan_runtime as plan_v5_runtime
 import plan_v6_runtime
 
-Diagnostic = plan_v5_runtime.Diagnostic
+Diagnostic = plan_v6_runtime.Diagnostic
 Plan = Any
 
 
@@ -21,9 +20,9 @@ def load_contract() -> dict[str, Any]:
     path = Path(__file__).resolve().parents[1] / "references" / "implementation-contract.json"
     contract = json.loads(path.read_text(encoding="utf-8"))
     supported = contract.get("supported_plan_contract_versions")
-    deprecated = contract.get("deprecated_plan_contract_versions")
-    if contract.get("contract_version") != 3:
-        raise ValueError("implementation contract must be v3")
+    deprecated = contract.get("deprecated_plan_contract_versions", [])
+    if contract.get("contract_version") != 4:
+        raise ValueError("implementation contract must be v4")
     if (
         not isinstance(supported, list)
         or not supported
@@ -118,23 +117,25 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
 
 
-def git_status(root: Path) -> dict[str, str]:
-    result = _git(root, "status", "--porcelain=v1", "--untracked-files=all")
-    return {
-        line[3:].rsplit(" -> ", 1)[-1].replace("\\", "/"): line[:2]
-        for line in result.stdout.splitlines()
-        if len(line) > 3
-    }
+def git_status(root: Path, paths: list[str]) -> dict[str, str]:
+    """Inspect only plan-selected paths; never snapshot a whole worktree."""
+    status: dict[str, str] = {}
+    for path in paths:
+        result = _git(root, "status", "--porcelain=v1", "--", path)
+        for line in result.stdout.splitlines():
+            if len(line) > 3:
+                status[line[3:].rsplit(" -> ", 1)[-1].replace("\\", "/")] = line[:2]
+    return status
 
 
-def dirty_snapshot(root: Path) -> dict[str, dict[str, str]]:
+def dirty_snapshot(root: Path, paths: list[str]) -> dict[str, dict[str, str]]:
     return {
         path: {"status": status, "sha256": sha256_file(root / path)}
-        for path, status in git_status(root).items()
+        for path, status in git_status(root, paths).items()
     }
 
 
-def repository_state(root: Path) -> dict[str, Any]:
+def repository_state(root: Path, paths: list[str]) -> dict[str, Any]:
     inside = _git(root, "rev-parse", "--is-inside-work-tree")
     is_git = inside.returncode == 0 and inside.stdout.strip() == "true"
     head = _git(root, "rev-parse", "HEAD").stdout.strip() if is_git else ""
@@ -144,15 +145,13 @@ def repository_state(root: Path) -> dict[str, Any]:
         "repository_id": remote or str(root.resolve()),
         "git_head": head or None,
         "branch": branch or None,
-        "status": git_status(root),
-        "dirty": dirty_snapshot(root),
+        "status": git_status(root, paths),
+        "dirty": dirty_snapshot(root, paths),
     }
 
 
 def parse_plan(text: str) -> tuple[Plan | None, list[Any]]:
     version = plan_contract_version(text)
-    if version == 5:
-        return plan_v5_runtime.parse_plan(text)
     if version == 6:
         plan, diagnostics = plan_v6_runtime.parse_plan(plan_v6_runtime.canonical_body(text))
         proof_matches = list(plan_v6_runtime.PROOF_RE.finditer(text))
@@ -173,7 +172,7 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Any]]:
             except json.JSONDecodeError:
                 pass
         return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
 
 
 def plan_contract_version(text: str) -> int | None:
@@ -181,19 +180,12 @@ def plan_contract_version(text: str) -> int | None:
     return int(matches[0]) if len(matches) == 1 else None
 
 
-def validate_v5_repository_binding(text: str, root: Path) -> list[Diagnostic]:
-    _, diagnostics = plan_v5_runtime.validate_plan(text, root, require_finalized=True)
-    return diagnostics
-
-
 def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
     version = plan_contract_version(text)
-    if version == 5:
-        return plan_v5_runtime.validate_plan(text, root, require_finalized=True)
     if version == 6:
         plan, diagnostics, _view = plan_v6_runtime.verify_sealed_plan(text, root)
         return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
 
 
 def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id: str) -> dict[str, Any]:
@@ -201,8 +193,7 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
     contract = load_contract()
     version = plan_contract_version(text)
     supported = set(contract["supported_plan_contract_versions"])
-    deprecated = set(contract["deprecated_plan_contract_versions"])
-    if version not in supported | deprecated:
+    if version not in supported:
         raise ValueError(
             f"contract.unsupported: plan-contract version {version!r} is not supported or deprecated"
         )
@@ -211,7 +202,6 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         raise ValueError("invalid plan:\n" + "\n".join(str(item) for item in diagnostics))
     if output_path.is_relative_to(repo_root) and not (repo_root / ".gitignore").is_file():
         raise ValueError("output must be outside the repository or ignored")
-    state = repository_state(repo_root)
     targets = [
         {
             "path": change.fields.get("path", ""),
@@ -220,6 +210,8 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         }
         for change in plan.records.get("CH", ())
     ]
+    target_paths = [target["path"] for target in targets if target["path"]]
+    state = repository_state(repo_root, target_paths)
     _write_before_snapshots(repo_root, output_path, [target["path"] for target in targets])
     return {
         "schema_version": contract["contract_version"],
@@ -247,17 +239,7 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         "verification": [],
         "quality_checks": [],
         "warnings": (
-            [
-                {
-                    "code": "bundle.plan_contract_deprecated",
-                    "severity": "warning",
-                    "message": (
-                        f"plan-contract v{version} is deprecated and will be removed after this release"
-                    ),
-                }
-            ]
-            if version in deprecated
-            else []
+            []
         ),
         "unresolved_changes": [],
         "unresolved_tests": [],
