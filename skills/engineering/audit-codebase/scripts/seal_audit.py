@@ -7,17 +7,24 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 from audit_bundle import read_json, validate_audit_bundle
 
 
-def _verify_local_evidence(bundle: dict[object, object], repo_root: Path) -> list[str]:
+def _verify_local_evidence(bundle: dict[str, Any], repo_root: Path) -> list[str]:
     """Verify only source/config/test evidence explicitly declared by the bundle."""
     errors: list[str] = []
-    for candidate_index, candidate in enumerate(bundle.get("candidates", [])):
+    candidates = bundle.get("candidates", [])
+    if not isinstance(candidates, list):
+        return errors
+    for candidate_index, candidate in enumerate(candidates):
         if not isinstance(candidate, dict):
             continue
-        for evidence_index, evidence in enumerate(candidate.get("evidence", [])):
+        evidence_rows = candidate.get("evidence", [])
+        if not isinstance(evidence_rows, list):
+            continue
+        for evidence_index, evidence in enumerate(evidence_rows):
             if not isinstance(evidence, dict) or evidence.get("kind") not in {"source", "config", "test"}:
                 continue
             location = evidence.get("location")

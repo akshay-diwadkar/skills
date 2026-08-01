@@ -172,7 +172,7 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Any]]:
             except json.JSONDecodeError:
                 pass
         return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
 
 
 def plan_contract_version(text: str) -> int | None:
@@ -185,7 +185,7 @@ def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
     if version == 6:
         plan, diagnostics, _view = plan_v6_runtime.verify_sealed_plan(text, root)
         return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported")]
+    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
 
 
 def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id: str) -> dict[str, Any]:

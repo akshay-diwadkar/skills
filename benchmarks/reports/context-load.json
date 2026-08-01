@@ -1,11 +1,11 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 7714,
+    "pre_action": 7713,
     "repair_diagnostic": 2288,
     "tool_output": 1720,
-    "top_level": 5994,
-    "worst_context": 45822,
+    "top_level": 5993,
+    "worst_context": 45821,
     "worst_references": 37540
   },
   "baseline": {
@@ -97,11 +97,11 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 864,
+        "pre_action": 863,
         "repair_diagnostic": 228,
         "tool_output": 173,
-        "top_level": 691,
-        "worst_context": 7048,
+        "top_level": 690,
+        "worst_context": 7047,
         "worst_references": 6129
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
@@ -132,7 +132,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "84e905f644f4c5435c107c5a9d75ec80c914f7bb8acbcd95810a4818c2c684e2",
+      "source_hash": "1d3056342bda1665eaeffb76e5ddec9d842fdf3f530351c24529197ea45665a1",
       "worst_reference_paths": [
         "references/cli-compatibility.md",
         "references/code-quality-checklist.md",

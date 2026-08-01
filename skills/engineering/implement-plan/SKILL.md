@@ -5,7 +5,7 @@ version: 2.0.0
 metadata:
   implementation-contract: "3"
   invocation: user-invoked
-  finalizer: "scripts/finalize_implementation.py"
+  finalizer: "scripts/seal_implementation.py"
   validation-required: "true"
 disable-model-invocation: true
 user-invocable: true
