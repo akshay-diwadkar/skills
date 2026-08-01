@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 import subprocess
@@ -156,6 +157,117 @@ def test_duplicate_and_undefined_references_are_rejected(tmp_path: Path) -> None
     assert "reference.undefined" in codes(validate_draft(undefined, repo))
 
 
+@pytest.mark.parametrize(
+    ("replacement", "target"),
+    [
+        ("SC-1 given: missing main colon", "SC-1"),
+        ("SC-0: given: zero identifier", "SC-0"),
+        ("SC-x: given: nonnumeric identifier", "SC-x"),
+        ("SC-: given: missing identifier", "SC-"),
+        ("SC-1:", "SC-1"),
+    ],
+)
+def test_record_like_lines_with_invalid_headers_are_rejected_without_reads(
+    replacement: str, target: str, tmp_path: Path
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    lines = tiny_plan().splitlines()
+    index = next(index for index, line in enumerate(lines) if line.startswith("SC-1:"))
+    lines[index] = replacement
+
+    result = validate_draft("\n".join(lines) + "\n", repo)
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].code == "record.invalid"
+    assert result.diagnostics[0].record == target
+    assert result.diagnostics[0].line == index + 1
+    assert result.view.opened_paths == []
+    assert result.view.hash_count == 0
+
+
+@pytest.mark.parametrize("prefix", ["SC", "F", "D", "CH", "P", "B", "R", "T"])
+def test_every_reserved_record_prefix_fails_closed(prefix: str, tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    lines = tiny_plan().splitlines()
+    index = next(index for index, line in enumerate(lines) if line.startswith("SC-1:"))
+    lines[index] = f"{prefix}-0: partial record"
+
+    result = validate_draft("\n".join(lines) + "\n", repo)
+
+    assert [(item.code, item.record) for item in result.diagnostics] == [
+        ("record.invalid", f"{prefix}-0")
+    ]
+    assert result.view.opened_paths == []
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda line: line + " | given: duplicate setup",
+        lambda line: line.replace(" | when: ", "| when: ", 1),
+        lambda line: line.replace("given: ", "given=", 1),
+        lambda line: line.replace(" | when: ", " || when: ", 1),
+        lambda line: line.replace("given: an absent input name", "given: ``", 1),
+    ],
+)
+def test_record_field_grammar_is_exact_and_reports_one_target(mutation, tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    lines = tiny_plan().splitlines()
+    index = next(index for index, line in enumerate(lines) if line.startswith("SC-1:"))
+    lines[index] = mutation(lines[index])
+
+    result = validate_draft("\n".join(lines) + "\n", repo)
+
+    assert [(item.code, item.record) for item in result.diagnostics] == [("record.invalid", "SC-1")]
+    assert result.view.opened_paths == []
+
+
+@pytest.mark.parametrize(
+    ("section", "marker"),
+    [
+        ("Decisions", "## Implementation"),
+        ("Propagation", "## Verification"),
+        ("Boundaries and Risks", "## Verification"),
+        ("Rollout and Rollback", None),
+    ],
+)
+@pytest.mark.parametrize("body", ["", "<decide later>", "TBD"])
+def test_empty_or_placeholder_optional_sections_are_rejected(
+    section: str, marker: str | None, body: str, tmp_path: Path
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    addition = f"## {section}\n{body}\n\n"
+    draft = tiny_plan()
+    draft = draft.replace(marker, addition + marker, 1) if marker else draft + "\n" + addition
+
+    result = validate_draft(draft, repo)
+
+    assert [item.code for item in result.diagnostics] == ["section.empty"]
+    assert result.view.opened_paths == []
+
+
+@pytest.mark.parametrize(
+    ("rollout", "missing"),
+    [
+        ("If divergence occurs, restore the last durable snapshot.", "deployment/ordering"),
+        ("Deploy in bounded batches and stop on divergence.", "rollback/roll-forward action"),
+        ("Deploy in bounded batches with the durable snapshot available for rollback.", "trigger/condition"),
+    ],
+)
+def test_required_rollout_names_each_missing_content_class(
+    rollout: str, missing: str, tmp_path: Path
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    draft = migration_plan().split("## Rollout and Rollback\n", 1)[0] + "## Rollout and Rollback\n" + rollout + "\n"
+
+    result = validate_draft(draft, repo)
+
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].code == "rollout.invalid"
+    assert missing in result.diagnostics[0].message
+    assert result.view.opened_paths == []
+
+
 def test_bound_file_change_fails_but_unrelated_change_and_head_change_do_not(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo", git=True)
     request = tmp_path / "request.md"
@@ -262,6 +374,79 @@ CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | c
 ## Verification
 T-1: covers: SC-1, CH-1 | given: a JavaScript name input | when: targeted JavaScript tests execute | then: caller returns the callee result | command: npm test -- names
 """
+
+
+def _javascript_source_plan() -> str:
+    return _javascript_call_plan().replace("kind: call-edge", "kind: source").replace(
+        " | caller: caller | callee: callee", ""
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "extra_fields"),
+    [
+        ("function-signature", "parameters: value | returns: string | async: false"),
+        ("class-signature", "bases: BaseName"),
+        ("call-edge", "caller: caller | callee: callee"),
+        ("external-call", "callee: callee"),
+        ("branch", "condition: value is present"),
+        ("error", "error: ValueError"),
+        ("side-effect", "effect: writes output"),
+    ],
+)
+def test_unavailable_tree_sitter_fails_closed_for_every_structured_kind(
+    kind: str, extra_fields: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "names.js").write_text(
+        "function caller() {\n  return callee();\n}\n\n", encoding="utf-8"
+    )
+    real_import = builtins.__import__
+
+    def unavailable(name, *args, **kwargs):
+        if name == "tree_sitter" or name.startswith("tree_sitter_"):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", unavailable)
+    draft = _javascript_call_plan()
+    fact = next(line for line in draft.splitlines() if line.startswith("F-1:"))
+    replacement = (
+        f"F-1: kind: {kind} | path: src/names.js | lines: 1-4 | anchor: caller "
+        f"| claim: caller provides structured evidence | {extra_fields}"
+    )
+    structured = validate_draft(draft.replace(fact, replacement), repo)
+
+    assert len(structured.diagnostics) == 1
+    diagnostic = structured.diagnostics[0]
+    assert diagnostic.code == "fact.structured"
+    assert diagnostic.record == "F-1"
+    assert diagnostic.path == "src/names.js"
+    assert "kind to source" in diagnostic.required_action
+    assert "tree_sitter_javascript" in diagnostic.required_action
+    assert structured.view.opened_paths == ["src/names.js"]
+    assert structured.view.tree_parse_count == 1
+
+
+def test_source_fact_remains_dependency_free_when_tree_sitter_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "names.js").write_text(
+        "function caller() {\n  return callee();\n}\n\n", encoding="utf-8"
+    )
+    real_import = builtins.__import__
+
+    def unavailable(name, *args, **kwargs):
+        if name == "tree_sitter" or name.startswith("tree_sitter_"):
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", unavailable)
+    source = validate_draft(_javascript_source_plan(), repo)
+    assert source.valid
+    assert source.fact_proofs[0]["verified_kind"] == "source"
+    assert source.view.tree_parse_count == 0
 
 
 def test_tree_sitter_rejects_identifiers_that_exist_only_in_a_comment(tmp_path: Path) -> None:

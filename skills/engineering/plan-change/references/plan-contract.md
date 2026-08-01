@@ -32,11 +32,15 @@ R-1: severity: P0|P1|P2 | owner: CH-1 | tests: T-1 | risk: <specific failure mod
 T-1: covers: SC-1, CH-1 | given: <setup> | when: <action> | then: <exact expectation> | command: <targeted runnable command>
 
 ## Rollout and Rollback
-<deployment order, compatibility window, rollback or roll-forward trigger>
+Deploy <named change> in <explicit order or bounded phases>. If <observable
+trigger or condition>, roll back by <specific action> or roll forward by
+<specific action>.
 ```
 
 Always include Outcome, Evidence, Implementation, and Verification. Omit empty
-conditional sections. Existing changes require same-path evidence. New changes
+conditional sections; blank, placeholder-only, or deferred sections are invalid.
+Every record uses a positive integer ID, `: ` after the ID and each field name,
+and exact ` | ` field separators. Existing changes require same-path evidence. New changes
 omit `evidence` only when no existing target exists and instead include
 `owner: F-n|CH-n`; an owning fact must be `directory-ownership` or
 `generated-from`.
@@ -44,7 +48,8 @@ omit `evidence` only when no existing target exists and instead include
 Every `SC` and `CH` must appear in at least one `T.covers`. High-risk plans need
 at least one `B` and `R`. Public-contract, durable-state, migration,
 external-integration, and irreversible-effect domains also need rollout and
-rollback.
+rollback. That section must name substantive deployment ordering, a rollback or
+roll-forward action, and the observable condition that triggers it.
 
 The sealer adds `plan-proof` and `plan-validation`; never write them manually.
 

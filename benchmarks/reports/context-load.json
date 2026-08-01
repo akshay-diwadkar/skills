@@ -5,8 +5,8 @@
     "repair_diagnostic": 2485,
     "tool_output": 2043,
     "top_level": 6001,
-    "worst_context": 45915,
-    "worst_references": 37429
+    "worst_context": 46028,
+    "worst_references": 37542
   },
   "baseline": {
     "requirements": [
@@ -683,15 +683,15 @@
         "repair_diagnostic": 228,
         "tool_output": 165,
         "top_level": 556,
-        "worst_context": 1876,
-        "worst_references": 1092
+        "worst_context": 1989,
+        "worst_references": 1205
       },
       "path": "skills/engineering/plan-change/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "b3ffafc96ba304f963bccfddc152e81e6a196bdd679923eeb6ff6613e0751abd",
+      "source_hash": "c05de5a37238038b7dead578fc7eb07ffba94e0fe4ad5a4491bcf3946c3e8e84",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",

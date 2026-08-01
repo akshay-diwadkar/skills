@@ -8,6 +8,9 @@
   agent-supplied hashes, and legacy runtime commands.
 - Add cached cited-file verification, generated proof hashes, targeted binding,
   stable repair diagnostics, and receipt verification.
+- Reject malformed record-like lines and empty conditional sections, require
+  actionable rollout content, and fail closed when an optional structured
+  validator is unavailable.
 
 ## 1.0.0 - 2026-07-29
 

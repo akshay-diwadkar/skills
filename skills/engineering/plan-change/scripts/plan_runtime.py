@@ -84,6 +84,7 @@ OPTIONAL_FIELDS = {
     "CH": {"evidence", "locality", "reversibility", "owner"},
     "P": {"owner"},
 }
+OPTIONAL_SECTIONS = set(SECTION_ORDER) - set(REQUIRED_SECTIONS)
 REFERENCE_FIELDS = {
     "D": {"evidence": {"F"}},
     "CH": {"evidence": {"F"}, "owner": {"F", "CH"}},
@@ -92,13 +93,41 @@ REFERENCE_FIELDS = {
     "R": {"owner": {"CH"}, "tests": {"T"}},
     "T": {"covers": {"SC", "CH"}},
 }
-RECORD_RE = re.compile(r"^\s*(?:-\s*)?(?P<id>(?:SC|F|D|CH|P|B|R|T)-[1-9]\d*):\s*(?P<body>.+?)\s*$")
+RECORD_RE = re.compile(r"^\s*(?:-\s+)?(?P<id>(?:SC|F|D|CH|P|B|R|T)-[1-9]\d*): (?P<body>\S.*?)\s*$")
+RECORD_LIKE_RE = re.compile(r"^\s*(?:-\s*)?(?P<prefix>SC|F|D|CH|P|B|R|T)-")
+RECORD_TARGET_RE = re.compile(r"^\s*(?:-\s*)?(?P<record>(?:SC|F|D|CH|P|B|R|T)-[^\s:|]*)")
 ID_RE = re.compile(r"\b(?:SC|F|D|CH|P|B|R|T)-[1-9]\d*\b")
 PROOF_RE = re.compile(r"^<!-- plan-proof: (?P<json>.+) -->$", re.MULTILINE)
 VALIDATION_RE = re.compile(
     r"^<!-- plan-validation: 6; body-sha256: (?P<body>[0-9a-f]{64}); proof-sha256: (?P<proof>[0-9a-f]{64}) -->$",
     re.MULTILINE,
 )
+TREE_SITTER_GRAMMARS = {
+    ".js": ("tree_sitter_javascript", "language"),
+    ".jsx": ("tree_sitter_javascript", "language"),
+    ".ts": ("tree_sitter_typescript", "language_typescript"),
+    ".tsx": ("tree_sitter_typescript", "language_tsx"),
+    ".kt": ("tree_sitter_kotlin", "language"),
+    ".kts": ("tree_sitter_kotlin", "language"),
+    ".go": ("tree_sitter_go", "language"),
+    ".java": ("tree_sitter_java", "language"),
+    ".rs": ("tree_sitter_rust", "language"),
+    ".rb": ("tree_sitter_ruby", "language"),
+}
+ROLLOUT_REQUIREMENTS = {
+    "deployment/ordering": re.compile(
+        r"\b(?:deploy|release|rollout|phase|batch|canary|traffic|order|sequence|compatibility window)\w*\b",
+        re.I,
+    ),
+    "rollback/roll-forward action": re.compile(
+        r"\b(?:roll\s*back|rollback|roll\s*forward|restore|revert|disable|compensat\w*|resume|retry)\b",
+        re.I,
+    ),
+    "trigger/condition": re.compile(
+        r"\b(?:if|when|upon|trigger\w*|threshold|divergen\w*|mismatch\w*|abort\w*|stop\s+on|on\s+(?:error|failure))\b",
+        re.I,
+    ),
+}
 
 
 def _sha256(data: bytes) -> str:
@@ -280,30 +309,19 @@ class RepositoryView:
         if entry.tree_parsed:
             return entry.tree, entry.tree_available
         entry.tree_parsed = True
+        self.tree_parse_count += 1
         language: Any | None = None
         suffix = entry.path.suffix.lower()
         try:
             from tree_sitter import Language, Parser
 
-            module_name, attribute = {
-                ".js": ("tree_sitter_javascript", "language"),
-                ".jsx": ("tree_sitter_javascript", "language"),
-                ".ts": ("tree_sitter_typescript", "language_typescript"),
-                ".tsx": ("tree_sitter_typescript", "language_tsx"),
-                ".kt": ("tree_sitter_kotlin", "language"),
-                ".kts": ("tree_sitter_kotlin", "language"),
-                ".go": ("tree_sitter_go", "language"),
-                ".java": ("tree_sitter_java", "language"),
-                ".rs": ("tree_sitter_rust", "language"),
-                ".rb": ("tree_sitter_ruby", "language"),
-            }.get(suffix, ("", ""))
+            module_name, attribute = TREE_SITTER_GRAMMARS.get(suffix, ("", ""))
             if module_name:
                 module = __import__(module_name)
                 language = Language(getattr(module, attribute)())
                 parser = Parser(language)
                 entry.tree = parser.parse(entry.data)
                 entry.tree_available = True
-                self.tree_parse_count += 1
         except (ImportError, AttributeError, TypeError, ValueError):
             entry.tree = None
             entry.tree_available = False
@@ -369,22 +387,80 @@ class SealResult:
 
 def _fields(raw: str, record: str, line: int, diagnostics: list[Diagnostic]) -> dict[str, str]:
     fields: dict[str, str] = {}
-    for part in raw.split(" | "):
-        key, separator, value = part.partition(":")
-        key, value = key.strip(), value.strip().strip("`")
-        if not separator or not key or not value or key in fields:
+    parts = raw.split(" | ")
+    invalid = any("|" in part for part in parts)
+    for part in parts:
+        key, separator, value = part.partition(": ")
+        normalized_value = value.strip("`")
+        if (
+            not separator
+            or re.fullmatch(r"[a-z][a-z0-9_-]*", key) is None
+            or not normalized_value
+            or value != value.strip()
+            or key in fields
+        ):
+            invalid = True
+            continue
+        fields[key] = normalized_value
+    if invalid:
+        diagnostics.append(
+            Diagnostic(
+                "record.invalid",
+                "Fields must be unique non-empty 'key: value' pairs separated by exact ' | ' delimiters.",
+                f"Correct the field syntax for {record}.",
+                record,
+                line=line,
+            )
+        )
+    return fields
+
+
+def _section_has_substance(lines: Iterable[str]) -> bool:
+    text = "\n".join(lines)
+    text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
+    text = re.sub(r"<[^>\n]+>", " ", text)
+    text = re.sub(r"\b(?:TBD|TODO|FIXME|later|as needed|if necessary|decide later)\b", " ", text, flags=re.I)
+    text = ID_RE.sub(" ", text)
+    text = re.sub(r"\b[a-z][a-z0-9_-]*:\s*", " ", text)
+    text = re.sub(r"[#*`|:\-]+", " ", text)
+    return len(re.findall(r"[A-Za-z0-9_./]+", text)) >= 2
+
+
+def _section_diagnostics(
+    sections: dict[str, list[str]], heading_lines: dict[str, int], risk_domains: set[str]
+) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    empty_sections: set[str] = set()
+    for section in SECTION_ORDER:
+        if section not in OPTIONAL_SECTIONS or section not in sections:
+            continue
+        if not _section_has_substance(sections[section]):
+            empty_sections.add(section)
             diagnostics.append(
                 Diagnostic(
-                    "record.invalid",
-                    "Fields must be unique non-empty 'key: value' pairs separated by ' | '.",
-                    f"Correct the field syntax for {record}.",
-                    record,
-                    line=line,
+                    "section.empty",
+                    f"{section} is empty or placeholder-only.",
+                    f"Remove {section} or add substantive content.",
+                    line=heading_lines[section],
                 )
             )
-            continue
-        fields[key] = value
-    return fields
+    if (
+        risk_domains & ROLLOUT_DOMAINS
+        and "Rollout and Rollback" in sections
+        and "Rollout and Rollback" not in empty_sections
+    ):
+        rollout = "\n".join(sections["Rollout and Rollback"])
+        missing = [name for name, pattern in ROLLOUT_REQUIREMENTS.items() if pattern.search(rollout) is None]
+        if missing:
+            diagnostics.append(
+                Diagnostic(
+                    "rollout.invalid",
+                    f"Rollout and Rollback is missing: {', '.join(missing)}.",
+                    "Add concrete deployment order, recovery action, and its trigger condition.",
+                    line=heading_lines["Rollout and Rollback"],
+                )
+            )
+    return diagnostics
 
 
 def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
@@ -434,6 +510,9 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
             )
     heading_matches = list(re.finditer(r"^## (.+)$", normalized, re.MULTILINE))
     headings = tuple(match.group(1).strip() for match in heading_matches)
+    heading_lines = {
+        match.group(1).strip(): normalized.count("\n", 0, match.start()) + 1 for match in heading_matches
+    }
     expected = tuple(section for section in SECTION_ORDER if section in headings)
     if any(section not in headings for section in REQUIRED_SECTIONS) or headings != expected or len(set(headings)) != len(headings):
         diagnostics.append(
@@ -444,12 +523,29 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
             )
         )
     records: dict[str, list[Record]] = defaultdict(list)
+    section_lines: dict[str, list[str]] = defaultdict(list)
     current_section = ""
     for number, line_text in enumerate(normalized.splitlines(), 1):
         if line_text.startswith("## "):
             current_section = line_text[3:].strip()
             continue
+        if current_section in SECTION_ORDER:
+            section_lines[current_section].append(line_text)
         match = RECORD_RE.match(line_text)
+        record_like = RECORD_LIKE_RE.match(line_text)
+        if record_like and not match:
+            target_match = RECORD_TARGET_RE.match(line_text)
+            target = target_match.group("record") if target_match else f"{record_like.group('prefix')}-"
+            diagnostics.append(
+                Diagnostic(
+                    "record.invalid",
+                    "Record-like lines must use a positive integer ID, ': ', and a non-empty field body.",
+                    f"Correct the record syntax for {target} on this line.",
+                    target,
+                    line=number,
+                )
+            )
+            continue
         if not match:
             continue
         identifier = match.group("id")
@@ -460,6 +556,9 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
         diagnostics.append(
             Diagnostic("record.invalid", "Record ID is duplicated.", f"Rename or remove duplicate {duplicate}.", duplicate)
         )
+    domains = metadata.get("risk_domains", [])
+    risk_domains = set(domains) if isinstance(domains, list) and all(isinstance(item, str) for item in domains) else set()
+    diagnostics.extend(_section_diagnostics(section_lines, heading_lines, risk_domains))
     return (
         Plan(
             title_matches[0] if len(title_matches) == 1 else "",
@@ -759,41 +858,58 @@ def _python_structured(record: Record, view: RepositoryView, start: int, end: in
     return None
 
 
-def _structured_fact(record: Record, view: RepositoryView, entry: RepositoryFile, start: int, end: int, excerpt: str) -> tuple[str, str | None]:
+def _structured_fact(
+    record: Record,
+    view: RepositoryView,
+    entry: RepositoryFile,
+    start: int,
+    end: int,
+    excerpt: str,
+) -> tuple[str, str | None, str | None]:
     kind = record.fields["kind"]
     if kind == "source":
-        return "source", None
+        return "source", None, None
     if entry.path.suffix.lower() == ".py" and kind in {"function-signature", "class-signature", "call-edge", "external-call", "branch", "error", "side-effect"}:
-        return kind, _python_structured(record, view, start, end)
+        return kind, _python_structured(record, view, start, end), None
     if kind == "schema-shape":
         try:
             value = json.loads(entry.text)
         except json.JSONDecodeError:
-            return kind, "schema-shape requires valid JSON"
+            return kind, "schema-shape requires valid JSON", None
         expected = {field.strip() for field in record.fields["fields"].split(",") if field.strip()}
         actual = set(value) if isinstance(value, dict) else set()
-        return kind, None if expected <= actual else "schema fields are absent"
+        return kind, None if expected <= actual else "schema fields are absent", None
     if kind == "config-key":
         key, value = record.fields["key"], record.fields["value"]
-        return kind, None if key in entry.text and value in entry.text else "config key or value is absent"
+        return kind, None if key in entry.text and value in entry.text else "config key or value is absent", None
     if kind == "generated-from":
         generator, output = record.fields["generator"], record.fields["output"]
         try:
             generator_entry = view.get(generator)
         except (ValueError, FileNotFoundError):
-            return kind, "generator path is invalid or absent"
-        return kind, None if output in generator_entry.text else "generator does not name the output"
+            return kind, "generator path is invalid or absent", None
+        return kind, None if output in generator_entry.text else "generator does not name the output", None
     if kind == "directory-ownership":
         directory = record.fields["directory"].rstrip("/")
         try:
             view.resolve(directory)
         except ValueError:
-            return kind, "owned directory escapes the repository"
-        return kind, None if entry.relative.startswith(directory + "/") or entry.relative == directory else "evidence file is outside the owned directory"
+            return kind, "owned directory escapes the repository", None
+        return (
+            kind,
+            None if entry.relative.startswith(directory + "/") or entry.relative == directory else "evidence file is outside the owned directory",
+            None,
+        )
     tree, available = view.parse_tree(record.fields["path"])
     if not available:
-        return "source", None
-    return kind, _tree_structured(record, entry, tree, start, end)
+        grammar = TREE_SITTER_GRAMMARS.get(entry.path.suffix.lower())
+        package = grammar[0] if grammar else None
+        detail = f"structured validator is unavailable for {entry.path.suffix.lower() or 'this file type'}"
+        action = f"Change {record.id}.kind to source"
+        if package:
+            action += f" or install the optional {package} grammar"
+        return kind, detail, action + "."
+    return kind, _tree_structured(record, entry, tree, start, end), None
 
 
 def _fact_diagnostics(plan: Plan, view: RepositoryView) -> tuple[list[Diagnostic], list[dict[str, str]]]:
@@ -823,9 +939,19 @@ def _fact_diagnostics(plan: Plan, view: RepositoryView) -> tuple[list[Diagnostic
         if fact.fields["anchor"] not in excerpt:
             diagnostics.append(Diagnostic("fact.anchor", "Anchor is absent from the cited range.", f"Correct {fact.id} lines or anchor.", fact.id, path, fact.line, "stale_evidence"))
             continue
-        verified_kind, error = _structured_fact(fact, view, entry, start, end, excerpt)
+        verified_kind, error, required_action = _structured_fact(fact, view, entry, start, end, excerpt)
         if error:
-            diagnostics.append(Diagnostic("fact.structured", error, f"Correct the structured fields or range for {fact.id}.", fact.id, path, fact.line, "stale_evidence"))
+            diagnostics.append(
+                Diagnostic(
+                    "fact.structured",
+                    error,
+                    required_action or f"Correct the structured fields or range for {fact.id}.",
+                    fact.id,
+                    path,
+                    fact.line,
+                    "stale_evidence",
+                )
+            )
             continue
         proofs.append(
             {
@@ -918,6 +1044,9 @@ def validate_draft(text: str, repo_root: Path, *, view: RepositoryView | None = 
     proofs: list[dict[str, str]] = []
     if plan is None:
         return ValidationResult(None, tuple(diagnostics), (), repository)
+    if diagnostics:
+        diagnostics.sort(key=lambda item: (item.line is None, item.line or 0, item.code, item.record or ""))
+        return ValidationResult(plan, tuple(diagnostics), (), repository)
     diagnostics.extend(_metadata_diagnostics(plan))
     diagnostics.extend(_record_diagnostics(plan))
     if not diagnostics:

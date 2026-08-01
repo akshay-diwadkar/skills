@@ -1,28 +1,168 @@
 {
-  "after": {
-    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 30",
-    "iterations": 30,
-    "operation_counts": {
-      "high-risk": {"hash_count": 1, "opened_paths": ["src/names.py"], "python_parse_count": 0, "tree_parse_count": 0},
-      "standard": {"hash_count": 1, "opened_paths": ["src/__init__.py"], "python_parse_count": 0, "tree_parse_count": 0},
-      "tiny": {"hash_count": 1, "opened_paths": ["src/names.py"], "python_parse_count": 0, "tree_parse_count": 0}
-    },
-    "timings_seconds": {
-      "high-risk": {"median": 0.05615305000173976, "p95": 0.07113449999451404},
-      "standard": {"median": 0.05031944999791449, "p95": 0.06702740000037011},
-      "tiny": {"median": 0.04897690000507282, "p95": 0.058770899995579384}
-    }
+  "environment": {
+    "date": "2026-08-01",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.15",
+    "timing_gate": "informational here; the dedicated 50,003-file job enforces the under-three-second seal gate"
   },
-  "baseline": {
+  "historical_v5_suite_baseline": {
     "command": "python -m pytest tests/skills/plan-change -q --durations=10",
-    "contract_version": 5,
+    "comparable_to_machine_pipeline": false,
+    "label": "historical full test-suite wall time; not comparable to microbenchmark timings",
     "passed_tests": 102,
     "wall_seconds": 69.77
   },
-  "environment": {
-    "date": "2026-08-01",
-    "note": "Timing is informational in normal CI; the dedicated 50,003-file job enforces the three-second sealing gate.",
-    "platform": "Windows"
+  "machine_pipeline_comparison": {
+    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 30 --output benchmarks/reports/plan-change-v6.json",
+    "iterations": 30,
+    "timings_seconds": {
+      "high-risk": {
+        "v5": {
+          "aggregate_machine_pipeline": {
+            "median": 0.2222704000050726,
+            "p95": 0.3299697000038577
+          },
+          "finalize": {
+            "median": 0.10759445000076084,
+            "p95": 0.12378890000400133
+          },
+          "prepare": {
+            "median": 0.055902249998325715,
+            "p95": 0.13353900000220165
+          },
+          "validate": {
+            "median": 0.05717094999999972,
+            "p95": 0.08553399999800604
+          }
+        },
+        "v6": {
+          "seal": {
+            "median": 0.05215255000075558,
+            "p95": 0.0682647000066936
+          }
+        }
+      },
+      "standard": {
+        "v5": {
+          "aggregate_machine_pipeline": {
+            "median": 0.2222113000061654,
+            "p95": 0.45449059999373276
+          },
+          "finalize": {
+            "median": 0.10771419999946374,
+            "p95": 0.14081829999486217
+          },
+          "prepare": {
+            "median": 0.05937134999840055,
+            "p95": 0.1562424000003375
+          },
+          "validate": {
+            "median": 0.056443850000505336,
+            "p95": 0.15742989999853307
+          }
+        },
+        "v6": {
+          "seal": {
+            "median": 0.053683349997299956,
+            "p95": 0.07557619999715826
+          }
+        }
+      },
+      "tiny": {
+        "v5": {
+          "aggregate_machine_pipeline": {
+            "median": 0.21710949999760487,
+            "p95": 0.4490077000009478
+          },
+          "finalize": {
+            "median": 0.10266819999742438,
+            "p95": 0.18486960000154795
+          },
+          "prepare": {
+            "median": 0.05763630000001285,
+            "p95": 0.13321580000047106
+          },
+          "validate": {
+            "median": 0.05271139999968,
+            "p95": 0.08116010000230744
+          }
+        },
+        "v6": {
+          "seal": {
+            "median": 0.049732249997759936,
+            "p95": 0.0682507000019541
+          }
+        }
+      }
+    }
   },
-  "schema_version": 1
+  "methodology": {
+    "benchmark_type": "machine-pipeline microbenchmark",
+    "end_to_end_native_agent_parity": "not_measured",
+    "excluded": [
+      "agent exploration",
+      "agent drafting",
+      "tool-call accounting",
+      "token accounting"
+    ],
+    "parity_requires": [
+      "same model and effort",
+      "same repository and request",
+      "same environment",
+      "complete tool-call accounting",
+      "complete token accounting"
+    ],
+    "same_fixture_request_environment_and_timing_boundary": true
+  },
+  "schema_version": 2,
+  "v6_sealing_microbenchmark": {
+    "iterations": 30,
+    "label": "v6 sealing only; excludes repository exploration and agent work",
+    "operation_counts": {
+      "high-risk": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      },
+      "standard": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      },
+      "tiny": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      }
+    },
+    "timings_seconds": {
+      "high-risk": {
+        "median": 0.05215255000075558,
+        "p95": 0.0682647000066936
+      },
+      "standard": {
+        "median": 0.053683349997299956,
+        "p95": 0.07557619999715826
+      },
+      "tiny": {
+        "median": 0.049732249997759936,
+        "p95": 0.0682507000019541
+      }
+    }
+  }
 }

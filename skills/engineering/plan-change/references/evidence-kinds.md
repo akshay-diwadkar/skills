@@ -16,7 +16,9 @@ Every fact requires `kind`, repository-relative `path`, inclusive `lines`, exact
 - `generated-from`: `generator`, `output`.
 - `directory-ownership`: `directory`.
 
-Python structured facts use the standard AST. Supported installed Tree-sitter
-grammars validate non-Python structure; without a grammar the proof explicitly
-falls back to `verified_kind: source`. Use `source` directly when the structured
-fields would not improve the plan.
+Python structured facts use the standard AST. Non-Python structured facts
+require the matching optional Tree-sitter grammar. If it is unavailable, the
+sealer rejects the `F-n` with `fact.structured`; change the declaration to
+`kind: source` or install that grammar. Structured declarations never degrade
+silently to source proof. Standalone installations retain zero mandatory parser
+dependencies.

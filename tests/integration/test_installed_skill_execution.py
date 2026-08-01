@@ -19,6 +19,67 @@ def test_installed_plan_change_exposes_only_v6_sealer(tmp_path: Path) -> None:
     assert not {"prepare_plan.py", "check_plan.py", "finalize_plan.py", "hash_excerpt.py", "plan_inventory.py", "scaffold_plan.py"} & scripts
 
 
+def test_installed_plan_change_fails_closed_without_optional_tree_sitter(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "engineering" / "plan-change"
+    installed = tmp_path / "installed" / "plan-change"
+    shutil.copytree(source, installed)
+    assert not (installed / "requirements.txt").exists()
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "names.js").write_text(
+        "function caller() {\n  return callee();\n}\n\n", encoding="utf-8"
+    )
+    request = tmp_path / "request.md"
+    request.write_text("Preserve JavaScript delegation.\n", encoding="utf-8")
+    draft = tmp_path / "draft.md"
+    plan = """# Preserve JavaScript delegation
+
+<!-- plan-contract: 6 -->
+<!-- plan-metadata: {"intent":"refactor","tier":"tiny","risk_domains":[]} -->
+
+## Outcome
+SC-1: given: a JavaScript caller | when: delegation executes | then: the callee result is returned | unchanged: direct delegation remains stable
+
+## Evidence
+F-1: kind: call-edge | path: src/names.js | lines: 1-4 | anchor: caller | claim: caller delegates to callee | caller: caller | callee: callee
+
+## Implementation
+CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | change: preserve direct callee delegation while reorganizing the surrounding module implementation | locality: local | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: a JavaScript input | when: targeted tests execute | then: caller returns the callee result | command: npm test -- names
+"""
+    draft.write_text(plan, encoding="utf-8")
+    command = [
+        sys.executable,
+        "-S",
+        str(installed / "scripts" / "seal_plan.py"),
+        "--repo-root",
+        str(repo),
+        "--request-file",
+        str(request),
+        "--draft",
+        str(draft),
+    ]
+
+    structured = subprocess.run(command, capture_output=True, text=True, check=False)
+
+    assert structured.returncode == 1
+    diagnostic = json.loads(structured.stdout)["diagnostics"][0]
+    assert diagnostic["code"] == "fact.structured"
+    assert diagnostic["record"] == "F-1"
+    assert diagnostic["path"] == "src/names.js"
+    assert "tree_sitter_javascript" in diagnostic["required_action"]
+
+    draft.write_text(
+        plan.replace("kind: call-edge", "kind: source").replace(" | caller: caller | callee: callee", ""),
+        encoding="utf-8",
+    )
+    source_result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert source_result.returncode == 0, source_result.stdout + source_result.stderr
+    assert '"verified_kind":"source"' in source_result.stdout
+
+
 def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
     skill = ROOT / "skills" / "technical-communication" / "manualize"
     glossary = tmp_path / "glossary.json"
