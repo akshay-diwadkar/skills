@@ -75,7 +75,7 @@ T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted
 
 def _measure(iterations: int) -> dict[str, Any]:
     tiers = ("tiny", "standard", "high-risk")
-    samples = {tier: [] for tier in tiers}
+    samples: dict[str, list[float]] = {tier: [] for tier in tiers}
     operations: dict[str, Any] = {}
     with tempfile.TemporaryDirectory(prefix="plan-change-sealing-benchmark-") as temporary:
         root = Path(temporary)
