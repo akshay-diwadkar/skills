@@ -1,11 +1,11 @@
 {
   "aggregate_metrics": {
     "phase_references": 16606,
-    "pre_action": 8045,
+    "pre_action": 8044,
     "repair_diagnostic": 2485,
     "tool_output": 2043,
-    "top_level": 6002,
-    "worst_context": 45916,
+    "top_level": 6001,
+    "worst_context": 45915,
     "worst_references": 37429
   },
   "baseline": {
@@ -679,11 +679,11 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 722,
+        "pre_action": 721,
         "repair_diagnostic": 228,
         "tool_output": 165,
-        "top_level": 557,
-        "worst_context": 1877,
+        "top_level": 556,
+        "worst_context": 1876,
         "worst_references": 1092
       },
       "path": "skills/engineering/plan-change/SKILL.md",
@@ -691,7 +691,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "fe4323e890abd346b11bdc98407708dfffd8e86ef528c89034f9f877cf44cddd",
+      "source_hash": "b3ffafc96ba304f963bccfddc152e81e6a196bdd679923eeb6ff6613e0751abd",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",
