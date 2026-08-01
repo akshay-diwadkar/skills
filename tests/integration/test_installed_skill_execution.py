@@ -12,17 +12,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_installed_plan_change_scaffold_is_v5(tmp_path: Path) -> None:
+def test_installed_plan_change_exposes_only_v6_sealer(tmp_path: Path) -> None:
     skill = ROOT / "skills" / "engineering" / "plan-change"
-    result = subprocess.run(
-        [sys.executable, "scripts/scaffold_plan.py", "--tier", "standard", "--intent", "feature"],
-        cwd=skill,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0
-    assert "<!-- plan-contract: 5 -->" in result.stdout
-    assert "Execution Blueprint:" in result.stdout
+    scripts = {path.name for path in (skill / "scripts").glob("*.py")}
+    assert "seal_plan.py" in scripts
+    assert not {"prepare_plan.py", "check_plan.py", "finalize_plan.py", "hash_excerpt.py", "plan_inventory.py", "scaffold_plan.py"} & scripts
 
 
 def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
@@ -94,26 +88,22 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
     for name, inputs in (
         (
             "plan-change",
-            [
-                f"request_file={request}",
-                "tier=tiny",
-                "intent=bug-fix",
-            ],
+            [f"request_file={request}", f"draft_file={plan}"],
         ),
         ("implement-plan", [f"plan_file={plan}"]),
     ):
         source = ROOT / "skills" / "engineering" / name
         installed = tmp_path / "installed" / name
         shutil.copytree(source, installed)
-        run = tmp_path / f"{name}-run"
         argv = [
             sys.executable,
             str(installed / "scripts" / "cli.py"),
             "--repo-root",
             str(repo),
-            "--run-dir",
-            str(run),
         ]
+        if name != "plan-change":
+            run = tmp_path / f"{name}-run"
+            argv.extend(["--run-dir", str(run)])
         for value in inputs:
             argv.extend(["--input", value])
         argv.extend(["--format", "json", "doctor"])

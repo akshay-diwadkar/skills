@@ -545,9 +545,9 @@ def _handoff(
     intent = _metadata(handoff, "Intent")
     risk_domains = _values(_metadata(handoff, "Risk domains"))
     if tier not in contract["tiers"]:
-        diagnostics.append(Diagnostic("handoff.tier.invalid", "request.md Tier is not accepted by prepare_plan.py."))
+        diagnostics.append(Diagnostic("handoff.tier.invalid", "request.md Tier is not accepted by plan-contract v6."))
     if intent not in contract["intents"]:
-        diagnostics.append(Diagnostic("handoff.intent.invalid", "request.md Intent is not accepted by prepare_plan.py."))
+        diagnostics.append(Diagnostic("handoff.intent.invalid", "request.md Intent is not accepted by plan-contract v6."))
     if risk_domains == ["none"]:
         risk_domains = []
     if any(domain not in contract["risk_domains"] for domain in risk_domains):

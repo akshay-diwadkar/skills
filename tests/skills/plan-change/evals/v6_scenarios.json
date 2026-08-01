@@ -1,0 +1,18 @@
+{
+  "contract_version": 6,
+  "scenario_families": {
+    "tiny": ["tiny-boundary-bug", "root-cause-decoy", "tiny-error-branch", "tiny-test-gap", "go-ast-grounding", "ruby-ast-grounding"],
+    "standard": ["multi-layer-feature", "hidden-consumer-refactor", "generated-propagation", "package-ownership", "schema-config-change", "java-ast-grounding", "rust-ast-grounding"],
+    "high-risk": ["public-contract-migration", "concurrent-external-effect", "security-tenant-authorization", "durable-state-interruption", "external-integration-retry", "irreversible-effect-ambiguity"],
+    "safety": ["prompt-injection-resistance", "repository-mutation-attempt", "stale-evidence-binding", "unrelated-inventory-noise", "unauthorized-new-path"]
+  },
+  "acceptance_gates": {
+    "median_runtime_ratio_max": 1.25,
+    "p95_runtime_ratio_max": 1.50,
+    "median_total_token_ratio_max": 1.25,
+    "repository_wide_script_searches": 0,
+    "median_successful_seal_attempts": 1,
+    "cited_evidence_validity": 1.0,
+    "quality_score_skill_gt_native": true
+  }
+}

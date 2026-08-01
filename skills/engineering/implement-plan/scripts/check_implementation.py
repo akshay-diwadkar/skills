@@ -19,8 +19,11 @@ from implementation_contract import (
     plan_contract_version,
     repository_state,
     sha256_file,
+    validate_plan_text,
 )
-from plan_runtime import BINDING_CATEGORIES, binding_digest, plan_digest
+from plan_runtime import binding_digest, plan_digest
+
+BINDING_CATEGORIES = ("evidence", "targets", "generators", "config", "schemas")
 
 
 def _matches_type(value: object, expected: str) -> bool:
@@ -245,9 +248,28 @@ def _implementation_binding_diagnostics(plan: Any, bundle: dict[str, Any], repo_
         for row in bundle["changes"]
         for path in row["paths"]
     }
+    binding_groups: dict[str, list[dict[str, Any]]]
+    if isinstance(plan.binding.get("files"), list):
+        binding_groups = {category: [] for category in BINDING_CATEGORIES}
+        role_to_category = {
+            "evidence": "evidence",
+            "target": "targets",
+            "generator": "generators",
+            "config": "config",
+            "schema": "schemas",
+        }
+        for item in plan.binding["files"]:
+            if not isinstance(item, dict):
+                continue
+            for role in item.get("roles", []):
+                category = role_to_category.get(role)
+                if category:
+                    binding_groups[category].append(item)
+    else:
+        binding_groups = {category: plan.binding.get(category, []) for category in BINDING_CATEGORIES}
     for category in BINDING_CATEGORIES:
         diagnostic_category = category.rstrip("s")
-        for item in plan.binding.get(category, []):
+        for item in binding_groups[category]:
             path = item.get("path", "")
             expected_sha = item.get("sha256", "")
             if path in authorized_paths:
@@ -319,13 +341,16 @@ def validate_bundle(
             schema_name = "final_workspace"
         diagnostics.extend(_row_diagnostics(bundle.get(field), schema_name, field, contract))
 
-    plan, plan_diagnostics = parse_plan(plan_text)
+    if plan_version == 6:
+        plan, plan_diagnostics = validate_plan_text(plan_text, repo_root)
+    else:
+        plan, plan_diagnostics = parse_plan(plan_text)
     diagnostics.extend(plan_diagnostics)
     if plan is None:
         return diagnostics
     if not plan.receipt or not plan.binding:
-        diagnostics.append(Diagnostic("bundle.plan_receipt", "Implementation requires a finalized v5 plan."))
-    else:
+        diagnostics.append(Diagnostic("bundle.plan_receipt", "Implementation requires a finalized supported plan."))
+    elif plan_version == 5:
         if plan.receipt.get("body") != plan_digest(plan_text):
             diagnostics.append(Diagnostic("bundle.binding_plan_body_stale", "Finalized plan body receipt is stale."))
         if plan.receipt.get("binding") != binding_digest(plan.binding):
@@ -338,7 +363,7 @@ def validate_bundle(
     if plan_row["sha256"] != hashlib.sha256(plan_text.encode()).hexdigest():
         diagnostics.append(Diagnostic("bundle.plan_sha", "Bundle plan SHA does not match the exact plan text."))
     if plan_row["normalized"] != json.loads(json.dumps(plan.to_dict())):
-        diagnostics.append(Diagnostic("bundle.plan_preservation", "Bundle must preserve every normalized v5 plan record."))
+        diagnostics.append(Diagnostic("bundle.plan_preservation", "Bundle must preserve every normalized plan record."))
     if bundle["tier"] != plan.tier:
         diagnostics.append(Diagnostic("bundle.tier", "Bundle tier must match finalized plan metadata."))
     if plan.binding and bundle["workspace"]["repository_id"] != plan.binding.get("repository_id"):

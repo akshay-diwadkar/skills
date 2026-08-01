@@ -1675,6 +1675,30 @@ def _run_stateless(context: Context) -> tuple[int, dict[str, Any]]:
             check=False,
         )
         if result.returncode:
+            diagnostics = (
+                _child_diagnostics(
+                    result.stdout,
+                    context=context,
+                    command_name="run",
+                    argv=argv,
+                )
+                if step["diagnostics_json"]
+                else []
+            )
+            if diagnostics:
+                envelope = _empty_envelope(context.skill)
+                envelope.update(
+                    {
+                        "status": "blocked",
+                        "phase": None,
+                        "blocking_reasons": [item["code"] for item in diagnostics],
+                        "diagnostics": diagnostics,
+                    }
+                )
+                return (
+                    EXIT_BLOCKED if step["failure"] == "blocked" else EXIT_OPERATIONAL,
+                    envelope,
+                )
             message = result.stderr.strip() or result.stdout.strip() or f"child exited {result.returncode}"
             error = ProtocolError(
                 "adapter.run_failed",

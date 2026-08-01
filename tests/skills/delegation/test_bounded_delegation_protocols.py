@@ -6,15 +6,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).parent / "fixtures" / "reconciliation-cases.json"
 SKILLS = {
-    "plan-change": {
-        "phase": "drafting",
-        "roles": {
-            "caller-consumer-discovery": 2200,
-            "test-fixture-discovery": 1800,
-            "contract-migration-risk-review": 2200,
-            "contradiction-review": 1600,
-        },
-    },
     "audit-codebase": {"phase": "risk_surfaces", "roles": {"category-risk-scout": 2200}},
     "design-codebase": {
         "phase": "drafting",

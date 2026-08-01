@@ -12,14 +12,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_DIR = REPO_ROOT / "tests" / "skills" / "optimize-codebase"
 OPTIMIZE_SCRIPTS = REPO_ROOT / "skills" / "engineering" / "optimize-codebase" / "scripts"
-PLAN_SCRIPTS = REPO_ROOT / "skills" / "engineering" / "plan-change" / "scripts"
 CASES_DIR = DEV_DIR / "static-regression-cases"
-sys.path.insert(0, str(PLAN_SCRIPTS))
 sys.path.insert(0, str(OPTIMIZE_SCRIPTS))
 sys.path.insert(0, str(DEV_DIR))
 
 from check_optimization import validate  # noqa: E402
-from plan_inventory import build_inventory  # type: ignore[import-not-found]  # noqa: E402
 from report_factory import valid_handoff, valid_report  # noqa: E402
 
 
@@ -143,7 +140,7 @@ def test_static_regression_case_validates(case_id: str, tmp_path: Path) -> None:
         assert literal not in report, (case_id, literal)
 
 
-def test_generated_handoff_anchors_are_recovered_by_plan_change_inventory(tmp_path: Path) -> None:
+def test_generated_handoff_preserves_selected_candidate_anchors(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
     (repo / "src" / "system.py").write_text(
@@ -163,12 +160,14 @@ def test_generated_handoff_anchors_are_recovered_by_plan_change_inventory(tmp_pa
     winning_anchors = {value.strip().strip("`") for value in candidate.group("anchors").split(",")}
     request_anchors = re.findall(r"^- Anchor: `(?P<anchor>[^`]+)`$", request, re.MULTILINE)
 
-    inventory = build_inventory(repo, request, request_anchors)
+    assert winning_anchors <= set(request_anchors)
+    for raw in request_anchors:
+        path_text, _, symbol = raw.partition(":")
+        source = (repo / path_text).read_text(encoding="utf-8")
+        assert symbol in source
 
-    assert winning_anchors <= set(inventory["anchors"])
 
-
-def test_generated_handoff_stale_anchor_is_rejected_by_plan_change_inventory(tmp_path: Path) -> None:
+def test_generated_handoff_stale_anchor_is_detectable_without_inventory(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
     source = "def renamed():\n    return 'stable'\n"
@@ -179,5 +178,5 @@ def test_generated_handoff_stale_anchor_is_rejected_by_plan_change_inventory(tmp
 
     assert request_anchors == ["src/system.py:current"]
     assert "current" not in source
-    with pytest.raises(ValueError, match=r"anchor symbol is absent: src/system\.py:current"):
-        build_inventory(repo, request, request_anchors)
+    path_text, _, symbol = request_anchors[0].partition(":")
+    assert symbol not in (repo / path_text).read_text(encoding="utf-8")

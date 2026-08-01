@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[3]
 SKILL = ROOT / "skills" / "engineering" / "design-codebase"
 FINALIZER = SKILL / "scripts" / "finalize_assessment.py"
 CHECKER = SKILL / "scripts" / "check_assessment.py"
-PREPARE_PLAN = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "prepare_plan.py"
+SEAL_PLAN = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "seal_plan.py"
 
 
 def make_repo(root: Path) -> Path:
@@ -221,7 +221,7 @@ def test_checker_verify_evidence_requires_complete_hashes(tmp_path: Path) -> Non
     assert verified.stderr.count("evidence.sha256.missing") == 4
 
 
-def test_handoff_is_a_valid_plan_change_request_file(tmp_path: Path) -> None:
+def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     draft = tmp_path / "draft.md"
     draft.write_text(example(), encoding="utf-8")
@@ -242,35 +242,51 @@ def test_handoff_is_a_valid_plan_change_request_file(tmp_path: Path) -> None:
     )
 
     handoff = output / "handoff.md"
-    run_dir = tmp_path / "plan-run"
-    subprocess.run(
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        """# Introduce a payment gateway boundary
+
+<!-- plan-contract: 6 -->
+<!-- plan-metadata: {"intent":"refactor","tier":"standard","risk_domains":[]} -->
+
+## Outcome
+SC-1: given: checkout and renewal payment callers | when: charging moves behind a gateway | then: callers use the shared gateway contract | unchanged: provider decline behavior remains stable
+
+## Evidence
+F-1: kind: source | path: payments/service.py | lines: 1-7 | anchor: charge_payment | claim: charge_payment owns provider request construction and charging
+
+## Implementation
+CH-1: path: payments/service.py | anchor: charge_payment | status: existing | evidence: F-1 | change: introduce the selected PaymentGateway charge boundary while preserving provider error behavior | locality: shared | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: checkout and renewal payment scenarios | when: targeted payment tests execute | then: both callers use the gateway and preserve decline behavior | command: python -m pytest tests/test_checkout.py -q
+""",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
         [
             sys.executable,
-            str(PREPARE_PLAN),
+            str(SEAL_PLAN),
             "--repo-root",
             str(repo),
             "--request-file",
             str(handoff),
-            "--run-dir",
-            str(run_dir),
-            "--tier",
-            "standard",
-            "--intent",
-            "refactor",
-            "--anchor",
-            "payments/service.py:charge_payment",
+            "--draft",
+            str(plan),
         ],
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
     )
 
     handoff_text = handoff.read_text(encoding="utf-8")
-    inventory = json.loads((run_dir / "inventory.json").read_text(encoding="utf-8"))
-    assert inventory["request_sha256"] == hashlib.sha256(handoff_text.encode("utf-8")).hexdigest()
+    assert result.returncode == 0, result.stdout + result.stderr
+    proof = json.loads(re.search(r"<!-- plan-proof: (.+) -->", result.stdout).group(1))  # type: ignore[union-attr]
+    assert proof["binding"]["request_sha256"] == hashlib.sha256(handoff_text.encode("utf-8")).hexdigest()
     assert "PaymentGateway.charge" in handoff_text
     assert "Error surface direction: shrink" in handoff_text
-    assert {path.name for path in run_dir.iterdir()} == {"baseline.json", "inventory.json", "draft.md"}
+    assert not list(tmp_path.rglob("baseline.json"))
+    assert not list(tmp_path.rglob("inventory.json"))
 
 
 def test_verify_evidence_detects_source_mutation_before_handoff(tmp_path: Path) -> None:

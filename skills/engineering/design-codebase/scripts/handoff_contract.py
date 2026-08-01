@@ -126,7 +126,7 @@ def _fields(raw: str) -> dict[str, str]:
 
 
 def excerpt_sha256(lines: list[str], start: int, end: int) -> str:
-    """Hash an inclusive excerpt exactly as plan-change/hash_excerpt.py does."""
+    """Hash an inclusive excerpt using plan-contract v6 canonicalization."""
     excerpt = "\n".join(lines[start - 1 : end]) + "\n"
     return hashlib.sha256(excerpt.encode()).hexdigest()
 

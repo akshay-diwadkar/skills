@@ -98,8 +98,7 @@
       "diagnostic_input": "request_file",
       "representative_inputs": {
         "request_file": "{fixture_file}",
-        "tier": "tiny",
-        "intent": "feature"
+        "draft_file": "{fixture_file}"
       }
     },
     "route-engineering-work": {
@@ -197,37 +196,6 @@
       "rationale": "The complete implementation reference portfolio includes bounded fidelity, convention, and coverage reviews with sequential fallback.",
       "supporting_paths": ["references/delegation-protocol.md"],
       "protected_rule_ids": ["implement.delegation-authority"]
-    },
-    {
-      "id": "plan-change-drafting-contract-examples",
-      "skill": "plan-change",
-      "metric": "phase_references",
-      "phase": "drafting",
-      "direction": "increase",
-      "max_tokens": 13250,
-      "expires": "2027-07-31",
-      "rationale": "The drafting phase conditionally discloses the v5 plan contract, cognitive protocols, adversarial checks, task playbooks, glossary, and tiered worked examples needed to produce validator-compatible plans.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/delegation-protocol.md",
-        "references/worked-examples.md"
-      ],
-      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
-    },
-    {
-      "id": "plan-change-reference-portfolio",
-      "skill": "plan-change",
-      "metric": "worst_references",
-      "direction": "increase",
-      "max_tokens": 20000,
-      "expires": "2027-07-31",
-      "rationale": "The complete reference portfolio covers the v5 validation contract, evidence binding, safety protocols, tier playbooks, compatibility, and worked examples; individual runs load only the applicable phase branch.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/validation-evidence.md",
-        "references/worked-examples.md"
-      ],
-      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output"]
     }
   ]
 }

@@ -32,7 +32,7 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
-    assert "version: 1.5.0" in text
+    assert "version: 1.5.1" in text
     assert "--verify-evidence" in protocol
 
 
@@ -79,11 +79,10 @@ def test_pipeline_documentation_and_changelog_are_present() -> None:
     readme = (SKILL / "README.md").read_text(encoding="utf-8")
     assert "scope-issue" in readme
     assert "design-codebase" in readme
-    assert "prepare_plan.py" in readme
-    assert "--request-file" in readme
-    assert "request_sha256" in readme
-    for limitation in ("authenticate", "evidence freshness", "Git commit", "correct and complete"):
-        assert limitation in readme
+    assert "draft_file" in readme
+    assert "request_file" in readme
+    assert "plan-contract v6" in readme
+    assert "request digest" in readme
 
     for skill_name in ("plan-change", "scope-issue"):
         cross_link = ROOT / "skills" / "engineering" / skill_name / "README.md"

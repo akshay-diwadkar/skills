@@ -1,40 +1,21 @@
-# Plan Change
+# Plan Change v6
 
-`plan-change` produces a proof-carrying, repository-grounded implementation
-plan without editing the target checkout. It accepts direct requests, design
-handoffs, and validated artifacts from [`scope-issue`](../scope-issue/).
+`plan-change` adds narrow mechanical proof to native agent planning. The agent
+explores the repository, writes one v6 draft, and runs one stateless command:
 
-## Shared Runtime
+```bash
+python scripts/cli.py --repo-root /absolute/repo \
+  --input request_file=/absolute/request.md \
+  --input draft_file=/absolute/plan.md --format json run
+```
 
-`plan-change` and `scope-issue` carry byte-identical copies of
-`scripts/plan_runtime.py`. Every runtime change must update both copies, both
-skill versions, and both changelogs in the same change. CI compares the runtime
-files byte-for-byte.
+The result is the exact sealed Markdown. No run directory, classification,
+baseline, inventory, scaffold, or second validation pass is created. Runtime
+code opens only explicitly cited or targeted files and minimal Git identity
+metadata; it does not claim to prove repository-wide completeness.
 
-The runtime provides AST-grounded structured-fact verification for Python,
-JavaScript and TypeScript, Kotlin, Go, Java, Rust, and Ruby. Recognized
-tree-sitter languages fail with `fact.parser_dependency` when their pinned
-grammar cannot be loaded. Other file types retain SHA-256 grounding without
-invented AST verification.
+Plan-contract v5 generation and runtime entry points are not distributed in
+this skill. Downstream consumers may retain isolated deprecated v5 readers for
+old artifacts.
 
-## Scope-Issue Handoff
-
-The issue handoff consists of a validated issue artifact and the absolute local
-checkout path. Supply the artifact to `prepare_plan.py --request-file`; all
-claims are re-grounded against the checkout.
-
-The output is a finalized plan-contract v5 plan whose evidence records bind
-the cited excerpt and complete file with SHA-256. For an issue-derived plan,
-the final artifact also preserves:
-
-- `source-issue-plan-sha256`
-- `source-base-commit`
-- `source-issue-updated-at`
-
-Together these markers bind the final plan to the issue artifact, checkout
-commit, and issue revision. `scope-issue` itself supports GitHub.com through
-the `gh` CLI only.
-
-See the canonical [design-to-plan pipeline](../design-codebase/README.md),
-including the guarantees and limitations of `inventory.json`'s
-`request_sha256`.
+For the upstream architecture handoff, see [design-codebase](../design-codebase/README.md).

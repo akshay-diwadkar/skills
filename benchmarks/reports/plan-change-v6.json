@@ -1,0 +1,28 @@
+{
+  "after": {
+    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 30",
+    "iterations": 30,
+    "operation_counts": {
+      "high-risk": {"hash_count": 1, "opened_paths": ["src/names.py"], "python_parse_count": 0, "tree_parse_count": 0},
+      "standard": {"hash_count": 1, "opened_paths": ["src/__init__.py"], "python_parse_count": 0, "tree_parse_count": 0},
+      "tiny": {"hash_count": 1, "opened_paths": ["src/names.py"], "python_parse_count": 0, "tree_parse_count": 0}
+    },
+    "timings_seconds": {
+      "high-risk": {"median": 0.05615305000173976, "p95": 0.07113449999451404},
+      "standard": {"median": 0.05031944999791449, "p95": 0.06702740000037011},
+      "tiny": {"median": 0.04897690000507282, "p95": 0.058770899995579384}
+    }
+  },
+  "baseline": {
+    "command": "python -m pytest tests/skills/plan-change -q --durations=10",
+    "contract_version": 5,
+    "passed_tests": 102,
+    "wall_seconds": 69.77
+  },
+  "environment": {
+    "date": "2026-08-01",
+    "note": "Timing is informational in normal CI; the dedicated 50,003-file job enforces the three-second sealing gate.",
+    "platform": "Windows"
+  },
+  "schema_version": 1
+}

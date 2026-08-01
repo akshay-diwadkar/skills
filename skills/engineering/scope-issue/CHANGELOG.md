@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.0 - 2026-08-01
+
+- Route new senior handoffs through stateless plan-contract v6 sealing.
+- Accept finalized v5 handoffs through an isolated deprecated consumer for one
+  release.
+
 ## 1.0.0 - 2026-07-29
 
 - Establish skill versioning while retaining issue-plan contract v1 and the

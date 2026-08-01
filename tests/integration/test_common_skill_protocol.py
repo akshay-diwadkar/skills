@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -26,15 +24,29 @@ def snapshot() -> dict[str, str]:
     }
 
 
-def run(*args: str, repo: Path = TARGET) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+def draft(anchor: str = "normalize_name") -> str:
+    return f"""# Fix absent-name normalization
+
+<!-- plan-contract: 6 -->
+<!-- plan-metadata: {{"intent":"bug-fix","tier":"tiny","risk_domains":[]}} -->
+
+## Outcome
+SC-1: given: an absent input name | when: normalize_name handles the value | then: it returns an empty string | unchanged: present names remain normalized
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: {anchor} | claim: normalize_name owns normalization
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return an empty string before stripping and lowering present names | locality: local | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: absent and present names | when: targeted normalization tests execute | then: absent input is empty and present input stays normalized | command: python -m pytest tests/test_names.py -q
+"""
+
+
+def run(*args: str) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
     result = subprocess.run(
-        [
-            sys.executable,
-            str(CLI),
-            "--repo-root",
-            str(repo),
-            *args,
-        ],
+        [sys.executable, str(CLI), "--repo-root", str(TARGET), *args],
         capture_output=True,
         text=True,
         check=False,
@@ -45,142 +57,64 @@ def run(*args: str, repo: Path = TARGET) -> tuple[subprocess.CompletedProcess[st
     return result, payload
 
 
-def tiny_example() -> str:
-    text = (SKILL / "references" / "worked-examples.md").read_text(encoding="utf-8")
-    match = re.search(r"<!-- tiny-plan:start -->\n```markdown\n(.*?)\n```\n<!-- tiny-plan:end -->", text, re.DOTALL)
-    assert match is not None
-    return match.group(1) + "\n"
-
-
-def test_plan_change_common_protocol_lifecycle_preserves_installed_skill(tmp_path: Path) -> None:
+def test_plan_change_common_protocol_is_stateless_and_preserves_skill(tmp_path: Path) -> None:
     before = snapshot()
     request = tmp_path / "request.md"
-    request.write_text(
-        "Fix normalize_name so None returns an empty string while preserving non-null normalization.\n",
-        encoding="utf-8",
-    )
-    run_dir = tmp_path / "run"
-    common = ["--run-dir", str(run_dir), "--format", "json"]
+    plan = tmp_path / "plan.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    plan.write_text(draft(), encoding="utf-8")
+    inputs = ["--input", f"request_file={request}", "--input", f"draft_file={plan}", "--format", "json"]
 
-    doctor_result, doctor = run(
-        *common,
-        "--input",
-        f"request_file={request}",
-        "--input",
-        "tier=tiny",
-        "--input",
-        "intent=bug-fix",
-        "--input",
-        "anchor=src/names.py:normalize_name",
-        "doctor",
-    )
+    doctor_result, doctor = run(*inputs, "doctor")
     assert doctor_result.returncode == 0
     assert doctor["status"] == "ready"
-    assert doctor["next_command"]["argv"][1] == str(CLI)
+    assert doctor["next_command"]["argv"][-1] == "run"
 
-    start_result, started = run(
-        *common,
-        "--input",
-        f"request_file={request}",
-        "--input",
-        "tier=tiny",
-        "--input",
-        "intent=bug-fix",
-        "--input",
-        "anchor=src/names.py:normalize_name",
-        "start",
-    )
-    assert start_result.returncode == 0
-    assert started["phase"] == "classification_review"
-    assert started["result"]["recommendation"]["values"]["tier"] == "tiny"
-    assert started["next_command"]["argv"][1] == str(CLI)
-
-    status_result, status = run(*common, "status")
-    assert status_result.returncode == 0
-    assert status["phase"] == "classification_review"
-
-    apply_result, applied = run(*common, "next")
-    assert apply_result.returncode == 0
-    assert applied["phase"] == "drafting"
-
-    blocked_result, blocked = run(*common, "next")
-    assert blocked_result.returncode == 3
-    assert blocked["status"] == "blocked"
-    assert blocked["phase"] == "drafting"
-
-    premature_result, premature = run(*common, "finalize")
-    assert premature_result.returncode == 3
-    assert premature["blocking_reasons"] == ["phase.command_forbidden"]
-
-    (run_dir / "draft.md").write_text(tiny_example(), encoding="utf-8")
-    validate_result, validated = run(*common, "next")
-    assert validate_result.returncode == 0
-    assert validated["phase"] == "validated"
-
-    finalize_result, complete = run(*common, "next")
-    assert finalize_result.returncode == 0
-    assert complete["phase"] == "complete"
-    assert complete["status"] == "complete"
-    assert (run_dir / "final.md").is_file()
-
-    final_status_result, final_status = run(*common, "status")
-    assert final_status_result.returncode == 0
-    assert final_status["phase"] == "complete"
+    run_result, complete = run(*inputs, "run")
+    assert run_result.returncode == 0
+    assert complete["status"] == complete["phase"] == "complete"
+    assert complete["result"].startswith("# Fix absent-name normalization")
+    assert "<!-- plan-proof:" in complete["result"]
+    assert "<!-- plan-validation: 6;" in complete["result"]
+    assert not list(tmp_path.rglob(".skill-cli-state.json"))
     assert snapshot() == before
 
 
-def test_plan_change_common_protocol_blocks_stale_evidence(tmp_path: Path) -> None:
-    target = tmp_path / "target"
-    shutil.copytree(TARGET, target)
+def test_plan_change_common_protocol_returns_structured_repair(tmp_path: Path) -> None:
     request = tmp_path / "request.md"
-    request.write_text(
-        "Fix normalize_name so None returns an empty string while preserving non-null normalization.\n",
-        encoding="utf-8",
-    )
-    run_dir = tmp_path / "run"
-    common = ["--run-dir", str(run_dir), "--format", "json"]
-    started, _ = run(
-        *common,
-        "--input",
-        f"request_file={request}",
-        "--input",
-        "tier=tiny",
-        "--input",
-        "intent=bug-fix",
-        "--input",
-        "anchor=src/names.py:normalize_name",
-        "start",
-        repo=target,
-    )
-    assert started.returncode == 0
-    applied, response = run(*common, "next", repo=target)
-    assert applied.returncode == 0
-    assert response["phase"] == "drafting"
-    (run_dir / "draft.md").write_text(tiny_example(), encoding="utf-8")
-    source = target / "src" / "names.py"
-    source.write_text(source.read_text(encoding="utf-8") + "\n# concurrent change\n", encoding="utf-8")
-    result, response = run(*common, "next", repo=target)
-    assert result.returncode == 3
-    assert response["phase"] == "drafting"
-    assert {"fact.stale", "binding.baseline_stale"} & set(response["blocking_reasons"])
-
-
-def test_plan_change_common_protocol_rejects_run_state_inside_target(tmp_path: Path) -> None:
-    request = tmp_path / "request.md"
-    request.write_text("Plan a local fix.\n", encoding="utf-8")
+    plan = tmp_path / "plan.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    plan.write_text(draft("fabricated_anchor"), encoding="utf-8")
     result, response = run(
-        "--run-dir",
-        str(TARGET / ".unsafe-run"),
         "--input",
         f"request_file={request}",
         "--input",
-        "tier=tiny",
-        "--input",
-        "intent=bug-fix",
+        f"draft_file={plan}",
         "--format",
         "json",
-        "start",
+        "run",
+    )
+    assert result.returncode == 3
+    assert response["blocking_reasons"] == ["fact.anchor"]
+    assert response["diagnostics"][0]["record"] == "F-1"
+    assert response["diagnostics"][0]["required_action"] == "Correct F-1 lines or anchor."
+
+
+def test_plan_change_stateless_run_rejects_run_dir(tmp_path: Path) -> None:
+    request = tmp_path / "request.md"
+    plan = tmp_path / "plan.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    plan.write_text(draft(), encoding="utf-8")
+    result, response = run(
+        "--run-dir",
+        str(tmp_path / "run"),
+        "--input",
+        f"request_file={request}",
+        "--input",
+        f"draft_file={plan}",
+        "--format",
+        "json",
+        "run",
     )
     assert result.returncode == 2
-    assert response["blocking_reasons"] == ["path.run_dir_in_repo"]
-    assert not (TARGET / ".unsafe-run").exists()
+    assert response["blocking_reasons"] == ["path.run_dir_forbidden"]
