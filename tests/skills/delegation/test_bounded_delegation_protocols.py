@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).parent / "fixtures" / "reconciliation-cases.json"
 SKILLS = {
-    "audit-codebase": {"phase": "risk_surfaces", "roles": {"category-risk-scout": 2200}},
+    "audit-codebase": {"roles": {"category-risk-scout": 2200}},
     "design-codebase": {
-        "phase": "drafting",
         "roles": {
             "chosen-design-advocate": 1800,
             "distinct-alternative-advocate": 1800,
@@ -17,7 +15,6 @@ SKILLS = {
         },
     },
     "implement-plan": {
-        "phase": "implementing",
         "roles": {
             "specification-fidelity-review": 1600,
             "repository-convention-review": 1600,
@@ -120,10 +117,8 @@ def test_every_skill_declares_bounded_provider_neutral_delegation() -> None:
         skill = ROOT / "skills" / "engineering" / skill_name
         text = (skill / "references" / "delegation-protocol.md").read_text(encoding="utf-8")
         normalized_text = " ".join(text.split())
-        manifest = json.loads((skill / "skill-protocol.json").read_text(encoding="utf-8"))
-        required_reads = manifest["phases"][contract["phase"]]["required_reads"]
-
-        assert "{skill_dir}/references/delegation-protocol.md" in required_reads
+        skill_text = (skill / "SKILL.md").read_text(encoding="utf-8")
+        assert "references/delegation-protocol.md" in skill_text
         for field in ENVELOPE_FIELDS:
             assert field in text
         for role, budget in contract["roles"].items():
