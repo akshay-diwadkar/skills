@@ -193,14 +193,8 @@ def _baseline_diagnostics(records: dict[str, Record]) -> list[Diagnostic]:
 
 def _git_fast_state(repo_root: Path, relative: str) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
-    tracked = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", "--", relative],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if tracked.returncode != 0:
-        diagnostics.append(Diagnostic("fast.fact.untracked", "Fast-path fact must cite one tracked file."))
+    if not (repo_root / relative).is_file():
+        diagnostics.append(Diagnostic("fast.fact.missing", "Fast-path fact must cite an existing file."))
         return diagnostics
     dirty = subprocess.run(
         ["git", "-C", str(repo_root), "status", "--porcelain", "--", relative],

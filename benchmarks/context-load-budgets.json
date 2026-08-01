@@ -32,11 +32,9 @@
   "skills": {
     "audit-codebase": {
       "category": "user_orchestrator",
-      "diagnostic_input": "request_file",
+      "diagnostic_input": "bundle",
       "representative_inputs": {
-        "request_file": "{fixture_file}",
-        "bundle": "{fixture_file}",
-        "checkpoint": "{future_file}"
+        "bundle": "{fixture_file}"
       }
     },
     "design-codebase": {
@@ -49,9 +47,8 @@
     },
     "diagram-codebase": {
       "category": "user_orchestrator",
-      "diagnostic_input": "request_file",
+      "diagnostic_input": "data",
       "representative_inputs": {
-        "request_file": "{fixture_file}",
         "fidelity": "narrative-architecture",
         "data": "{fixture_file}",
         "output": "{future_file}",
@@ -62,7 +59,7 @@
     "implement-plan": {
       "category": "user_orchestrator",
       "diagnostic_input": "plan_file",
-      "representative_inputs": {"plan_file": "{fixture_file}"}
+      "representative_inputs": {"plan_file": "{fixture_file}", "bundle": "{fixture_file}"}
     },
     "map-codebase": {
       "category": "model_helper",
@@ -71,9 +68,8 @@
     },
     "manualize": {
       "category": "user_orchestrator",
-      "diagnostic_input": "request_file",
+      "diagnostic_input": "manual",
       "representative_inputs": {
-        "request_file": "{fixture_file}",
         "operation": "write",
         "profile": "strict",
         "manual": "{fixture_file}",
@@ -83,14 +79,12 @@
     },
     "optimize-codebase": {
       "category": "user_orchestrator",
-      "diagnostic_input": "request_file",
+      "diagnostic_input": "report",
       "representative_inputs": {
-        "request_file": "{fixture_file}",
         "path": "fast",
         "scope": "targeted",
         "stage": "plan",
-        "report": "{future_file}",
-        "implementation_authorized": "no"
+        "report": "{fixture_file}"
       }
     },
     "plan-change": {
@@ -108,8 +102,8 @@
     },
     "scope-issue": {
       "category": "user_orchestrator",
-      "diagnostic_input": "operation",
-      "representative_inputs": {"operation": "plan"}
+      "diagnostic_input": "issue_json",
+      "representative_inputs": {"issue_json": "{fixture_file}", "plan": "{fixture_file}"}
     }
   },
   "exceptions": [
@@ -229,6 +223,39 @@
       "rationale": "The complete implementation reference portfolio includes bounded fidelity, convention, and coverage reviews with sequential fallback.",
       "supporting_paths": ["references/delegation-protocol.md"],
       "protected_rule_ids": ["implement.delegation-authority"]
+    },
+    {
+      "id": "scope-issue-agent-first-reduction",
+      "skill": "scope-issue",
+      "metric": "pre_action",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "Selected-issue sealing replaces inventory, classification, and readiness checkpoints with one supplied issue artifact and one plan.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": []
+    },
+    {
+      "id": "scope-issue-compact-diagnostics",
+      "skill": "scope-issue",
+      "metric": "repair_diagnostic",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The one-pass sealing lifecycle returns record-specific diagnostics rather than repeated phase instructions.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": []
+    },
+    {
+      "id": "scope-issue-compact-output",
+      "skill": "scope-issue",
+      "metric": "tool_output",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "Issue planning returns a compact seal result instead of inventory and classifier payloads.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": []
     }
   ]
 }

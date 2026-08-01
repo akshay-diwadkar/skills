@@ -1,11 +1,6 @@
-# Agent-first plan-contract v6
+# Agent-first runtime migration
 
-This major release replaces plan-change's stateful v5 discovery pipeline with
-native agent exploration and one-pass sealing of an agent-authored v6 draft.
-The new runtime verifies only cited files, computes proof hashes automatically,
-binds targeted repository evidence, and remains insensitive to unrelated
-repository size and changes.
-
-Implement-plan and scope-issue accept v6 while retaining isolated deprecated v5
-readers for one release. Design and optimization handoffs no longer depend on
-the removed preparation, inventory, or excerpt-hashing commands.
+This breaking release makes `map-codebase` the sole scripted discovery skill.
+All other runtimes take agent-selected artifacts and cited paths, seal once,
+and never classify or inventory an unrelated repository. Deprecated v5 plan
+readers and multi-phase classifier lifecycles are removed.

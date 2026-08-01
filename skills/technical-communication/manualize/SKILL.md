@@ -1,7 +1,7 @@
 ---
 name: manualize
 description: Write or audit source-grounded technical manuals, procedures, runbooks, guides, notices, error messages, and reference documentation. Use when technical content must preserve supplied facts while following deterministic controlled-language and operational-completeness checks.
-version: 2.2.1
+version: 3.0.0
 metadata:
   invocation: both
 disable-model-invocation: false

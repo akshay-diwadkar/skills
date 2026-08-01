@@ -15,13 +15,11 @@ from implementation_contract import (
     Diagnostic,
     git_status,
     load_contract,
-    parse_plan,
     plan_contract_version,
     repository_state,
     sha256_file,
     validate_plan_text,
 )
-from plan_runtime import binding_digest, plan_digest
 
 BINDING_CATEGORIES = ("evidence", "targets", "generators", "config", "schemas")
 
@@ -341,20 +339,12 @@ def validate_bundle(
             schema_name = "final_workspace"
         diagnostics.extend(_row_diagnostics(bundle.get(field), schema_name, field, contract))
 
-    if plan_version == 6:
-        plan, plan_diagnostics = validate_plan_text(plan_text, repo_root)
-    else:
-        plan, plan_diagnostics = parse_plan(plan_text)
+    plan, plan_diagnostics = validate_plan_text(plan_text, repo_root)
     diagnostics.extend(plan_diagnostics)
     if plan is None:
         return diagnostics
     if not plan.receipt or not plan.binding:
         diagnostics.append(Diagnostic("bundle.plan_receipt", "Implementation requires a finalized supported plan."))
-    elif plan_version == 5:
-        if plan.receipt.get("body") != plan_digest(plan_text):
-            diagnostics.append(Diagnostic("bundle.binding_plan_body_stale", "Finalized plan body receipt is stale."))
-        if plan.receipt.get("binding") != binding_digest(plan.binding):
-            diagnostics.append(Diagnostic("bundle.binding_receipt_stale", "Finalized plan binding receipt is stale."))
 
     blocking = {"bundle.required", "bundle.type", "bundle.schema_version", "bundle.run_id", "bundle.status", "bundle.row_type", "bundle.row_required"}
     if any(item.code in blocking for item in diagnostics):
