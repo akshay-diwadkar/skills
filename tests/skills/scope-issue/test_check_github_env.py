@@ -126,8 +126,7 @@ class CheckGitHubEnvTests(unittest.TestCase):
 
     def test_skill_docs_mention_scripts(self):
         manifest = (SKILL_ROOT / "skill-protocol.json").read_text(encoding="utf-8")
-        self.assertIn("scripts/check_github_env.py", manifest)
-        self.assertIn("scripts/fetch_github_issues.py", manifest)
+        self.assertIn("scripts/seal_issue_plan.py", manifest)
 
     def test_skill_docs_preserve_opt_in_execution_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")

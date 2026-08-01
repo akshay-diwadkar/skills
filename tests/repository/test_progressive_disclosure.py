@@ -92,11 +92,11 @@ def test_inventory_rejects_duplicate_missing_and_undiscoverable_rules() -> None:
     broken = [dict(rule) for rule in payload]
     broken[0]["id"] = broken[1]["id"]
     broken[1]["text"] = "missing mandatory text"
-    next(rule for rule in broken if rule["id"] == "design.one-artifact")["surface"] = "validated"
+    next(rule for rule in broken if rule["id"] == "design.one-artifact")["surface"] = "unknown"
     errors = inventory_errors(broken)
     assert "rule IDs must be unique" in errors
     assert any("rule text is missing" in error for error in errors)
-    assert any("source is not discoverable" in error for error in errors)
+    assert any("invalid required-read surface" in error for error in errors)
 
 
 def test_markdown_reference_validation_rejects_missing_escape_and_orphan(

@@ -1,4 +1,4 @@
-"""Versioned plan intake and implementation-contract v3 scaffolding."""
+"""Versioned plan intake and implementation-contract v4 scaffolding."""
 
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ def load_contract() -> dict[str, Any]:
     contract = json.loads(path.read_text(encoding="utf-8"))
     supported = contract.get("supported_plan_contract_versions")
     deprecated = contract.get("deprecated_plan_contract_versions", [])
-    if contract.get("contract_version") != 3:
-        raise ValueError("implementation contract must be v3")
+    if contract.get("contract_version") != 4:
+        raise ValueError("implementation contract must be v4")
     if (
         not isinstance(supported, list)
         or not supported

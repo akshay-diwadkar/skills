@@ -13,30 +13,13 @@ BENCHMARK = ROOT / "tests" / "skills" / "plan-change" / "evals" / "tools" / "ben
 
 
 def _assert_contract(report: dict) -> None:
-    assert report["schema_version"] == 2
+    assert report["schema_version"] == 3
     methodology = report["methodology"]
-    assert methodology["benchmark_type"] == "machine-pipeline microbenchmark"
+    assert methodology["benchmark_type"] == "targeted sealing microbenchmark"
     assert methodology["end_to_end_native_agent_parity"] == "not_measured"
-    assert set(methodology["parity_requires"]) == {
-        "same model and effort",
-        "same repository and request",
-        "same environment",
-        "complete tool-call accounting",
-        "complete token accounting",
-    }
-    assert report["historical_v5_suite_baseline"]["comparable_to_machine_pipeline"] is False
-    machine_pipeline = report["machine_pipeline_comparison"]
-    assert "benchmark_sealing.py" in machine_pipeline["command"]
-    comparison = machine_pipeline["timings_seconds"]
-    assert set(comparison) == {"tiny", "standard", "high-risk"}
-    for tier in comparison.values():
-        assert set(tier["v5"]) == {
-            "prepare",
-            "validate",
-            "finalize",
-            "aggregate_machine_pipeline",
-        }
-        assert set(tier["v6"]) == {"seal"}
+    assert "benchmark_sealing.py" in report["v6_sealing_microbenchmark"]["command"]
+    timings = report["v6_sealing_microbenchmark"]["timings_seconds"]
+    assert set(timings) == {"tiny", "standard", "high-risk"}
     assert "sealing only" in report["v6_sealing_microbenchmark"]["label"]
 
 
