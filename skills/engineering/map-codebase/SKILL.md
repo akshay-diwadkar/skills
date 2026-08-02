@@ -1,7 +1,7 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 2.2.1
+version: 2.3.0
 metadata:
   invocation: model-invoked
 disable-model-invocation: false
@@ -45,9 +45,8 @@ Use [Knowledge Contract](references/knowledge-contract.md) for freshness,
 scope, write authority, agent-document, and workflow rules. Use
 [Resolver Design](references/resolver-design.md) only for ranking or phase
 diagnosis, [Worked Resolver Walkthrough](references/example-walkthrough.md) for
-partial-staleness recovery, [Extractor Coverage](references/extractor-coverage.md)
-for language support, and [Resolver Benchmark](references/benchmark.md) for
-measured limitations. Do not use `--phase all` except for explicit debugging or
+partial-staleness recovery, and [Extractor Coverage](references/extractor-coverage.md)
+for language support. Do not use `--phase all` except for explicit debugging or
 human inspection.
 
 ## Completion and recovery

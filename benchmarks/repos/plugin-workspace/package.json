@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "typescript": "5.7.2"
+  },
+  "name": "northstar-portal",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test workspace-tests/*.test.mjs"
+  },
+  "type": "module",
+  "workspaces": [
+    "plugins/*"
+  ]
+}

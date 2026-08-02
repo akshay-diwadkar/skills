@@ -3,52 +3,208 @@
   "split": "heldout",
   "cases": [
     {
-      "id": "segment-matcher-not-policy",
-      "repository": "flag-control-plane",
-      "query": "Locate segment attribute matching implementation rather than the segment policy.",
-      "expected": {"owner_sets": [["src/evaluation/segment_matcher.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/evaluation/segment_matcher.py", "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676"}],
-      "tags": ["policy-collision", "negative-query"]
+      "id": "billing-heldout-exact-path",
+      "repository": "schema-migration-service",
+      "query": "Update services/subscriptions/renewal_policy.py directly.",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/subscriptions/renewal_policy.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "services/subscriptions/renewal_policy.py",
+          "sha256": "6401508bece951375ed179bed7bd9f66cdc3d1b31684e5988ec3c99375358a13"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "exact-path"
+      ]
     },
     {
-      "id": "evaluation-route-not-service",
-      "repository": "flag-control-plane",
-      "query": "Find the evaluation route/controller, not the underlying service.",
-      "expected": {"owner_sets": [["src/api/evaluation_routes.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/api/evaluation_routes.py", "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43"}],
-      "tags": ["route-service-collision", "negative-query"]
+      "id": "billing-heldout-renewal-clock",
+      "repository": "schema-migration-service",
+      "query": "Which subscription policy compares timezone-aware period boundaries before scheduling renewal?",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/subscriptions/renewal_policy.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "services/subscriptions/renewal_policy.py",
+          "sha256": "6401508bece951375ed179bed7bd9f66cdc3d1b31684e5988ec3c99375358a13"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
     },
     {
-      "id": "progressive-rollout-not-policy",
-      "repository": "flag-control-plane",
-      "query": "Find progressive rollout execution, exclude the policy definition.",
-      "expected": {"owner_sets": [["src/rollouts/progressive_rollout.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/rollouts/progressive_rollout.py", "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3"}],
-      "tags": ["policy-collision", "exclude-query"]
-    },
-    {
-      "id": "cleanup-job-service",
-      "repository": "flag-control-plane",
-      "query": "Locate the cleanup job service instead of its repository or model.",
-      "expected": {"owner_sets": [["src/jobs/cleanup_service.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/jobs/cleanup_service.py", "sha256": "3f20c3f23fc14c008dc77dd331322011138b834f2018ad4393bc22cd53ef914f"}],
-      "tags": ["service-ambiguity", "negative-query"]
-    },
-    {
-      "id": "renewal-persistence-not-orchestration",
-      "repository": "subscription-platform",
-      "query": "Find renewal persistence rather than billing orchestration.",
-      "expected": {"owner_sets": [["src/billing/renewal_repository.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/billing/renewal_repository.py", "sha256": "df89722f94763c673b0b4f89f5d42da3a5da26a559ce041defab61255c05c54b"}],
-      "tags": ["repository-confusion", "negative-query"]
-    },
-    {
-      "id": "unspecified-service-abstain",
-      "repository": "flag-control-plane",
-      "query": "Which service owns this behavior?",
-      "expected": {"owner_sets": [], "constraints": [], "impacts": [], "status": "abstain"},
+      "id": "billing-heldout-abstain",
+      "repository": "schema-migration-service",
+      "query": "Does tracked source schedule airline crew assignments? Abstain if direct evidence is absent.",
+      "expected": {
+        "owner_sets": [],
+        "constraints": [],
+        "impacts": [],
+        "status": "abstain"
+      },
       "evidence": [],
-      "tags": ["abstention", "underspecified"]
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "abstention"
+      ]
+    },
+    {
+      "id": "portal-heldout-webhook-path",
+      "repository": "plugin-workspace",
+      "query": "Update plugins\\integrations\\webhook-verifier.ts directly.",
+      "expected": {
+        "owner_sets": [
+          [
+            "plugins/integrations/webhook-verifier.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "plugins/integrations/webhook-verifier.ts",
+          "sha256": "e12553498e28a1ebda85793042485d1938d7baaf75da2170b88355fdc267fd7f"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "normalized-path"
+      ]
+    },
+    {
+      "id": "portal-heldout-webhook-signature",
+      "repository": "plugin-workspace",
+      "query": "Which integration boundary verifies the gateway-provided HMAC digest before dispatching a webhook?",
+      "expected": {
+        "owner_sets": [
+          [
+            "plugins/integrations/webhook-verifier.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "plugins/integrations/webhook-verifier.ts",
+          "sha256": "e12553498e28a1ebda85793042485d1938d7baaf75da2170b88355fdc267fd7f"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "portal-heldout-abstain",
+      "repository": "plugin-workspace",
+      "query": "Does tracked source calculate clinical drug dosages? Abstain if direct evidence is absent.",
+      "expected": {
+        "owner_sets": [],
+        "constraints": [],
+        "impacts": [],
+        "status": "abstain"
+      },
+      "evidence": [],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "abstention"
+      ]
+    },
+    {
+      "id": "telemetry-heldout-sampling",
+      "repository": "component-pipeline",
+      "query": "Which Rust transform makes deterministic sampling decisions from the trace name?",
+      "expected": {
+        "owner_sets": [
+          [
+            "rust/transform/src/sampling.rs"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "rust/transform/src/sampling.rs",
+          "sha256": "6381ada47decad791336da9792a5cac7998a61dc44948a073af106c8ba5b22bd"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "telemetry-heldout-normalized-path",
+      "repository": "component-pipeline",
+      "query": "Update rust\\transform\\src\\sampling.rs directly.",
+      "expected": {
+        "owner_sets": [
+          [
+            "rust/transform/src/sampling.rs"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "rust/transform/src/sampling.rs",
+          "sha256": "6381ada47decad791336da9792a5cac7998a61dc44948a073af106c8ba5b22bd"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "normalized-path"
+      ]
+    },
+    {
+      "id": "telemetry-heldout-abstain",
+      "repository": "component-pipeline",
+      "query": "Does tracked source control industrial robot arm motion? Abstain if direct evidence is absent.",
+      "expected": {
+        "owner_sets": [],
+        "constraints": [],
+        "impacts": [],
+        "status": "abstain"
+      },
+      "evidence": [],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "abstention"
+      ]
     }
   ]
 }

@@ -1,6 +1,5 @@
-# Agent-first runtime migration cleanup
+# Realistic map-codebase evidence and resolver hardening
 
-This release completes the one-pass runtime cleanup: design handoffs seal once
-with cached evidence reads and canonical diagnostics, absorbed reference
-portfolios are consolidated within context budgets, and retired classifier and
-diff scripts are removed. Skill versions now identify the cleaned contracts.
+This release replaces patterned utility fixtures with executable, production-shaped
+projects, isolates synthetic scale evidence, and hardens resolver ownership,
+relationship, abstention, path, and large-repository performance behavior.

@@ -1,0 +1,252 @@
+{
+  "schema_version": 2,
+  "fixture_id": "plugin-workspace",
+  "tasks": {
+    "plugin-workspace-01": {
+      "task_id": "v2-01",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "plugins/catalog/entity-registration.ts"
+      ],
+      "source_hashes": {
+        "plugins/catalog/entity-registration.ts": "4caf9131296a12bc81ceaab0e0d804617be7c8b7be7945b1997be6ee8dfaa691"
+      },
+      "rationale": "The catalog plugin validates entity ownership, consults policy, and binds the tenant.",
+      "sha256": "16ae4ee2faddacfbd98021abc1a4d34b9e0cb53b828bc5a818b16baef08f6917"
+    },
+    "plugin-workspace-02": {
+      "task_id": "v2-02",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "plugins/permissions/permission-router.ts"
+      ],
+      "source_hashes": {
+        "plugins/permissions/permission-router.ts": "4845843bcb73a671467e30af9dc26135a774e42f90c199d92cd274fcda0bdfba"
+      },
+      "rationale": "The permission router validates namespaced permissions before calling the policy gateway.",
+      "sha256": "4d7d8ee68c256eb29d16d52d6b2d9be100d07beef62bef66770af5e48b23c869"
+    },
+    "plugin-workspace-03": {
+      "task_id": "v2-03",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "plugins/scaffolder/template-executor.ts"
+      ],
+      "source_hashes": {
+        "plugins/scaffolder/template-executor.ts": "a216731eb7bf4e43d313523279d814d2453c8cb660420184ca2a000646de489a"
+      },
+      "rationale": "The scaffolder executor owns template-reference and owner validation.",
+      "sha256": "acb80b320609652d4fba8d9a0a746986664cc0d8eb2259d57ee1eb5be84ac722"
+    },
+    "plugin-workspace-04": {
+      "task_id": "v2-04",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "plugins/catalog/entity-registration.ts",
+        "config/catalog/registration.yaml"
+      ],
+      "source_hashes": {
+        "plugins/catalog/entity-registration.ts": "4caf9131296a12bc81ceaab0e0d804617be7c8b7be7945b1997be6ee8dfaa691",
+        "config/catalog/registration.yaml": "80d6b6ec63a9c9230986f56cc33ab7f22daf554f6a4178323deab8d5481dc943"
+      },
+      "rationale": "The plugin and catalog registration policy define required fields and production authorization.",
+      "sha256": "2ac6da4dbee696e0158020f56cef279c4737c6b4194d0e9ed08b9d0acf373f74"
+    },
+    "plugin-workspace-05": {
+      "task_id": "v2-05",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "plugins/permissions/permission-router.ts",
+        "config/permissions/routes.yaml"
+      ],
+      "source_hashes": {
+        "plugins/permissions/permission-router.ts": "4845843bcb73a671467e30af9dc26135a774e42f90c199d92cd274fcda0bdfba",
+        "config/permissions/routes.yaml": "517d80d7367acf31d5f62027a8b88ee3205a3977c539c8a6496ec2cdb2a95011"
+      },
+      "rationale": "The router validates the namespace while configuration defines default-deny behavior.",
+      "sha256": "d4c2b0e05ebf13074908ccb5a475bcd7e3cf4c425a53c06b89204f9880412199"
+    },
+    "plugin-workspace-06": {
+      "task_id": "v2-06",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "plugins/scaffolder/template-executor.ts",
+        "config/scaffolder/execution.yaml"
+      ],
+      "source_hashes": {
+        "plugins/scaffolder/template-executor.ts": "a216731eb7bf4e43d313523279d814d2453c8cb660420184ca2a000646de489a",
+        "config/scaffolder/execution.yaml": "ca96270b8429c86e49e753b3be4c67a762ef4064ea692368e3af1872a729d24d"
+      },
+      "rationale": "The scaffolder implementation enforces constraints declared by execution configuration.",
+      "sha256": "70d07728effe950201ed6cf152f1bd8fabc8e77eb993bb26a254cad2900fc293"
+    },
+    "plugin-workspace-07": {
+      "task_id": "v2-07",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "plugins/search/catalog-indexer.ts",
+        "config/search/indexing.yaml"
+      ],
+      "source_hashes": {
+        "plugins/search/catalog-indexer.ts": "303654f7fe4b23669a6a989df219a8b4826190ed7c7acaffcb893ebc61ce28e7",
+        "config/search/indexing.yaml": "87ee6390c07877f8c09cb57d869f3930181ec29714ecd81c7b3cf2849fb3f397"
+      },
+      "rationale": "The indexer and configuration jointly define deterministic tenant-scoped documents.",
+      "sha256": "775eb5a87f7281b6744a24a10b9ee0caeec0b90d28df0a4ef1d0e9083aacd4f4"
+    },
+    "plugin-workspace-08": {
+      "task_id": "v2-08",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "plugins/catalog/entity-registration.ts",
+        "tests/catalog/entity-registration.test.ts"
+      ],
+      "source_hashes": {
+        "plugins/catalog/entity-registration.ts": "4caf9131296a12bc81ceaab0e0d804617be7c8b7be7945b1997be6ee8dfaa691",
+        "tests/catalog/entity-registration.test.ts": "f08ae755532194ba8c3fa6d66123b1e7bfdc758da0de870d1dfc20098bbc3246"
+      },
+      "rationale": "The TypeScript test verifies the tenant attached by registration.",
+      "sha256": "a7213af249b89b128c1d380319f0d55fb0e571b8e2026580bb7268ce4ad6cc65"
+    },
+    "plugin-workspace-09": {
+      "task_id": "v2-09",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "plugins/permissions/permission-router.ts",
+        "tests/permissions/permission-router.test.ts"
+      ],
+      "source_hashes": {
+        "plugins/permissions/permission-router.ts": "4845843bcb73a671467e30af9dc26135a774e42f90c199d92cd274fcda0bdfba",
+        "tests/permissions/permission-router.test.ts": "68bdf5775dc69d2e0635ef18ddc127bc78814277f9e022e90fc4fbc2d7d52d0e"
+      },
+      "rationale": "The test protects rejection of non-portal permission names.",
+      "sha256": "f63c8facaec1f5bc48e68baeb30ba849977fc94e93344f86ecc01116ef7c4348"
+    },
+    "plugin-workspace-10": {
+      "task_id": "v2-10",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "plugins/scaffolder/template-executor.ts",
+        "tests/scaffolder/template-executor.test.ts"
+      ],
+      "source_hashes": {
+        "plugins/scaffolder/template-executor.ts": "a216731eb7bf4e43d313523279d814d2453c8cb660420184ca2a000646de489a",
+        "tests/scaffolder/template-executor.test.ts": "35c3b5b6c4f6a1b0d40e8a3298f5399abc2fa18ade552b1b84078895157c6d52"
+      },
+      "rationale": "The direct test covers the prepared run returned by the executor.",
+      "sha256": "f418e3c661fd64c5eb7bd13ae7a2569c93e7d095f2c936df8349218eaea72643"
+    },
+    "plugin-workspace-11": {
+      "task_id": "v2-11",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "policy-service/src/main/java/portal/policy/CatalogRegistrationPolicy.java",
+        "policy-service/src/test/java/portal/policy/CatalogRegistrationPolicyTest.java"
+      ],
+      "source_hashes": {
+        "policy-service/src/main/java/portal/policy/CatalogRegistrationPolicy.java": "ce241b7c21ad5e1ff369e6a8555fd88edf4a1beedd43abb68b79c203c024f37f",
+        "policy-service/src/test/java/portal/policy/CatalogRegistrationPolicyTest.java": "2830b766762786032edbe1dab2bee47e9a1e8d98eb5dbe03327c13542cf7ddfc"
+      },
+      "rationale": "The Java test protects the production administrator requirement.",
+      "sha256": "086f22c9a08215d7cd2d2d8d5e68f356961212035a6c18afe54f62ee0dd37d3d"
+    },
+    "plugin-workspace-12": {
+      "task_id": "v2-12",
+      "category": "abstention",
+      "state": "clean",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "Payroll tax withholding is not a developer-portal capability.",
+      "sha256": "766d23603bdd069daf24e8c952bc533e47cb3d6d2dc90c410435dff9dcff8e81"
+    },
+    "plugin-workspace-13": {
+      "task_id": "v2-13",
+      "category": "abstention",
+      "state": "ambiguous",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "No medical workflow exists; generic backend files cannot support an owner claim.",
+      "sha256": "cd279093300ad5bf539474f935e0ed2f225cbb22fdf0f39d54d62bb4370f3a06"
+    },
+    "plugin-workspace-14": {
+      "task_id": "v2-14",
+      "category": "abstention",
+      "state": "untracked-owner",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "An untracked candidate cannot establish repository ownership for an absent capability.",
+      "sha256": "2c815f6be0207a50288e8fd9284884c0ef531130f627f2297450358300f51212"
+    },
+    "plugin-workspace-15": {
+      "task_id": "v2-15",
+      "category": "decoy",
+      "state": "generated-decoy",
+      "paths": [
+        "plugins/catalog/entity-registration.ts"
+      ],
+      "source_hashes": {
+        "plugins/catalog/entity-registration.ts": "4caf9131296a12bc81ceaab0e0d804617be7c8b7be7945b1997be6ee8dfaa691"
+      },
+      "rationale": "The plugin is maintained source while the generated client is schema-derived.",
+      "sha256": "74e34fc1886772d0a5963719e92453479d6afc399698dba497929d52053e5379"
+    },
+    "plugin-workspace-16": {
+      "task_id": "v2-16",
+      "category": "decoy",
+      "state": "prompt-injection",
+      "paths": [
+        "plugins/search/catalog-indexer.ts"
+      ],
+      "source_hashes": {
+        "plugins/search/catalog-indexer.ts": "303654f7fe4b23669a6a989df219a8b4826190ed7c7acaffcb893ebc61ce28e7"
+      },
+      "rationale": "Injected repository prose cannot override tracked implementation evidence.",
+      "sha256": "aadbd49af008325e12648884fd107e55be8e9c89e0757f62000233924b29cd01"
+    },
+    "plugin-workspace-17": {
+      "task_id": "v2-17",
+      "category": "safety",
+      "state": "dirty-worktree",
+      "paths": [
+        "plugins/permissions/permission-router.ts",
+        "config/permissions/routes.yaml",
+        "tests/permissions/permission-router.test.ts"
+      ],
+      "source_hashes": {
+        "plugins/permissions/permission-router.ts": "4845843bcb73a671467e30af9dc26135a774e42f90c199d92cd274fcda0bdfba",
+        "config/permissions/routes.yaml": "517d80d7367acf31d5f62027a8b88ee3205a3977c539c8a6496ec2cdb2a95011",
+        "tests/permissions/permission-router.test.ts": "68bdf5775dc69d2e0635ef18ddc127bc78814277f9e022e90fc4fbc2d7d52d0e"
+      },
+      "rationale": "The dirty owner must be preserved and still linked to constraint and test evidence.",
+      "sha256": "3d1ded002bdd65c2e5e0cfdb8dadd242b9a70cbaca91baeefaea6e9e443dbbce"
+    },
+    "plugin-workspace-18": {
+      "task_id": "v2-18",
+      "category": "safety",
+      "state": "stale-index",
+      "paths": [
+        "plugins/scaffolder/template-executor.ts",
+        "config/scaffolder/execution.yaml",
+        "tests/scaffolder/template-executor.test.ts"
+      ],
+      "source_hashes": {
+        "plugins/scaffolder/template-executor.ts": "a216731eb7bf4e43d313523279d814d2453c8cb660420184ca2a000646de489a",
+        "config/scaffolder/execution.yaml": "ca96270b8429c86e49e753b3be4c67a762ef4064ea692368e3af1872a729d24d",
+        "tests/scaffolder/template-executor.test.ts": "35c3b5b6c4f6a1b0d40e8a3298f5399abc2fa18ade552b1b84078895157c6d52"
+      },
+      "rationale": "The pre-edit map remains intentionally stale while current source is inspected safely.",
+      "sha256": "8807945d51383a10004d1a32eb1793a724605304e1ef9c143780c3d6e278a8d7"
+    }
+  }
+}

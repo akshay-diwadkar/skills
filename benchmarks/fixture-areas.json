@@ -26,6 +26,32 @@
     "limitation": "synthetic; slow profile"
   },
   {
+    "path": "benchmarks/repos",
+    "fixtures": ["schema-migration-service", "plugin-workspace", "component-pipeline"],
+    "skill": "map-codebase",
+    "tier": "C",
+    "classification": "executable utility",
+    "domain": "billing, developer portal, and telemetry applications",
+    "languages": "Python, TypeScript, Go, Rust, Java, C#, JSON, YAML, SQL",
+    "task_oracle": "phase-aware ownership, constraints, impacts, and abstention",
+    "baseline": "v3 resolver, ripgrep, inventory",
+    "ci_command": "python tests/skills/map-codebase/run_benchmark.py --profile full --check",
+    "limitation": "original executable reference projects; no live-model or production-repository claim"
+  },
+  {
+    "path": "benchmarks/repos",
+    "fixtures": ["resolver-scale-stress"],
+    "skill": "map-codebase",
+    "tier": "D",
+    "classification": "scale-only",
+    "domain": "synthetic telemetry components",
+    "languages": "Go, Rust, C#, TypeScript, YAML",
+    "task_oracle": "phase-one latency probes only",
+    "baseline": "v3 resolver workload timing",
+    "ci_command": "python tests/skills/map-codebase/run_benchmark.py --profile full --check",
+    "limitation": "patterned 3k-file corpus; excluded from utility, safety, patch, and held-out metrics"
+  },
+  {
     "path": "tests/skills/map-codebase/eval/repos",
     "fixtures": ["python-small", "javascript-small", "mixed-config"],
     "skill": "map-codebase",

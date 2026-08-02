@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 7529,
+    "pre_action": 7514,
     "repair_diagnostic": 2288,
     "tool_output": 1720,
-    "top_level": 5809,
-    "worst_context": 26673,
-    "worst_references": 18576
+    "top_level": 5794,
+    "worst_context": 26077,
+    "worst_references": 17995
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "be7dea0a87f5a7b6f8dd345b1bb600d8bb7914725401f7dda5af49e9650dbcce",
+  "config_sha256": "3f69ccf0f7f2703c3e7d431aef9bac00b94a5ca49928f17137f93be89c5667c6",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -165,12 +165,12 @@
       "category": "model_helper",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 721,
+        "pre_action": 706,
         "repair_diagnostic": 224,
         "tool_output": 162,
-        "top_level": 559,
-        "worst_context": 3812,
-        "worst_references": 3029
+        "top_level": 544,
+        "worst_context": 3216,
+        "worst_references": 2448
       },
       "path": "skills/engineering/map-codebase/SKILL.md",
       "phases": {
@@ -211,9 +211,8 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "29f8b11f495941dd92a709210bb1f48626f127aa22b40469933267d543169bb3",
+      "source_hash": "f7159b76b28abab56097c50b38fba8f8b016a957e03a07f6c5d513438d5bbee5",
       "worst_reference_paths": [
-        "references/benchmark.md",
         "references/example-walkthrough.md",
         "references/extractor-coverage.md",
         "references/knowledge-contract.md",

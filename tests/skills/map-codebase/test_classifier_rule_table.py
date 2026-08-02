@@ -20,6 +20,9 @@ CASES = [
     ("a52b8ffce95c845dd6667cf955ff0fb8dc492763", "Strengthen cited Python fact verification", "source"),
     ("0a8d30967aa87f7461e7c8605e82e3ce31872656", "ci: add GitHub Release workflow with automated tagging and release assets", "configuration"),
     ("b8da01a03390979dcf39548fabd8be173ff6b6df", "fix(ci): update stale test paths in quality workflow and documentation", "configuration"),
+    ("fixture-composition", "Find the collector composition root and OTLP configuration", "source"),
+    ("fixture-impact", "If collector orchestration changes, identify the pipeline and its behavior test", "source"),
+    ("fixture-registry", "If component registration changes, locate the registry and direct test", "source"),
 ]
 
 
@@ -29,3 +32,14 @@ def test_real_commit_title_conventions_use_scored_rules(
 ) -> None:
     intent = classify_task_intent(title, _signals(title), [])
     assert intent.primary_role == expected_role
+
+
+def test_strong_symbol_keeps_requested_configuration_and_test_roles() -> None:
+    files = [{"path": "go/pipeline/pipeline.go", "role": "source", "symbols": ["CollectOTLP"]}]
+    intent = classify_task_intent(
+        "Find CollectOTLP and its receiver configuration and behavior test.",
+        _signals("Find CollectOTLP and its receiver configuration and behavior test."),
+        files,
+    )
+    assert intent.primary_role == "source"
+    assert intent.secondary_roles == ("configuration", "test")

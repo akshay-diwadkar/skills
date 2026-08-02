@@ -3,11 +3,16 @@
 This directory is the durable home for benchmark data because the repository
 contract does not permit a top-level `docs/` directory. Fixture repositories,
 answers, generators, schemas, baselines, and results are deliberately separate.
+Generated fixture repositories are committed under `benchmarks/repos`; the
+generators provide reproducible updates and `regenerate --check` rejects drift.
 
-The reviewable version-1 slice covers shared fixture lifecycle rules and a
-complete deterministic `map-codebase` comparison. Existing portfolios for the
-other skills remain regression evidence; they are not presented as comparative
-utility benchmarks.
+The active version-3 evidence uses only the executable Atlas billing,
+Northstar developer-portal, and SignalForge telemetry projects at fixture
+version 5. `resolver-scale-stress` preserves the patterned 3k-file workload for
+latency probes only. Earlier corpus metrics are not active evidence and are not
+used as release comparisons because the executable v3 corpus measures different
+capabilities. Resolver, ripgrep, and inventory controls still run together on
+the same current repository bytes.
 
 Commands:
 
@@ -20,8 +25,26 @@ python tests/skills/map-codebase/run_benchmark.py --profile full --check
 python tools/validation/measure_context_load.py --check
 ```
 
+For repeatable local benchmark and repository checks, create the ignored
+CPython 3.11.11 environment once and invoke its interpreter explicitly:
+
+```text
+uv venv --python 3.11.11 .scratch/benchmarks/venv-map-codebase-v2
+uv pip install --python .scratch/benchmarks/venv-map-codebase-v2/Scripts/python.exe -r tools/validation/release-requirements.txt
+uv pip install --python .scratch/benchmarks/venv-map-codebase-v2/Scripts/python.exe pytest pytest-subtests pyyaml ruff mypy
+.scratch/benchmarks/venv-map-codebase-v2/Scripts/python.exe -m pytest tests/skills/map-codebase -q
+```
+
+Delete and recreate this ignored environment whenever its requirements change.
+Fixture-native restores remain separate and must use their committed lockfiles.
+
 Changing a fixture repository, prompt, or answer requires a fixture-version
-bump. Resolver tuning must not change frozen version-1 answers. Repository
+bump. Resolver tuning must preserve the frozen v3 utility, safety,
+fixture-identity, and workload evidence. Observed wall time is checked against
+the calibrated 2x/fixed-floor ceiling instead of exact equality.
+Phase-aware oracle rationale lives outside materialized repositories under
+`benchmarks/oracles/map-codebase-v3`. Benchmark answers never leak into a
+fixture checkout. Repository
 identity is the manifest-bound canonical path-and-content tree, not arbitrary
 checkout contents; exact byte drift fails validation.
 

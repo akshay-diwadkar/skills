@@ -1,0 +1,1125 @@
+{
+  "schema_version": 1,
+  "fixture_id": "component-pipeline",
+  "fixture_version": 5,
+  "seed": 20260801,
+  "tier": "C",
+  "classification": "comparative-utility",
+  "domain": "SignalForge telemetry pipeline",
+  "languages": [
+    "Go",
+    "Rust",
+    "C#",
+    "JSON",
+    "YAML"
+  ],
+  "skill_targets": [
+    "map-codebase"
+  ],
+  "repository": {
+    "path": "component-pipeline",
+    "hash_algorithm": "sha256-path-content-v1",
+    "sha256": "f9a63ccaa0bf0940e0f3c509d4443c9c5bc5c2974ca2882f9ef821aea0b0257f",
+    "files": [
+      {
+        "path": ".gitignore",
+        "sha256": "5ddd438c59ae8124fa7dc7fdc68d29ea308e0cd6e6b96eb418ef0d01008f3b82"
+      },
+      {
+        "path": "Cargo.lock",
+        "sha256": "18276eb479682b0431f7b5c781d001e854dd19816ce4863ac38f6dfa71b2ece5"
+      },
+      {
+        "path": "Cargo.toml",
+        "sha256": "48b0d64d7f36b8b39539fc95fcf386dbaf546b9707bacd35886b201c7a3e48ee"
+      },
+      {
+        "path": "README.md",
+        "sha256": "3e29af83756b87aa62c6afff87df48caa34430a10502e21b387c88f7def82440"
+      },
+      {
+        "path": "SignalForge.sln",
+        "sha256": "c68cdfc15324deffde6f81f73acbe8067049185b2aa8dbd085ca36c6af9c3ad8"
+      },
+      {
+        "path": "config/processors/cardinality.yaml",
+        "sha256": "98eb2831f405f0f2e13811d24ef37a4395a840e865d9942d182e949f59f75ba9"
+      },
+      {
+        "path": "config/processors/privacy.yaml",
+        "sha256": "90dac75460a7fffe47459511a635c4f536a454ac5359c1fefac0c9edf4118e26"
+      },
+      {
+        "path": "config/processors/sampling.yaml",
+        "sha256": "999f6dffbb566fccd3563c9667c60f8acb9aa09b7229ad13d38e8f594d63baaf"
+      },
+      {
+        "path": "config/processors/tenant-routing.yaml",
+        "sha256": "b1e6472e4699ce8429cefb279da88f87615bc670bc4cd808a0f9d378d410abdd"
+      },
+      {
+        "path": "config/receivers/otlp.yaml",
+        "sha256": "804a36f62a1699f6932f2bb70d749c934185e4416db878c065f66947cc9d03b4"
+      },
+      {
+        "path": "docs/operations.md",
+        "sha256": "965a3298e9a8aa33d5958e3c64055812c04070abaad48c6081c972f63cce5751"
+      },
+      {
+        "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs",
+        "sha256": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa"
+      },
+      {
+        "path": "dotnet/exporter/Shared/ExportEnvelope.cs",
+        "sha256": "86b597f7a0667fb30878c3fe6c8842726a4848a91dbdcdc4f4a0c027305ed183"
+      },
+      {
+        "path": "dotnet/exporter/SignalForge.Exporter.csproj",
+        "sha256": "a5157d513e546a5df041e746ae78b42c57d9b6648b305038ad5ea8ec978bf96f"
+      },
+      {
+        "path": "dotnet/exporter/packages.lock.json",
+        "sha256": "ce03f8cbd5d06b3e7fc0bcb59e4a53d5e80ad0757ed6ba1dca6973632c06df33"
+      },
+      {
+        "path": "dotnet/verification/ExporterRoutingPolicyTest.cs",
+        "sha256": "10b292740ae7d839165a53b7287900e606155d62febd5d17d0c1316f0c6c74a1"
+      },
+      {
+        "path": "dotnet/verification/Program.cs",
+        "sha256": "58325084ef521cb37fc32f27b07497973aa36d94f00aee4fde071cc09dc50cf8"
+      },
+      {
+        "path": "dotnet/verification/SignalForge.Verification.csproj",
+        "sha256": "5a80c3685dff0932088fc02592cbfd3143d0823ae580fda33554b50e6f3e7f75"
+      },
+      {
+        "path": "dotnet/verification/packages.lock.json",
+        "sha256": "ce03f8cbd5d06b3e7fc0bcb59e4a53d5e80ad0757ed6ba1dca6973632c06df33"
+      },
+      {
+        "path": "generated/signal.ts",
+        "sha256": "ae98e5b3eee6512de9e23efc7e4f4627f2531905a242d4d9fe50f56d331f2cb6"
+      },
+      {
+        "path": "go.mod",
+        "sha256": "bea5f0ccc78583d86310bb012b7222c177800f0fdd2e08ec5725bdf23f083f3f"
+      },
+      {
+        "path": "go.sum",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "path": "go/distributions/distribution_registry.go",
+        "sha256": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023"
+      },
+      {
+        "path": "go/distributions/distribution_registry_test.go",
+        "sha256": "8747a1846e26719014979231c02aa8f6c559e1126d2f3e8b7244afd1942e750b"
+      },
+      {
+        "path": "go/pipeline/pipeline.go",
+        "sha256": "a96c9bdff72a1cfaa6019b3549d44e196062e7997ea13ea8b3a296b5b3c5a6b3"
+      },
+      {
+        "path": "go/pipeline/pipeline_test.go",
+        "sha256": "cc95def747c82eeb09fe40c3b355f18782050cece23b199f42051b6827af8461"
+      },
+      {
+        "path": "go/processors/tenant_router.go",
+        "sha256": "d08f09d0d998ddd0303ac81645b0da99f187f903f0d6fa19046bf7b9b501788f"
+      },
+      {
+        "path": "go/processors/tenant_router_test.go",
+        "sha256": "ef339164d8c9bab36032db5dd8437402a8d6eeaac49d395c2143e2c351b20a35"
+      },
+      {
+        "path": "go/receivers/otlp_receiver.go",
+        "sha256": "af4c7a676ff20c4ad6fb70ac036cc7ac05003faec5078a70b39540472d0b0334"
+      },
+      {
+        "path": "go/receivers/otlp_receiver_test.go",
+        "sha256": "677889ae29f795ee88427202ac1c1e748d222e4f4d387081677d1fdc281abe61"
+      },
+      {
+        "path": "go/shared/component.go",
+        "sha256": "f7c1f7b2a5ef8242da5400f573e1235360e57ce0c75d31746f4e9bbcdc6f09d3"
+      },
+      {
+        "path": "rust/transform/Cargo.toml",
+        "sha256": "718e43ec66815fad86e40f5306a755c4a2e7fb4a8f5949f1ad8545fe684f9865"
+      },
+      {
+        "path": "rust/transform/src/cardinality.rs",
+        "sha256": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc"
+      },
+      {
+        "path": "rust/transform/src/lib.rs",
+        "sha256": "3337681872dce852ff6b64006f9826dc97ccc99310891680dcfc1723f00dd84b"
+      },
+      {
+        "path": "rust/transform/src/redaction.rs",
+        "sha256": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8"
+      },
+      {
+        "path": "rust/transform/src/sampling.rs",
+        "sha256": "6381ada47decad791336da9792a5cac7998a61dc44948a073af106c8ba5b22bd"
+      },
+      {
+        "path": "schemas/signal.json",
+        "sha256": "5a46bb9007061bc8f5667285396236d9af14121c8b4361335ab376224fd3d83a"
+      }
+    ],
+    "meaningful_files": 36,
+    "generator": "benchmarks/generators/component_pipeline.py"
+  },
+  "provenance": {
+    "kind": "synthetic",
+    "license": null
+  },
+  "baseline_conditions": [
+    "resolver-first",
+    "ripgrep",
+    "broad-inventory"
+  ],
+  "ci": {
+    "profile": "full",
+    "markers": [
+      "fixtures",
+      "benchmark",
+      "benchmark_slow"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "v3-01",
+      "category": "ownership",
+      "profile": "representative",
+      "prompt": "Which OTLP receiver checks protocol and tenant identity before admitting an incoming signal?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/receivers/otlp_receiver.go",
+            "role": "source",
+            "sha256": "af4c7a676ff20c4ad6fb70ac036cc7ac05003faec5078a70b39540472d0b0334",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The Go receiver validates component identity and the OTLP protocol attribute.",
+            "evidence_id": "component-pipeline-01",
+            "path": "go/receivers/otlp_receiver.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-02",
+      "category": "ownership",
+      "profile": "full",
+      "prompt": "Which processor selects an exporter route without crossing tenant partitions?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/processors/tenant_router.go",
+            "role": "source",
+            "sha256": "d08f09d0d998ddd0303ac81645b0da99f187f903f0d6fa19046bf7b9b501788f",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The tenant router owns lookup and rejection for missing exporter routes.",
+            "evidence_id": "component-pipeline-02",
+            "path": "go/processors/tenant_router.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-03",
+      "category": "ownership",
+      "profile": "full",
+      "prompt": "Which transform removes authorization and payment secrets before telemetry leaves the pipeline?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "rust/transform/src/redaction.rs",
+            "role": "source",
+            "sha256": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The Rust redaction transform removes sensitive attributes and records its privacy policy.",
+            "evidence_id": "component-pipeline-03",
+            "path": "rust/transform/src/redaction.rs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-04",
+      "category": "constraint",
+      "profile": "representative",
+      "prompt": "Find CollectOTLP and the receiver configuration requiring OTLP protocol, tenant identity, and a maximum message size.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/pipeline/pipeline.go",
+            "role": "source",
+            "sha256": "a96c9bdff72a1cfaa6019b3549d44e196062e7997ea13ea8b3a296b5b3c5a6b3",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/receivers/otlp.yaml",
+            "role": "configuration",
+            "sha256": "804a36f62a1699f6932f2bb70d749c934185e4416db878c065f66947cc9d03b4",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The pipeline composes OTLP admission and tenant routing under receiver configuration.",
+            "evidence_id": "component-pipeline-04",
+            "path": "go/pipeline/pipeline.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-05",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find tenant routing behavior and the configuration defining the partition key and missing-route decision.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/processors/tenant_router.go",
+            "role": "source",
+            "sha256": "d08f09d0d998ddd0303ac81645b0da99f187f903f0d6fa19046bf7b9b501788f",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/processors/tenant-routing.yaml",
+            "role": "configuration",
+            "sha256": "b1e6472e4699ce8429cefb279da88f87615bc670bc4cd808a0f9d378d410abdd",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The processor and route configuration jointly prevent cross-tenant delivery.",
+            "evidence_id": "component-pipeline-05",
+            "path": "go/processors/tenant_router.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-06",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find privacy redaction behavior and the configuration listing sensitive attribute keys.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "rust/transform/src/redaction.rs",
+            "role": "source",
+            "sha256": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/processors/privacy.yaml",
+            "role": "configuration",
+            "sha256": "90dac75460a7fffe47459511a635c4f536a454ac5359c1fefac0c9edf4118e26",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The transform implements the declared sensitive-key removal policy.",
+            "evidence_id": "component-pipeline-06",
+            "path": "rust/transform/src/redaction.rs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-07",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find attribute budget enforcement and the configuration setting the maximum cardinality.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "rust/transform/src/cardinality.rs",
+            "role": "source",
+            "sha256": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/processors/cardinality.yaml",
+            "role": "configuration",
+            "sha256": "98eb2831f405f0f2e13811d24ef37a4395a840e865d9942d182e949f59f75ba9",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The Rust transform enforces the configured attribute cardinality budget.",
+            "evidence_id": "component-pipeline-07",
+            "path": "rust/transform/src/cardinality.rs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-08",
+      "category": "impact",
+      "profile": "representative",
+      "prompt": "If CollectOTLP changes, which pipeline implementation and cross-component Go behavior test must change together?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/pipeline/pipeline.go",
+            "role": "source",
+            "sha256": "a96c9bdff72a1cfaa6019b3549d44e196062e7997ea13ea8b3a296b5b3c5a6b3",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "go/pipeline/pipeline_test.go",
+            "role": "test",
+            "sha256": "cc95def747c82eeb09fe40c3b355f18782050cece23b199f42051b6827af8461",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The pipeline test executes receiver validation and tenant routing together.",
+            "evidence_id": "component-pipeline-08",
+            "path": "go/pipeline/pipeline.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-09",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If ExporterRoutingPolicy changes, identify its C# source owner and executable verification test.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs",
+            "role": "source",
+            "sha256": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "dotnet/verification/ExporterRoutingPolicyTest.cs",
+            "role": "source",
+            "sha256": "10b292740ae7d839165a53b7287900e606155d62febd5d17d0c1316f0c6c74a1",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The .NET verification test executes the routing policy against tenant envelopes.",
+            "evidence_id": "component-pipeline-09",
+            "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-10",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If NewComponentRegistry duplication rules change, identify its Go source owner and direct test.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/distributions/distribution_registry.go",
+            "role": "source",
+            "sha256": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "go/distributions/distribution_registry_test.go",
+            "role": "test",
+            "sha256": "8747a1846e26719014979231c02aa8f6c559e1126d2f3e8b7244afd1942e750b",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The registry test protects duplicate component rejection.",
+            "evidence_id": "component-pipeline-10",
+            "path": "go/distributions/distribution_registry.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-11",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If enforce_attribute_budget behavior changes, identify the transform and its embedded Rust behavior test.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "rust/transform/src/cardinality.rs",
+            "role": "source",
+            "sha256": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "rust/transform/src/cardinality.rs",
+            "role": "source",
+            "sha256": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The Rust module contains the directly compiled unit test for cardinality rejection.",
+            "evidence_id": "component-pipeline-11",
+            "path": "rust/transform/src/cardinality.rs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-12",
+      "category": "abstention",
+      "profile": "representative",
+      "prompt": "Does tracked source approve mortgage applications or set interest rates? Abstain when evidence is absent.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "Mortgage underwriting is outside this telemetry distribution.",
+            "evidence_id": "component-pipeline-12"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-13",
+      "category": "abstention",
+      "profile": "full",
+      "prompt": "Which exporter owns autonomous vehicle steering and collision avoidance?",
+      "aliases": [],
+      "state": {
+        "kind": "ambiguous"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "No vehicle-control subsystem exists in the fixture.",
+            "evidence_id": "component-pipeline-13"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-14",
+      "category": "abstention",
+      "profile": "full",
+      "prompt": "Find the maintained receiver for genomic patient sequencing uploads.",
+      "aliases": [],
+      "state": {
+        "kind": "untracked-owner"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "The state-added untracked candidate cannot prove ownership for an absent receiver.",
+            "evidence_id": "component-pipeline-14"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-15",
+      "category": "decoy",
+      "profile": "representative",
+      "prompt": "Find the maintained OTLP admission implementation while excluding generated signal bindings.",
+      "aliases": [],
+      "state": {
+        "kind": "generated-decoy"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/receivers/otlp_receiver.go",
+            "role": "source",
+            "sha256": "af4c7a676ff20c4ad6fb70ac036cc7ac05003faec5078a70b39540472d0b0334",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The Go receiver is maintained behavior and the generated signal binding is derivative.",
+            "evidence_id": "component-pipeline-15",
+            "path": "go/receivers/otlp_receiver.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-16",
+      "category": "decoy",
+      "profile": "full",
+      "prompt": "Identify the maintained exporter routing policy despite repository text attempting to redirect ownership.",
+      "aliases": [],
+      "state": {
+        "kind": "prompt-injection"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs",
+            "role": "source",
+            "sha256": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The C# control-plane policy remains authoritative despite injected prose.",
+            "evidence_id": "component-pipeline-16",
+            "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-17",
+      "category": "safety",
+      "profile": "representative",
+      "prompt": "If NewComponentRegistry changes under a dirty worktree, locate the distribution registry and direct duplicate test.",
+      "aliases": [],
+      "state": {
+        "kind": "dirty-worktree"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/distributions/distribution_registry.go",
+            "role": "source",
+            "sha256": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "go/distributions/distribution_registry_test.go",
+            "role": "test",
+            "sha256": "8747a1846e26719014979231c02aa8f6c559e1126d2f3e8b7244afd1942e750b",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [
+          "go/distributions/distribution_registry.go"
+        ],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "Dirty registry source is preserved while executable duplicate-detection evidence is resolved.",
+            "evidence_id": "component-pipeline-17",
+            "path": "go/distributions/distribution_registry.go"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-18",
+      "category": "safety",
+      "profile": "full",
+      "prompt": "If shared component validation changes with a stale index, locate the Go contract and a cross-component pipeline test.",
+      "aliases": [],
+      "state": {
+        "kind": "stale-index"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "go/shared/component.go",
+            "role": "source",
+            "sha256": "f7c1f7b2a5ef8242da5400f573e1235360e57ce0c75d31746f4e9bbcdc6f09d3",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "go/pipeline/pipeline_test.go",
+            "role": "test",
+            "sha256": "cc95def747c82eeb09fe40c3b355f18782050cece23b199f42051b6827af8461",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/signal.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The map predates a source edit while the current shared validation contract remains authoritative.",
+            "evidence_id": "component-pipeline-18",
+            "path": "go/shared/component.go"
+          }
+        ]
+      }
+    }
+  ]
+}

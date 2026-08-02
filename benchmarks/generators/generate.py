@@ -5,17 +5,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import tempfile
+import time
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from tools.benchmarks.fixtures import FixtureTree, inspect_fixture_tree  # noqa: E402
+from benchmarks.generators.realistic_portfolio import generate as generate_realistic_fixture  # noqa: E402
 
 REPOS = ROOT / "benchmarks" / "repos"
+SCRATCH_ROOT = ROOT / ".scratch" / "benchmarks"
 
 FEATURE_MODEL = {
     "evaluation": ["segment", "constraint", "context", "prerequisite", "variant"],
@@ -350,6 +355,8 @@ def _generate_repository(
 
 
 def generate_all(destination: Path) -> None:
+    print("[fixtures] generating flag-control-plane", flush=True)
+    print("[fixtures] generating subscription-platform", flush=True)
     _generate_repository(
         destination / "flag-control-plane",
         title="Flag Control Plane",
@@ -364,10 +371,162 @@ def generate_all(destination: Path) -> None:
         roles=SUBSCRIPTION_ROLES,
         core=SUBSCRIPTION_CORE,
     )
+    for fixture_id in ("schema-migration-service", "plugin-workspace", "component-pipeline", "resolver-scale-stress"):
+        print(f"[fixtures] generating {fixture_id}", flush=True)
+        generate_realistic_fixture(fixture_id, destination / fixture_id)
+
+
+def generate_fixture(fixture_id: str, destination: Path) -> None:
+    """Generate one deterministic comparative fixture into an empty directory."""
+    if destination.exists() and any(destination.iterdir()):
+        raise ValueError(f"fixture output must be empty: {destination}")
+    destination.mkdir(parents=True, exist_ok=True)
+    if fixture_id in {"schema-migration-service", "plugin-workspace", "component-pipeline", "resolver-scale-stress"}:
+        # The archetype emitter performs the same empty-root safety check.
+        destination.rmdir()
+        generate_realistic_fixture(fixture_id, destination)
+        return
+    if fixture_id == "flag-control-plane":
+        _generate_repository(
+            destination,
+            title="Flag Control Plane",
+            model=FEATURE_MODEL,
+            roles=FEATURE_ROLES,
+            core=FEATURE_CORE,
+        )
+        return
+    if fixture_id == "subscription-platform":
+        _generate_repository(
+            destination,
+            title="Subscription Platform",
+            model=SUBSCRIPTION_MODEL,
+            roles=SUBSCRIPTION_ROLES,
+            core=SUBSCRIPTION_CORE,
+        )
+        return
+    raise ValueError(f"unknown generated fixture: {fixture_id}")
 
 
 def _tree(root: Path) -> FixtureTree:
     return inspect_fixture_tree(root)
+
+
+def _remove_tree(root: Path, *, attempts: int = 12) -> None:
+    """Remove a generated tree despite short-lived Windows sync/indexer races."""
+    for attempt in range(attempts):
+        if not root.exists():
+            return
+        try:
+            shutil.rmtree(root)
+        except OSError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.25 * (attempt + 1))
+    if root.exists():
+        raise OSError(f"generated tree still exists after removal: {root}")
+
+
+def _progress(session: Path, event: str, **details: object) -> None:
+    """Append bounded, machine-readable regeneration progress outside Git."""
+    payload = {"event": event, "at": round(time.time(), 3), **details}
+    with (session / "progress.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True) + "\n")
+    print(f"[fixtures] {event}" + (f" {details}" if details else ""), flush=True)
+
+
+def _retry_file(action: str, operation: object, session: Path, relative: str) -> None:
+    """Run one locked-file operation with deterministic bounded retries."""
+    for attempt in range(12):
+        try:
+            operation()  # type: ignore[operator]
+            return
+        except OSError as exc:
+            if attempt == 11:
+                raise
+            _progress(session, "retry", action=action, path=relative, attempt=attempt + 1, error=str(exc))
+            time.sleep(0.25 * (attempt + 1))
+
+
+def _write_changed_file(source: Path, target: Path, session: Path, relative: str) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.map-codebase-{uuid.uuid4().hex}.tmp")
+    shutil.copyfile(source, temporary)
+    _retry_file("replace", lambda: os.replace(temporary, target), session, relative)
+
+
+def _sync_fixture(generated: Path, canonical: Path, journal: Path, session: Path) -> None:
+    """Synchronize one verified fixture without replacing or deleting its root.
+
+    Every overwritten or removed file is copied into the scratch journal first.
+    A later verification failure can therefore restore the exact prior tree.
+    """
+    expected = {
+        path.relative_to(generated).as_posix(): path
+        for path in generated.rglob("*") if path.is_file()
+    }
+    existing = {
+        path.relative_to(canonical).as_posix(): path
+        for path in canonical.rglob("*") if path.is_file()
+    } if canonical.exists() else {}
+    backup = journal / canonical.name / "backup"
+    changed = sorted(relative for relative, source in expected.items() if relative in existing and source.read_bytes() != existing[relative].read_bytes())
+    created = sorted(set(expected) - set(existing))
+    removed = sorted(set(existing) - set(expected))
+    operations = journal / canonical.name / "operations.json"
+    operations.parent.mkdir(parents=True, exist_ok=True)
+    operations.write_text(json.dumps({"changed": changed, "created": created, "removed": removed}, sort_keys=True), encoding="utf-8")
+    try:
+        for relative in changed + created:
+            source = expected[relative]
+            target = canonical / relative
+            if relative in changed:
+                backup_path = backup / relative
+                backup_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(target, backup_path)
+            _write_changed_file(source, target, session, relative)
+        for relative in removed:
+            target = existing[relative]
+            backup_path = backup / relative
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(target, backup_path)
+            _retry_file("remove", target.unlink, session, relative)
+    except Exception:
+        _rollback_fixture(canonical, journal, session)
+        raise
+    _progress(session, "synchronized", fixture=canonical.name, changed=len(changed), created=len(created), removed=len(removed))
+
+
+def _rollback_fixture(canonical: Path, journal: Path, session: Path) -> None:
+    operations = journal / canonical.name / "operations.json"
+    if not operations.is_file():
+        return
+    data = json.loads(operations.read_text(encoding="utf-8"))
+    backup = journal / canonical.name / "backup"
+    for relative in sorted([*data.get("changed", []), *data.get("removed", [])]):
+        _write_changed_file(backup / relative, canonical / relative, session, relative)
+    for relative in sorted(data.get("created", [])):
+        target = canonical / relative
+        if target.exists():
+            _retry_file("rollback-remove", target.unlink, session, relative)
+    _progress(session, "rolled-back", fixture=canonical.name)
+
+
+def _sync_generated_repositories(generated: Path, session: Path) -> None:
+    journal = session / "journal"
+    completed: list[Path] = []
+    try:
+        for fixture in sorted(path for path in generated.iterdir() if path.is_dir()):
+            canonical = REPOS / fixture.name
+            _progress(session, "synchronizing", fixture=fixture.name)
+            _sync_fixture(fixture, canonical, journal, session)
+            if _tree(fixture) != _tree(canonical):
+                raise RuntimeError(f"post-sync digest mismatch for {fixture.name}")
+            completed.append(canonical)
+        _progress(session, "verified-sync", fixtures=len(completed))
+    except Exception:
+        for canonical in reversed(completed):
+            _rollback_fixture(canonical, journal, session)
+        raise
 
 
 def main() -> int:
@@ -375,9 +534,48 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--write", action="store_true")
+    parser.add_argument("--keep-on-failure", action="store_true", help="retain the scratch session for local diagnosis")
+    parser.add_argument("--fixture", choices=("flag-control-plane", "subscription-platform", "schema-migration-service", "plugin-workspace", "component-pipeline", "resolver-scale-stress"))
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    with tempfile.TemporaryDirectory(prefix="benchmark-generate-") as temporary:
-        generated = Path(temporary) / "repos"
+    if args.output:
+        if not args.fixture:
+            parser.error("--output requires --fixture")
+        if not args.write:
+            parser.error("--output requires --write")
+        generate_fixture(args.fixture, args.output)
+        print(args.output)
+        return 0
+    if args.fixture:
+        canonical = REPOS / args.fixture
+        SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
+        session = Path(tempfile.mkdtemp(prefix=f"fixture-{args.fixture}-", dir=SCRATCH_ROOT))
+        failed = True
+        try:
+            generated = session / "generated" / args.fixture
+            _progress(session, "generating", fixture=args.fixture)
+            generate_fixture(args.fixture, generated)
+            if args.check:
+                if not canonical.is_dir() or _tree(generated) != _tree(canonical):
+                    print(f"Generated fixture {args.fixture} differs from committed output.")
+                    return 1
+                print(f"Generated fixture {args.fixture} is byte-identical.")
+                return 0
+            _sync_generated_repositories(generated.parent, session)
+            failed = False
+            print(f"Generated benchmark fixture {args.fixture}.")
+            return 0
+        finally:
+            if not failed or not args.keep_on_failure:
+                _remove_tree(session)
+            else:
+                print(f"Fixture generation failed; scratch evidence retained at {session}.", file=sys.stderr)
+    SCRATCH_ROOT.mkdir(parents=True, exist_ok=True)
+    session = Path(tempfile.mkdtemp(prefix="fixture-all-", dir=SCRATCH_ROOT))
+    failed = True
+    try:
+        generated = session / "generated" / "repos"
+        _progress(session, "generating-all")
         generate_all(generated)
         if args.check:
             if not REPOS.is_dir() or _tree(generated) != _tree(REPOS):
@@ -388,11 +586,16 @@ def main() -> int:
         resolved = REPOS.resolve()
         if resolved != (ROOT / "benchmarks" / "repos").resolve():
             raise RuntimeError(f"refusing unexpected output root: {resolved}")
-        if REPOS.exists():
-            shutil.rmtree(REPOS)
-        shutil.copytree(generated, REPOS)
-    print("Generated benchmark fixture repositories.")
-    return 0
+        REPOS.mkdir(parents=True, exist_ok=True)
+        _sync_generated_repositories(generated, session)
+        failed = False
+        print("Generated benchmark fixture repositories.")
+        return 0
+    finally:
+        if not failed or not args.keep_on_failure:
+            _remove_tree(session)
+        else:
+            print(f"Fixture generation failed; scratch evidence retained at {session}.", file=sys.stderr)
 
 
 if __name__ == "__main__":

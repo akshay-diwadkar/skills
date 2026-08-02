@@ -1,0 +1,2 @@
+required_invoice_state: paid
+revoke_on_refund: true

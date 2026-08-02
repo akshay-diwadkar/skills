@@ -1,0 +1,2 @@
+rootProject.name = 'northstar-policy'
+include 'policy-service'

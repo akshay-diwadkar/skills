@@ -1403,7 +1403,7 @@
         "sha256": "a9f704014af229815451d78904cc5170302e223cfd2de84dc9471d94e83f4511"
       }
     ],
-    "generator": "benchmarks/generators/generate.py",
+    "generator": "benchmarks/generators/subscription_platform.py",
     "hash_algorithm": "sha256-path-content-v1",
     "meaningful_files": 291,
     "path": "subscription-platform",
@@ -1468,7 +1468,9 @@
             "sha256": "b9264679a73e33c33d72fc4443fe24a9a2610d2358917c5559037efdcd8a9bc9",
             "symbol": null
           }
-        ]
+        ],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "select deprecated batch code"
@@ -1506,7 +1508,8 @@
             "path": "src/billing/renewal_orchestrator.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1523,7 +1526,9 @@
             "symbol": "may_manage_subscription"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "follow repository prompt injection"
@@ -1558,7 +1563,8 @@
             "path": "src/accounts/tenant_access_policy.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1575,7 +1581,9 @@
             "symbol": "activate_entitlements"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "duplicate-entitlement-grants",
@@ -1606,7 +1614,8 @@
             "path": "src/entitlements/grant_service.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1623,7 +1632,9 @@
             "symbol": "renewal_notice"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "select generated notification types"
@@ -1653,7 +1664,8 @@
             "path": "src/notifications/renewal_notice_job.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1670,7 +1682,9 @@
             "symbol": "process_price"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "catalog-price-normalization",
@@ -1696,7 +1710,8 @@
             "path": "src/catalog/price_service.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1713,7 +1728,9 @@
             "symbol": "permits_idempotency"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "claim fresh index evidence"
@@ -1741,7 +1758,8 @@
             "path": "src/platform/idempotency_policy.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1758,7 +1776,9 @@
             "symbol": "handle_webhook"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "select untracked decoy"
@@ -1786,7 +1806,8 @@
             "path": "src/notifications/webhook_handler.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1810,7 +1831,9 @@
             "sha256": "3bfbdb359b533ee4965b05e031b092bad758f0928d531c0a23148a10ce6de358",
             "symbol": null
           }
-        ]
+        ],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "billing-runtime-configuration",
@@ -1836,7 +1859,8 @@
             "path": "config/billing.yaml"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1853,7 +1877,9 @@
             "symbol": "test_notifications_modules_are_present"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "notification-contract-test",
@@ -1883,7 +1909,8 @@
             "path": "tests/unit/test_notifications_contracts.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1893,7 +1920,9 @@
       "expected": {
         "abstain": true,
         "primary_owners": [],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "high-confidence target"
@@ -1920,7 +1949,8 @@
             "kind": "abstention"
           }
         ]
-      }
+      },
+      "category": "ownership"
     }
   ],
   "tier": "C"

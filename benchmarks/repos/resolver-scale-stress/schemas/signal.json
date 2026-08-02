@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "signal": {
+      "type": "string"
+    },
+    "tenant": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenant",
+    "signal"
+  ],
+  "type": "object"
+}

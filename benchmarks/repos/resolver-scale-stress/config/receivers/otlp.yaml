@@ -1,0 +1,3 @@
+protocol: otlp
+require_tenant: true
+max_message_bytes: 4194304

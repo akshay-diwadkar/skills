@@ -1,0 +1,2 @@
+partition_key: tenant
+missing_route: reject

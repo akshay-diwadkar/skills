@@ -33,7 +33,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "**/.pytest_cache/**",
         "**/.ruff_cache/**",
     ],
-    "generated": ["**/generated/**", "**/*.gen.*", "**/adapters/**"],
+        "generated": ["**/generated/**", "**/*.gen.*"],
     "weights": {
         "exact_symbol": 10.0,
         "exact_path": 10.0,

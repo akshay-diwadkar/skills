@@ -17,7 +17,10 @@ BENCHMARK_ROOT = ROOT / "benchmarks"
 SCHEMA_PATH = BENCHMARK_ROOT / "schema" / "fixture-manifest.schema.json"
 MANIFEST_ROOT = BENCHMARK_ROOT / "manifests"
 REPOSITORY_ROOT = BENCHMARK_ROOT / "repos"
-KNOWN_ORACLES = {"python-test", "path-set", "ownership", "abstention"}
+ORACLE_ROOT = BENCHMARK_ROOT / "oracles" / "map-codebase-v2"
+V3_ORACLE_ROOT = BENCHMARK_ROOT / "oracles" / "map-codebase-v3"
+KNOWN_ORACLES = {"python-test", "path-set", "ownership", "abstention", "scale"}
+REQUIRED_REALISTIC_CATEGORIES = frozenset({"ownership", "constraint", "impact", "abstention", "decoy", "safety"})
 TREE_HASH_ALGORITHM = "sha256-path-content-v1"
 RUNTIME_ARTIFACT_DIRECTORIES = frozenset(
     {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", "__pycache__"}
@@ -239,6 +242,8 @@ def validate_manifest(data: dict[str, Any], *, source: Path | None = None) -> No
         owners = [
             *expected["primary_owners"],
             *expected["secondary_surfaces"],
+            *expected["constraints"],
+            *expected["impacts"],
             *(
                 owner
                 for alternative in task["allowed_alternatives"]
@@ -304,6 +309,41 @@ def validate_manifest(data: dict[str, Any], *, source: Path | None = None) -> No
                         f"{source or 'manifest'}: missing oracle evidence path "
                         f"{task_id}:{relative}"
                     )
+            evidence_id = str(oracle.get("evidence_id") or "")
+            if evidence_id:
+                oracle_root = V3_ORACLE_ROOT if int(data.get("fixture_version", 0)) >= 5 else ORACLE_ROOT
+                oracle_file = oracle_root / f"{data['fixture_id']}.json"
+                if not oracle_file.is_file():
+                    raise BenchmarkError(f"{source or 'manifest'}: missing external oracle bundle {oracle_file}")
+                bundle = json.loads(oracle_file.read_text(encoding="utf-8"))
+                records = bundle.get("tasks", {}) if isinstance(bundle, dict) else {}
+                if evidence_id not in records:
+                    raise BenchmarkError(f"{source or 'manifest'}: missing external oracle evidence {evidence_id}")
+                record = records[evidence_id]
+                if not isinstance(record, Mapping):
+                    raise BenchmarkError(f"{source or 'manifest'}: malformed external oracle evidence {evidence_id}")
+                declared_hash = str(record.get("sha256", ""))
+                canonical = {key: value for key, value in record.items() if key != "sha256"}
+                actual_hash = hashlib.sha256(
+                    json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                if declared_hash != actual_hash:
+                    raise BenchmarkError(f"{source or 'manifest'}: stale external oracle evidence {evidence_id}")
+                if record.get("task_id") != task_id or record.get("category") != task["category"]:
+                    raise BenchmarkError(f"{source or 'manifest'}: external oracle task identity drift for {evidence_id}")
+                if record.get("state") != task["state"]["kind"]:
+                    raise BenchmarkError(f"{source or 'manifest'}: external oracle state drift for {evidence_id}")
+                if not str(record.get("rationale", "")).strip():
+                    raise BenchmarkError(f"{source or 'manifest'}: external oracle rationale is empty for {evidence_id}")
+                oracle_paths = set(record.get("paths", []))
+                expected_paths = {str(owner["path"]) for owner in owners}
+                if not expected_paths.issubset(oracle_paths):
+                    raise BenchmarkError(f"{source or 'manifest'}: external oracle paths drift for {evidence_id}")
+                source_hashes = record.get("source_hashes")
+                if not isinstance(source_hashes, Mapping) or source_hashes != {
+                    path: expected_hashes[path] for path in sorted(expected_paths)
+                }:
+                    raise BenchmarkError(f"{source or 'manifest'}: external oracle source hashes drift for {evidence_id}")
         for field in ("protected_paths", "dirty_paths"):
             for value in task["safety"][field]:
                 relative = _relative_path(str(value), f"tasks.{task_id}.safety.{field}")
@@ -329,15 +369,25 @@ def validate_manifest(data: dict[str, Any], *, source: Path | None = None) -> No
                 raise BenchmarkError(
                     f"{source or 'manifest'}: patch path is not a primary owner for {task_id}"
                 )
+    if data["fixture_id"] in {"schema-migration-service", "plugin-workspace", "component-pipeline"}:
+        category_counts = {
+            category: sum(task["category"] == category for task in data["tasks"])
+            for category in REQUIRED_REALISTIC_CATEGORIES
+        }
+        expected_counts = {"ownership": 3, "constraint": 4, "impact": 4, "abstention": 3, "decoy": 2, "safety": 2}
+        if len(data["tasks"]) != 18 or category_counts != expected_counts:
+            raise BenchmarkError(f"{source or 'manifest'}: realistic fixture requires the fixed 18-task category corpus")
 
 
-def load_manifests(root: Path = MANIFEST_ROOT) -> list[dict[str, Any]]:
+def load_manifests(root: Path = MANIFEST_ROOT, *, profile: str | None = None) -> list[dict[str, Any]]:
     manifests: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for path in sorted(root.glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise BenchmarkError(f"{path}: manifest must be an object")
+        if profile is not None and data.get("ci", {}).get("profile") != profile:
+            continue
         validate_manifest(data, source=path)
         fixture_id = str(data["fixture_id"])
         if fixture_id in seen_ids:

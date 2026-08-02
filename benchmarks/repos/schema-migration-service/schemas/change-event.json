@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "event_type": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "tenant_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenant_id",
+    "event_type",
+    "revision"
+  ],
+  "type": "object"
+}

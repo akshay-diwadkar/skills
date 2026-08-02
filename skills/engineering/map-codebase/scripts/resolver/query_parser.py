@@ -27,6 +27,19 @@ COMPONENT_ALIASES = {
     "model": "model",
     "orchestrator": "orchestrator",
     "orchestration": "orchestrator",
+    "receiver": "receiver",
+    "receivers": "receiver",
+    "processor": "processor",
+    "processors": "processor",
+    "router": "processor",
+    "routing": "processor",
+    "exporter": "exporter",
+    "exporters": "exporter",
+    "transform": "transform",
+    "distribution": "distribution",
+    "distributions": "distribution",
+    "plugin": "plugin",
+    "plugins": "plugin",
     "command": "command",
     "schema": "schema",
     "documentation": "documentation",
@@ -51,24 +64,34 @@ CONCEPT_GROUPS = (
     frozenset({"fetch", "lookup", "retrieve", "retrieval"}),
     frozenset({"adapter", "persist", "persistence", "store", "storage"}),
     frozenset({"job", "jobs", "queue", "worker", "workers"}),
+    frozenset({"choice", "option", "options"}),
+    frozenset({"typescript", "tsconfig", "compiler"}),
+    frozenset({"linter", "lint", "ruff"}),
+    frozenset({"npm", "package", "script", "scripts"}),
 )
 STOPWORDS = frozenset({
     "a", "an", "and", "the", "to", "of", "for", "from", "in", "on", "with",
     "find", "locate", "determine", "identify", "which", "file", "code", "current",
     "after", "are", "at", "before", "even", "exactly", "is", "its", "owner",
-    "owns", "responsible", "source", "that", "though", "users",
+    "owns", "responsible", "source", "that", "though", "users", "or", "if",
+    "when", "does", "tracked", "direct", "evidence", "absent", "abstain",
 })
 NEGATIVE_PATTERN = re.compile(
-    r"\b(?:not|rather\s+than|instead\s+of|exclude)\s+(?:the\s+)?"
+    r"\b(?:not|rather\s+than|instead\s+of|exclud(?:e|ing)|ignor(?:e|ing))\s+(?:the\s+)?"
     r"(?P<value>[^,.;]+?)(?=\s+\b(?:and|but)\b|[,.;]|$)",
     re.IGNORECASE,
 )
 
 
 def _tokens(value: str) -> list[str]:
+    compounds = [
+        raw.casefold()
+        for raw in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", value)
+        if re.search(r"[a-z0-9][A-Z]", raw)
+    ]
     normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
     normalized = re.sub(r"[_/\\.-]+", " ", normalized)
-    result: list[str] = []
+    result: list[str] = compounds
     for raw in re.findall(r"[A-Za-z][A-Za-z0-9_-]*", normalized):
         token = raw.casefold()
         if token in STOPWORDS:
@@ -88,6 +111,23 @@ def _tokens(value: str) -> list[str]:
 
 
 def _component(tokens: list[str]) -> str | None:
+    # Distribution is a distinct assembly surface, not a receiver/exporter
+    # mention inside a registration question.
+    if any(token in {"distribution", "distributions"} for token in tokens):
+        return "distribution"
+    if "policy" in tokens:
+        return "policy"
+    explicit = [
+        COMPONENT_ALIASES[token]
+        for token in tokens
+        if token in COMPONENT_ALIASES and token not in {"route", "routes", "router", "routing"}
+    ]
+    if explicit:
+        return explicit[-1]
+    # The stemmer emits both ``routing`` and ``route``. Preserve the pipeline
+    # meaning only when the task did not name a more specific boundary.
+    if any(token in {"processor", "processors", "router", "routing"} for token in tokens):
+        return "processor"
     return next((COMPONENT_ALIASES[token] for token in reversed(tokens) if token in COMPONENT_ALIASES), None)
 
 
@@ -147,6 +187,20 @@ def parse_task_query(task: str) -> TaskQuery:
     )
     request_text = request_parts[-1] if len(request_parts) > 1 else positive_text
     requested_component = _component(_tokens(request_text))
+    # Admission language names a boundary even when a task uses the operation
+    # rather than its implementation noun (for example, a receiver admitting
+    # an incoming message).  This is deliberately architecture-level rather
+    # than repository- or protocol-specific.
+    if requested_component is None and re.search(
+        r"\b(?:incoming|ingress|admission|admit(?:s|ted|ting)?|enters?)\b",
+        positive_text,
+        re.IGNORECASE,
+    ) and re.search(
+        r"\b(?:message|messages|signal|signals|event|events|request|requests|payload)\b",
+        positive_text,
+        re.IGNORECASE,
+    ):
+        requested_component = "receiver"
     if re.search(r"\b(?:accept(?:ed|s)?|eligible|match(?:es|ed)?|permit(?:s|ted)?|satisf(?:y|ies|ied))\b", positive_text, re.I):
         positive_tokens.extend(("bool", "match"))
     present = set(positive_tokens)
@@ -156,11 +210,18 @@ def parse_task_query(task: str) -> TaskQuery:
     intents = {
         intent for token in positive_tokens if (intent := INTENT_WORDS.get(token))
     } or {"ownership"}
+    if re.search(
+        r"\b(?:if|when)\b.{0,100}\bchanges?\b|\bmust\s+change\s+together\b|"
+        r"\b(?:affected|impacted)\b",
+        positive_text,
+        re.IGNORECASE,
+    ):
+        intents.add("impact")
     architectural_words = (
         set(COMPONENT_ALIASES)
         | set(INTENT_WORDS)
         | set(ROLE_WORDS)
-        | {"application", "boundary", "domain", "infrastructure", "layer", "persistence"}
+        | {"application", "boundary", "domain", "infrastructure", "layer", "persistence", "plugin"}
     )
     positive_tokens = [token for token in positive_tokens if token not in architectural_words]
     if present & {"job", "jobs", "worker", "workers"} and requested_component != "job":
@@ -189,6 +250,10 @@ def parse_task_query(task: str) -> TaskQuery:
         ),
         None,
     )
+    if requested_layer is None and requested_component in {"adapter", "repository"}:
+        requested_layer = "persistence"
+    if requested_component is None and {"eligibility", "bounded", "bound"} & set(positive_tokens):
+        requested_component = "policy"
     positive_subsystem = _subsystem(request_text)
     negative_candidate = next(
         (value for span in excluded_spans if (value := _subsystem(span))),

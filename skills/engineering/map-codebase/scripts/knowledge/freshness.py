@@ -12,13 +12,16 @@ from build_knowledge import (
     SCHEMA_VERSION,
     _config_hash,
     _digest,
+    _prune_evidence_shards,
     _symbol_index_payload,
+    _write_evidence_shard,
     get_git_info,
 )
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import (
     discover_files,
     filter_internal_paths,
+    git_file_states,
     git_tracked_paths,
     git_untracked_paths,
     is_internal_runtime_path,
@@ -29,7 +32,13 @@ from knowledge.indexing import classify_and_extract, is_repository_wide_config, 
 from knowledge.schemas import validate_schema_json
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
 
-REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json", "symbol-index.json"]
+REQUIRED = ["manifest.json", "repo-map.json", "symbols.json", "relationships.json", "symbol-index.json", "evidence-index.json"]
+_VALIDATED_ROOT_ARTIFACTS: dict[Path, tuple[dict[str, Any], ...]] = {}
+
+
+def validated_root_artifacts(out: Path) -> tuple[dict[str, Any], ...] | None:
+    """Return root artifacts validated by the immediately preceding status check."""
+    return _VALIDATED_ROOT_ARTIFACTS.get(out.resolve())
 
 
 def _git(root: Path, *args: str) -> str | None:
@@ -50,6 +59,28 @@ def _git_changes(root: Path, revision: str, include_untracked: bool, output: Pat
     current = _git(root, "rev-parse", "HEAD")
     if current is None:
         return None
+    current = current.strip()
+    status = _git(
+        root,
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all" if include_untracked else "--untracked-files=no",
+    )
+    if status is None:
+        return set(), current, "git-inventory-recovery"
+    # A clean checkout at the indexed revision is by far the common resolver
+    # path. Avoid the diff, tracked-path, and repository-metadata subprocess
+    # fan-out while preserving the full fallback for revision changes.
+    if not status and current == revision:
+        return set(), current, "git-clean"
+    if current == revision:
+        records = [record for record in status.split("\0") if record]
+        changes: set[str] = set()
+        for record in records:
+            if len(record) >= 4 and record[2] == " ":
+                changes.add(record[3:].replace("\\", "/"))
+        return set(filter_internal_paths(root, output, changes)), current, "git-status"
     outputs = [
         _git(root, "diff", "--find-renames", "--name-status", revision, "HEAD"),
         _git(root, "diff", "--find-renames", "--name-status"),
@@ -57,10 +88,10 @@ def _git_changes(root: Path, revision: str, include_untracked: bool, output: Pat
     ]
     untracked = _git(root, "ls-files", "--others", "--exclude-standard") if include_untracked else ""
     if any(value is None for value in outputs) or untracked is None:
-        return set(), current.strip(), "git-inventory-recovery"
+        return set(), current, "git-inventory-recovery"
     changes = set().union(*(_changed(value or "") for value in outputs))
     changes.update(value.replace("\\", "/") for value in untracked.splitlines() if value)
-    return set(filter_internal_paths(root, output, changes)), current.strip(), "git-diff"
+    return set(filter_internal_paths(root, output, changes)), current, "git-diff"
 
 
 def _repository_metadata(root: Path, config: dict[str, Any], output: Path) -> dict[str, Any]:
@@ -109,7 +140,7 @@ def _invalid(reason: str) -> dict[str, Any]:
 
 def _load_root_artifacts(
     out: Path,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]] | dict[str, Any]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]] | dict[str, Any]:
     if any(not (out / name).is_file() for name in REQUIRED):
         return _status_result({
             "status": "missing",
@@ -124,39 +155,27 @@ def _load_root_artifacts(
             },
         })
     try:
-        manifest, repo, catalog, relationships, symbol_index = [
+        manifest, repo, catalog, relationships, symbol_index, evidence_index = [
             json.loads((out / name).read_text(encoding="utf-8")) for name in REQUIRED
         ]
     except Exception as exc:
         return _invalid(f"Invalid root JSON: {exc}")
-    for payload, schema, name in zip(
-        (manifest, repo, catalog, relationships, symbol_index),
-        (
-            "manifest.schema.json",
-            "repo-map.schema.json",
-            "symbols.schema.json",
-            "relationships.schema.json",
-            "symbol-index.schema.json",
-        ),
-        REQUIRED,
-    ):
-        if validate_schema_json(payload, schema):
-            return _invalid(f"Root schema mismatch: {name}")
+    if validate_schema_json(manifest, "manifest.schema.json"):
+        return _invalid("Root schema mismatch: manifest.json")
     for name, payload in (
         ("repo-map.json", repo),
         ("symbols.json", catalog),
         ("relationships.json", relationships),
         ("symbol-index.json", symbol_index),
+        ("evidence-index.json", evidence_index),
     ):
         if manifest.get("artifact_hashes", {}).get(name) != _digest(payload):
             return _invalid(f"Artifact hash mismatch: {name}")
-    for shard in catalog.get("shards", []):
-        path = out / shard.get("path", "")
-        if not path.is_file():
-            return _invalid(f"Symbol shard missing: {shard.get('path', '')}")
-        if hashlib.sha256(path.read_bytes()).hexdigest() != shard.get("hash"):
-            return _invalid(f"Shard hash mismatch: {shard.get('path', '')}")
-    return manifest, repo, catalog, relationships, symbol_index
+    if not isinstance(evidence_index.get("shards"), list):
+        return _invalid("Evidence index does not contain shards")
+    validated = (manifest, repo, catalog, relationships, symbol_index, evidence_index)
+    _VALIDATED_ROOT_ARTIFACTS[out.resolve()] = validated
+    return validated
 
 
 def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = None) -> dict[str, Any]:
@@ -166,7 +185,7 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
     loaded = _load_root_artifacts(out)
     if not isinstance(loaded, tuple):
         return loaded
-    manifest, _repo, _catalog, _relationships, _symbol_index = loaded
+    manifest, _repo, _catalog, _relationships, _symbol_index, _evidence_index = loaded
     indexed_total = len(manifest.get("indexed_paths", []))
     if manifest.get("schema_version") != SCHEMA_VERSION or manifest.get("extractor_version") != EXTRACTOR_VERSION or manifest.get("config_hash") != _config_hash(config):
         return _status_result({
@@ -199,6 +218,23 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
             },
         })
     candidates, current_revision, detection_mode = state
+    if detection_mode == "git-clean":
+        return _status_result({
+            "status": "fresh",
+            "reason": "No relevant repository changes",
+            "changed_files": [],
+            "requires_full_rebuild": False,
+            "revision_changed": False,
+            "repository_metadata_changed": False,
+            "current_revision": current_revision,
+            "detection_mode": detection_mode,
+            "staleness_detail": {
+                "files_changed": 0,
+                "files_total": indexed_total,
+                "percent_affected": 0.0,
+                "recommendation": "none",
+            },
+        })
     if detection_mode == "git-inventory-recovery":
         recovery_changes = _inventory_changes(root, config, manifest, out)
         metadata = _repository_metadata(root, config, out)
@@ -237,9 +273,12 @@ def check_freshness(repo_root: Path | str, knowledge_dir: Path | str | None = No
                 changes.add(normalised)
         elif extracted.record["hash"] != old.get(normalised):
             changes.add(normalised)
-    metadata = _repository_metadata(root, config, out)
     revision_changed = current_revision != manifest["repository"].get("revision")
-    repository_metadata_changed = metadata != manifest.get("repository", {})
+    repository_metadata_changed = (
+        bool(candidates)
+        if detection_mode == "git-status" and not revision_changed
+        else _repository_metadata(root, config, out) != manifest.get("repository", {})
+    )
     sorted_changes = sorted(changes)
     return _status_result({
         "status": "fresh" if not sorted_changes else "partially-stale",
@@ -335,9 +374,12 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     loaded = _load_root_artifacts(out)
     if not isinstance(loaded, tuple):
         raise ValueError(loaded["reason"])
-    manifest, old_repo, catalog, _, _symbol_index = loaded
+    manifest, old_repo, catalog, _, _symbol_index, old_evidence_index = loaded
     files = {item["path"]: item for item in old_repo["files"]}
     configs = {item["path"]: item for item in old_repo.get("configurations", [])}
+    evidence_by_path = {item["path"]: item for item in old_evidence_index.get("shards", [])}
+    tracked_paths = git_tracked_paths(root)
+    git_states = git_file_states(root)
     shards = {item["id"]: item for item in catalog["shards"]}
     affected = {shard_id(path) for path in changes}
     shard_symbols = {
@@ -347,14 +389,23 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     for path in changes:
         files.pop(path, None)
         configs.pop(path, None)
+        evidence_by_path.pop(path, None)
         key = shard_id(path)
         shard_symbols[key] = [item for item in shard_symbols[key] if item["path"] != path]
         extracted, _normalised_path, _reason = classify_and_extract(root, path, config)
         if extracted:
+            state = git_states.get(extracted.record["path"], {})
+            extracted.record["tracked"] = extracted.record["path"] in tracked_paths if tracked_paths is not None else True
+            extracted.record["git_state"] = {
+                "index": bool(state.get("index", False)),
+                "worktree": bool(state.get("worktree", False)),
+                "untracked": bool(state.get("untracked", False)),
+            }
             files[extracted.record["path"]] = extracted.record
             shard_symbols[key].extend(extracted.symbols)
             if extracted.configuration:
                 configs[extracted.record["path"]] = extracted.configuration
+            evidence_by_path[extracted.record["path"]] = _write_evidence_shard(out, extracted)
     commands = []
     for path in sorted(configs):
         extracted = classify_and_extract(root, path, config)[0]
@@ -384,11 +435,14 @@ def _apply_delta(root: Path, out: Path, config: dict[str, Any], changes: list[st
     for shard in catalog["shards"]:
         all_symbols.extend(json.loads((out / shard["path"]).read_text(encoding="utf-8"))["symbols"])
     symbol_index = _symbol_index_payload(all_symbols)
+    evidence_index = {"schema_version": SCHEMA_VERSION, "shards": sorted(evidence_by_path.values(), key=lambda item: item["path"])}
+    _prune_evidence_shards(out, {item["shard"] for item in evidence_index["shards"]})
     artifacts = {
         "repo-map.json": repo,
         "relationships.json": relationships,
         "symbols.json": catalog,
         "symbol-index.json": symbol_index,
+        "evidence-index.json": evidence_index,
     }
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))

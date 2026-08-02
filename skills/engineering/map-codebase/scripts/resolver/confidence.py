@@ -31,6 +31,28 @@ def assess_confidence(
     filename = any(label.startswith("filename:") for label in evidence)
     component_match = bool(top.get("component_match"))
     subsystem_match = bool(top.get("subsystem_match"))
+    matched_concepts = set(top.get("matched_concepts", ()))
+    configuration_key = any(family == "configuration_key" for family in families)
+    strong_grounding = bool(
+        top.get("symbol_score", 0.0) > 0
+        or exact_symbol
+        or exact_path
+        or filename
+        or component_match
+        or subsystem_match
+        or configuration_key
+    )
+    # A single transformed concept (for example, "control" matching
+    # ControlPlane in an unrelated robotics query) is not ownership evidence.
+    # Two independently matched concepts can still ground a semantic lookup.
+    if not strong_grounding and len(matched_concepts) < 2:
+        return ConfidenceAssessment(
+            "abstain",
+            0.0,
+            "low",
+            (),
+            ("only one transformed or generic concept supports ownership",),
+        )
     conflicts = int(top.get("negative_conflicts", 0))
     raw = (
         -2.1
