@@ -240,7 +240,7 @@ python tests/skills/map-codebase/run_benchmark.py --profile full --freeze-v3
 python tests/skills/map-codebase/run_benchmark.py --profile full --check
 ```
 
-See [`benchmarks/methodology.md`](../../../../benchmarks/methodology.md), the fixture audit, manifests, and external oracle bundles for the complete reproducibility record.
+See [`benchmarks/methodology.md`](methodology.md), the fixture audit, manifests, and external oracle bundles for the complete reproducibility record.
 
 ## Limitations
 

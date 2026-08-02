@@ -19,7 +19,7 @@
     "ripgrep": "git ls-files plus independent ripgrep ranking and three full files"
   },
   "fixture_hashes": {
-    "component-pipeline": "f9a63ccaa0bf0940e0f3c509d4443c9c5bc5c2974ca2882f9ef821aea0b0257f",
+    "component-pipeline": "a2194d685421ce60b0f105d5a0c2b28fa201a1da1fbe09b4aff46b1ed34ba50d",
     "plugin-workspace": "bda9f14ae6c2228cd5ab70cd67106f581895eb86642dd4273d8caaaf505af7ac",
     "schema-migration-service": "2167983a7bcf4318c5caf3ece1c9f076934033ed1c1dd9ed3337dddac6a7bb95"
   },
@@ -13737,7 +13737,7 @@
   "profile": "full",
   "report_schema_version": 4,
   "runtime": {
-    "elapsed_wall_seconds": 172.379,
+    "elapsed_wall_seconds": 163.171,
     "fixed_floor_seconds": 1800
   },
   "scale_fixture": "resolver-scale-stress",

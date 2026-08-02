@@ -19,7 +19,7 @@
   "repository": {
     "path": "component-pipeline",
     "hash_algorithm": "sha256-path-content-v1",
-    "sha256": "f9a63ccaa0bf0940e0f3c509d4443c9c5bc5c2974ca2882f9ef821aea0b0257f",
+    "sha256": "a2194d685421ce60b0f105d5a0c2b28fa201a1da1fbe09b4aff46b1ed34ba50d",
     "files": [
       {
         "path": ".gitignore",
@@ -27,7 +27,7 @@
       },
       {
         "path": "Cargo.lock",
-        "sha256": "18276eb479682b0431f7b5c781d001e854dd19816ce4863ac38f6dfa71b2ece5"
+        "sha256": "3ddaff3989a33fef156d65bc92809dfed8d360b1744598a7f22b23f611a6bed8"
       },
       {
         "path": "Cargo.toml",

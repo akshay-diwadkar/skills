@@ -1358,6 +1358,6 @@ def render_markdown(result: dict[str, Any]) -> str:
         ]
     )
     lines.extend(f"- {name}: {'pass' if passed else 'fail'}" for name, passed in result["gates"].items())
-    lines.extend(["", "## Reproduce", "", "```text", "python tests/skills/map-codebase/run_benchmark.py --profile representative --write", "python tests/skills/map-codebase/run_benchmark.py --profile full --freeze-v3", "python tests/skills/map-codebase/run_benchmark.py --profile full --check", "```", "", "See [`benchmarks/methodology.md`](../../../../benchmarks/methodology.md), the fixture audit, manifests, and external oracle bundles for the complete reproducibility record.", "", "## Limitations", ""])
+    lines.extend(["", "## Reproduce", "", "```text", "python tests/skills/map-codebase/run_benchmark.py --profile representative --write", "python tests/skills/map-codebase/run_benchmark.py --profile full --freeze-v3", "python tests/skills/map-codebase/run_benchmark.py --profile full --check", "```", "", "See [`benchmarks/methodology.md`](methodology.md), the fixture audit, manifests, and external oracle bundles for the complete reproducibility record.", "", "## Limitations", ""])
     lines.extend(f"- {item}" for item in result["limitations"])
     return "\n".join(lines) + "\n"
