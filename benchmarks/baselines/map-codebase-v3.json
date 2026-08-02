@@ -12,7 +12,7 @@
     "utility_latency": true
   },
   "fixture_hashes": {
-    "component-pipeline": "a2194d685421ce60b0f105d5a0c2b28fa201a1da1fbe09b4aff46b1ed34ba50d",
+    "component-pipeline": "426a4f2ecd370fb79ef4679cf55fcf8b9dcb2ef492a97cbec08536ad436b3f77",
     "plugin-workspace": "bda9f14ae6c2228cd5ab70cd67106f581895eb86642dd4273d8caaaf505af7ac",
     "schema-migration-service": "2167983a7bcf4318c5caf3ece1c9f076934033ed1c1dd9ed3337dddac6a7bb95"
   },
@@ -65,7 +65,7 @@
   },
   "report_schema_version": 4,
   "runtime": {
-    "cold_run_seconds": 163.171,
+    "cold_run_seconds": 167.607,
     "fixed_floor_seconds": 1800
   },
   "scale_fixture": "resolver-scale-stress",

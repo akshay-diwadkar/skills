@@ -16,7 +16,7 @@ Token counts use the repository's offline `cl100k_base` implementation. Incorrec
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | resolver | 0.978 | 1.000 | 0.989 | 0.978 | 0.978 | 0.978 | 7046 |
 | ripgrep | 0.400 | 0.600 | 0.485 | 0.396 | 0.176 | 0.600 | 39849 |
-| inventory | 0.311 | 0.600 | 0.456 | 0.341 | 0.167 | 0.600 | 156702 |
+| inventory | 0.311 | 0.600 | 0.456 | 0.341 | 0.167 | 0.600 | 157134 |
 
 ### Reading the results
 

@@ -1,6 +1,11 @@
 {
   "dependencies": {
-    "net8.0": {}
+    "net8.0": {
+      "SignalForge.Exporter": {
+        "dependencies": {},
+        "type": "Project"
+      }
+    }
   },
   "version": 1
 }

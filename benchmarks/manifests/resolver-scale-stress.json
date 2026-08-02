@@ -19,7 +19,7 @@
   "repository": {
     "path": "resolver-scale-stress",
     "hash_algorithm": "sha256-path-content-v1",
-    "sha256": "8d451108c64c847abd39ccb43cf1abee68eacc89aa4b793c2b8ca2987a9bed6b",
+    "sha256": "b95b3eae3fa2d6dcf38960eb91500d69b15371eccbac08bcf7cdb3ab6f3d4526",
     "files": [
       {
         "path": ".gitignore",
@@ -5295,7 +5295,7 @@
       },
       {
         "path": "dotnet/verification/packages.lock.json",
-        "sha256": "ce03f8cbd5d06b3e7fc0bcb59e4a53d5e80ad0757ed6ba1dca6973632c06df33"
+        "sha256": "b9808ad03b7571ad75ea417575a9b5a8bc0bab1f657ebb28c745f59bdc572009"
       },
       {
         "path": "generated/receivers/decode_education_atlantic_archive_settled.ts",

@@ -340,7 +340,23 @@ impl Signal {
   </ItemGroup>
 </Project>
 ''')
-    write(output, "dotnet/verification/packages.lock.json", json_text({"version": 1, "dependencies": {"net8.0": {}}}))
+    write(
+        output,
+        "dotnet/verification/packages.lock.json",
+        json_text(
+            {
+                "version": 1,
+                "dependencies": {
+                    "net8.0": {
+                        "SignalForge.Exporter": {
+                            "type": "Project",
+                            "dependencies": {},
+                        }
+                    }
+                },
+            }
+        ),
+    )
     write(output, "dotnet/verification/Program.cs", '''try
 {
     ExporterRoutingPolicyTest.Run();

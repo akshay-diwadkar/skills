@@ -19,7 +19,7 @@
     "ripgrep": "git ls-files plus independent ripgrep ranking and three full files"
   },
   "fixture_hashes": {
-    "component-pipeline": "f9a63ccaa0bf0940e0f3c509d4443c9c5bc5c2974ca2882f9ef821aea0b0257f",
+    "component-pipeline": "426a4f2ecd370fb79ef4679cf55fcf8b9dcb2ef492a97cbec08536ad436b3f77",
     "plugin-workspace": "bda9f14ae6c2228cd5ab70cd67106f581895eb86642dd4273d8caaaf505af7ac",
     "schema-migration-service": "2167983a7bcf4318c5caf3ece1c9f076934033ed1c1dd9ed3337dddac6a7bb95"
   },
@@ -64,9 +64,9 @@
     "inventory": {
       "abstention_precision": 0.0,
       "abstention_recall": 0.0,
-      "bytes": 219525,
+      "bytes": 220119,
       "cases": 18,
-      "characters": 219525,
+      "characters": 220119,
       "confidence_bin_accuracy": {},
       "constraint_ground_truth_available": true,
       "constraint_precision": 0.0,
@@ -113,7 +113,7 @@
           "tp": 0
         }
       },
-      "tokens": 52227,
+      "tokens": 52371,
       "unsafe_high_confidence_count": 0
     },
     "resolver": {
@@ -413,8 +413,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8660,
-      "characters": 8660,
+      "bytes": 8759,
+      "characters": 8759,
       "co_owners": [
         {
           "end_line": null,
@@ -487,7 +487,7 @@
       "reciprocal_rank": 1.0,
       "status": "resolved",
       "task_id": "v3-01",
-      "tokens": 2087
+      "tokens": 2111
     },
     {
       "abstained": false,
@@ -676,8 +676,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8660,
-      "characters": 8660,
+      "bytes": 8759,
+      "characters": 8759,
       "co_owners": [
         {
           "end_line": null,
@@ -752,7 +752,7 @@
       "reciprocal_rank": 0.0,
       "status": "resolved",
       "task_id": "v3-04",
-      "tokens": 2087
+      "tokens": 2111
     },
     {
       "abstained": false,
@@ -937,8 +937,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8660,
-      "characters": 8660,
+      "bytes": 8759,
+      "characters": 8759,
       "co_owners": [
         {
           "end_line": null,
@@ -1013,7 +1013,7 @@
       "reciprocal_rank": 0.5,
       "status": "resolved",
       "task_id": "v3-08",
-      "tokens": 2087
+      "tokens": 2111
     },
     {
       "abstained": true,
@@ -1090,8 +1090,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8660,
-      "characters": 8660,
+      "bytes": 8759,
+      "characters": 8759,
       "co_owners": [
         {
           "end_line": null,
@@ -1158,7 +1158,7 @@
       "reciprocal_rank": 0.0,
       "status": "resolved",
       "task_id": "v3-12",
-      "tokens": 2087
+      "tokens": 2111
     },
     {
       "abstained": false,
@@ -1338,8 +1338,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8660,
-      "characters": 8660,
+      "bytes": 8759,
+      "characters": 8759,
       "co_owners": [
         {
           "end_line": null,
@@ -1412,7 +1412,7 @@
       "reciprocal_rank": 0.0,
       "status": "resolved",
       "task_id": "v3-15",
-      "tokens": 2087
+      "tokens": 2111
     },
     {
       "abstained": false,
@@ -1597,8 +1597,8 @@
     {
       "abstained": false,
       "alternatives": [],
-      "bytes": 8711,
-      "characters": 8711,
+      "bytes": 8810,
+      "characters": 8810,
       "co_owners": [
         {
           "end_line": null,
@@ -1673,7 +1673,7 @@
       "reciprocal_rank": 0.5,
       "status": "resolved",
       "task_id": "v3-17",
-      "tokens": 2096
+      "tokens": 2120
     },
     {
       "abstained": false,
@@ -4750,7 +4750,7 @@
   "profile": "representative",
   "report_schema_version": 4,
   "runtime": {
-    "elapsed_wall_seconds": 115.057,
+    "elapsed_wall_seconds": 130.452,
     "fixed_floor_seconds": 720
   },
   "scale_fixture": "resolver-scale-stress",
