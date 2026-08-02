@@ -172,4 +172,9 @@ def test_locked_native_project_surfaces_exist() -> None:
     telemetry = REPOS / "component-pipeline"
     rust_library = (telemetry / "rust/transform/src/lib.rs").read_text(encoding="utf-8")
     assert rust_library.count("pub mod ") >= 2
+    verification_project = (
+        telemetry / "dotnet/verification/SignalForge.Verification.csproj"
+    ).read_text(encoding="utf-8")
+    assert "<ImplicitUsings>enable</ImplicitUsings>" in verification_project
+    assert '<ProjectReference Include="../exporter/SignalForge.Exporter.csproj" />' in verification_project
     assert (telemetry / "dotnet/verification/packages.lock.json").is_file()

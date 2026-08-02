@@ -19,7 +19,7 @@
   "repository": {
     "path": "resolver-scale-stress",
     "hash_algorithm": "sha256-path-content-v1",
-    "sha256": "b95b3eae3fa2d6dcf38960eb91500d69b15371eccbac08bcf7cdb3ab6f3d4526",
+    "sha256": "4fa8d9ac86a0591f30630d4d8a3ec87cef420157cd63594113dfbeeb45c3d4bf",
     "files": [
       {
         "path": ".gitignore",
@@ -5291,7 +5291,7 @@
       },
       {
         "path": "dotnet/verification/SignalForge.Verification.csproj",
-        "sha256": "5a80c3685dff0932088fc02592cbfd3143d0823ae580fda33554b50e6f3e7f75"
+        "sha256": "5b0f14994dd4adc164e00b73053be6ed79415fe42d8034fbc631d7b968a95302"
       },
       {
         "path": "dotnet/verification/packages.lock.json",
