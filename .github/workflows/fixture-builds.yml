@@ -25,7 +25,7 @@ jobs:
         with: {dotnet-version: '8.0.407'}
       - name: Check committed fixture structure
         run: |
-          python -m pip install pytest
+          python -m pip install -r tools/validation/release-requirements.txt pytest
           python -m pytest tests/benchmarks/test_realistic_fixture_quality.py -q
       - name: Build native project surfaces
         run: |

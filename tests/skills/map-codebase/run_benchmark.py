@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
@@ -25,11 +26,11 @@ from benchmark_runner import (  # noqa: E402
 )
 
 
-def _stable(result: dict[str, object]) -> str:
+def _stable(result: dict[str, Any]) -> str:
     return json.dumps(result, indent=2, sort_keys=True) + "\n"
 
 
-def _without_observed_runtime(result: dict[str, object]) -> dict[str, object]:
+def _without_observed_runtime(result: dict[str, Any]) -> dict[str, Any]:
     cloned = json.loads(json.dumps(result))
     runtime = cloned.get("runtime")
     if isinstance(runtime, dict):
@@ -37,7 +38,7 @@ def _without_observed_runtime(result: dict[str, object]) -> dict[str, object]:
     return cloned
 
 
-def _difference_paths(expected: object, actual: object, prefix: str = "result") -> list[str]:
+def _difference_paths(expected: Any, actual: Any, prefix: str = "result") -> list[str]:
     if type(expected) is not type(actual):
         return [prefix]
     if isinstance(expected, dict):
@@ -58,7 +59,7 @@ def _difference_paths(expected: object, actual: object, prefix: str = "result") 
     return [] if expected == actual else [prefix]
 
 
-def _failed_checks(result: dict[str, object]) -> list[str]:
+def _failed_checks(result: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for group in ("gates", "comparative_checks"):
         for name, passed in result.get(group, {}).items():

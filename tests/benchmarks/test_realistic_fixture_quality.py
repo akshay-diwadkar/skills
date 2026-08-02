@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
@@ -13,7 +14,14 @@ from benchmarks.generators.refresh_v2_manifests import _owner
 ROOT = Path(__file__).resolve().parents[2]
 REPOS = ROOT / "benchmarks" / "repos"
 SOURCE_SUFFIXES = {".py", ".ts", ".go", ".rs", ".java", ".cs"}
-FIXTURES = {
+class FixtureBudget(TypedDict):
+    files: int
+    loc: int
+    edges: int
+    languages: set[str]
+
+
+FIXTURES: dict[str, FixtureBudget] = {
     "schema-migration-service": {"files": 30, "loc": 90, "edges": 4, "languages": {".py", ".ts"}},
     "plugin-workspace": {"files": 30, "loc": 90, "edges": 5, "languages": {".ts", ".java"}},
     "component-pipeline": {"files": 30, "loc": 90, "edges": 5, "languages": {".go", ".rs", ".cs"}},

@@ -133,11 +133,14 @@ def _owner(path: str, hashes: dict[str, str]) -> dict[str, str | None]:
 
 
 def _task(fixture_id: str, ordinal: int, spec: dict[str, Any], hashes: dict[str, str], protected: str) -> tuple[dict[str, Any], str, dict[str, Any]]:
-    primary = [_owner(spec["primary"], hashes)] if spec["primary"] else []
-    constraints = [_owner(spec["constraint"], hashes)] if spec["constraint"] else []
-    impacts = [_owner(spec["impact"], hashes)] if spec["impact"] else []
+    primary_path = spec["primary"]
+    constraint_path = spec["constraint"]
+    impact_path = spec["impact"]
+    primary = [_owner(primary_path, hashes)] if isinstance(primary_path, str) else []
+    constraints = [_owner(constraint_path, hashes)] if isinstance(constraint_path, str) else []
+    impacts = [_owner(impact_path, hashes)] if isinstance(impact_path, str) else []
     evidence_id = f"{fixture_id}-{ordinal:02d}"
-    paths = [item["path"] for item in [*primary, *constraints, *impacts]]
+    paths = [path for item in [*primary, *constraints, *impacts] if isinstance(path := item["path"], str)]
     record: dict[str, Any] = {
         "task_id": f"v3-{ordinal:02d}", "category": spec["category"], "state": spec["state"],
         "paths": paths, "source_hashes": {path: hashes[path] for path in paths}, "rationale": spec["rationale"],
@@ -150,11 +153,11 @@ def _task(fixture_id: str, ordinal: int, spec: dict[str, Any], hashes: dict[str,
         "expected": {"primary_owners": primary, "secondary_surfaces": [], "constraints": constraints, "impacts": impacts, "abstain": spec["category"] == "abstention"},
         "required_behaviors": ["abstain without tracked evidence"] if spec["category"] == "abstention" else ["prefer maintained tracked implementation"],
         "forbidden_behaviors": ["select generated or untracked content as primary ownership"], "allowed_alternatives": [],
-        "safety": {"protected_paths": [protected], "dirty_paths": [spec["primary"]] if spec["state"] == "dirty-worktree" else [], "external_effects": []},
+        "safety": {"protected_paths": [protected], "dirty_paths": [primary_path] if spec["state"] == "dirty-worktree" and isinstance(primary_path, str) else [], "external_effects": []},
         "verification": {"commands": [], "oracles": [{"kind": "abstention" if spec["category"] == "abstention" else "ownership", "detail": spec["rationale"], "evidence_id": evidence_id}]},
     }
-    if spec["primary"]:
-        task["verification"]["oracles"][0]["path"] = spec["primary"]
+    if isinstance(primary_path, str):
+        task["verification"]["oracles"][0]["path"] = primary_path
     return task, evidence_id, record
 
 
