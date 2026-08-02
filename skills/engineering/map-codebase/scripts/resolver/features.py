@@ -8,7 +8,6 @@ from typing import Any
 from resolver.query_parser import COMPONENT_ALIASES, GENERIC_ROOTS
 from resolver.schemas import TaskQuery
 
-
 LAYER_COMPONENTS: dict[str, frozenset[str]] = {
     "application": frozenset({"service", "orchestrator", "command"}),
     "domain": frozenset({"policy", "model"}),

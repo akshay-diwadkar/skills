@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .common import asset_text, generated_provenance, json_text, require_empty_output, write
 
+
 def _write_reference_flows(output: Path) -> None:
     """Write the small set of intentionally named, cross-layer benchmark flows."""
     write(output, "services/domain/invoice_pricing.py", '''"""Canonical invoice pricing with currency precision and tenant isolation."""

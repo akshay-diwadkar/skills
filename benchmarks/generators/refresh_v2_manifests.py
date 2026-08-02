@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.benchmarks.fixtures import inspect_fixture_tree, meaningful_file_count
+from tools.benchmarks.fixtures import inspect_fixture_tree, meaningful_file_count  # noqa: E402
 
 REALISTIC = {"schema-migration-service", "plugin-workspace", "component-pipeline"}
 SCALE = "resolver-scale-stress"

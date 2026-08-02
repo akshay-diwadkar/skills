@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 import posixpath
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 

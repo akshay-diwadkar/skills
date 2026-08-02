@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .common import asset_bytes, asset_text, generated_provenance, json_text, require_empty_output, write, write_bytes
 
+
 def _write_reference_flows(output: Path) -> None:
     write(output, "plugins/catalog/entity-registration.ts", '''import { PortalContext, PolicyGateway, requirePrincipal } from "../shared/runtime.js";
 

@@ -5,14 +5,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 SKILL_SCRIPTS = Path(__file__).resolve().parents[3] / "skills" / "engineering" / "map-codebase" / "scripts"
 if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
 from build_knowledge import build_knowledge
 from resolve_task import _scoped_source_terms, discover_candidates, render_context, resolve_task, retrieve_evidence
-from resolver.features import subsystem_tokens
 from resolver.confidence import assess_confidence
+from resolver.features import subsystem_tokens
 from resolver.query_parser import parse_task_query
 from resolver.scoring import score_candidates
 
@@ -206,6 +208,7 @@ def test_staged_discovery_and_evidence_are_bounded_and_immutable(tmp_path: Path)
     (src / "owner.py").write_text("def route_tenant(tenant: str) -> str:\n    return tenant\n", encoding="utf-8")
     output = _build(tmp_path)
     import json
+
     from knowledge.config import load_config
     from resolve_task import _signals
     from resolver.query_parser import parse_task_query

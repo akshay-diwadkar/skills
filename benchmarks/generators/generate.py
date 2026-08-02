@@ -16,8 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from tools.benchmarks.fixtures import FixtureTree, inspect_fixture_tree  # noqa: E402
 from benchmarks.generators.realistic_portfolio import generate as generate_realistic_fixture  # noqa: E402
+from tools.benchmarks.fixtures import FixtureTree, inspect_fixture_tree  # noqa: E402
 
 REPOS = ROOT / "benchmarks" / "repos"
 SCRATCH_ROOT = ROOT / ".scratch" / "benchmarks"

@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
+
 def generate(root: Path) -> None:
     if root.exists() and any(root.iterdir()):
         raise ValueError(f"fixture output must be empty: {root}")

@@ -22,8 +22,8 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import knowledge_output_prefix
-from knowledge.indexing import shard_id
 from knowledge.freshness import validated_root_artifacts
+from knowledge.indexing import shard_id
 from knowledge.schemas import validate_schema_json
 from refresh_knowledge import check_freshness
 from resolver.features import structured_candidate_paths, subsystem_tokens

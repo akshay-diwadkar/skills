@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-
 FILES = {
     "python-small": {
         "pyproject.toml": '[tool.pytest.ini_options]\naddopts = "-q"\n',

@@ -10,7 +10,6 @@ import pytest
 
 from benchmarks.generators.refresh_v2_manifests import _owner
 
-
 ROOT = Path(__file__).resolve().parents[2]
 REPOS = ROOT / "benchmarks" / "repos"
 SOURCE_SUFFIXES = {".py", ".ts", ".go", ".rs", ".java", ".cs"}

@@ -14,8 +14,8 @@ if __package__ in {None, ""}:
 
 from benchmarks.generators.realistic.billing import emit as emit_billing
 from benchmarks.generators.realistic.portal import emit as emit_portal
-from benchmarks.generators.realistic.telemetry import emit as emit_telemetry, emit_scale_stress
-
+from benchmarks.generators.realistic.telemetry import emit as emit_telemetry
+from benchmarks.generators.realistic.telemetry import emit_scale_stress
 
 Emitter = Callable[[Path], None]
 REGISTRY: dict[str, Emitter] = {

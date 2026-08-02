@@ -17,9 +17,9 @@ from benchmark_runner import (  # noqa: E402
     REPORT,
     REPRESENTATIVE_RESULTS,
     RESULTS,
+    V3_BASELINE,
     evaluate,
     render_markdown,
-    V3_BASELINE,
     v3_evidence,
     v3_regression,
 )

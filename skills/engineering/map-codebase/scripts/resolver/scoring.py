@@ -5,11 +5,17 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from resolver.features import LAYER_COMPONENTS, file_document, inferred_component_types, path_segments, subsystem_tokens, tokenize
+from resolver.features import (
+    LAYER_COMPONENTS,
+    file_document,
+    inferred_component_types,
+    path_segments,
+    subsystem_tokens,
+    tokenize,
+)
 from resolver.ranking_utils import conjunctive_match, inverse_document_frequency, length_normalization
 from resolver.schemas import TaskQuery
 from resolver.symbol_ranker import rank_symbols
-
 
 NON_OWNER_COMPONENTS = frozenset({"generated", "legacy", "migration", "documentation"})
 NON_OWNER_TERMS = frozenset({"generated", "legacy", "compatibility", "compatible", "deprecated", "documentation", "migration"})
