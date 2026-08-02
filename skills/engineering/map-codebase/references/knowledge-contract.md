@@ -4,7 +4,7 @@ Use this reference when exact artifact, freshness, finalization, or failure sema
 
 ## Authority and Artifacts
 
-The knowledge directory contains deterministic machine artifacts only: `manifest.json`, `repo-map.json`, `symbols.json`, `relationships.json`, and catalogued symbol shards. It contains no Markdown orientation artifacts. Consumers verify returned source before acting.
+The knowledge directory contains deterministic machine artifacts only: `manifest.json`, `repo-map.json`, `symbols.json`, `symbol-index.json`, `relationships.json`, `evidence-index.json`, and catalogued symbol/evidence shards. Evidence shards are content-addressed by file hash, language, and extractor version, so unchanged files are reused without changing the projected repository map. It contains no Markdown orientation artifacts. Consumers verify returned source before acting.
 
 ## Command and Agent-Mode Contract
 
@@ -34,13 +34,13 @@ Finalization plans and validates both targets before writing either. Each change
 | `missing` | Required artifacts do not exist. | Perform a full build. |
 | `invalid` | Artifacts are unsafe, malformed, or inconsistent. | Perform a full rebuild. |
 
-Revision, branch, dirty state, and configured untracked metadata are compared explicitly. Git uses a normal diff when possible and one inventory-recovery pass when the stored revision is unavailable. Filesystem inventory is used only when Git is unavailable. Unchanged recovery updates metadata only; changed unsafe recovery rebuilds.
+Revision, branch, dirty state, and configured untracked metadata are compared explicitly. The Git index is the canonical tracked inventory; porcelain-v2 with `--no-optional-locks` records staged and working-tree state without refreshing a deliberately stale index. Git uses a normal diff when possible and one inventory-recovery pass when the stored revision is unavailable. Filesystem inventory is used only when Git is unavailable. Unchanged recovery updates metadata only; changed unsafe recovery rebuilds.
 
 ## Repository Scope
 
 Initial builds include safe, non-ignored untracked files by default. Generated, binary, oversized, secret-sensitive, unsafe, out-of-scope, and knowledge-output files remain excluded. With `include_untracked = false`, build, status, refresh, dirty state, and explicit changed paths all exclude untracked files.
 
-The resolved knowledge directory never participates in indexing, repository comparisons, dirty state, untracked metadata, inventory fallback, or resolver searches, including when selected with a custom `--output`.
+The resolved knowledge directory never participates in indexing, repository comparisons, dirty state, untracked metadata, inventory fallback, or resolver searches, including when selected with a custom `--output`. Untracked source may be indexed when configured, but cannot become a primary owner unless the request or an explicitly authorized benchmark state asks for it.
 
 ## Resolver Contract
 

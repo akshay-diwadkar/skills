@@ -1,0 +1,2 @@
+strategy: trace-name-hash
+sample_every: 10

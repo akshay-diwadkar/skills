@@ -3,90 +3,310 @@
   "split": "tuning",
   "cases": [
     {
-      "id": "policy-collision-tenant-access",
-      "repository": "subscription-platform",
-      "query": "Find the tenant subscription authorization policy, not the generic tenant policy.",
-      "expected": {"owner_sets": [["src/accounts/tenant_access_policy.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/accounts/tenant_access_policy.py", "sha256": "b37cb47507ebf9b38279d307cf59d885cacc1a8efddb91504ad5df21630267b3"}],
-      "tags": ["policy-collision", "negative-query"]
-    },
-    {
-      "id": "handler-collision-receipt",
-      "repository": "subscription-platform",
-      "query": "Locate the notification receipt handler, rather than its service.",
-      "expected": {"owner_sets": [["src/notifications/receipt_handler.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/notifications/receipt_handler.py", "sha256": "7ae64c4038b4287a4c8be9b2d67702a2d97c761667ab1701ce9792c5bfb1873b"}],
-      "tags": ["handler-collision", "negative-query"]
-    },
-    {
-      "id": "service-ambiguity-entitlement-grant",
-      "repository": "subscription-platform",
-      "query": "Find the service that owns entitlement grant activation, not the HTTP handler.",
-      "expected": {"owner_sets": [["src/entitlements/grant_service.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/entitlements/grant_service.py", "sha256": "40da3af704ef3ebc577a4e630c9cc07cd100552d9146bdfee8346607830c661a"}],
-      "tags": ["service-ambiguity", "negative-query"]
-    },
-    {
-      "id": "notification-job-not-billing-orchestrator",
-      "repository": "subscription-platform",
-      "query": "Locate the notification renewal job, not billing orchestration.",
-      "expected": {"owner_sets": [["src/notifications/renewal_notice_job.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/notifications/renewal_notice_job.py", "sha256": "2a4c4a37fd026a79783848a106cbcd66905b09e128d1deed297875e356a01cce"}],
-      "tags": ["job-orchestrator-collision", "subsystem-contrast"]
-    },
-    {
-      "id": "repository-not-service-model",
-      "repository": "subscription-platform",
-      "query": "Find payment attempt persistence ownership: repository, not service or model.",
-      "expected": {"owner_sets": [["src/billing/payment_attempt_repository.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/billing/payment_attempt_repository.py", "sha256": "6bc6adf76c53d494cef38d684812c8c4227a9a1d3c6fd6b8361ecb610f33312f"}],
-      "tags": ["repository-confusion", "negative-query"]
-    },
-    {
-      "id": "current-renewal-not-generated-legacy",
-      "repository": "subscription-platform",
-      "query": "Find the current renewal implementation, not legacy or generated code.",
-      "expected": {"owner_sets": [["src/billing/renewal_orchestrator.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/billing/renewal_orchestrator.py", "sha256": "5a9f6dd1eee57edfe4f20860cf57dc512b4373f6df092ed2937cf05d8a752237"}],
-      "tags": ["generated-decoy", "legacy-decoy", "negative-query"]
-    },
-    {
-      "id": "progressive-runtime-not-migration",
-      "repository": "flag-control-plane",
-      "query": "Locate progressive rollout runtime behavior instead of migration state.",
-      "expected": {"owner_sets": [["src/rollouts/progressive_rollout.py"]], "constraints": [], "impacts": [], "status": "resolved"},
-      "evidence": [{"path": "src/rollouts/progressive_rollout.py", "sha256": "b34adfa9b852777032730fd6e6152d2d778ccec587a5e345b47bf2e727bf6cb3"}],
-      "tags": ["migration-decoy", "negative-query"]
-    },
-    {
-      "id": "owner-not-caller-routes",
-      "repository": "flag-control-plane",
-      "query": "Find the matches_segment implementation owner, not the calling route.",
-      "expected": {"owner_sets": [["src/evaluation/segment_matcher.py"]], "constraints": [], "impacts": ["src/api/evaluation_routes.py"], "status": "resolved"},
+      "id": "billing-idempotency-digest",
+      "repository": "schema-migration-service",
+      "query": "Which persistence boundary rejects reuse of a tenant idempotency key with a different payload digest?",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/persistence/idempotency_store.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
       "evidence": [
-        {"path": "src/evaluation/segment_matcher.py", "sha256": "f3684f886299bcadf041ac0c446d1df5eef13897c9f16f2d198c0cd84f97b676"},
-        {"path": "src/api/evaluation_routes.py", "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43"}
+        {
+          "path": "services/persistence/idempotency_store.py",
+          "sha256": "59c3f1050a4176db039d1524a665fa584b9c32528f1f86a96af5fa591f3797c5"
+        }
       ],
-      "tags": ["owner-not-caller", "phase-separation"]
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
     },
     {
-      "id": "renewal-multi-owner-explicit",
-      "repository": "subscription-platform",
-      "query": "Identify both owners of renewal idempotency: orchestration and payment-attempt persistence.",
-      "expected": {"owner_sets": [["src/billing/renewal_orchestrator.py", "src/billing/payment_attempt_repository.py"]], "constraints": [], "impacts": [], "status": "resolved"},
+      "id": "billing-outbox-quarantine",
+      "repository": "schema-migration-service",
+      "query": "Find the worker that quarantines exhausted outbox records without blocking later events.",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/workers/outbox_publisher.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
       "evidence": [
-        {"path": "src/billing/renewal_orchestrator.py", "sha256": "5a9f6dd1eee57edfe4f20860cf57dc512b4373f6df092ed2937cf05d8a752237"},
-        {"path": "src/billing/payment_attempt_repository.py", "sha256": "6bc6adf76c53d494cef38d684812c8c4227a9a1d3c6fd6b8361ecb610f33312f"}
+        {
+          "path": "services/workers/outbox_publisher.py",
+          "sha256": "a85266e6b24c7023b8e6c6ec192bffeef05c88a39facb1e7b671f1a7ea02cfb2"
+        }
       ],
-      "tags": ["multi-owner"]
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
     },
     {
-      "id": "unspecified-policy-abstain",
-      "repository": "subscription-platform",
-      "query": "Find the policy owner.",
-      "expected": {"owner_sets": [], "constraints": [], "impacts": [], "status": "abstain"},
-      "evidence": [],
-      "tags": ["abstention", "underspecified"]
+      "id": "billing-refund-settlement",
+      "repository": "schema-migration-service",
+      "query": "Where is refund eligibility bounded by the settled amount?",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/domain/refund_policy.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "services/domain/refund_policy.py",
+          "sha256": "8dd5de3ff18ddac617f45d0b3e3e098581a3251ab1bd952811a28d025615b4b8"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "billing-entitlement-paid-state",
+      "repository": "schema-migration-service",
+      "query": "Which service grants an entitlement only after confirming the invoice is paid?",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/entitlements/grant_service.py"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "services/entitlements/grant_service.py",
+          "sha256": "4d52d996c765b68cef88c3a688b7b57b3aa4c2f9971611c898d843b5d89b9b5c"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "billing-entitlement-coowners",
+      "repository": "schema-migration-service",
+      "query": "Identify both owners that grant paid-invoice entitlements and expose entitlement reads to merchant callers.",
+      "expected": {
+        "owner_sets": [
+          [
+            "services/entitlements/grant_service.py",
+            "sdk/merchant/entitlement_client.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "services/entitlements/grant_service.py",
+          "sha256": "4d52d996c765b68cef88c3a688b7b57b3aa4c2f9971611c898d843b5d89b9b5c"
+        },
+        {
+          "path": "sdk/merchant/entitlement_client.ts",
+          "sha256": "14d4e6375db1cb7fc09eaaba2b78cac4f775d424af6b103849d00f61b395e561"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split",
+        "multi-owner"
+      ]
+    },
+    {
+      "id": "portal-permission-namespace",
+      "repository": "plugin-workspace",
+      "query": "Which router rejects permission names outside the portal namespace?",
+      "expected": {
+        "owner_sets": [
+          [
+            "plugins/permissions/permission-router.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "plugins/permissions/permission-router.ts",
+          "sha256": "4845843bcb73a671467e30af9dc26135a774e42f90c199d92cd274fcda0bdfba"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "portal-template-owner",
+      "repository": "plugin-workspace",
+      "query": "Find the scaffolder boundary that requires both a namespaced template reference and an owner.",
+      "expected": {
+        "owner_sets": [
+          [
+            "plugins/scaffolder/template-executor.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "plugins/scaffolder/template-executor.ts",
+          "sha256": "a216731eb7bf4e43d313523279d814d2453c8cb660420184ca2a000646de489a"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "portal-search-partition",
+      "repository": "plugin-workspace",
+      "query": "Where are catalog search documents partitioned by tenant and emitted with sorted annotations?",
+      "expected": {
+        "owner_sets": [
+          [
+            "plugins/search/catalog-indexer.ts"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "plugins/search/catalog-indexer.ts",
+          "sha256": "303654f7fe4b23669a6a989df219a8b4826190ed7c7acaffcb893ebc61ce28e7"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "telemetry-redaction-secrets",
+      "repository": "component-pipeline",
+      "query": "Which Rust transform removes authorization and payment secrets from signal attributes?",
+      "expected": {
+        "owner_sets": [
+          [
+            "rust/transform/src/redaction.rs"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "rust/transform/src/redaction.rs",
+          "sha256": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "telemetry-cardinality-budget",
+      "repository": "component-pipeline",
+      "query": "Which transform rejects a signal when its attribute count exceeds the configured budget?",
+      "expected": {
+        "owner_sets": [
+          [
+            "rust/transform/src/cardinality.rs"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "rust/transform/src/cardinality.rs",
+          "sha256": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "telemetry-exporter-route",
+      "repository": "component-pipeline",
+      "query": "Which control-plane policy selects a tenant exporter route and rejects missing routes?",
+      "expected": {
+        "owner_sets": [
+          [
+            "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs",
+          "sha256": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
+    },
+    {
+      "id": "telemetry-distribution-duplicates",
+      "repository": "component-pipeline",
+      "query": "Where does the distribution reject duplicate receiver, processor, or exporter registrations?",
+      "expected": {
+        "owner_sets": [
+          [
+            "go/distributions/distribution_registry.go"
+          ]
+        ],
+        "constraints": [],
+        "impacts": [],
+        "status": "resolved"
+      },
+      "evidence": [
+        {
+          "path": "go/distributions/distribution_registry.go",
+          "sha256": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023"
+        }
+      ],
+      "tags": [
+        "map-codebase-v3",
+        "independent-split"
+      ]
     }
   ]
 }

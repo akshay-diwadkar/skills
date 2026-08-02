@@ -163,7 +163,7 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version_description() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
-    assert versions["map-codebase"] == "2.2.1"
+    assert versions["map-codebase"] == "2.3.0"
     assert versions["plan-change"] == "3.0.0"
     assert versions["audit-codebase"] == "3.1.0"
     assert versions["design-codebase"] == "2.1.0"

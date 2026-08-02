@@ -15,6 +15,12 @@ SECRET_PATTERNS = [
 ]
 GIT_TIMEOUT_SECONDS = 5
 UNAVAILABLE_GIT_ROOTS: set[Path] = set()
+KNOWN_TEXT_SUFFIXES = frozenset({
+    ".c", ".cc", ".cpp", ".cs", ".css", ".go", ".h", ".hpp", ".html",
+    ".java", ".js", ".json", ".jsx", ".kt", ".kts", ".md", ".mjs",
+    ".py", ".rb", ".rs", ".sh", ".sql", ".toml", ".ts", ".tsx", ".txt",
+    ".xml", ".yaml", ".yml",
+})
 
 
 def run_git(root: Path, *args: str, text: bool = False) -> Any | None:
@@ -50,12 +56,18 @@ def is_knowledge_path(repo_root: Path, output_dir: Path | str, path: str) -> boo
     """Whether ``path`` names the configured internal knowledge output."""
     root = repo_root.resolve()
     candidate = Path(path)
-    try:
-        relative = (candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()).relative_to(root)
-    except ValueError:
-        return False
     prefix = knowledge_output_prefix(root, output_dir)
-    normalized = relative.as_posix()
+    if candidate.is_absolute():
+        try:
+            normalized = candidate.resolve().relative_to(root).as_posix()
+        except ValueError:
+            return False
+    else:
+        # Git and discovery inventories are already repository-relative.
+        # Resolving every entry is disproportionately expensive on Windows.
+        normalized = candidate.as_posix()
+        while normalized.startswith("./"):
+            normalized = normalized[2:]
     return normalized == prefix or normalized.startswith(prefix + "/")
 
 
@@ -67,7 +79,23 @@ def is_internal_runtime_path(repo_root: Path, output_dir: Path | str, path: str)
 
 def filter_internal_paths(repo_root: Path, output_dir: Path | str, paths: list[str] | set[str]) -> list[str]:
     """Return deterministic repository paths excluding generated runtime support."""
-    return sorted({path.replace("\\", "/") for path in paths if not is_internal_runtime_path(repo_root, output_dir, path)})
+    # ``paths`` is commonly the complete Git inventory.  Computing the output
+    # prefix through ``Path.resolve`` for every member is especially costly on
+    # Windows networked or cloud-synchronised worktrees, so establish it once
+    # and apply the identical lexical rule to each repository-relative path.
+    prefix = knowledge_output_prefix(repo_root, output_dir)
+    internal = {"AGENTS.md", "CLAUDE.md"}
+    retained: set[str] = set()
+    for path in paths:
+        normalized = path.replace("\\", "/")
+        # Preserve meaningful leading dots in directories such as ``.agent``;
+        # only discard explicit current-directory prefixes.
+        while normalized.startswith("./"):
+            normalized = normalized[2:]
+        if normalized in internal or normalized == prefix or normalized.startswith(prefix + "/"):
+            continue
+        retained.add(normalized)
+    return sorted(retained)
 
 
 def matches_glob(rel_path_str: str, patterns: list[str]) -> bool:
@@ -152,7 +180,10 @@ def discover_files(
             ignored.append(rel_str)
             continue
         try:
-            if full_path.stat().st_size > max_size or is_binary_file(full_path):
+            if full_path.stat().st_size > max_size or (
+                full_path.suffix.casefold() not in KNOWN_TEXT_SUFFIXES
+                and is_binary_file(full_path)
+            ):
                 ignored.append(rel_str)
                 continue
         except OSError:
@@ -166,7 +197,7 @@ def discover_files(
 
 def _safe_path(root: Path, path: Path) -> bool:
     try:
-        path.resolve().relative_to(root.resolve())
+        path.relative_to(root)
         return True
     except ValueError:
         return False
@@ -174,7 +205,7 @@ def _safe_path(root: Path, path: Path) -> bool:
 
 def git_tracked_paths(root: Path) -> set[str] | None:
     """Return one deterministic tracked-path inventory, or ``None`` outside Git."""
-    result = run_git(root, "ls-files", "-z")
+    result = run_git(root, "ls-files", "--cached", "-z")
     if result is None:
         return None
     return {
@@ -182,6 +213,40 @@ def git_tracked_paths(root: Path) -> set[str] | None:
         for item in result.stdout.split(b"\0")
         if item
     }
+
+
+def git_file_states(root: Path) -> dict[str, dict[str, bool]]:
+    """Return porcelain-v2 Git state without refreshing the index.
+
+    The mapping is deliberately path-local: the clean tracked inventory stays
+    authoritative while callers can make explicit decisions about staged,
+    working-tree, and untracked evidence.
+    """
+    result = run_git(root, "--no-optional-locks", "status", "--porcelain=v2", "-z", "--untracked-files=all")
+    if result is None:
+        return {}
+    states: dict[str, dict[str, bool]] = {}
+    records = [item.decode("utf-8", errors="surrogateescape") for item in result.stdout.split(b"\0") if item]
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if record.startswith("? "):
+            states[record[2:].replace("\\", "/")] = {"tracked": False, "index": False, "worktree": False, "untracked": True}
+            continue
+        if not record.startswith(("1 ", "2 ")):
+            continue
+        fields = record.split(" ")
+        if len(fields) < 9:
+            continue
+        xy = fields[1]
+        path = fields[-1].replace("\\", "/")
+        states[path] = {"tracked": True, "index": xy[0] != ".", "worktree": xy[1] != ".", "untracked": False}
+        # Type-2 rename/copy records carry the original path in the next NUL
+        # entry. It is not a current owner path, so consume but do not index it.
+        if record.startswith("2 ") and index < len(records):
+            index += 1
+    return states
 
 
 def git_untracked_paths(root: Path) -> list[str]:

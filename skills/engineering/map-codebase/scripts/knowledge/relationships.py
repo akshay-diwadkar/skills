@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import posixpath
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -10,13 +12,30 @@ def resolve_import_to_path(
     import_str: str,
     indexed_files: set[str],
     current_file: str,
+    suffix_index: dict[str, tuple[str, ...]] | None = None,
 ) -> str | None:
     """Attempt to resolve an import string to an indexed internal repository file path.
 
     Returns:
         rel_path if resolved to an internal file, or None if external/unresolved.
     """
-    cleaned = import_str.strip("./").replace(".", "/")
+    raw = import_str.strip().replace("\\", "/")
+    known_suffixes = (".tsx", ".jsx", ".py", ".ts", ".js", ".go", ".rs")
+    for suffix in known_suffixes:
+        if raw.endswith(suffix):
+            raw = raw[: -len(suffix)]
+            break
+
+    # Relative JavaScript/TypeScript imports commonly name the emitted `.js`
+    # file even though the indexed owner is the `.ts` source. Resolve the
+    # relative path before considering dotted Python/module notation.
+    curr_dir = str(Path(current_file).parent).replace("\\", "/")
+    if raw.startswith(("./", "../")):
+        cleaned = posixpath.normpath(posixpath.join(curr_dir, raw))
+    else:
+        cleaned = raw.strip("./")
+        if "/" not in cleaned:
+            cleaned = cleaned.replace(".", "/")
 
     # Try exact match or suffix match
     for ext in [".py", ".ts", ".js", ".tsx", ".jsx", ".go", ".rs"]:
@@ -25,16 +44,20 @@ def resolve_import_to_path(
             return candidate
 
         # Try relative to current file's directory
-        curr_dir = str(Path(current_file).parent).replace("\\", "/")
         if curr_dir and curr_dir != ".":
             rel_candidate = f"{curr_dir}/{cleaned}{ext}"
             if rel_candidate in indexed_files:
                 return rel_candidate
 
-        # Try matching anywhere in indexed files (e.g. src/auth/service.py for auth.service)
-        for indexed in indexed_files:
-            if indexed.endswith(candidate) or indexed == candidate:
-                return indexed
+        # Try a pre-indexed suffix match (e.g. src/auth/service.py for auth.service).
+        if suffix_index is not None:
+            matches = suffix_index.get(candidate, ())
+            if matches:
+                return matches[0]
+        else:
+            for indexed in sorted(indexed_files):
+                if indexed.endswith(candidate) or indexed == candidate:
+                    return indexed
 
     return None
 
@@ -49,6 +72,12 @@ def build_relationship_graph(
         (updated_files, updated_dependencies, updated_tests)
     """
     indexed_path_set = {f["path"] for f in files}
+    suffix_paths: dict[str, list[str]] = defaultdict(list)
+    for indexed_path in sorted(indexed_path_set):
+        parts = indexed_path.split("/")
+        for index in range(len(parts)):
+            suffix_paths["/".join(parts[index:])].append(indexed_path)
+    suffix_index = {key: tuple(paths) for key, paths in suffix_paths.items()}
     import_map: dict[str, set[str]] = {f["path"]: set() for f in files}
     reverse_import_map: dict[str, set[str]] = {f["path"]: set() for f in files}
     dependencies: list[dict[str, Any]] = []
@@ -60,7 +89,7 @@ def build_relationship_graph(
         resolved_internal: set[str] = set()
 
         for imp in raw_imports:
-            resolved = resolve_import_to_path(imp, indexed_path_set, path)
+            resolved = resolve_import_to_path(imp, indexed_path_set, path, suffix_index)
             if resolved and resolved != path:
                 resolved_internal.add(resolved)
                 reverse_import_map[resolved].add(path)
@@ -97,10 +126,16 @@ def build_relationship_graph(
                     targets.add(imp_target)
 
             # Target from filename conventions (test_foo.py -> foo.py)
-            stem = Path(test_path).stem.replace("test_", "").replace("_test", "")
+            stem = Path(test_path).stem
+            if stem.startswith("test_"):
+                stem = stem[5:]
+            for suffix in ("_test", ".test", "-test", "Test"):
+                if stem.endswith(suffix):
+                    stem = stem[: -len(suffix)]
+                    break
             for src_path in indexed_path_set:
                 if file_by_path.get(src_path, {}).get("role") == "source":
-                    if Path(src_path).stem == stem:
+                    if Path(src_path).stem.casefold() == stem.casefold():
                         targets.add(src_path)
 
             target_list = sorted(list(targets))

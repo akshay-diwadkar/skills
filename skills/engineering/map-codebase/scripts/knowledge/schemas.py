@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -17,9 +18,19 @@ except ImportError as exc:
 SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "schemas"
 
 
+@lru_cache(maxsize=None)
+def _validator(schema_name: str) -> Any:
+    schema = json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8"))
+    validator_class = jsonschema.validators.validator_for(schema)
+    validator_class.check_schema(schema)
+    return validator_class(schema)
+
+
 def validate_schema_json(data: dict[str, Any], schema_name: str) -> list[str]:
     try:
-        jsonschema.validate(data, json.loads((SCHEMAS_DIR / schema_name).read_text(encoding="utf-8")))
+        error = next(_validator(schema_name).iter_errors(data), None)
+        if error is not None:
+            return [f"{schema_name}: {error}"]
     except Exception as exc:
         return [f"{schema_name}: {exc}"]
     return []
@@ -50,6 +61,9 @@ def validate_semantic_graph(
     for edge in relationships.get("test_links", []):
         if edge["source"] not in paths or edge["target"] not in paths:
             errors.append("Invalid test relationship")
+    for edge in relationships.get("generated_links", []):
+        if edge["source"] not in paths or edge["target"] not in paths:
+            errors.append("Invalid generated-source relationship")
     for edge in relationships.get("calls", []):
         if edge["source"] not in paths or edge["target"] not in paths:
             errors.append("Invalid call relationship")

@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shlex
+import subprocess
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -19,14 +22,15 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
 from knowledge.discovery import knowledge_output_prefix
+from knowledge.freshness import validated_root_artifacts
 from knowledge.indexing import shard_id
 from knowledge.schemas import validate_schema_json
 from refresh_knowledge import check_freshness
-from resolver.features import structured_candidate_paths
+from resolver.features import structured_candidate_paths, subsystem_tokens
 from resolver.features import tokenize as structured_tokenize
 from resolver.phase1_ranker import resolve_phase1
 from resolver.query_parser import parse_task_query
-from resolver.schemas import TaskQuery
+from resolver.schemas import CandidateDiscovery, RankedOwners, RetrievedEvidence, TaskQuery
 from resolver.scoring import score_candidates
 from resolver.symbol_ranker import rank_symbols
 
@@ -62,6 +66,15 @@ STOPWORDS = {
     "identify",
     "locate",
     "implementation",
+    "or",
+    "if",
+    "when",
+    "does",
+    "tracked",
+    "direct",
+    "evidence",
+    "absent",
+    "abstain",
 }
 CONFIG_NAMES = {"pyproject.toml", "package.json", "makefile", "gnumakefile", "tsconfig.json"}
 CONFIG_EXTENSIONS = {".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"}
@@ -114,13 +127,14 @@ SYNONYM_GROUPS = (
         "unauthenticated",
         "login",
         "signin",
+        "sign",
         "credential",
         "credentials",
     }),
     frozenset({"config", "configuration", "settings", "options"}),
     frozenset({"error", "errors", "failure", "failures", "exception", "exceptions"}),
     frozenset({"cache", "caching", "memoization", "memoize"}),
-    frozenset({"search", "searching", "find", "lookup", "fetch", "retrieve", "retrieval"}),
+    frozenset({"search", "searching", "find", "matching", "match", "lookup", "fetch", "retrieve", "retrieval"}),
     frozenset({"store", "storage", "persist", "persistence", "adapter"}),
     frozenset({"permission", "permissions", "access", "authorization", "authorize"}),
     frozenset({"throttle", "throttling", "ratelimit", "ratelimits"}),
@@ -129,7 +143,7 @@ SYNONYM_GROUPS = (
     frozenset({"parse", "parsing", "decode", "decoding"}),
     frozenset({"timeout", "timeouts", "deadline", "deadlines"}),
     frozenset({"queue", "queues", "worker", "workers", "job", "jobs"}),
-    frozenset({"validate", "validation", "verify", "verification", "check", "checks"}),
+    frozenset({"validate", "validation", "verify", "verification", "check", "checks", "value", "values"}),
     frozenset({"create", "creation", "add", "addition", "insert"}),
     frozenset({"update", "revision", "modify", "modification"}),
     frozenset({"gradual", "progressive", "percentage", "rollout"}),
@@ -146,10 +160,11 @@ SYNONYM_GROUPS = (
         "replay",
         "replayed",
         "seen",
-        "set",
         "twice",
         "unique",
     }),
+    frozenset({"decimal", "precision", "round", "rounding"}),
+    frozenset({"linter", "lint", "ruff", "pylint", "flake8"}),
 )
 TOKEN_SYNONYMS = {
     token: group - {token}
@@ -163,7 +178,9 @@ INTENT_RULES: list[tuple[re.Pattern[str], PrimaryRole, int]] = [
     (re.compile(r"^(?:test|tests)(?:\([^)]*\))?:"), "test", 260),
     (
         re.compile(
-            r"(?=.*\b(?:implement|support|expose)\b)"
+            r"(?=.*\b(?:implement|implementation|support|expose|owner|ownership|"
+            r"receiver|processor|router|policy|transform|worker|service|boundary|"
+            r"application|facade|pipeline|registry|runtime|composition root|client|sdk)\b)"
             r"(?=.*\b(?:tests?|assertion|fixture|expected|configuration|config|settings|options|"
             r"ruff|mypy|eslint|prettier|tsconfig|workflow|compiler|linter|addopts|matrix)\b)"
         ),
@@ -206,7 +223,7 @@ INTENT_RULES: list[tuple[re.Pattern[str], PrimaryRole, int]] = [
     ),
     (
         re.compile(
-            r"\b(?:implement|add|fix|support|prevent|handle|refactor|caller|behavior|repair|"
+            r"\b(?:implement|implementation|owner|ownership|identify|locate|find|add|fix|support|prevent|handle|refactor|caller|behavior|repair|"
             r"harden|improve|strengthen|tighten|restore|rebuild|stabilize|correct|modify|update)\b"
         ),
         "source",
@@ -230,6 +247,7 @@ class TaskIntent:
     reasons: tuple[str, ...]
 
 
+@lru_cache(maxsize=65_536)
 def _literal_split(value: str) -> set[str]:
     protected = PROTECTED_COMPOUND_PATTERN.sub(
         lambda match: PROTECTED_COMPOUND_TERMS.get(
@@ -276,6 +294,17 @@ def _stems(token: str) -> set[str]:
     return stems
 
 
+@lru_cache(maxsize=65_536)
+def _token_forms(token: str) -> frozenset[str]:
+    """Expand one already-normalized token without repeating text parsing."""
+    stemmed = _stems(token)
+    expanded = set(stemmed)
+    for value in stemmed:
+        expanded.update(TOKEN_SYNONYMS.get(value, ()))
+    return frozenset(expanded - STOPWORDS)
+
+
+@lru_cache(maxsize=65_536)
 def _split(value: str) -> set[str]:
     """Split text into literal, stemmed, and explicitly synonymous token forms."""
     literal = {token for token in _literal_split(value) if token not in STOPWORDS}
@@ -290,16 +319,30 @@ def _transformed_pair(task_tokens: set[str], candidate_tokens: set[str]) -> tupl
     """Return the first deterministic non-literal task-to-candidate token match."""
     if task_tokens & candidate_tokens:
         return None
-    for task_token in sorted(task_tokens):
-        task_forms = _split(task_token)
-        for candidate_token in sorted(candidate_tokens):
-            if task_forms & _split(candidate_token):
+    expanded_task = set().union(*(_token_forms(token) for token in task_tokens)) if task_tokens else set()
+    for candidate_token in sorted(candidate_tokens):
+        candidate_forms = _token_forms(candidate_token)
+        if not expanded_task & candidate_forms:
+            continue
+        for task_token in sorted(task_tokens):
+            if _token_forms(task_token) & candidate_forms:
                 return task_token, candidate_token
     return None
 
 
 def _signals(task: str) -> dict[str, set[str]]:
     raw = re.findall(r"[A-Za-z_][A-Za-z0-9_./:-]*", task)
+    explicit_symbols = {
+        x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x
+    }
+    explicit_symbols.update(
+        match.group(1)
+        for match in re.finditer(
+            r"\b(?:change|modify|update)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            task,
+            flags=re.IGNORECASE,
+        )
+    )
     excluded_literal: set[str] = set()
     for match in re.finditer(
         r"\b(?:instead of|rather than)\s+(?:the\s+)?([^.,;]+)",
@@ -319,7 +362,7 @@ def _signals(task: str) -> dict[str, set[str]]:
         terms -= _split("find")
     return {
         "paths": {x.replace("\\", "/") for x in raw if "/" in x or re.search(r"\.[A-Za-z0-9]{1,5}$", x)},
-        "symbols": {x for x in raw if re.search(r"[A-Z]|_", x) and "/" not in x},
+        "symbols": explicit_symbols,
         "literal_terms": literal_terms,
         "terms": terms,
     }
@@ -380,7 +423,20 @@ def classify_task_intent(task: str, signals: dict[str, set[str]], files: list[di
     ):
         if roles:
             primary = roles[0]
-            explicit_secondary = tuple(role for role in roles[1:] if role != "source")
+            secondary_roles = {role for role in roles[1:] if role != "source"}
+            if primary == "source":
+                if re.search(r"\b(?:and|with|plus)\b.{0,80}\b(?:config|configuration|settings|options)\b", lowered):
+                    secondary_roles.add("configuration")
+                if re.search(
+                    r"\b(?:and|with|plus)\b.{0,80}\btests?\b|"
+                    r"\btests?\b.{0,50}\bmust change together\b",
+                    lowered,
+                ):
+                    secondary_roles.add("test")
+            secondary_roles.discard(primary)
+            explicit_secondary = tuple(
+                role for role in ("configuration", "test") if role in secondary_roles
+            )
             matched = next(
                 (
                     file["path"]
@@ -435,21 +491,13 @@ def _load(
             f"  → Run: python scripts/cli.py build --repo-root {root}\n"
             "  → Or:  Inspect source directly (knowledge is optional)"
         )
-    manifest, repo, catalog, relationships, symbol_index = [
-        json.loads((directory / x).read_text(encoding="utf-8")) for x in names
-    ]
-    errors = sum(
-        (
-            validate_schema_json(manifest, "manifest.schema.json"),
-            validate_schema_json(repo, "repo-map.schema.json"),
-            validate_schema_json(catalog, "symbols.schema.json"),
-            validate_schema_json(relationships, "relationships.schema.json"),
-            validate_schema_json(symbol_index, "symbol-index.schema.json"),
-        ),
-        [],
-    )
-    if errors:
-        raise ValueError(f"Invalid knowledge artifacts: {errors}")
+    validated = validated_root_artifacts(directory)
+    if validated is not None:
+        manifest, repo, catalog, relationships, symbol_index = validated[:5]
+    else:
+        manifest, repo, catalog, relationships, symbol_index = [
+            json.loads((directory / x).read_text(encoding="utf-8")) for x in names
+        ]
     return directory, manifest, repo, catalog, relationships, symbol_index
 
 
@@ -459,8 +507,8 @@ def _add(evidence: dict[str, tuple[float, str]], key: str, weight: float, family
 
 
 def has_positive_evidence(candidate: dict[str, Any]) -> bool:
-    """Whether a candidate has a positive score backed by positive evidence."""
-    return candidate.get("score", 0) > 0 and any(weight > 0 for weight, _ in candidate.get("evidence", {}).values())
+    """Whether ownership has positive declaration, behavior, config, or graph evidence."""
+    return candidate.get("score", 0) > 0 and bool(candidate.get("direct_evidence"))
 
 
 def _fallback_search(output_prefix: str, value: str, *, is_regex: bool = False) -> str:
@@ -491,12 +539,13 @@ def _lexical(
             _add(evidence, f"exact_path: {path}", weights["exact_path"], "path")
         if exact:
             _add(evidence, f"exact_symbol: {exact[0]}", weights["exact_symbol"], "identifier")
-        path_stem_terms = _literal_split(Path(path).stem)
+        path_stem = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        path_stem_terms = _literal_split(path_stem)
         matched = signals["literal_terms"] & path_stem_terms
         expanded_filename_matches = {
             term
             for term in path_stem_terms
-            if _split(term) & signals["terms"]
+            if _token_forms(term) & signals["terms"]
         }
         if matched or expanded_filename_matches:
             filename_matches = matched or expanded_filename_matches
@@ -542,7 +591,7 @@ def _lexical(
                 "workflow",
             },
         }
-        stem = Path(path).stem.casefold()
+        stem = path_stem.casefold()
         for suffix, hints in role_hints.items():
             if stem.endswith("_" + suffix) and signals["terms"] & hints:
                 multiplier = 3 if suffix == "orchestrator" else 1
@@ -556,7 +605,7 @@ def _lexical(
         matched = {
             term
             for term in symbol_terms
-            if _split(term) & signals["terms"]
+            if _token_forms(term) & signals["terms"]
         }
         if matched:
             _add(evidence, f"symbol_token: {sorted(matched)[0]}", weights["symbol_token"], "identifier")
@@ -570,7 +619,7 @@ def _lexical(
         description_matches = {
             term
             for term in descriptions.get(path, set())
-            if _split(term) & signals["terms"]
+            if _token_forms(term) & signals["terms"]
         }
         if description_matches:
             _add(
@@ -582,7 +631,7 @@ def _lexical(
         source_matches = {
             term
             for term in source_terms.get(path, set())
-            if _split(term) & signals["terms"]
+            if _token_forms(term) & signals["terms"]
         }
         if source_matches:
             _add(
@@ -631,7 +680,7 @@ def _lexical(
         config_matches = {
             term
             for term in config_key_terms
-            if _split(term) & signals["terms"]
+            if _token_forms(term) & signals["terms"]
         }
         if file["role"] == "configuration" and config_matches:
             _add(
@@ -678,6 +727,9 @@ def _rerank(
     tests_by_target: dict[str, list[str]] = {}
     for edge in relationships.get("test_links", []):
         tests_by_target.setdefault(edge["target"], []).append(edge["source"])
+    imports_by_source: dict[str, list[str]] = {}
+    for edge in relationships.get("imports", []):
+        imports_by_source.setdefault(edge["source"], []).append(edge["target"])
     for path, item in selected.items():
         ev = item["evidence"]
         relationship_budget = 3.0
@@ -692,18 +744,17 @@ def _rerank(
                 "reverse_import_relationship",
             )
             relationship_budget = max(0.0, relationship_budget - weights["reverse_import_relationship"])
-        for edge in relationships.get("imports", [])[:1]:
-            if edge["source"] == path:
-                _add(
-                    ev,
-                    f"imports: {edge['target']}",
-                    min(weights["import_relationship"], relationship_budget),
-                    "import_relationship",
-                )
+        for imported in sorted(imports_by_source.get(path, []))[:1]:
+            _add(
+                ev,
+                f"imports: {imported}",
+                min(weights["import_relationship"], relationship_budget),
+                "import_relationship",
+            )
         if Path(path).name.lower() in {"main.py", "app.py", "index.ts", "index.js", "server.js", "cli.py"}:
             _add(ev, f"entry_point: {path}", weights["entry_point"], "entry_point")
         item["score"] = sum(x[0] for x in ev.values())
-    return sorted((x for x in selected.values() if x["score"] > 0), key=lambda x: (-x["score"], x["file"]["path"]))
+    return sorted(selected.values(), key=lambda x: (-x["score"], x["file"]["path"]))
 
 
 def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[str, list[dict[str, Any]]]:
@@ -711,7 +762,10 @@ def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[
     wanted = {shard_id(x) for x in paths}
     for shard in catalog["shards"]:
         if shard["id"] in wanted:
-            for symbol in json.loads((directory / shard["path"]).read_text())["symbols"]:
+            payload = (directory / shard["path"]).read_bytes()
+            if hashlib.sha256(payload).hexdigest() != shard["hash"]:
+                raise ValueError(f"Knowledge symbol shard hash mismatch: {shard['path']}")
+            for symbol in json.loads(payload)["symbols"]:
                 if symbol["path"] in answer:
                     answer[symbol["path"]].append(symbol)
     return answer
@@ -719,7 +773,10 @@ def _symbols(directory: Path, catalog: dict[str, Any], paths: set[str]) -> dict[
 
 def _exact_symbol_paths(symbol_index: dict[str, Any], signals: dict[str, set[str]]) -> set[str]:
     """Return exact symbol owners without loading symbol shards."""
-    candidates = signals["symbols"] | signals["literal_terms"]
+    # Only identifier-shaped query tokens are exact symbols. Treating every
+    # lowercase task noun as exact (for example `permission` or `component`)
+    # lets incidental local variables overwhelm the maintained owner.
+    candidates = signals["symbols"]
     return {
         entry["file"]
         for candidate in candidates
@@ -933,6 +990,8 @@ def _target(
         "start_line": start_line,
         "end_line": end_line,
         "role": file["role"],
+        "tracked": bool(file.get("tracked", True)),
+        "git_state": dict(file.get("git_state", {})),
         "evidence": sorted(set(evidence)),
         "question": f"Does {match['name'] if match else file['path']} own the requested behavior?",
     }
@@ -946,7 +1005,9 @@ def _dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             output[item["path"]] = item
         else:
             old["evidence"] = sorted(set(old["evidence"]) | set(item["evidence"]))
-    return [output[path] for path in sorted(output)]
+    # Callers provide deterministic ranked input.  Preserve that ranking;
+    # alphabetically re-sorting here discarded relevance at phase boundaries.
+    return list(output.values())
 
 
 def evidence_for_test_target(test_path: str, source_path: str) -> str:
@@ -964,7 +1025,7 @@ def evidence_for_import_neighbor(primary_path: str, source_path: str, target_pat
 
 def _relationship_targets(
     primary_paths: set[str], relationships: dict[str, Any], by_path: dict[str, Any], root: Path, task: str,
-    signals: dict[str, set[str]], config: dict[str, Any]
+    signals: dict[str, set[str]], config: dict[str, Any], *, include_tests: bool = False,
 ) -> list[dict[str, Any]]:
     """Return deterministic direct neighbours with evidence from the neighbour's perspective."""
     merged: dict[str, dict[str, Any]] = {}
@@ -985,6 +1046,46 @@ def _relationship_targets(
             config["weights"]["import_relationship"],
             "import_relationship",
         )
+    for edge in relationships.get("generated_links", []):
+        source, target = edge["source"], edge["target"]
+        if target in primary_paths and source not in primary_paths:
+            adjacent, evidence = source, f"generated_from: {target}"
+        elif source in primary_paths and target not in primary_paths:
+            adjacent, evidence = target, f"source_of_generated: {source}"
+        else:
+            continue
+        if adjacent not in by_path:
+            continue
+        item = merged.setdefault(adjacent, {"file": by_path[adjacent], "evidence": {}})
+        _add(item["evidence"], evidence, config["weights"]["import_relationship"], "relationship")
+    if include_tests:
+        linked_test_targets: set[str] = set()
+        for edge in relationships.get("test_links", []):
+            source, target = edge["source"], edge["target"]
+            if target not in primary_paths or source not in by_path:
+                continue
+            linked_test_targets.add(target)
+            item = merged.setdefault(source, {"file": by_path[source], "evidence": {}})
+            _add(
+                item["evidence"],
+                evidence_for_test_target(source, target),
+                config["weights"]["related_test"],
+                "test",
+            )
+        for primary_path in sorted(primary_paths - linked_test_targets):
+            content = (root / primary_path).read_text(encoding="utf-8", errors="ignore")
+            if not re.search(r"#\s*\[cfg\s*\(test\)\]|\bmod\s+tests\b", content):
+                continue
+            item = merged.setdefault(
+                primary_path,
+                {"file": by_path[primary_path], "evidence": {}},
+            )
+            _add(
+                item["evidence"],
+                f"embedded_tests: {primary_path}",
+                config["weights"]["related_test"],
+                "test",
+            )
     return _dedupe([_target(item, [], signals, root, task, config) for _, item in sorted(merged.items())])
 
 
@@ -1056,6 +1157,187 @@ def _apply_budget(
     }
 
 
+def discover_candidates(
+    files: list[dict[str, Any]],
+    symbol_index: dict[str, Any],
+    signals: dict[str, set[str]],
+    query: TaskQuery,
+    *,
+    weights: dict[str, float],
+    freshness: str,
+    configuration_keys: dict[str, list[str]],
+    relationships: dict[str, Any] | None = None,
+) -> CandidateDiscovery:
+    """Admit a bounded, score-free funnel before any source is read."""
+    lexical = _lexical(files, signals, weights, freshness, configuration_keys, {})
+    lexical_paths = tuple(item["file"]["path"] for item in lexical[:24])
+    admitted = (
+        set(lexical_paths)
+        | _exact_symbol_paths(symbol_index, signals)
+        | structured_candidate_paths(files, query)
+    )
+    return CandidateDiscovery(
+        candidate_paths=frozenset(
+            admitted | _same_subsystem_relationship_paths(files, admitted, relationships or {})
+        ),
+        lexical_paths=lexical_paths,
+    )
+
+
+def _same_subsystem_relationship_paths(
+    files: list[dict[str, Any]], seeds: set[str], relationships: dict[str, Any], *, limit: int = 12,
+) -> set[str]:
+    """Add a deterministic, bounded two-hop neighborhood of admitted paths."""
+    by_path = {file["path"]: file for file in files}
+    adjacency: dict[str, set[str]] = {}
+    for edge in relationships.get("imports", []):
+        source, target = edge.get("source"), edge.get("target")
+        if source in by_path and target in by_path:
+            adjacency.setdefault(source, set()).add(target)
+            adjacency.setdefault(target, set()).add(source)
+    for target, importers in relationships.get("reverse_imports", {}).items():
+        if target not in by_path:
+            continue
+        for importer in importers:
+            if importer in by_path:
+                adjacency.setdefault(target, set()).add(importer)
+                adjacency.setdefault(importer, set()).add(target)
+
+    additions: set[str] = set()
+    for seed in sorted(seeds):
+        if len(additions) >= limit or seed not in by_path:
+            break
+        seed_subsystems = subsystem_tokens(by_path[seed])
+        frontier = [seed]
+        visited = {seed}
+        for _ in range(2):
+            next_frontier: list[str] = []
+            for current in sorted(frontier):
+                for neighbor in sorted(adjacency.get(current, set())):
+                    if neighbor in visited:
+                        continue
+                    visited.add(neighbor)
+                    next_frontier.append(neighbor)
+                    if (
+                        neighbor not in seeds
+                        and subsystem_tokens(by_path[neighbor]) & seed_subsystems
+                        and len(additions) < limit
+                    ):
+                        additions.add(neighbor)
+            frontier = next_frontier
+            if not frontier or len(additions) >= limit:
+                break
+    return additions
+
+
+def retrieve_evidence(
+    root: Path,
+    directory: Path,
+    catalog: dict[str, Any],
+    candidate_paths: frozenset[str],
+    terms: set[str] | frozenset[str] | None = None,
+) -> RetrievedEvidence:
+    """Load immutable bounded symbol and source evidence for discovered paths."""
+    indexed = _symbols(directory, catalog, set(candidate_paths))
+    symbols = {path: tuple(values) for path, values in indexed.items()}
+    descriptions = {
+        path: frozenset(
+            set().union(*(_literal_split(str(symbol.get("docstring", ""))) for symbol in values))
+            if values else set()
+        )
+        for path, values in symbols.items()
+    }
+    source_terms = _scoped_source_terms(root, candidate_paths, terms or frozenset())
+    return RetrievedEvidence(symbols, source_terms, descriptions)
+
+
+def _scoped_source_terms(
+    root: Path, candidate_paths: frozenset[str], terms: set[str] | frozenset[str],
+) -> dict[str, frozenset[str]]:
+    """Retrieve bounded query evidence with a sorted, explicitly scoped rg pass.
+
+    The fallback scans only admitted files and retains at most twelve matching
+    lines per file, matching the ripgrep branch without a line-number cutoff.
+    """
+    paths = tuple(sorted(candidate_paths))
+    evidence: dict[str, set[str]] = {path: set() for path in paths}
+    needles = sorted(term for term in terms if len(term) > 1)[:24]
+    if needles:
+        pattern = "|".join(re.escape(term) for term in needles)
+        try:
+            result = subprocess.run(
+                ["rg", "--json", "--no-config", "--color", "never", "--max-count", "12", "--regexp", pattern, "--files-from", "-"],
+                cwd=root,
+                input="\n".join(paths),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if result.returncode in {0, 1}:
+                for raw in result.stdout.splitlines():
+                    try:
+                        event = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    if event.get("type") != "match":
+                        continue
+                    data = event.get("data", {})
+                    path = str(data.get("path", {}).get("text", "")).replace("\\", "/")
+                    if path in evidence:
+                        evidence[path].update(_literal_split(str(data.get("lines", {}).get("text", ""))))
+                return {path: frozenset(values) for path, values in evidence.items()}
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    for path in paths:
+        try:
+            lines = (root / path).read_text(encoding="utf-8", errors="ignore").splitlines()
+        except OSError:
+            continue
+        matches = 0
+        for line in lines:
+            if not needles or any(term in line.casefold() for term in needles):
+                evidence[path].update(_literal_split(line))
+                matches += 1
+                if matches >= 12:
+                    break
+    return {path: frozenset(values) for path, values in evidence.items()}
+
+
+def rank_owners(
+    candidates: list[dict[str, Any]],
+    symbols_by_path: dict[str, list[dict[str, Any]]],
+    query: TaskQuery,
+    *,
+    freshness: str,
+    focused: bool,
+    underspecified: bool,
+) -> RankedOwners:
+    """Select owners from scored candidates without mutating retrieved evidence."""
+    targets = [candidate["target"] for candidate in candidates]
+    ranked = [candidate["candidate"] for candidate in candidates]
+    selection, assessment = resolve_phase1(
+        ranked, targets, query, freshness=freshness, focused=focused, underspecified=underspecified,
+    )
+    return RankedOwners(selection, assessment, tuple(item["file"]["path"] for item in ranked))
+
+
+def render_context(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return stable machine-facing JSON with target-level Git-state markers."""
+    rendered = dict(payload)
+    for phase in ("phase1", "phase2", "phase3"):
+        for target in rendered.get(phase, {}).get("targets", []):
+            state = target.get("git_state", {})
+            target["state_markers"] = [
+                name for name, active in (
+                    ("untracked", not target.get("tracked", True) or state.get("untracked")),
+                    ("staged", state.get("index")),
+                    ("working-tree", state.get("worktree")),
+                ) if active
+            ]
+    return rendered
+
+
 def resolve_task(
     repo_root: Path | str, task: str, knowledge_dir: Path | str | None = None, phase: int | str = 1,
     budget: int = 0,
@@ -1064,14 +1346,22 @@ def resolve_task(
     if phase not in {1, 2, 3, "all"}:
         raise ValueError("phase must be 1, 2, 3, or all")
     root = Path(repo_root).resolve()
-    directory, _, repo, catalog, relationships, symbol_index = _load(root, knowledge_dir)
     config = load_config(root)
-    freshness = check_freshness(root, directory)["status"]
+    directory = resolve_knowledge_directory(root, knowledge_dir, config)
+    freshness_result = check_freshness(root, directory)
+    if freshness_result["status"] in {"missing", "invalid"}:
+        raise ValueError(f"Knowledge artifacts are {freshness_result['status']}: {freshness_result['reason']}")
+    freshness = freshness_result["status"]
+    directory, _, repo, catalog, relationships, symbol_index = _load(root, directory)
     signals = _signals(task)
     query = parse_task_query(task)
-    signals["literal_terms"] -= set(query.excluded_concepts) | {"not", "rather", "instead", "exclude"}
-    for term in query.excluded_concepts:
-        signals["terms"] -= _split(term)
+    positive_signal_terms = set(query.positive_concepts)
+    expanded_positive_terms = _split(" ".join(sorted(positive_signal_terms)))
+    signals["literal_terms"] &= positive_signal_terms
+    signals["terms"] &= expanded_positive_terms
+    if re.search(r"\bsign\s+in\b", task, flags=re.IGNORECASE):
+        signals["literal_terms"].add("signin")
+        signals["terms"].update(_split("signin"))
     by_path = {x["path"]: x for x in repo["files"]}
     intent = classify_task_intent(task, signals, repo["files"])
     configuration_keys = {
@@ -1080,46 +1370,36 @@ def resolve_task(
     }
     for file in repo["files"]:
         file["configuration_keys"] = configuration_keys.get(file["path"], [])
-    lexical_matches = _lexical(
-        repo["files"],
-        signals,
-        config["weights"],
-        freshness,
-        configuration_keys,
-        {},
+    discovery = discover_candidates(
+        repo["files"], symbol_index, signals, query,
+        weights=config["weights"], freshness=freshness, configuration_keys=configuration_keys,
+        relationships=relationships,
     )
-    content_candidates = {
-        item["file"]["path"] for item in lexical_matches[:24]
-    } | _exact_symbol_paths(symbol_index, signals) | structured_candidate_paths(repo["files"], query)
-    indexed_symbols = _symbols(directory, catalog, content_candidates)
-    descriptions = {
-        path: (
-            set().union(*(_literal_split(str(symbol.get("docstring", ""))) for symbol in symbols))
-            if symbols
-            else set()
-        )
-        for path, symbols in indexed_symbols.items()
-    }
-    source_terms = {
-        path: _literal_split(
-            (root / path).read_text(encoding="utf-8", errors="ignore")
-        )
-        for path in content_candidates
-    }
+    content_candidates = set(discovery.candidate_paths)
+    retrieved = retrieve_evidence(root, directory, catalog, discovery.candidate_paths, signals["terms"])
+    indexed_symbols = {path: list(values) for path, values in retrieved.symbols_by_path.items()}
     rescored_candidates = _lexical(
         [by_path[path] for path in sorted(content_candidates)],
         signals,
         config["weights"],
         freshness,
         configuration_keys,
-        descriptions,
-        source_terms,
+        {path: set(values) for path, values in retrieved.descriptions_by_path.items()},
+        {path: set(values) for path, values in retrieved.source_terms_by_path.items()},
     )
-    lexical_matches = sorted(
-        rescored_candidates,
-        key=lambda item: (-item["score"], item["file"]["path"]),
+    rescored_paths = {item["file"]["path"] for item in rescored_candidates}
+    rescored_candidates.extend(
+        {"file": by_path[path], "score": 0.0, "evidence": {}}
+        for path in sorted(content_candidates - rescored_paths)
     )
-    lexical_matches = score_candidates(lexical_matches, indexed_symbols, query, repo["files"])
+    enriched_candidates = _rerank(rescored_candidates, relationships, by_path, config["weights"])
+    lexical_matches = score_candidates(
+        enriched_candidates,
+        indexed_symbols,
+        query,
+        exact_paths=signals["paths"],
+        exact_symbol_paths=_exact_symbol_paths(symbol_index, signals),
+    )
     literal_primary_matches = [
         item
         for item in lexical_matches
@@ -1127,14 +1407,22 @@ def resolve_task(
         and any(weight > 0 and family != "synonym_token" for weight, family in item["evidence"].values())
     ]
     primary_lexical = (literal_primary_matches or lexical_matches)[:8]
+    secondary_lexical = [
+        item
+        for role in intent.secondary_roles
+        for item in [
+            candidate
+            for candidate in lexical_matches
+            if candidate["file"]["role"] == role
+        ][:4]
+    ]
     lexical = list(
         {
             item["file"]["path"]: item
-            for item in [*primary_lexical, *lexical_matches[:8]]
+            for item in [*primary_lexical, *secondary_lexical, *lexical_matches[:8]]
         }.values()
     )
-    ranked = _rerank(lexical, relationships, by_path, config["weights"])
-    ranked = score_candidates(ranked, indexed_symbols, query, repo["files"])
+    ranked = sorted(lexical, key=lambda item: (-item["score"], item["file"]["path"]))
     lexical_paths = {item["file"]["path"] for item in primary_lexical}
     primaries = [
         item for item in ranked
@@ -1156,10 +1444,15 @@ def resolve_task(
                     f"configuration_key_coverage: {','.join(sorted(key_matches)[:5])}"
                 ] = (bonus, "configuration_key")
         primaries.sort(key=lambda item: (-item["score"], item["file"]["path"]))
+    explicit_symbols = {symbol.casefold() for symbol in signals["symbols"]}
     exact_symbol_primaries = [
         item
         for item in primaries
-        if any(label.startswith("exact_symbol:") for label in item["evidence"])
+        if any(
+            label.startswith("exact_symbol:")
+            and label.split(":", 1)[1].strip().casefold() in explicit_symbols
+            for label in item["evidence"]
+        )
     ]
     if exact_symbol_primaries:
         primaries = exact_symbol_primaries
@@ -1173,14 +1466,18 @@ def resolve_task(
         for x in primaries
     ]
     focused = bool(candidate_targets and candidate_targets[0]["start_line"])
-    owner_selection, assessment = resolve_phase1(
-        primaries,
-        candidate_targets,
+    ranked_owners = rank_owners(
+        [
+            {"candidate": candidate, "target": target}
+            for candidate, target in zip(primaries, candidate_targets, strict=True)
+        ],
+        indexed_symbols,
         query,
         freshness=freshness,
         focused=focused,
         underspecified=_is_underspecified_refactor(task) or _is_underspecified_query(query),
     )
+    owner_selection, assessment = ranked_owners.selection, ranked_owners.assessment
     primary = (
         [owner_selection.primary, *owner_selection.co_owners]
         if owner_selection.primary is not None
@@ -1203,7 +1500,28 @@ def resolve_task(
             if x["target"] in primary_paths
         ]
     )
-    impacts = _relationship_targets(primary_paths, relationships, by_path, root, task, signals, config)
+    impact_tests_requested = "impact" in query.intents and "test" in intent.secondary_roles
+    impacts = (
+        _relationship_targets(
+            primary_paths,
+            relationships,
+            by_path,
+            root,
+            task,
+            signals,
+            config,
+            include_tests=impact_tests_requested,
+        )
+        if "impact" in query.intents
+        else []
+    )
+    if impact_tests_requested:
+        impacts = [
+            target
+            for target in impacts
+            if target["role"] == "test"
+            or any(label.startswith("embedded_tests:") for label in target["evidence"])
+        ]
     score = primaries[0]["score"] if primaries else 0
     high = assessment.level == "high"
     level = assessment.level
@@ -1234,6 +1552,26 @@ def resolve_task(
     uncertainties = list(assessment.uncertainties)
     if assessment.status == "abstain":
         uncertainties.append("run the targeted fallback search against authoritative source")
+    secondary_targets = [
+        _target(item, [], signals, root, task, config)
+        for item in ranked
+        if item["file"]["role"] in set(intent.secondary_roles)
+        and item["file"]["path"] not in primary_paths
+        and has_positive_evidence(item)
+        and not (impact_tests_requested and item["file"]["role"] == "test")
+    ]
+    # One strongest target per secondary role keeps phase-two evidence precise
+    # while still allowing a task to request both a test and configuration.
+    strongest_secondary: list[dict[str, Any]] = []
+    for role in intent.secondary_roles:
+        match = next((target for target in secondary_targets if target["role"] == role), None)
+        if match is not None:
+            strongest_secondary.append(match)
+    # Directly linked tests are returned only when the prompt requests test
+    # evidence. Impact-oriented test requests belong in phase three.
+    constrained_tests = (
+        tests if "test" in intent.secondary_roles and not impact_tests_requested else []
+    )
     phases: dict[int, dict[str, Any]] = {
         1: {
             "targets": primary,
@@ -1242,16 +1580,7 @@ def resolve_task(
             "expansion_triggers": ["ownership remains ambiguous", "source contradicts the index"],
         },
         2: {
-            "targets": _dedupe(
-                tests
-                + [
-                    _target(item, [], signals, root, task, config)
-                    for item in ranked
-                    if item["file"]["role"] in set(intent.secondary_roles)
-                    and item["file"]["path"] not in primary_paths
-                    and has_positive_evidence(item)
-                ]
-            )[:3],
+            "targets": _dedupe(constrained_tests + strongest_secondary)[:3],
             "question": "Which direct tests, configuration, or represented constraints constrain the change?",
             "stop_condition": "Stop when direct constraints are understood.",
             "expansion_triggers": ["a compatibility constraint is unresolved"],
@@ -1342,7 +1671,7 @@ def resolve_task(
         except Exception:
             pass
 
-    return payload
+    return render_context(payload)
 
 
 def format_human(result: dict[str, Any]) -> str:

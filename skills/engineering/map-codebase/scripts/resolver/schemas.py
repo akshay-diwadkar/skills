@@ -40,3 +40,29 @@ class OwnerSelection:
     primary: dict[str, Any] | None
     co_owners: list[dict[str, Any]] = field(default_factory=list)
     alternatives: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CandidateDiscovery:
+    """Bounded, score-free candidate admission from repository metadata."""
+
+    candidate_paths: frozenset[str]
+    lexical_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RetrievedEvidence:
+    """Immutable source and symbol evidence loaded only for admitted paths."""
+
+    symbols_by_path: dict[str, tuple[dict[str, Any], ...]]
+    source_terms_by_path: dict[str, frozenset[str]]
+    descriptions_by_path: dict[str, frozenset[str]]
+
+
+@dataclass(frozen=True)
+class RankedOwners:
+    """Owner selection and confidence kept separate from raw evidence."""
+
+    selection: OwnerSelection
+    assessment: ConfidenceAssessment
+    ranked_paths: tuple[str, ...]

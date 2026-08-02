@@ -21,6 +21,8 @@ def symbol_score(symbol: dict[str, Any], query: TaskQuery) -> tuple[float, list[
     exact = (
         name.casefold() in query.positive_concepts
         and ("_" in name or len(name) >= 7)
+        and str(symbol.get("kind", "")).casefold()
+        not in {"field", "local", "parameter", "property", "variable"}
     )
     fields = {
         "name": tokenize(name) | tokenize(str(symbol.get("qualified_name", ""))),

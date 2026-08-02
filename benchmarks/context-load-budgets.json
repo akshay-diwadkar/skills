@@ -315,6 +315,17 @@
       "rationale": "The diagram question and renderer guides are merged into one payload and fidelity contract while preserving plan-mode, permission, and renderer safety rules.",
       "supporting_paths": ["references/diagram-output-guide.md"],
       "protected_rule_ids": ["diagram.plan-mode", "diagram.separate-permissions", "diagram.no-alternate-renderer"]
+    },
+    {
+      "id": "map-codebase-benchmark-reference-extraction",
+      "skill": "map-codebase",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-07-31",
+      "rationale": "The reader-facing benchmark report and complete task catalog move to the repository-level benchmarks portfolio, keeping distributed resolver guidance focused while preserving public evidence through the main README.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": []
     }
   ]
 }

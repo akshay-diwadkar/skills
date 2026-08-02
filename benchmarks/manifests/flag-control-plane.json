@@ -617,7 +617,7 @@
         "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413"
       }
     ],
-    "generator": "benchmarks/generators/generate.py",
+    "generator": "benchmarks/generators/flag_control_plane.py",
     "hash_algorithm": "sha256-path-content-v1",
     "meaningful_files": 122,
     "path": "flag-control-plane",
@@ -651,7 +651,9 @@
             "sha256": "332489dc22c6ee6b05e54f03af4847af2082fbbcf6b9b88d90708681f4388b43",
             "symbol": "evaluate"
           }
-        ]
+        ],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "accept a partial match"
@@ -686,7 +688,8 @@
             "path": "src/evaluation/segment_matcher.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -710,7 +713,9 @@
             "sha256": "2709db72ee011482f5eb99bfb1416fce5f27fd3ce710ea94b8251433378c9413",
             "symbol": "test_rollouts_modules_are_present"
           }
-        ]
+        ],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "reduce the configured maximum"
@@ -745,7 +750,8 @@
             "path": "src/rollouts/progressive_rollout.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -762,7 +768,9 @@
             "symbol": "permits_prerequisite"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "edit generated TypeScript"
@@ -797,7 +805,8 @@
             "path": "src/evaluation/prerequisite_policy.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -814,7 +823,9 @@
             "symbol": "process_scheduled"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "scheduled-rollout-owner",
@@ -840,7 +851,8 @@
             "path": "src/rollouts/scheduled_service.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -857,7 +869,9 @@
             "symbol": "process_reconciliation"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "reconciliation-job-owner",
@@ -887,7 +901,8 @@
             "path": "src/jobs/reconciliation_service.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -904,7 +919,9 @@
             "symbol": "PersistenceAuditRepository"
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "select an untracked decoy"
@@ -932,7 +949,8 @@
             "path": "src/persistence/audit_repository.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -949,7 +967,9 @@
             "symbol": null
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "rollout-configuration-owner",
@@ -975,7 +995,8 @@
             "path": "config/rollouts.json"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -992,7 +1013,9 @@
             "symbol": null
           }
         ],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "claim fresh evidence"
@@ -1020,7 +1043,8 @@
             "path": "config/jobs.json"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1044,7 +1068,9 @@
             "sha256": "e224b4b02d050e7ff13522e30c81fa910df24d731ed0050859911eb90ad9342d",
             "symbol": null
           }
-        ]
+        ],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [],
       "id": "schema-contract-test-owner",
@@ -1070,7 +1096,8 @@
             "path": "tests/contract/test_schema_inventory.py"
           }
         ]
-      }
+      },
+      "category": "ownership"
     },
     {
       "aliases": [
@@ -1080,7 +1107,9 @@
       "expected": {
         "abstain": true,
         "primary_owners": [],
-        "secondary_surfaces": []
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": []
       },
       "forbidden_behaviors": [
         "high-confidence target"
@@ -1107,7 +1136,8 @@
             "kind": "abstention"
           }
         ]
-      }
+      },
+      "category": "ownership"
     }
   ],
   "tier": "B"

@@ -7,12 +7,11 @@ Use this reference when changing ownership classification, candidate evidence, s
 ```text
 task
   -> structured positive/negative query parsing
-  -> ownership, component, subsystem, and cardinality intent
-  -> IDF-weighted lexical shortlist
-  -> symbol-centric ranking
-  -> capped relationship evidence
+  -> score-free candidate discovery from tracked inventory
+  -> bounded scoped evidence retrieval
+  -> relationship-first owner ranking
   -> calibrated owner selection
-  -> bounded read phases
+  -> focused bounded read phases
 ```
 
 ### 1. Structured query parsing
@@ -23,13 +22,13 @@ The resolver extracts explicit paths and symbols plus positive and excluded conc
 
 Ownership role remains `source`, `test`, or `configuration`. Exact indexed paths and symbols decide first. Otherwise the deterministic role table classifies task phrasing. Source owns mixed implementation tasks, while directly requested test maintenance and configuration work retain their roles.
 
-### 3. Candidate scoring
+### 3. Candidate discovery and retrieval
 
-Path, filename, normalized subsystem path, component type, symbol, synonym, configuration-key, generated, vendor, and freshness evidence produces the initial shortlist. Corpus IDF and file-length normalization reduce generic-name collisions. Evidence families are capped.
+The Git index is the canonical owner universe. Paths, declarations, normalized subsystem paths, component types, and configuration keys admit a bounded deterministic union before source is read. Scoped `rg --json --no-config --color never` searches only sorted admitted paths; unavailable ripgrep falls back to bounded extractor evidence. Generated, legacy, and documentation surfaces remain searchable evidence but are not default owners.
 
-### 4. Symbol-centric ranking
+### 4. Relationship-first ranking
 
-Shortlisted symbols are ranked from qualified name, signature, type hints, docstring, decorators, implemented interfaces, references, calls, constants/configuration use, and control-flow markers. A file score is led by its best symbol; secondary symbols and file-level evidence are capped.
+Shortlisted symbols are ranked from qualified name, signature, type hints, docstring, decorators, implemented interfaces, references, calls, constants/configuration use, and control-flow markers. Direct declaration, behavior, configuration, schema, import, caller, generated-source, and direct-test evidence establishes ownership; fuzzy and filename similarity only order the funnel. A file score is led by its best symbol; secondary symbols and file-level evidence are capped.
 
 ### 5. Relationship and decoy controls
 

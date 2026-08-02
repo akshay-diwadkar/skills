@@ -1,0 +1,3 @@
+policy: currency-minor-unit
+rounding: half-up
+scale: 2

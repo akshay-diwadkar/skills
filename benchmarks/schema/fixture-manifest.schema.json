@@ -133,6 +133,7 @@
       "additionalProperties": false,
       "required": [
         "id",
+        "category",
         "profile",
         "prompt",
         "aliases",
@@ -146,6 +147,9 @@
       ],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+        "category": {
+          "enum": ["ownership", "constraint", "impact", "abstention", "decoy", "safety", "scale"]
+        },
         "profile": {"enum": ["representative", "full"]},
         "prompt": {"type": "string", "minLength": 12},
         "aliases": {
@@ -174,10 +178,12 @@
         "expected": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["primary_owners", "secondary_surfaces", "abstain"],
+          "required": ["primary_owners", "secondary_surfaces", "constraints", "impacts", "abstain"],
           "properties": {
             "primary_owners": {"type": "array", "items": {"$ref": "#/definitions/owner"}},
             "secondary_surfaces": {"type": "array", "items": {"$ref": "#/definitions/owner"}},
+            "constraints": {"type": "array", "items": {"$ref": "#/definitions/owner"}},
+            "impacts": {"type": "array", "items": {"$ref": "#/definitions/owner"}},
             "abstain": {"type": "boolean"}
           }
         },
@@ -217,7 +223,8 @@
                 "properties": {
                   "kind": {"type": "string"},
                   "path": {"type": "string"},
-                  "detail": {"type": "string"}
+                  "detail": {"type": "string"},
+                  "evidence_id": {"type": "string"}
                 }
               }
             }

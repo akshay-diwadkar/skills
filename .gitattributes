@@ -3,4 +3,5 @@ tests/skills/plan-change/fixtures/**/*.kt text eol=lf
 tests/skills/plan-change/fixtures/**/*.py text eol=lf
 skills/engineering/map-codebase/scripts/tokenizer/*.tiktoken binary
 benchmarks/repos/** -text
+benchmarks/generators/realistic/assets/*.jar binary
 tests/skills/map-codebase/eval/repos/** -text

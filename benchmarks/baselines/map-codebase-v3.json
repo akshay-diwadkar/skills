@@ -1,0 +1,101 @@
+{
+  "active_v3_fixtures": [
+    "component-pipeline",
+    "plugin-workspace",
+    "schema-migration-service"
+  ],
+  "all_checks_pass": true,
+  "comparative_checks": {
+    "macro_role_f1": true,
+    "patch_noninferiority": true,
+    "scale_latency": true,
+    "utility_latency": true
+  },
+  "fixture_hashes": {
+    "component-pipeline": "3c03207e2660f91635076967945dc933a8ccd84d79141575fff2274dad6dc4ce",
+    "plugin-workspace": "bda9f14ae6c2228cd5ab70cd67106f581895eb86642dd4273d8caaaf505af7ac",
+    "schema-migration-service": "2167983a7bcf4318c5caf3ece1c9f076934033ed1c1dd9ed3337dddac6a7bb95"
+  },
+  "fixture_versions": {
+    "component-pipeline": 5,
+    "plugin-workspace": 5,
+    "schema-migration-service": 5
+  },
+  "gates": {
+    "abstention_precision": true,
+    "abstention_recall": true,
+    "confidence_safety": true,
+    "constraint_precision": true,
+    "constraint_recall": true,
+    "exact_owner_set_match": true,
+    "false_primary_rate": true,
+    "heldout_abstention_precision": true,
+    "heldout_abstention_recall": true,
+    "heldout_confidence_safety": true,
+    "heldout_exact_owner_set_match": true,
+    "heldout_false_primary_rate": true,
+    "heldout_hit_at_1": true,
+    "heldout_hit_at_3": true,
+    "heldout_mrr": true,
+    "heldout_primary_owner_precision": true,
+    "heldout_primary_owner_recall": true,
+    "hit_at_1": true,
+    "hit_at_3": true,
+    "impact_precision": true,
+    "impact_recall": true,
+    "mrr": true,
+    "primary_owner_precision": true,
+    "primary_owner_recall": true
+  },
+  "metrics": {
+    "abstention_precision": 1.0,
+    "abstention_recall": 1.0,
+    "constraint_precision": 1.0,
+    "constraint_recall": 1.0,
+    "exact_owner_set_match": 0.9814814814814815,
+    "false_primary_rate": 0.022222222222222223,
+    "hit_at_1": 0.9777777777777777,
+    "hit_at_3": 1.0,
+    "impact_precision": 1.0,
+    "impact_recall": 0.7777777777777778,
+    "incorrect_high_confidence": 0,
+    "mrr": 0.9888888888888889,
+    "primary_owner_precision": 0.9777777777777777,
+    "primary_owner_recall": 0.9777777777777777
+  },
+  "report_schema_version": 4,
+  "runtime": {
+    "cold_run_seconds": 173.619,
+    "fixed_floor_seconds": 1800
+  },
+  "scale_fixture": "resolver-scale-stress",
+  "scale_latency": {
+    "build_median_under_30_seconds": true,
+    "build_samples": 1,
+    "resolver_p95_under_2_seconds": true,
+    "resolver_samples": 1
+  },
+  "utility_latency": {
+    "build_median_under_30_seconds": true,
+    "build_samples": 12,
+    "refresh_median_under_15_seconds": true,
+    "refresh_samples": 3,
+    "resolver_p95_under_2_seconds": true,
+    "resolver_samples": 54
+  },
+  "workload": {
+    "broad_context_cache_hits": 39,
+    "broad_context_cache_misses": 15,
+    "fixture_materializations": 3,
+    "git_resets": 54,
+    "grep_cache_hits": 110,
+    "grep_cache_misses": 386,
+    "knowledge_builds": 12,
+    "knowledge_cache_hits": 42,
+    "knowledge_cache_misses": 12,
+    "raw_baseline_cache_hits": 311,
+    "raw_baseline_cache_misses": 416,
+    "tracked_cache_hits": 162,
+    "tracked_cache_misses": 15
+  }
+}

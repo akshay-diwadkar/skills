@@ -1,0 +1,2 @@
+required_fields: [apiVersion, kind, name, owner]
+production_role: admin

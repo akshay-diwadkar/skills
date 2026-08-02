@@ -1,0 +1,3 @@
+scope: tenant-and-key
+reject_payload_mismatch: true
+retention_hours: 72

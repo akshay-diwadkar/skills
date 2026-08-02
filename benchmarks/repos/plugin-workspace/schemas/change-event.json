@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "principal": {
+      "type": "string"
+    },
+    "tenant": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenant",
+    "principal"
+  ],
+  "type": "object"
+}

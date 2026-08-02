@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -32,7 +33,11 @@ pytestmark = pytest.mark.fixtures
 def test_committed_manifests_and_evidence_hashes_validate() -> None:
     manifests = load_manifests()
     assert {manifest["fixture_id"] for manifest in manifests} == {
+        "component-pipeline",
         "flag-control-plane",
+            "plugin-workspace",
+            "resolver-scale-stress",
+            "schema-migration-service",
         "subscription-platform",
     }
     for manifest in manifests:
@@ -40,6 +45,19 @@ def test_committed_manifests_and_evidence_hashes_validate() -> None:
         tree = FixtureTree.from_mapping(manifest["repository"])
         verify_fixture_tree(repository, tree)
         assert repository_digest(repository) == tree.sha256
+
+
+def test_realistic_manifests_cover_every_phase_and_state_category() -> None:
+    required = {"ownership", "constraint", "impact", "abstention", "decoy", "safety"}
+    for manifest in load_manifests():
+        if manifest["fixture_id"] not in {"schema-migration-service", "plugin-workspace", "component-pipeline"}:
+            continue
+        assert len(manifest["tasks"]) == 18
+        assert {task["category"] for task in manifest["tasks"]} == required
+        assert any(task["expected"]["abstain"] for task in manifest["tasks"])
+        assert any(task["expected"]["constraints"] for task in manifest["tasks"])
+        assert any(task["expected"]["impacts"] for task in manifest["tasks"])
+        assert any(oracle.get("evidence_id") for task in manifest["tasks"] for oracle in task["verification"]["oracles"])
 
 
 def test_fixture_tree_contract_rejects_malformed_inventories(tmp_path: Path) -> None:
@@ -206,6 +224,8 @@ def test_external_symlink_escape_is_rejected(tmp_path: Path) -> None:
 
 def test_generated_repositories_are_domain_shaped_not_numbered_clones() -> None:
     for repository in sorted((ROOT / "benchmarks" / "repos").iterdir()):
+        if repository.name == "resolver-scale-stress":
+            continue
         files = [path for path in repository.rglob("*") if path.is_file()]
         numbered = [
             path
@@ -220,6 +240,37 @@ def test_generated_repositories_are_domain_shaped_not_numbered_clones() -> None:
         )
         assert max(content_counts.values()) <= 5
         assert not any(re.search(r"(?:component|module)_\d+", path.stem) for path in files)
+
+
+def test_v3_utility_and_scale_cohorts_are_separated() -> None:
+    manifests = {item["fixture_id"]: item for item in load_manifests()}
+    utility_ids = {"schema-migration-service", "plugin-workspace", "component-pipeline"}
+    tuning = json.loads((ROOT / "benchmarks" / "fixtures" / "adversarial_cases.json").read_text(encoding="utf-8"))["cases"]
+    heldout = json.loads((ROOT / "benchmarks" / "fixtures" / "heldout_cases.json").read_text(encoding="utf-8"))["cases"]
+    for fixture_id in utility_ids:
+        manifest = manifests[fixture_id]
+        assert manifest["fixture_version"] == 5
+        assert len(manifest["tasks"]) == 18
+        owners = [
+            owner["path"]
+            for task in manifest["tasks"]
+            for owner in task["expected"]["primary_owners"]
+        ]
+        counts = Counter(owners)
+        assert len(counts) >= 8
+        assert max(counts.values()) <= 2
+        tuning_owners = {
+            owner for case in tuning if case["repository"] == fixture_id
+            for owner in case.get("expected_owners", [])
+        }
+        heldout_owners = {
+            owner for case in heldout if case["repository"] == fixture_id
+            for owner in case.get("expected_owners", [])
+        }
+        assert heldout_owners.isdisjoint(set(owners) | tuning_owners)
+    scale = manifests["resolver-scale-stress"]
+    assert scale["classification"] == "scale"
+    assert {task["category"] for task in scale["tasks"]} == {"scale"}
 
 
 def test_answers_do_not_leak_into_installed_resolver() -> None:
@@ -242,6 +293,7 @@ def test_ci_profiles_keep_fixture_runtime_and_benchmark_evidence_separate() -> N
     assert 'pytest -m fixtures -q' in quality
     assert 'not fixtures and not benchmark and not benchmark_slow' in quality
     assert 'benchmark and not benchmark_slow' in quality
-    assert 'timeout-minutes: 10' in quality
+    assert 'timeout-minutes: 12' in quality
+    assert 'timeout-minutes: 30' in full
     assert 'pytest -m benchmark_slow -q' in full
     assert 'pytest -m benchmark -q' not in full

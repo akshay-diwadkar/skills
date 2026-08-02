@@ -18,6 +18,8 @@ from build_knowledge import EXTRACTOR_VERSION, SCHEMA_VERSION, build_knowledge
 from knowledge.extraction.csharp import extract_csharp_file
 from refresh_knowledge import check_freshness, refresh_knowledge
 from resolve_task import _exact_symbol_paths, _signals, _target_tokens, compact_result, resolve_task
+from resolver.query_parser import parse_task_query
+from resolver.symbol_ranker import symbol_score
 from validate_knowledge import validate_knowledge
 
 
@@ -26,6 +28,22 @@ def _write_owner(repo: Path, name: str = "authenticate") -> Path:
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text(f"def {name}():\n    return True\n", encoding="utf-8")
     return source
+
+
+def test_local_variable_is_not_treated_as_an_exact_owner_symbol() -> None:
+    query = parse_task_query("Which permission boundary enforces the namespace?")
+    score, evidence = symbol_score(
+        {
+            "name": "permission",
+            "kind": "variable",
+            "qualified_name": "app.permission",
+            "signature": "const permission = authorize()",
+        },
+        query,
+    )
+
+    assert score > 0
+    assert "exact_symbol: permission" not in evidence
 
 
 def test_resolve_is_read_only_unless_analytics_is_explicit(tmp_path: Path) -> None:
@@ -158,7 +176,8 @@ def test_budget_preserves_owner_evidence_and_counts_ranges(tmp_path: Path) -> No
     all_phases = resolve_task(tmp_path, "change authenticate", out, phase="all", budget=target_tokens)
     assert all_phases["phases"][0]["targets"][0]["path"] == "src/auth.py"
     assert all_phases["phases"][1]["targets"] == []
-    assert any(item["phase"] == 2 for item in all_phases["budget_detail"]["excluded_targets"])
+    assert all_phases["phases"][2]["targets"] == []
+    assert not any(item["phase"] == 3 for item in all_phases["budget_detail"]["excluded_targets"])
 
 
 def test_csharp_extraction_and_dependency_are_built_in(tmp_path: Path) -> None:

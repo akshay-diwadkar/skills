@@ -1,0 +1,2 @@
+partition_key: tenant
+annotation_order: lexical

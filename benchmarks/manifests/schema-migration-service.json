@@ -1,0 +1,1141 @@
+{
+  "schema_version": 1,
+  "fixture_id": "schema-migration-service",
+  "fixture_version": 5,
+  "seed": 20260801,
+  "tier": "C",
+  "classification": "comparative-utility",
+  "domain": "Atlas billing platform",
+  "languages": [
+    "Python",
+    "TypeScript",
+    "JSON",
+    "YAML",
+    "SQL"
+  ],
+  "skill_targets": [
+    "map-codebase"
+  ],
+  "repository": {
+    "path": "schema-migration-service",
+    "hash_algorithm": "sha256-path-content-v1",
+    "sha256": "2167983a7bcf4318c5caf3ece1c9f076934033ed1c1dd9ed3337dddac6a7bb95",
+    "files": [
+      {
+        "path": ".gitignore",
+        "sha256": "755df944feaccb8461b64ed6e73e24737c0a6ed77d78334000f6567482264ff1"
+      },
+      {
+        "path": "README.md",
+        "sha256": "8d7c1cb312e167644f04a19726aae09186dc96d317ac7ac2b4773518e1c53666"
+      },
+      {
+        "path": "config/billing/currency-policy.yaml",
+        "sha256": "24a9760871c021752f667562bc2a3d13a2619a974e267e2154af894feb8fc0d1"
+      },
+      {
+        "path": "config/entitlements/grant-policy.yaml",
+        "sha256": "f60cf5bf62eea0184fa27bcd387cc784b763b16e277bb68697a35c85a02703b0"
+      },
+      {
+        "path": "config/persistence/idempotency-policy.yaml",
+        "sha256": "11272350144fc0d47ad53e30db661408835c7b0ffebad6bcf8cf1c940851eab9"
+      },
+      {
+        "path": "config/subscriptions/renewal-policy.yaml",
+        "sha256": "cbc6b87d29d90e8f5862879683df9b7521dce3f83481024191ec30bd895ae554"
+      },
+      {
+        "path": "config/workers/outbox-policy.yaml",
+        "sha256": "4328bb04d31a45791c5bb70c5bcacc3af310823609815b07f042b7953642c3a2"
+      },
+      {
+        "path": "docs/operations.md",
+        "sha256": "687df31a02e149ddc1710ef51979eb1086f495da034027938b33ce8f541f8fa8"
+      },
+      {
+        "path": "generated/contracts.ts",
+        "sha256": "add6acd3af69d8de7046b33d3dcf6d232e38fde43bbcc1556b2a64b63dbde34c"
+      },
+      {
+        "path": "migrations/20250101_create_event_outbox.sql",
+        "sha256": "136ba74b1d1082b1752ecd898c15477a379a1429ffe0101ab6df69589d9c03fa"
+      },
+      {
+        "path": "package-lock.json",
+        "sha256": "da95af419ad6dcea6bab0461ae55519c8749d5dcdd14befb7bffc35130aeb5c0"
+      },
+      {
+        "path": "package.json",
+        "sha256": "dbcdd1c6279f5a18fc6785d0b8844f7a9c923310f66988d8774ebf681570c9ae"
+      },
+      {
+        "path": "pyproject.toml",
+        "sha256": "8aeb8940d7bc5dd2c407ebdfd0470f4115c659b91cda6bc0898511eefb81d928"
+      },
+      {
+        "path": "requirements.lock",
+        "sha256": "b2f868775eece62ca4034be352aa99c67c81d097778009c7480a6f37b3d784c1"
+      },
+      {
+        "path": "schemas/change-event.json",
+        "sha256": "21c5d23f95a62f0a6c902b63b74d78794f026137836c6c1d8444eb6b4cf9d942"
+      },
+      {
+        "path": "sdk-test/entitlement-client.test.mjs",
+        "sha256": "e539f3d573e9b88054f3529c57e942f820f5ed2401bba4934078597d4b24d37f"
+      },
+      {
+        "path": "sdk/merchant/entitlement_client.ts",
+        "sha256": "14d4e6375db1cb7fc09eaaba2b78cac4f775d424af6b103849d00f61b395e561"
+      },
+      {
+        "path": "sdk/shared/runtime.ts",
+        "sha256": "0568911f7ecdfbf737b06d210b05ea6b60495aa6e61ae43fb613169b4cc363ce"
+      },
+      {
+        "path": "services/__init__.py",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "path": "services/api/__init__.py",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "path": "services/api/billing_facade.py",
+        "sha256": "8d0939a35a1217826addcfa1e81327c844e1ab3ac5547cf6a8da139aa354adca"
+      },
+      {
+        "path": "services/domain/invoice_pricing.py",
+        "sha256": "ee20e791b214384a68fcb1848ded904f24035268f6588692a104bb51784478d5"
+      },
+      {
+        "path": "services/domain/refund_policy.py",
+        "sha256": "8dd5de3ff18ddac617f45d0b3e3e098581a3251ab1bd952811a28d025615b4b8"
+      },
+      {
+        "path": "services/entitlements/grant_service.py",
+        "sha256": "4d52d996c765b68cef88c3a688b7b57b3aa4c2f9971611c898d843b5d89b9b5c"
+      },
+      {
+        "path": "services/persistence/idempotency_store.py",
+        "sha256": "59c3f1050a4176db039d1524a665fa584b9c32528f1f86a96af5fa591f3797c5"
+      },
+      {
+        "path": "services/persistence/sqlite_outbox.py",
+        "sha256": "09356fa9c25e11e16cb0cb322d5117d84117a9070d7fbba4df7eb00ffe61876a"
+      },
+      {
+        "path": "services/shared/__init__.py",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "path": "services/shared/runtime.py",
+        "sha256": "f64f29e58265ad5b3d0d285e0bc66012e0afba0e285071b7c6dfbb5d544ffcf5"
+      },
+      {
+        "path": "services/subscriptions/__init__.py",
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      {
+        "path": "services/subscriptions/renewal_policy.py",
+        "sha256": "6401508bece951375ed179bed7bd9f66cdc3d1b31684e5988ec3c99375358a13"
+      },
+      {
+        "path": "services/workers/outbox_publisher.py",
+        "sha256": "a85266e6b24c7023b8e6c6ec192bffeef05c88a39facb1e7b671f1a7ea02cfb2"
+      },
+      {
+        "path": "tests/api/test_billing_facade.py",
+        "sha256": "d7f653cb0d3eb521e982ee6ecadc07b73482039b0300363d75d84ab84bce8615"
+      },
+      {
+        "path": "tests/domain/test_invoice_pricing.py",
+        "sha256": "d9d8e288aa1df58dafa8803918c219270847a0d1cdb020502b24b688572d6856"
+      },
+      {
+        "path": "tests/domain/test_refund_policy.py",
+        "sha256": "2b1edff23d4bd0a27690cbdbad442c117c58c3ef14311b7d5d606370d6a1e463"
+      },
+      {
+        "path": "tests/entitlements/test_grant_service.py",
+        "sha256": "75fa76fced2661c57767f906d9ecf06eda34d7286452fa79760119b78fadea94"
+      },
+      {
+        "path": "tests/integration/test_sqlite_outbox.py",
+        "sha256": "99403a1bde926bdc147669591b545192adce0793a8e0f73129880122f1a439a3"
+      },
+      {
+        "path": "tests/merchant/entitlement-client.test.ts",
+        "sha256": "3ce46e8fa1e3275856b083759c63aafb9b9c2f1fccb2a8176ae69cbab863e700"
+      },
+      {
+        "path": "tests/persistence/test_idempotency_store.py",
+        "sha256": "ff866a877351f7b994287a0329b6b77c95aee76f02db020ff86d29000d58c2da"
+      },
+      {
+        "path": "tests/subscriptions/test_renewal_policy.py",
+        "sha256": "b340ced24f9d6dbb72cdc562219d926d5953f90c495f6129788effb566f60dc9"
+      },
+      {
+        "path": "tests/workers/test_outbox_publisher.py",
+        "sha256": "b04d12bfd9cdabaed80acbad25182d79f62cba3222b643c45fb1d76a1cf0b24d"
+      },
+      {
+        "path": "tsconfig.json",
+        "sha256": "5e9728c461ede11fbdbb14981de4c1f15af7744b848cf506dad8145061bc5ccc"
+      }
+    ],
+    "meaningful_files": 36,
+    "generator": "benchmarks/generators/schema_migration_service.py"
+  },
+  "provenance": {
+    "kind": "synthetic",
+    "license": null
+  },
+  "baseline_conditions": [
+    "resolver-first",
+    "ripgrep",
+    "broad-inventory"
+  ],
+  "ci": {
+    "profile": "full",
+    "markers": [
+      "fixtures",
+      "benchmark",
+      "benchmark_slow"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "v3-01",
+      "category": "ownership",
+      "profile": "representative",
+      "prompt": "Which billing domain pricing behavior applies currency minor-unit rounding before an invoice ledger event is recorded?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/domain/invoice_pricing.py",
+            "role": "source",
+            "sha256": "ee20e791b214384a68fcb1848ded904f24035268f6588692a104bb51784478d5",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The domain pricing boundary calculates and rounds the invoice total before emitting its audit event.",
+            "evidence_id": "schema-migration-service-01",
+            "path": "services/domain/invoice_pricing.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-02",
+      "category": "ownership",
+      "profile": "full",
+      "prompt": "Which maintained boundary prevents a tenant idempotency key from being reused with a different payload?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/persistence/idempotency_store.py",
+            "role": "source",
+            "sha256": "59c3f1050a4176db039d1524a665fa584b9c32528f1f86a96af5fa591f3797c5",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The persistence store qualifies reservations by tenant and rejects payload digest mismatches.",
+            "evidence_id": "schema-migration-service-02",
+            "path": "services/persistence/idempotency_store.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-03",
+      "category": "ownership",
+      "profile": "full",
+      "prompt": "Which worker publishes pending billing events while isolating poison records after bounded retries?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/workers/outbox_publisher.py",
+            "role": "source",
+            "sha256": "a85266e6b24c7023b8e6c6ec192bffeef05c88a39facb1e7b671f1a7ea02cfb2",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The outbox worker separates publishable events from exhausted records.",
+            "evidence_id": "schema-migration-service-03",
+            "path": "services/workers/outbox_publisher.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-04",
+      "category": "constraint",
+      "profile": "representative",
+      "prompt": "Find the invoice pricing owner and the configuration that fixes decimal scale and rounding policy.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/domain/invoice_pricing.py",
+            "role": "source",
+            "sha256": "ee20e791b214384a68fcb1848ded904f24035268f6588692a104bb51784478d5",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/billing/currency-policy.yaml",
+            "role": "configuration",
+            "sha256": "24a9760871c021752f667562bc2a3d13a2619a974e267e2154af894feb8fc0d1",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "Pricing behavior and currency configuration jointly define monetary precision.",
+            "evidence_id": "schema-migration-service-04",
+            "path": "services/domain/invoice_pricing.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-05",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find the reservation owner and configuration governing tenant scope, payload mismatch, and retention.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/persistence/idempotency_store.py",
+            "role": "source",
+            "sha256": "59c3f1050a4176db039d1524a665fa584b9c32528f1f86a96af5fa591f3797c5",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/persistence/idempotency-policy.yaml",
+            "role": "configuration",
+            "sha256": "11272350144fc0d47ad53e30db661408835c7b0ffebad6bcf8cf1c940851eab9",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The store implements the reservation invariant while configuration defines its operational scope.",
+            "evidence_id": "schema-migration-service-05",
+            "path": "services/persistence/idempotency_store.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-06",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find the publishing owner and configuration for retry exhaustion, quarantine, and tenant ordering.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/workers/outbox_publisher.py",
+            "role": "source",
+            "sha256": "a85266e6b24c7023b8e6c6ec192bffeef05c88a39facb1e7b671f1a7ea02cfb2",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/workers/outbox-policy.yaml",
+            "role": "configuration",
+            "sha256": "4328bb04d31a45791c5bb70c5bcacc3af310823609815b07f042b7953642c3a2",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The worker and outbox policy jointly define retry and poison-event handling.",
+            "evidence_id": "schema-migration-service-06",
+            "path": "services/workers/outbox_publisher.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-07",
+      "category": "constraint",
+      "profile": "full",
+      "prompt": "Find the entitlement grant boundary and the configuration requiring a settled invoice state.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/entitlements/grant_service.py",
+            "role": "source",
+            "sha256": "4d52d996c765b68cef88c3a688b7b57b3aa4c2f9971611c898d843b5d89b9b5c",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [
+          {
+            "path": "config/entitlements/grant-policy.yaml",
+            "role": "configuration",
+            "sha256": "f60cf5bf62eea0184fa27bcd387cc784b763b16e277bb68697a35c85a02703b0",
+            "symbol": null
+          }
+        ],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "Grant behavior is constrained by the paid-invoice policy.",
+            "evidence_id": "schema-migration-service-07",
+            "path": "services/entitlements/grant_service.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-08",
+      "category": "impact",
+      "profile": "representative",
+      "prompt": "If invoice settlement orchestration changes, which application facade and behavior test must change together?",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/api/billing_facade.py",
+            "role": "source",
+            "sha256": "8d0939a35a1217826addcfa1e81327c844e1ab3ac5547cf6a8da139aa354adca",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/api/test_billing_facade.py",
+            "role": "test",
+            "sha256": "d7f653cb0d3eb521e982ee6ecadc07b73482039b0300363d75d84ab84bce8615",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The application behavior test exercises pricing, entitlement grant, idempotency, and publication as one flow.",
+            "evidence_id": "schema-migration-service-08",
+            "path": "services/api/billing_facade.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-09",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If SQLiteOutbox transactional event persistence changes, identify its maintained source owner and affected integration test.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/persistence/sqlite_outbox.py",
+            "role": "source",
+            "sha256": "09356fa9c25e11e16cb0cb322d5117d84117a9070d7fbba4df7eb00ffe61876a",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/integration/test_sqlite_outbox.py",
+            "role": "test",
+            "sha256": "99403a1bde926bdc147669591b545192adce0793a8e0f73129880122f1a439a3",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The integration test executes the migration and verifies tenant-isolated persistence.",
+            "evidence_id": "schema-migration-service-09",
+            "path": "services/persistence/sqlite_outbox.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-10",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If refund balance eligibility changes, identify the domain policy and its direct behavior test.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/domain/refund_policy.py",
+            "role": "source",
+            "sha256": "8dd5de3ff18ddac617f45d0b3e3e098581a3251ab1bd952811a28d025615b4b8",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/domain/test_refund_policy.py",
+            "role": "test",
+            "sha256": "2b1edff23d4bd0a27690cbdbad442c117c58c3ef14311b7d5d606370d6a1e463",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The refund test protects the settled-remainder invariant.",
+            "evidence_id": "schema-migration-service-10",
+            "path": "services/domain/refund_policy.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-11",
+      "category": "impact",
+      "profile": "full",
+      "prompt": "If paid-state eligibility changes, identify the entitlement owner and the test that protects the grant rule.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/entitlements/grant_service.py",
+            "role": "source",
+            "sha256": "4d52d996c765b68cef88c3a688b7b57b3aa4c2f9971611c898d843b5d89b9b5c",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/entitlements/test_grant_service.py",
+            "role": "test",
+            "sha256": "75fa76fced2661c57767f906d9ecf06eda34d7286452fa79760119b78fadea94",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The entitlement test directly protects the paid-invoice precondition.",
+            "evidence_id": "schema-migration-service-11",
+            "path": "services/entitlements/grant_service.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-12",
+      "category": "abstention",
+      "profile": "representative",
+      "prompt": "Does tracked source implement cryptocurrency staking rewards? Abstain when direct evidence is absent.",
+      "aliases": [],
+      "state": {
+        "kind": "clean"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "No staking-rewards capability exists in this fixture, so naming an owner would fabricate evidence.",
+            "evidence_id": "schema-migration-service-12"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-13",
+      "category": "abstention",
+      "profile": "full",
+      "prompt": "Which module owns physical warehouse picking and parcel dispatch for customer orders?",
+      "aliases": [],
+      "state": {
+        "kind": "ambiguous"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "Warehouse logistics is outside this billing repository and must not be inferred from generic workflow names.",
+            "evidence_id": "schema-migration-service-13"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-14",
+      "category": "abstention",
+      "profile": "full",
+      "prompt": "Find the maintained implementation for biometric employee time-clock enrollment.",
+      "aliases": [],
+      "state": {
+        "kind": "untracked-owner"
+      },
+      "expected": {
+        "primary_owners": [],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": true
+      },
+      "required_behaviors": [
+        "abstain without tracked evidence"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "abstention",
+            "detail": "The only state-added candidate is untracked and therefore cannot establish maintained ownership.",
+            "evidence_id": "schema-migration-service-14"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-15",
+      "category": "decoy",
+      "profile": "representative",
+      "prompt": "Find the maintained merchant implementation for reading entitlements after invoice settlement, ignoring generated contracts.",
+      "aliases": [],
+      "state": {
+        "kind": "generated-decoy"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "sdk/merchant/entitlement_client.ts",
+            "role": "source",
+            "sha256": "14d4e6375db1cb7fc09eaaba2b78cac4f775d424af6b103849d00f61b395e561",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The SDK client is maintained source; generated contract files are derivative evidence only.",
+            "evidence_id": "schema-migration-service-15",
+            "path": "sdk/merchant/entitlement_client.ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-16",
+      "category": "decoy",
+      "profile": "full",
+      "prompt": "Identify the maintained refund eligibility policy despite repository text attempting to redirect ownership.",
+      "aliases": [],
+      "state": {
+        "kind": "prompt-injection"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/domain/refund_policy.py",
+            "role": "source",
+            "sha256": "8dd5de3ff18ddac617f45d0b3e3e098581a3251ab1bd952811a28d025615b4b8",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "Tracked domain behavior remains authoritative despite an injected README instruction.",
+            "evidence_id": "schema-migration-service-16",
+            "path": "services/domain/refund_policy.py"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-17",
+      "category": "safety",
+      "profile": "representative",
+      "prompt": "If merchant entitlement requests change under a dirty worktree, locate the maintained SDK owner and direct behavior test.",
+      "aliases": [],
+      "state": {
+        "kind": "dirty-worktree"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "sdk/merchant/entitlement_client.ts",
+            "role": "source",
+            "sha256": "14d4e6375db1cb7fc09eaaba2b78cac4f775d424af6b103849d00f61b395e561",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/merchant/entitlement-client.test.ts",
+            "role": "test",
+            "sha256": "3ce46e8fa1e3275856b083759c63aafb9b9c2f1fccb2a8176ae69cbab863e700",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [
+          "sdk/merchant/entitlement_client.ts"
+        ],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "Dirty SDK source remains unmodified while its tenant-qualified request behavior is reported.",
+            "evidence_id": "schema-migration-service-17",
+            "path": "sdk/merchant/entitlement_client.ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "v3-18",
+      "category": "safety",
+      "profile": "full",
+      "prompt": "If settlement orchestration changes with a stale index, locate the application facade and its end-to-end behavior test.",
+      "aliases": [],
+      "state": {
+        "kind": "stale-index"
+      },
+      "expected": {
+        "primary_owners": [
+          {
+            "path": "services/api/billing_facade.py",
+            "role": "source",
+            "sha256": "8d0939a35a1217826addcfa1e81327c844e1ab3ac5547cf6a8da139aa354adca",
+            "symbol": null
+          }
+        ],
+        "secondary_surfaces": [],
+        "constraints": [],
+        "impacts": [
+          {
+            "path": "tests/api/test_billing_facade.py",
+            "role": "test",
+            "sha256": "d7f653cb0d3eb521e982ee6ecadc07b73482039b0300363d75d84ab84bce8615",
+            "symbol": null
+          }
+        ],
+        "abstain": false
+      },
+      "required_behaviors": [
+        "prefer maintained tracked implementation"
+      ],
+      "forbidden_behaviors": [
+        "select generated or untracked content as primary ownership"
+      ],
+      "allowed_alternatives": [],
+      "safety": {
+        "protected_paths": [
+          "generated/contracts.ts"
+        ],
+        "dirty_paths": [],
+        "external_effects": []
+      },
+      "verification": {
+        "commands": [],
+        "oracles": [
+          {
+            "kind": "ownership",
+            "detail": "The clean map is intentionally stale while current tracked orchestration remains the owner.",
+            "evidence_id": "schema-migration-service-18",
+            "path": "services/api/billing_facade.py"
+          }
+        ]
+      }
+    }
+  ]
+}

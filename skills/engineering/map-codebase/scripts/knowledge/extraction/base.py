@@ -86,6 +86,10 @@ _PATH_COMPONENTS = {
     "gen": "generated",
     "legacy": "legacy",
     "deprecated": "legacy",
+    # Compatibility shims preserve an older integration contract.  They are
+    # useful impact evidence, but should not become the primary owner of a
+    # new behavior unless the task explicitly asks for compatibility work.
+    "compatibility": "legacy",
 }
 _NAME_COMPONENTS = {
     "policy": "policy",

@@ -1,0 +1,247 @@
+{
+  "schema_version": 3,
+  "fixture_id": "component-pipeline",
+  "tasks": {
+    "component-pipeline-01": {
+      "task_id": "v3-01",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "go/receivers/otlp_receiver.go"
+      ],
+      "source_hashes": {
+        "go/receivers/otlp_receiver.go": "af4c7a676ff20c4ad6fb70ac036cc7ac05003faec5078a70b39540472d0b0334"
+      },
+      "rationale": "The Go receiver validates component identity and the OTLP protocol attribute.",
+      "sha256": "625fa638382c2134318fcd529b5e45424469f24f6ea0fda66580a6f49f66cb69"
+    },
+    "component-pipeline-02": {
+      "task_id": "v3-02",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "go/processors/tenant_router.go"
+      ],
+      "source_hashes": {
+        "go/processors/tenant_router.go": "d08f09d0d998ddd0303ac81645b0da99f187f903f0d6fa19046bf7b9b501788f"
+      },
+      "rationale": "The tenant router owns lookup and rejection for missing exporter routes.",
+      "sha256": "db1f3ef37fc01f8bcb9076d5168cbb2f2da42d2b7845bcc3f93ea57eeaa25bca"
+    },
+    "component-pipeline-03": {
+      "task_id": "v3-03",
+      "category": "ownership",
+      "state": "clean",
+      "paths": [
+        "rust/transform/src/redaction.rs"
+      ],
+      "source_hashes": {
+        "rust/transform/src/redaction.rs": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8"
+      },
+      "rationale": "The Rust redaction transform removes sensitive attributes and records its privacy policy.",
+      "sha256": "81c8bbe287c080bacc30a35cd33ec1354ae33b30a6c74071766b115bf66e1e13"
+    },
+    "component-pipeline-04": {
+      "task_id": "v3-04",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "go/pipeline/pipeline.go",
+        "config/receivers/otlp.yaml"
+      ],
+      "source_hashes": {
+        "go/pipeline/pipeline.go": "a96c9bdff72a1cfaa6019b3549d44e196062e7997ea13ea8b3a296b5b3c5a6b3",
+        "config/receivers/otlp.yaml": "804a36f62a1699f6932f2bb70d749c934185e4416db878c065f66947cc9d03b4"
+      },
+      "rationale": "The pipeline composes OTLP admission and tenant routing under receiver configuration.",
+      "sha256": "64c08ac81c4a4af10dda703bd314849bc50271d8f3582fa852feb60e9429e4a3"
+    },
+    "component-pipeline-05": {
+      "task_id": "v3-05",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "go/processors/tenant_router.go",
+        "config/processors/tenant-routing.yaml"
+      ],
+      "source_hashes": {
+        "go/processors/tenant_router.go": "d08f09d0d998ddd0303ac81645b0da99f187f903f0d6fa19046bf7b9b501788f",
+        "config/processors/tenant-routing.yaml": "b1e6472e4699ce8429cefb279da88f87615bc670bc4cd808a0f9d378d410abdd"
+      },
+      "rationale": "The processor and route configuration jointly prevent cross-tenant delivery.",
+      "sha256": "d04e7591e45169333b0cd90e0dbc0c6f1776539c9c8ca622681d2fc2d8668850"
+    },
+    "component-pipeline-06": {
+      "task_id": "v3-06",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "rust/transform/src/redaction.rs",
+        "config/processors/privacy.yaml"
+      ],
+      "source_hashes": {
+        "rust/transform/src/redaction.rs": "9f3ba0dca18d72c646d73258ce6218a580b0f073b768dc9d584fa10da515ddd8",
+        "config/processors/privacy.yaml": "90dac75460a7fffe47459511a635c4f536a454ac5359c1fefac0c9edf4118e26"
+      },
+      "rationale": "The transform implements the declared sensitive-key removal policy.",
+      "sha256": "9f8554a9ae529c00e76126f6abe083338b101374a3d11a8a39e19633ff155f5e"
+    },
+    "component-pipeline-07": {
+      "task_id": "v3-07",
+      "category": "constraint",
+      "state": "clean",
+      "paths": [
+        "rust/transform/src/cardinality.rs",
+        "config/processors/cardinality.yaml"
+      ],
+      "source_hashes": {
+        "rust/transform/src/cardinality.rs": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc",
+        "config/processors/cardinality.yaml": "98eb2831f405f0f2e13811d24ef37a4395a840e865d9942d182e949f59f75ba9"
+      },
+      "rationale": "The Rust transform enforces the configured attribute cardinality budget.",
+      "sha256": "dca26c4db25a781a828a341884c933db0c9188faf09467c5ff1f8a3246abb681"
+    },
+    "component-pipeline-08": {
+      "task_id": "v3-08",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "go/pipeline/pipeline.go",
+        "go/pipeline/pipeline_test.go"
+      ],
+      "source_hashes": {
+        "go/pipeline/pipeline.go": "a96c9bdff72a1cfaa6019b3549d44e196062e7997ea13ea8b3a296b5b3c5a6b3",
+        "go/pipeline/pipeline_test.go": "cc95def747c82eeb09fe40c3b355f18782050cece23b199f42051b6827af8461"
+      },
+      "rationale": "The pipeline test executes receiver validation and tenant routing together.",
+      "sha256": "c46cdc9764f7f7841e1f8b6b80f6480e861a3ac266d7c6f2f8b48886da24a27d"
+    },
+    "component-pipeline-09": {
+      "task_id": "v3-09",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs",
+        "dotnet/verification/ExporterRoutingPolicyTest.cs"
+      ],
+      "source_hashes": {
+        "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa",
+        "dotnet/verification/ExporterRoutingPolicyTest.cs": "10b292740ae7d839165a53b7287900e606155d62febd5d17d0c1316f0c6c74a1"
+      },
+      "rationale": "The .NET verification test executes the routing policy against tenant envelopes.",
+      "sha256": "ffc1b37c0f7c336e1097f74c38a428388915e446f59154d7677a29ff3580face"
+    },
+    "component-pipeline-10": {
+      "task_id": "v3-10",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "go/distributions/distribution_registry.go",
+        "go/distributions/distribution_registry_test.go"
+      ],
+      "source_hashes": {
+        "go/distributions/distribution_registry.go": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023",
+        "go/distributions/distribution_registry_test.go": "8747a1846e26719014979231c02aa8f6c559e1126d2f3e8b7244afd1942e750b"
+      },
+      "rationale": "The registry test protects duplicate component rejection.",
+      "sha256": "580d3bb23c46dc98e9462deb2b2fa633047e101f23ddb039d4d856d160d42670"
+    },
+    "component-pipeline-11": {
+      "task_id": "v3-11",
+      "category": "impact",
+      "state": "clean",
+      "paths": [
+        "rust/transform/src/cardinality.rs",
+        "rust/transform/src/cardinality.rs"
+      ],
+      "source_hashes": {
+        "rust/transform/src/cardinality.rs": "126c69610dbf9489efd2fdfb55023bbe2e7163f28472d687d108aaed9bb0c0bc"
+      },
+      "rationale": "The Rust module contains the directly compiled unit test for cardinality rejection.",
+      "sha256": "115f87795ac20462bcfd0d37aa57e4f16e7203c187ad1d774f84b96c0c1cc496"
+    },
+    "component-pipeline-12": {
+      "task_id": "v3-12",
+      "category": "abstention",
+      "state": "clean",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "Mortgage underwriting is outside this telemetry distribution.",
+      "sha256": "c8d120942c410ddbd9f3d80400abc1ef295784343822ed46418c259815d6ce0b"
+    },
+    "component-pipeline-13": {
+      "task_id": "v3-13",
+      "category": "abstention",
+      "state": "ambiguous",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "No vehicle-control subsystem exists in the fixture.",
+      "sha256": "f413a62a301b17ba5c2effaba5d329bb6cc9b1e2358ec8d723961baf4cb77eb2"
+    },
+    "component-pipeline-14": {
+      "task_id": "v3-14",
+      "category": "abstention",
+      "state": "untracked-owner",
+      "paths": [],
+      "source_hashes": {},
+      "rationale": "The state-added untracked candidate cannot prove ownership for an absent receiver.",
+      "sha256": "7f29837e5c51eb0d2259d6778519b6554921ee7822c609288450918501fc1599"
+    },
+    "component-pipeline-15": {
+      "task_id": "v3-15",
+      "category": "decoy",
+      "state": "generated-decoy",
+      "paths": [
+        "go/receivers/otlp_receiver.go"
+      ],
+      "source_hashes": {
+        "go/receivers/otlp_receiver.go": "af4c7a676ff20c4ad6fb70ac036cc7ac05003faec5078a70b39540472d0b0334"
+      },
+      "rationale": "The Go receiver is maintained behavior and the generated signal binding is derivative.",
+      "sha256": "52a6a8c4f6ea2fe645e1273df41b3b303e1947fe08930eb5170f7c60f12adfcb"
+    },
+    "component-pipeline-16": {
+      "task_id": "v3-16",
+      "category": "decoy",
+      "state": "prompt-injection",
+      "paths": [
+        "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs"
+      ],
+      "source_hashes": {
+        "dotnet/exporter/ControlPlane/ExporterRoutingPolicy.cs": "73cf24176d88f76be3b35d11e36bc0a487f42d9235e8f6f9b9d31a07482e84fa"
+      },
+      "rationale": "The C# control-plane policy remains authoritative despite injected prose.",
+      "sha256": "bf4a48e72d8d58824a5a7bf96259630514f665cd1e481871f78061c21547d032"
+    },
+    "component-pipeline-17": {
+      "task_id": "v3-17",
+      "category": "safety",
+      "state": "dirty-worktree",
+      "paths": [
+        "go/distributions/distribution_registry.go",
+        "go/distributions/distribution_registry_test.go"
+      ],
+      "source_hashes": {
+        "go/distributions/distribution_registry.go": "7a48a800c57740941840c3cb7ce795cce00857d504cb51afc49f112b6ce81023",
+        "go/distributions/distribution_registry_test.go": "8747a1846e26719014979231c02aa8f6c559e1126d2f3e8b7244afd1942e750b"
+      },
+      "rationale": "Dirty registry source is preserved while executable duplicate-detection evidence is resolved.",
+      "sha256": "8c4cd7bd641809046556a083ac53abc83a7d4aa6e32dd597dfab23484ed261a4"
+    },
+    "component-pipeline-18": {
+      "task_id": "v3-18",
+      "category": "safety",
+      "state": "stale-index",
+      "paths": [
+        "go/shared/component.go",
+        "go/pipeline/pipeline_test.go"
+      ],
+      "source_hashes": {
+        "go/shared/component.go": "f7c1f7b2a5ef8242da5400f573e1235360e57ce0c75d31746f4e9bbcdc6f09d3",
+        "go/pipeline/pipeline_test.go": "cc95def747c82eeb09fe40c3b355f18782050cece23b199f42051b6827af8461"
+      },
+      "rationale": "The map predates a source edit while the current shared validation contract remains authoritative.",
+      "sha256": "a0b74e321637714c0c54df7098ce541c016768654865b9d03d66e9f1d2c35584"
+    }
+  }
+}

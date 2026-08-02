@@ -1,0 +1,12 @@
+{
+  "devDependencies": {
+    "typescript": "5.7.2"
+  },
+  "name": "@atlas/admin-sdk",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test sdk-test/*.test.mjs"
+  },
+  "type": "module"
+}

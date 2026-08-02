@@ -31,6 +31,7 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         rel = json.loads((out / "relationships.json").read_text(encoding="utf-8"))
         catalog = json.loads((out / "symbols.json").read_text(encoding="utf-8"))
         symbol_index = json.loads((out / "symbol-index.json").read_text(encoding="utf-8"))
+        evidence_index = json.loads((out / "evidence-index.json").read_text(encoding="utf-8"))
     except Exception as exc:
         return {"status": "invalid", "errors": [str(exc)], "warnings": []}
     errors = []
@@ -42,6 +43,8 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         "symbols.json",
         "symbols",
         "symbol-index.json",
+        "evidence-index.json",
+        "evidence",
     }
     expected_files = required_files | {"analytics.jsonl"}
     for shard in catalog.get("shards", []):
@@ -74,6 +77,7 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         ("relationships.json", rel),
         ("symbols.json", catalog),
         ("symbol-index.json", symbol_index),
+        ("evidence-index.json", evidence_index),
     ]:
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         if manifest.get("artifact_hashes", {}).get(name) != digest:
@@ -88,6 +92,14 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
     actual_shards = {item.relative_to(out).as_posix() for item in shard_dir.glob("*.json")} if shard_dir.is_dir() else set()
     if actual_shards - expected_shards:
         errors.append(f"Orphan symbol shards: {', '.join(sorted(actual_shards - expected_shards))}")
+    expected_evidence = {item.get("shard", "") for item in evidence_index.get("shards", [])}
+    actual_evidence = {item.relative_to(out).as_posix() for item in (out / "evidence").glob("*.json")} if (out / "evidence").is_dir() else set()
+    if actual_evidence != expected_evidence:
+        errors.append("Evidence shards do not match evidence index")
+    for shard in evidence_index.get("shards", []):
+        path = out / shard.get("shard", "")
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != shard.get("hash"):
+            errors.append(f"Evidence shard hash mismatch: {shard.get('shard', '')}")
     fresh = check_freshness(root, out)
     return {
         "status": "invalid"

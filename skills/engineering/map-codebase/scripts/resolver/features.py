@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import Any
 
 from resolver.query_parser import COMPONENT_ALIASES, GENERIC_ROOTS
 from resolver.schemas import TaskQuery
+
+LAYER_COMPONENTS: dict[str, frozenset[str]] = {
+    "application": frozenset({"service", "orchestrator", "command"}),
+    "domain": frozenset({"policy", "model"}),
+    "boundary": frozenset({"handler", "route/controller", "client"}),
+    "persistence": frozenset({"repository", "adapter", "model"}),
+    "infrastructure": frozenset({"repository", "adapter", "client", "job"}),
+}
+
+
+def path_segments(path: str) -> set[str]:
+    """Return normalized path segments on either supported host path style."""
+    return {segment.casefold() for segment in path.replace("\\", "/").split("/") if segment}
 
 
 def tokenize(value: str) -> set[str]:
@@ -44,7 +56,9 @@ def subsystem_tokens(file: dict[str, Any]) -> set[str]:
     if isinstance(explicit, str):
         explicit = explicit.split("/")
     values = {str(value).casefold() for value in explicit if str(value)}
-    parts = {part.casefold() for part in Path(file.get("path", "")).parts[:-1]}
+    normalized_path = str(file.get("path", "")).replace("\\", "/")
+    parts = path_segments(normalized_path)
+    parts.discard(normalized_path.rsplit("/", 1)[-1].casefold())
     tokens = (values | parts) - GENERIC_ROOTS
     tokens.update(token[:-1] for token in tuple(tokens) if len(token) > 4 and token.endswith("s"))
     return tokens
@@ -72,13 +86,6 @@ def file_document(file: dict[str, Any], symbols: list[dict[str, Any]]) -> set[st
 
 def structured_candidate_paths(files: list[dict[str, Any]], query: TaskQuery) -> set[str]:
     """Return bounded-dimension candidates before symbol shards are loaded."""
-    layer_components = {
-        "application": {"service", "orchestrator", "command"},
-        "domain": {"policy", "model"},
-        "boundary": {"handler", "route/controller", "client"},
-        "persistence": {"repository", "adapter", "model"},
-        "infrastructure": {"repository", "adapter", "client", "job"},
-    }
     result: set[str] = set()
     for file in files:
         components = inferred_component_types(file)
@@ -90,7 +97,7 @@ def structured_candidate_paths(files: list[dict[str, Any]], query: TaskQuery) ->
         )
         layer_match = bool(
             query.requested_layer
-            and components & layer_components.get(query.requested_layer, set())
+            and components & LAYER_COMPONENTS.get(query.requested_layer, frozenset())
         )
         subsystem_match = bool(
             query.requested_subsystem

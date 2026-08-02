@@ -100,3 +100,4 @@ def test_component_type_and_normalized_subsystem_inference(tmp_path: Path):
     assert normalized_subsystem_path("lib/billing/repository/invoice.py") == "billing/repository"
     assert normalized_subsystem_path("packages/accounts/src/api/service.py") == "accounts/api"
     assert infer_component_types("docs/legacy-notes.md") == ["documentation", "legacy"]
+    assert infer_component_types("exporter/compatibility/LegacyAdapter.cs") == ["legacy"]
