@@ -22,6 +22,7 @@ EXPECTED_GROUPS = {
         "route-engineering-work",
         "scope-issue",
     },
+    "Research Skills": {"ideate"},
     "Technical Communication Skills": {"manualize"},
 }
 
