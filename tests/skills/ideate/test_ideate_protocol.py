@@ -128,7 +128,7 @@ def test_invocation_metadata() -> None:
     assert "user-invocable: true" in skill_md
     version_m = re.search(r"^version:\s*(.+)$", skill_md, re.MULTILINE)
     assert version_m is not None
-    assert version_m.group(1).strip() == "0.1.0"
+    assert version_m.group(1).strip() == "0.1.1"
 
 
 def test_vendored_runtime_matches_canonical() -> None:
