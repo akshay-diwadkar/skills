@@ -46,7 +46,7 @@ def validate_knowledge(repo_root: Path | str, knowledge_dir: Path | str | None =
         "evidence-index.json",
         "evidence",
     }
-    expected_files = required_files | {"analytics.jsonl"}
+    expected_files = required_files | {"analytics.jsonl", "KNOWLEDGE.md"}
     for shard in catalog.get("shards", []):
         try:
             shard_path = out / shard["path"]

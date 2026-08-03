@@ -1,7 +1,7 @@
 ---
 name: map-codebase
 description: Map unfamiliar or large repositories into compact machine knowledge and resolve implementation ownership before editing. Use for codebase orientation or structure questions, "where is X implemented?" or "which file handles Y?" navigation, pre-change ownership checks, refreshing knowledge after changes, or setting up AGENTS.md/CLAUDE.md references and scheduled refresh workflows.
-version: 2.3.0
+version: 2.4.0
 metadata:
   invocation: model-invoked
 disable-model-invocation: false
@@ -18,7 +18,7 @@ shards. Medium confidence is not verified ownership, and missing or stale
 knowledge never blocks direct source inspection.
 
 Implicit invocation is read-only. Do not build, refresh, record analytics,
-modify agent documents, or generate workflows without explicit write authority.
+modify repository knowledge guidance, or generate workflows without explicit write authority.
 
 ## Start
 

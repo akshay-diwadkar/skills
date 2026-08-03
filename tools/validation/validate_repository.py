@@ -74,6 +74,7 @@ EXPECTED_MARKETPLACE_GROUPS = {
         "./skills/engineering/map-codebase",
         "./skills/engineering/optimize-codebase",
         "./skills/engineering/plan-change",
+        "./skills/engineering/raise-issue",
         "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue",
     },
@@ -91,6 +92,7 @@ ROUTED_SKILLS = {
     "scope-issue",
     "diagram-codebase",
     "manualize",
+    "raise-issue",
 }
 ROUTER_FIELDS = {
     "primary_skill",

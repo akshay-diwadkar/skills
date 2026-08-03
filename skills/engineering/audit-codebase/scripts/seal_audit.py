@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from audit_bundle import read_json, validate_audit_bundle
+from audit_handoff import render
 
 
 def _verify_local_evidence(bundle: dict[str, Any], repo_root: Path) -> list[str]:
@@ -53,6 +55,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--bundle", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     bundle = read_json(args.bundle)
     errors = validate_audit_bundle(bundle)
@@ -61,11 +64,27 @@ def main() -> int:
     if errors:
         print("\n".join(errors))
         return 1
-    body = dict(bundle)
-    body.pop("validation_receipt", None)
-    bundle["validation_receipt"] = {"scope": "declared-bundle-only", "sha256": hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()}
-    args.bundle.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
-    print('{"status":"sealed"}')
+    if not args.output_dir.is_absolute():
+        parser.error("--output-dir must be absolute")
+    content = render(bundle)
+    destination = args.output_dir / "audit-handoff.md"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            newline="\n",
+            dir=destination.parent,
+            delete=False,
+        ) as temp:
+            temp.write(content)
+            temporary_path = Path(temp.name)
+        os.replace(temporary_path, destination)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+    print(json.dumps({"status":"sealed", "path":str(destination), "issue_count":sum(c.get("decision") == "accepted" for c in bundle["candidates"])}))
     return 0
 
 

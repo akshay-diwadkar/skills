@@ -1,12 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "audit_context": {
     "target": "/fixture/repo",
     "commit": "abc123",
     "dirty_worktree": false,
     "categories": ["bug"],
     "severity_threshold": "medium",
-    "output_mode": "github-draft",
     "scope_exclusions": [],
     "limitations": []
   },
@@ -177,6 +176,7 @@
       "category": "bug",
       "severity": "medium",
       "confidence": "high",
+      "labels": ["audit", "bug"],
       "root_cause": "The runner uses truthiness instead of a null-only fallback for the retry count.",
       "affected_workflow": "Submitting a job that must not be retried",
       "impact": "Jobs explicitly configured for no retries run three additional attempts, delaying final failure and repeating side effects.",
@@ -212,12 +212,5 @@
       "merged_into": ""
     }
   ],
-  "rejects": [],
-  "issues": [
-    {
-      "candidate_id": "C-001",
-      "title": "Preserve an explicit zero retry count",
-      "labels": ["audit", "bug"]
-    }
-  ]
+  "rejects": []
 }

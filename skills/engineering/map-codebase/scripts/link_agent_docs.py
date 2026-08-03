@@ -19,6 +19,8 @@ MANAGED_END = "<!-- END MAP-CODEBASE -->"
 LEGACY_MANAGED_BEGIN = "<!-- BEGIN BUILD-CODEBASE-KNOWLEDGE -->"
 LEGACY_MANAGED_END = "<!-- END BUILD-CODEBASE-KNOWLEDGE -->"
 OPT_OUT = "<!-- OPT-OUT MAP-CODEBASE -->"
+KNOWLEDGE_GUIDE = "KNOWLEDGE.md"
+REPOSITORY_KNOWLEDGE_HEADING = "## Repository Knowledge"
 
 
 class AgentDocumentError(ValueError):
@@ -37,20 +39,30 @@ class PlannedAgentDoc:
 
 
 def generate_managed_block(rel_k_path: str) -> str:
-    """Generate the canonical repository-knowledge managed block."""
-    return f"""{MANAGED_BEGIN}
-## Repository Knowledge
-Repository knowledge is available under `{rel_k_path}/`.
+    """Generate the concise repository-knowledge instruction section."""
+    return f"{REPOSITORY_KNOWLEDGE_HEADING}\nRead `{rel_k_path}/{KNOWLEDGE_GUIDE}` before repository exploration."
 
-Use it as the default navigation workflow:
-1. Before broad exploration, check freshness.
-2. Build or refresh only when knowledge is missing, invalid, or stale.
-3. Resolve the current task at phase 1; read only its returned targets and selected symbol shards.
-4. Expand to later phases only when phase 1's stop condition is unmet.
-5. Verify conclusions in current source, then refresh after a coherent change set.
 
-Do not preload all maps or shards. Knowledge guides navigation; source remains authoritative.
-{MANAGED_END}"""
+def generate_knowledge_guide() -> str:
+    """Generate static orientation for the repository-knowledge directory."""
+    return """# Repository Knowledge
+
+Use this directory for repository navigation; verify selected conclusions in current source.
+
+## Assets
+
+- `manifest.json`: freshness, integrity, and indexed-path inventory.
+- `repo-map.json`: files, subsystems, entry points, commands, and configuration.
+- `symbol-index.json`: compact symbol lookup; `symbols.json` locates `symbols/*.json` detail shards.
+- `relationships.json`: imports, calls, test/configuration/generated links, and reverse imports.
+- `evidence-index.json`: locates reusable per-file `evidence/*.json` extraction shards.
+
+## Workflow
+
+1. Check freshness before broad exploration; build or refresh only when missing, invalid, or stale.
+2. Resolve phase 1, read only returned targets and selected symbol shards, then expand only when its stop condition is unmet.
+3. Do not preload maps or shards. Knowledge guides navigation; source remains authoritative.
+"""
 
 
 def _marker_positions(content: str, marker: str) -> list[int]:
@@ -72,13 +84,43 @@ def _find_block(content: str, filename: str, begin: str, end: str, label: str) -
     return begins[0], ends[0] + len(end)
 
 
+def _find_heading_section(content: str, filename: str) -> tuple[int, int] | None:
+    """Find the one markerless repository-knowledge section."""
+    positions: list[tuple[int, int]] = []
+    offset = 0
+    lines = content.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.rstrip("\r\n") == REPOSITORY_KNOWLEDGE_HEADING:
+            positions.append((index, offset))
+        offset += len(line)
+    if not positions:
+        return None
+    if len(positions) != 1:
+        raise AgentDocumentError(f"duplicate Repository Knowledge headings in {filename}")
+    line_index, start = positions[0]
+    end = len(content)
+    offset = start + len(lines[line_index])
+    for line in lines[line_index + 1 :]:
+        if line.startswith("# ") or line.startswith("## "):
+            end = offset
+            break
+        offset += len(line)
+    return start, end
+
+
 def _find_managed_block(content: str, filename: str) -> tuple[int, int] | None:
-    """Return one valid canonical block, or a valid legacy block for migration."""
+    """Return one legacy marker block or one markerless owned section."""
     canonical = _find_block(content, filename, MANAGED_BEGIN, MANAGED_END, "MAP-CODEBASE")
     legacy = _find_block(content, filename, LEGACY_MANAGED_BEGIN, LEGACY_MANAGED_END, "legacy MAP-CODEBASE")
     if canonical is not None and legacy is not None:
         raise AgentDocumentError(f"ambiguous MAP-CODEBASE blocks in {filename}")
-    return canonical or legacy
+    marker_block = canonical or legacy
+    heading_block = _find_heading_section(content, filename)
+    if marker_block is not None:
+        if heading_block is not None and not (marker_block[0] <= heading_block[0] < marker_block[1]):
+            raise AgentDocumentError(f"ambiguous MAP-CODEBASE blocks in {filename}")
+        return marker_block
+    return heading_block
 
 
 def _newline_style(content: str) -> str:
@@ -87,9 +129,9 @@ def _newline_style(content: str) -> str:
 
 def _append_block(content: str, block: str, newline: str) -> str:
     if not content:
-        return f"{block}{newline}"
+        return block
     separator = newline if content.endswith(("\n", "\r")) else newline * 2
-    return f"{content}{separator}{block}{newline}"
+    return f"{content}{separator}{block}"
 
 
 def _planned_content(
@@ -101,7 +143,7 @@ def _planned_content(
 ) -> tuple[str, str]:
     """Return the action and complete replacement text without writing the file."""
     if not original_exists:
-        return "created", f"# {title}\n\n{managed_block}\n"
+        return "created", f"# {title}\n\n{managed_block}"
 
     assert original_bytes is not None
     content = original_bytes.decode("utf-8")
@@ -115,7 +157,9 @@ def _planned_content(
         final = _append_block(content, block, newline)
     else:
         start, end = located
-        final = f"{content[:start]}{block}{content[end:]}"
+        suffix = content[end:]
+        separator = newline * 2 if suffix.startswith(("# ", "## ")) else ""
+        final = f"{content[:start]}{block}{separator}{suffix}"
     return ("unchanged" if final == content else "modified"), final
 
 
@@ -135,6 +179,20 @@ def _plan_agent_doc(path: Path, title: str, managed_block: str) -> PlannedAgentD
         final_bytes=content.encode("utf-8"),
         mode=mode,
     )
+
+
+def _plan_knowledge_guide(knowledge_dir: Path) -> PlannedAgentDoc:
+    """Plan replacement of the static, skill-owned knowledge guide."""
+    knowledge_dir.mkdir(parents=True, exist_ok=True)
+    path = knowledge_dir / KNOWLEDGE_GUIDE
+    original_exists = path.exists()
+    if original_exists and not path.is_file():
+        raise AgentDocumentError(f"knowledge guide path is not a file: {path.name}")
+    original_bytes = path.read_bytes() if original_exists else None
+    mode = stat.S_IMODE(path.stat().st_mode) if original_exists else None
+    final_bytes = generate_knowledge_guide().encode("utf-8")
+    action = "created" if not original_exists else ("unchanged" if original_bytes == final_bytes else "modified")
+    return PlannedAgentDoc(path, KNOWLEDGE_GUIDE, cast(Literal["created", "modified", "unchanged", "skipped"], action), original_exists, original_bytes, final_bytes, mode)
 
 
 def _atomic_replace(path: Path, content: bytes, mode: int | None = None) -> None:
@@ -168,8 +226,16 @@ def _rollback(planned: list[PlannedAgentDoc]) -> list[str]:
     return failures
 
 
+def ensure_knowledge_guide(knowledge_dir: Path | str) -> str:
+    """Ensure static orientation exists without making it a freshness artifact."""
+    planned = _plan_knowledge_guide(Path(knowledge_dir))
+    if planned.action in {"created", "modified"}:
+        _atomic_replace(planned.path, planned.final_bytes, planned.mode)
+    return planned.action
+
+
 def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = None) -> dict[str, Any]:
-    """Ensure both supported instruction files contain one current managed block."""
+    """Ensure the guide and both supported instruction files are current."""
     root = Path(repo_root).resolve()
     config = load_config(root)
     knowledge_dir = resolve_knowledge_directory(root, output_dir, config)
@@ -177,8 +243,9 @@ def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = Non
     block = generate_managed_block(rel_k_path)
     targets = ((root / "AGENTS.md", "AGENTS.md"), (root / "CLAUDE.md", "CLAUDE.md"))
 
-    # Plan and validate both targets before changing either one.
-    planned = [_plan_agent_doc(path, name, block) for path, name in targets]
+    # Plan and validate every target before changing any of them.
+    guide = _plan_knowledge_guide(knowledge_dir)
+    planned = [guide, *[_plan_agent_doc(path, name, block) for path, name in targets]]
     result: dict[str, Any] = {
         "status": "success",
         "created": [],
@@ -186,6 +253,7 @@ def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = Non
         "unchanged": [],
         "skipped": [],
         "knowledge_path": rel_k_path,
+        "knowledge_guide": guide.action,
     }
     changed: list[PlannedAgentDoc] = []
     try:
@@ -201,7 +269,7 @@ def ensure_agent_docs(repo_root: Path | str, output_dir: Path | str | None = Non
         if rollback_failures:
             message += f"; rollback incomplete: {'; '.join(rollback_failures)}"
         raise AgentDocumentError(message) from exc
-    for item in planned:
+    for item in planned[1:]:
         result[item.action].append(item.name)
     return result
 

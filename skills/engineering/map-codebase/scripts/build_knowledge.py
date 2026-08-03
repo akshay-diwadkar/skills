@@ -28,6 +28,7 @@ from knowledge.fingerprint import compute_file_hash
 from knowledge.indexing import IndexedFile, classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
+from link_agent_docs import ensure_knowledge_guide
 
 SCHEMA_VERSION = "6.0"
 EXTRACTOR_VERSION = "6.0.0"
@@ -315,6 +316,7 @@ def build_knowledge(
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))
     write_file_deterministic(out / "manifest.json", serialize_json_deterministic(manifest))
+    ensure_knowledge_guide(out)
     for old in (out / "context.md", out / "architecture.md", out / "index.json"):
         if old.exists():
             old.unlink()

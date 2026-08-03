@@ -11,32 +11,35 @@ if str(SKILL_SCRIPTS) not in sys.path:
 from link_agent_docs import MANAGED_BEGIN, MANAGED_END, AgentDocumentError, ensure_agent_docs
 
 
-def _block_count(content: str) -> int:
-    return content.count(MANAGED_BEGIN) + content.count(MANAGED_END)
+def _assert_knowledge_pointer(content: str, knowledge_path: str) -> None:
+    assert content.count("## Repository Knowledge") == 1
+    assert f"Read `{knowledge_path}KNOWLEDGE.md` before repository exploration." in content
+    assert MANAGED_BEGIN not in content
+    assert MANAGED_END not in content
 
 
-def _assert_navigation_workflow(content: str, knowledge_path: str) -> None:
-    assert knowledge_path in content
-    for instruction in (
-        "Before broad exploration, check freshness.",
-        "Build or refresh only when knowledge is missing, invalid, or stale.",
-        "Resolve the current task at phase 1; read only its returned targets and selected symbol shards.",
-        "Expand to later phases only when phase 1's stop condition is unmet.",
-        "Verify conclusions in current source, then refresh after a coherent change set.",
-        "Do not preload all maps or shards. Knowledge guides navigation; source remains authoritative.",
-    ):
-        assert instruction in content
+def _assert_knowledge_guide(path: Path) -> None:
+    content = path.read_text(encoding="utf-8")
+    assert "# Repository Knowledge" in content
+    assert "`manifest.json`" in content
+    assert "`repo-map.json`" in content
+    assert "`symbol-index.json`" in content
+    assert "`symbols/*.json`" in content
+    assert "`relationships.json`" in content
+    assert "`evidence/*.json`" in content
+    assert "Check freshness before broad exploration" in content
 
 
 def test_neither_file_exists_creates_both_with_default_path(tmp_path: Path):
     result = ensure_agent_docs(tmp_path)
 
     assert result["created"] == ["AGENTS.md", "CLAUDE.md"]
+    assert result["knowledge_guide"] == "created"
+    _assert_knowledge_guide(tmp_path / ".agent" / "knowledge" / "KNOWLEDGE.md")
     for name in ("AGENTS.md", "CLAUDE.md"):
         content = (tmp_path / name).read_text(encoding="utf-8")
         assert content.startswith(f"# {name}\n\n")
-        assert _block_count(content) == 2
-        _assert_navigation_workflow(content, ".agent/knowledge/")
+        _assert_knowledge_pointer(content, ".agent/knowledge/")
 
 
 def test_only_agents_exists_preserves_user_content_and_creates_claude(tmp_path: Path):
@@ -48,7 +51,7 @@ def test_only_agents_exists_preserves_user_content_and_creates_claude(tmp_path: 
     assert result["modified"] == ["AGENTS.md"]
     assert result["created"] == ["CLAUDE.md"]
     assert "Use Python 3.12." in agents.read_text(encoding="utf-8")
-    assert _block_count(agents.read_text(encoding="utf-8")) == 2
+    _assert_knowledge_pointer(agents.read_text(encoding="utf-8"), ".agent/knowledge/")
 
 
 def test_only_claude_exists_preserves_user_content_and_creates_agents(tmp_path: Path):
@@ -79,14 +82,31 @@ def test_existing_blocks_are_updated_in_place_and_idempotent(tmp_path: Path):
     assert all("Keep me." in (tmp_path / name).read_text(encoding="utf-8") for name in before)
 
 
+def test_markerless_heading_is_replaced_through_the_next_peer_heading(tmp_path: Path):
+    agents = tmp_path / "AGENTS.md"
+    agents.write_text(
+        "# Header\n\n## Repository Knowledge\nobsolete\n\n### Detail\nobsolete too\n\n## Footer\nKeep me.\n",
+        encoding="utf-8",
+    )
+
+    result = ensure_agent_docs(tmp_path)
+    content = agents.read_text(encoding="utf-8")
+
+    assert result["modified"] == ["AGENTS.md"]
+    _assert_knowledge_pointer(content, ".agent/knowledge/")
+    assert "obsolete" not in content
+    assert "## Footer\nKeep me." in content
+
+
 def test_custom_output_path_is_reflected_in_both_files(tmp_path: Path):
     result = ensure_agent_docs(tmp_path, ".cache/custom-map")
 
     assert result["knowledge_path"] == ".cache/custom-map"
     for name in ("AGENTS.md", "CLAUDE.md"):
         content = (tmp_path / name).read_text(encoding="utf-8")
-        _assert_navigation_workflow(content, ".cache/custom-map/")
+        _assert_knowledge_pointer(content, ".cache/custom-map/")
         assert ".agent/knowledge/" not in content
+    _assert_knowledge_guide(tmp_path / ".cache" / "custom-map" / "KNOWLEDGE.md")
 
 
 def test_opt_out_is_per_file(tmp_path: Path):
@@ -110,6 +130,7 @@ def test_both_opted_out_are_unchanged(tmp_path: Path):
     assert result["skipped"] == ["AGENTS.md", "CLAUDE.md"]
     assert result["created"] == []
     assert result["modified"] == []
+    assert result["knowledge_guide"] == "created"
 
 
 @pytest.mark.parametrize(
@@ -134,6 +155,19 @@ def test_malformed_blocks_reject_without_partial_writes(tmp_path: Path, filename
     assert before == {path: path.read_bytes() for path in before}
 
 
+def test_duplicate_markerless_headings_reject_without_partial_writes(tmp_path: Path):
+    agents = tmp_path / "AGENTS.md"
+    claude = tmp_path / "CLAUDE.md"
+    agents.write_text("## Repository Knowledge\na\n\n## Repository Knowledge\nb\n", encoding="utf-8")
+    claude.write_text("# Keep untouched\n", encoding="utf-8")
+    before = {path: path.read_bytes() for path in (agents, claude)}
+
+    with pytest.raises(AgentDocumentError, match="duplicate Repository Knowledge headings"):
+        ensure_agent_docs(tmp_path)
+
+    assert before == {path: path.read_bytes() for path in before}
+
+
 def test_link_docs_cli_creates_both_missing_files(tmp_path: Path):
     result = subprocess.run(
         [sys.executable, str(SKILL_SCRIPTS / "cli.py"), "link-docs", "--repo-root", str(tmp_path), "--format", "json"],
@@ -144,6 +178,7 @@ def test_link_docs_cli_creates_both_missing_files(tmp_path: Path):
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "AGENTS.md").is_file()
     assert (tmp_path / "CLAUDE.md").is_file()
+    _assert_knowledge_guide(tmp_path / ".agent" / "knowledge" / "KNOWLEDGE.md")
 
 
 def _run_cli(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -166,9 +201,9 @@ def test_build_cli_finalizes_existing_docs_and_uses_custom_output(sample_repo: P
     assert '"agent_docs"' in result.stdout
     for path in (agents, claude):
         content = path.read_text(encoding="utf-8")
-        assert ".cache/custom-map/" in content
-        assert _block_count(content) == 2
+        _assert_knowledge_pointer(content, ".cache/custom-map/")
     assert (sample_repo / ".cache" / "custom-map" / "manifest.json").is_file()
+    _assert_knowledge_guide(sample_repo / ".cache" / "custom-map" / "KNOWLEDGE.md")
 
 
 def test_refresh_cli_recreates_missing_instruction_file(sample_repo: Path):
@@ -179,7 +214,18 @@ def test_refresh_cli_recreates_missing_instruction_file(sample_repo: Path):
 
     assert result.returncode == 0, result.stderr
     assert (sample_repo / "CLAUDE.md").is_file()
-    assert _block_count((sample_repo / "AGENTS.md").read_text(encoding="utf-8")) == 2
+    _assert_knowledge_pointer((sample_repo / "AGENTS.md").read_text(encoding="utf-8"), ".agent/knowledge/")
+
+
+def test_refresh_repairs_missing_static_guide(sample_repo: Path):
+    assert _run_cli(sample_repo, "build").returncode == 0
+    guide = sample_repo / ".agent" / "knowledge" / "KNOWLEDGE.md"
+    guide.unlink()
+
+    result = _run_cli(sample_repo, "refresh")
+
+    assert result.returncode == 0, result.stderr
+    _assert_knowledge_guide(guide)
 
 
 def test_metadata_only_refresh_finalizes_missing_instruction_file(sample_repo: Path):

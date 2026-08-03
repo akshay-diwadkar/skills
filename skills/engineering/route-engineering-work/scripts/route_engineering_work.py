@@ -22,6 +22,7 @@ Skill = Literal[
     "scope-issue",
     "diagram-codebase",
     "manualize",
+    "raise-issue",
 ]
 Confidence = Literal["high", "medium", "low"]
 NextAction = Literal["answer_directly", "invoke_prerequisite", "invoke_primary_skill"]
@@ -36,6 +37,7 @@ SKILLS: Final[tuple[Skill, ...]] = (
     "scope-issue",
     "diagram-codebase",
     "manualize",
+    "raise-issue",
 )
 ALLOWED_ACTIONS: Final[tuple[str, ...]] = (
     "read_request",
@@ -156,9 +158,17 @@ ISSUE_PHRASES: Final[tuple[str, ...]] = (
     "open issues",
     "issue inventory",
     "backlog triage",
+    "create issue",
+    "create issues",
+    "publish issue",
+    "publish issues",
+    "raise issue",
+    "raise issues",
     "triage issue",
     "scope issue",
 )
+HANDOFF_PHRASES: Final[tuple[str, ...]] = ("audit-handoff", "audit handoff")
+PUBLICATION_WORDS: Final[tuple[str, ...]] = ("create", "open", "publish", "raise")
 
 
 @dataclass(frozen=True)
@@ -307,6 +317,18 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
     if approved_plan and implementation_requested:
         return make_decision("implement-plan", "approved_plan_execution")
 
+    if contains_any(text, HANDOFF_PHRASES) and contains_any(text, PUBLICATION_WORDS):
+        return make_decision("raise-issue", "audit_handoff_publication")
+    audit_requested = contains_any(text, AUDIT_PHRASES)
+    publication_requested = contains_any(text, PUBLICATION_WORDS) and contains_any(
+        text, ("issue", "issues")
+    )
+    if audit_requested and publication_requested:
+        return make_decision(
+            "audit-codebase",
+            "unknown_risk_discovery",
+            follow_up=("raise-issue",),
+        )
     if issue_context or contains_any(text, ISSUE_PHRASES):
         return make_decision("scope-issue", "github_issue_work")
 
@@ -336,12 +358,14 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
             follow_up=follow_up,
         )
 
-    if contains_any(text, AUDIT_PHRASES):
-        follow_up = ("plan-change", "implement-plan") if implementation_requested else ()
+    if audit_requested:
+        audit_follow_up: tuple[Skill, ...] = (
+            ("plan-change", "implement-plan") if implementation_requested else ()
+        )
         return make_decision(
             "audit-codebase",
             "unknown_risk_discovery",
-            follow_up=follow_up,
+            follow_up=audit_follow_up,
         )
 
     if contains_any(text, OPTIMIZATION_NOUNS) and contains_any(text, OPTIMIZATION_VERBS):

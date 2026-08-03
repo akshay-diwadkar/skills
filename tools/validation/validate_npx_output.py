@@ -18,6 +18,7 @@ EXPECTED_GROUPS = {
         "map-codebase",
         "optimize-codebase",
         "plan-change",
+        "raise-issue",
         "route-engineering-work",
         "scope-issue",
     },

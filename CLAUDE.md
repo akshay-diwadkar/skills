@@ -1,18 +1,7 @@
 # CLAUDE.md
 
-<!-- BEGIN MAP-CODEBASE -->
 ## Repository Knowledge
-Repository knowledge is available under `.agent/knowledge/`.
-
-Use it as the default navigation workflow:
-1. Before broad exploration, check freshness.
-2. Build or refresh only when knowledge is missing, invalid, or stale.
-3. Resolve the current task at phase 1; read only its returned targets and selected symbol shards.
-4. Expand to later phases only when phase 1's stop condition is unmet.
-5. Verify conclusions in current source, then refresh after a coherent change set.
-
-Do not preload all maps or shards. Knowledge guides navigation; source remains authoritative.
-<!-- END MAP-CODEBASE -->
+Read `.agent/knowledge/KNOWLEDGE.md` before repository exploration.
 
 ## Versioning
 

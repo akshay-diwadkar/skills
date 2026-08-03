@@ -1,5 +1,5 @@
-# Realistic map-codebase evidence and resolver hardening
+# Static map-codebase knowledge guidance
 
-This release replaces patterned utility fixtures with executable, production-shaped
-projects, isolates synthetic scale evidence, and hardens resolver ownership,
-relationship, abstention, path, and large-repository performance behavior.
+map-codebase now writes a concise static `KNOWLEDGE.md` alongside generated
+knowledge artifacts and leaves only a minimal pointer in `AGENTS.md` and
+`CLAUDE.md`, reducing always-loaded instruction context.
