@@ -22,18 +22,18 @@ Each skill is a self-contained package with focused instructions and, where need
 
 | Skill | Use it when you need to… |
 | --- | --- |
-| [`route-work`](skills/routing/route-work/SKILL.md) | Classify any work request across engineering, research, technical communication, and general workflows without executing it. |
+| [`route-work`](skills/routing/route-work/SKILL.md) | Classify any work request across engineering, research, technical communication, and general workflows and seal `route-handoff.md`. |
 
 ### Engineering workflows
 
 | Skill | Use it when you need to… |
 | --- | --- |
-| [`plan-change`](skills/engineering/plan-change/SKILL.md) | Explore natively, write one v6 draft, and seal cited repository proof in one pass. |
-| [`implement-plan`](skills/engineering/implement-plan/SKILL.md) | Execute an approved plan as a minimal patch while preserving repository patterns and uncommitted work. |
+| [`plan-change`](skills/engineering/plan-change/SKILL.md) | Explore natively, draft an implementation plan (`docs/plans/*.md`), and seal cited repository proof in one pass. |
+| [`implement-plan`](skills/engineering/implement-plan/SKILL.md) | Execute an approved implementation plan (`docs/plans/*.md`) as a minimal patch while preserving repository patterns and uncommitted work. |
 | [`scope-issue`](skills/engineering/scope-issue/SKILL.md) | Ground one GitHub issue and seal `issue-handoff.md` for planning. |
-| [`audit-codebase`](skills/engineering/audit-codebase/SKILL.md) | Find confirmed bugs, security or performance risks, test gaps, and maintainability problems. |
-| [`raise-issue`](skills/engineering/raise-issue/SKILL.md) | Preview and publish sealed audit handoffs as GitHub issues. |
-| [`diagram-codebase`](skills/engineering/diagram-codebase/SKILL.md) | Create a self-contained HTML diagram of a system, architecture, workflow, or code relationship. |
+| [`audit-codebase`](skills/engineering/audit-codebase/SKILL.md) | Find confirmed bugs, security or performance risks, test gaps, and maintainability problems and seal `audit-handoff.md`. |
+| [`raise-issue`](skills/engineering/raise-issue/SKILL.md) | Preview and publish sealed `audit-handoff.md` artifacts as GitHub issues. |
+| [`diagram-codebase`](skills/engineering/diagram-codebase/SKILL.md) | Create a self-contained HTML diagram artifact of a system, architecture, workflow, or code relationship. |
 
 ### Engineering disciplines and utilities
 
@@ -53,7 +53,7 @@ Each skill is a self-contained package with focused instructions and, where need
 
 | Skill | Use it when you need to… |
 | --- | --- |
-| [`ideate`](skills/research/ideate/SKILL.md) | Generate and rank evidence-linked candidate ideas for any researchable goal. Works for software, business, product, academic, hobby, lifestyle, and other domains. |
+| [`ideate`](skills/research/ideate/SKILL.md) | Generate and rank evidence-linked candidate ideas and seal `ideas.md` for any researchable goal (software, business, product, academic, hobby, lifestyle, and other domains). |
 
 ## How the skills fit together
 
