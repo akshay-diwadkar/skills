@@ -1,7 +1,7 @@
 # Engineering, Research, and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=6.4.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=7.0.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -22,7 +22,7 @@ Each skill is a self-contained package with focused instructions and, where need
 
 | Skill | Use it when you need to… |
 | --- | --- |
-| [`route-work`](skills/routing/route-work/SKILL.md) | Classify any work request across engineering, research, technical communication, and general workflows and return an inline `route_handoff` decision (compact by default; detailed guidance and file persistence are opt-in). |
+| [`route-work`](skills/routing/route-work/SKILL.md) | Validate the agent-chosen workflow across engineering, research, and technical communication skills and return one decision with an inline `route_handoff` (compact by default; detailed guidance and file persistence are opt-in). |
 
 ### Engineering workflows
 
@@ -182,7 +182,8 @@ The read-only router is stateless:
 ```bash
 python skills/routing/route-work/scripts/cli.py \
   --repo-root /absolute/repository \
-  --input request="Plan a safe API migration" \
+  --input selected_skills=audit-codebase \
+  --input selected_skills=raise-issue \
   --format json \
   run
 ```

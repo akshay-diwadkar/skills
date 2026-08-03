@@ -1,62 +1,71 @@
 # Routing Policy
 
-The script is the executable source of truth.
+The agent is the authority; the script is the validator. It never classifies
+text or chooses, adds, removes, or reorders skills beyond a stable
+topological ordering.
 
-## Decision Semantics
+## Authority Boundary
 
-- `primary_skill`: Workflow owning the request (`null` for direct answer).
-- `prerequisites`: Workflows required before the primary workflow.
-- `follow_up`: Later workflows explicitly requested or required.
-- `workflow`: Ordered step objects `{"skill": ..., "description": ...}`.
-- `next_action`: Caller action (`answer_directly`, `invoke_prerequisite`, or `invoke_primary_skill`).
-- `allowed_actions` and `forbidden_actions`: Describe router authority, not target skill authority.
+The agent decides whether any skill is needed, which to select, the primary,
+exclusions, required capabilities, and intent — read verbatim. The
+script validates and returns `{valid, workflow, errors, warnings,
+route_handoff}`; `valid: true` means complete, ordered, within authority, not
+mandatory execution. No selection means no route-work invocation; the
+validator requires ≥1 `--selected-skill`. Authority: read selection,
+read facts, validate, emit handoff. Forbidden: classify text, plan, edit
+source, publish, commit, push, create a PR, execute the workflow. Fail closed:
+any error ⇒ `valid: false`; correct and rerun once, never repaired by
+inference.
 
-## Precedence
+## Selection Semantics
 
-Apply the first matching rule:
+`selected_skills` is the workflow, one entry per skill, no duplicates;
+`primary_skill` must be selected; excluding a required producer is an error,
+not a re-route; every `required_capability` needs a selected provider. Facts
+(`audit_handoff_available`, `approved_plan_available`,
+`issue_context_available`, `repository_navigation_inadequate`) open gates;
+selection never does. Pipeline: an earlier selected producer satisfies an
+artifact; the fact is the fallback when the producer is not selected.
 
-| Order | Evidence | Route |
+## Requirements
+
+| Skill | Requires | Satisfied by |
 | --- | --- | --- |
-| 1 | Explicit skill name or chain | Named workflow |
-| 2 | Execute approved plan | `implement-plan` |
-| 3 | Brainstorming, feature candidates, research options | `ideate` |
-| 4 | Publish issues from audit handoff | `raise-issue` |
-| 5 | GitHub issue or backlog triage | `scope-issue` |
-| 6 | Manual, procedure, runbook, guide, or documentation | `manualize` |
-| 7 | Diagram or architecture visualization | `diagram-codebase` |
-| 8 | Boundary, dependency direction, or structural design | `design-codebase` |
-| 9 | Named performance or build bottleneck | `optimize-codebase` |
-| 10 | Broad bug, security, or test gap discovery | `audit-codebase` |
-| 11 | Feature, fix, or refactor without approved plan | `plan-change` |
-| 12 | Repository orientation | `map-codebase` |
-| 13 | No workflow justified | `null` |
+| `raise-issue` | `audit-handoff.md` | `audit-codebase` or `audit_handoff_available` |
+| `implement-plan` | `docs/plans/*.md` plus approval | `plan-change` and `approved_plan_available` |
+| `scope-issue` | GitHub issue context | `issue_context_available` |
 
-## Execution Intent
+All other routed skills (`map-codebase`, `design-codebase`, `plan-change`,
+`audit-codebase`, `optimize-codebase`, `diagram-codebase`, `manualize`,
+`ideate`) have no artifact requirements. Ordering edges apply between selected
+skills only: `audit-codebase`→`raise-issue`;
+`design-codebase`/`optimize-codebase`/`scope-issue`/`audit-codebase`→
+`plan-change`; `ideate`→`design-codebase`/`plan-change`;
+`plan-change`→`implement-plan`; `map-codebase` leads when
+`repository_navigation_inadequate=true`.
 
-`implement-plan` follow-up and approved-plan execution require explicit
-execution intent: an imperative at the request start ("Fix the bug."), a
-polite imperative ("please update", "can you implement"), or a staged action
-("then implement", "and apply"). Wording that merely mentions a change
-word ("plan a fix", "refactor plan") is planning or ideation evidence only.
-Word boundaries exclude nouns and conjugations; explicit skills and approved
-plans keep precedence.
+## Approval Gates
 
-## Overlap Rules
+`implement-plan` opens only via `approved_plan_available=true`; only user
+approval creates it. `raise-issue` always emits `warn.publication_approval`:
+publication authority stays with the user.
 
-- Ideation → `ideate`, with `design-codebase`/`plan-change`/`implement-plan` follow-up only if requested; never overrides explicit skills or approved plans.
-- Unplanned execution requests → `plan-change` with `implement-plan` follow-up (see Execution Intent).
-- Structural redesign → `design-codebase` then `plan-change`.
-- Unknown risk discovery → `audit-codebase`; named bottlenecks → `optimize-codebase`.
-- Audit with issue publication → `audit-codebase` with `raise-issue` follow-up; the diagram routes publication through a "Publish Issues?" decision.
-- Prefer one primary skill. Never add heavyweight workflows speculatively.
+## Error Codes
 
-## Handoff Contract
+- `selection.*`: `unknown_skill`, `duplicate`, `excluded_unknown`,
+  `excluded_primary`, `primary_not_selected`; `exclusion_inert` warns.
+- `capability.missing` (no provider), `compatibility.conflict`
+  (`implement-plan`+`ideate`, `design-codebase`+`optimize-codebase`),
+  `order.cycle` (unorderable).
+- `dependency.*`: `missing_artifact`, `excluded_prerequisite`;
+  `gate.approval_required`: unsatisfied gate.
+- `warn.publication_approval`: any workflow with `raise-issue`.
 
-- `route_handoff` is an inline Markdown document in `result`; no sealed file artifact is produced or claimed.
-- Compact by default; detailed guidance is opt-in via `handoff_detail=detailed` (common CLI) or `--handoff detailed` (direct script).
-- Persist `route-handoff.md` only at a caller-chosen path outside the repository and installed skill: `handoff_output` (common CLI) or `--output-file` / `--output-dir` (direct script). The resolved destination — output file, or `<output-dir>/route-handoff.md` — is rejected before any write when inside either root, including symlinked parents.
-- The handoff embeds the original request text verbatim; only classification uses the normalized text.
+## Handoff
 
-## Direct-Answer Boundary
-
-Return `primary_skill: null` and `workflow: []` for explanations, search, summaries, or non-suite requests.
+- `route_handoff` is inline Markdown in `result`; no sealed artifact claimed.
+  Compact default; `handoff_detail=detailed` or `--handoff detailed` opts in.
+- Persist via `handoff_output` or `--output-file`/`--output-dir`, only outside
+  the repository and installed skill; canonical containment (incl. symlinked
+  parents) is checked before any write.
+- Intent and rationale are echoed verbatim, never analyzed.

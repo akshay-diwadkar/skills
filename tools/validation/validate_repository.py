@@ -26,7 +26,7 @@ MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
 INVOCATION_POLICY_PATH = ROOT / "invocation-policy.json"
 QUALITY_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "quality.yml"
 ROUTER_SCHEMA_PATH = (
-    ROOT / "skills" / "routing" / "route-work" / "schemas" / "routing-decision.schema.json"
+    ROOT / "skills" / "routing" / "route-work" / "schemas" / "route-validation.schema.json"
 )
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -101,31 +101,13 @@ ROUTED_SKILLS = {
     "ideate",
 }
 ROUTER_FIELDS = {
-    "primary_skill",
-    "prerequisites",
-    "follow_up",
+    "valid",
     "workflow",
+    "errors",
+    "warnings",
     "route_handoff",
-    "reason",
-    "confidence",
-    "next_action",
-    "allowed_actions",
-    "forbidden_actions",
 }
-ROUTER_ALLOWED_ACTIONS = [
-    "read_request",
-    "read_repository_facts",
-    "emit_routing_decision",
-]
-ROUTER_FORBIDDEN_ACTIONS = [
-    "plan",
-    "edit_source",
-    "publish_issues",
-    "commit",
-    "push",
-    "create_pull_request",
-    "execute_selected_workflow",
-]
+ROUTER_ISSUE_FIELDS = {"code", "skill", "requires", "message"}
 ALLOWED_TOP_LEVEL = {
     "SKILL.md",
     "scripts",
@@ -596,23 +578,48 @@ def validate_router_contract(path: Path | None = None) -> list[str]:
     required = payload.get("required")
     definitions = payload.get("$defs")
     if not isinstance(properties, dict) or set(properties) != ROUTER_FIELDS:
-        errors.append("route-work: decision properties must remain exact")
+        errors.append("route-work: validation result properties must remain exact")
         return errors
     if not isinstance(required, list) or set(required) != ROUTER_FIELDS:
-        errors.append("route-work: every decision property must remain required")
+        errors.append("route-work: every validation result property must remain required")
+    if properties["valid"].get("type") != "boolean":
+        errors.append("route-work: valid must be a boolean")
+    workflow = properties.get("workflow")
+    if (
+        not isinstance(workflow, dict)
+        or workflow.get("type") != "array"
+        or not isinstance(workflow.get("items"), dict)
+        or workflow["items"].get("$ref") != "#/$defs/skill"
+    ):
+        errors.append("route-work: workflow must be an array of routed skills")
+    for field in ("errors", "warnings"):
+        issues = properties.get(field)
+        if (
+            not isinstance(issues, dict)
+            or issues.get("type") != "array"
+            or not isinstance(issues.get("items"), dict)
+            or issues["items"].get("$ref") != "#/$defs/issue"
+        ):
+            errors.append(f"route-work: {field} must be an array of validation issues")
+    if properties.get("route_handoff", {}).get("type") != "string":
+        errors.append("route-work: route_handoff must be a string")
     if not isinstance(definitions, dict):
-        errors.append("route-work: decision schema must define routed skills")
+        errors.append("route-work: validation schema must define routed skills")
     else:
         skill = definitions.get("skill")
         skill_enum = skill.get("enum") if isinstance(skill, dict) else None
         if not isinstance(skill_enum, list) or set(skill_enum) != ROUTED_SKILLS:
             errors.append("route-work: routed skill enum must remain exact")
-    if properties["allowed_actions"].get("const") != ROUTER_ALLOWED_ACTIONS:
-        errors.append("route-work: allowed actions must remain read-only")
-    if properties["forbidden_actions"].get("const") != ROUTER_FORBIDDEN_ACTIONS:
-        errors.append("route-work: forbidden actions must remain exact")
+        issue = definitions.get("issue")
+        issue_props = issue.get("properties") if isinstance(issue, dict) else None
+        if (
+            not isinstance(issue, dict)
+            or not isinstance(issue_props, dict)
+            or set(issue_props) != ROUTER_ISSUE_FIELDS
+        ):
+            errors.append("route-work: validation issue definition must remain exact")
     if payload.get("additionalProperties") is not False:
-        errors.append("route-work: routing decisions must reject additional properties")
+        errors.append("route-work: validation results must reject additional properties")
     return errors
 
 

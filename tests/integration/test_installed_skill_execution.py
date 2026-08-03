@@ -119,8 +119,14 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
         [
             sys.executable,
             "scripts/route_work.py",
-            "--request",
-            "Use map-codebase, then plan-change, then implement-plan.",
+            "--selected-skill",
+            "map-codebase",
+            "--selected-skill",
+            "plan-change",
+            "--selected-skill",
+            "implement-plan",
+            "--approved-plan-available",
+            "true",
         ],
         cwd=skill,
         capture_output=True,
@@ -131,10 +137,9 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stderr == ""
     decision = json.loads(result.stdout)
-    assert decision["primary_skill"] == "plan-change"
-    assert decision["prerequisites"] == []
-    assert decision["follow_up"] == ["implement-plan"]
-    assert decision["forbidden_actions"][-1] == "execute_selected_workflow"
+    assert decision["valid"] is True
+    assert decision["workflow"] == ["map-codebase", "plan-change", "implement-plan"]
+    assert decision["errors"] == []
     assert snapshot() == before
 
 
@@ -250,7 +255,7 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
             f"bundle={existing}",
             f"glossary={existing}",
         ],
-        "route-work": ["request=Choose the planning workflow."],
+        "route-work": ["selected_skills=plan-change"],
     }
     argv = [
         sys.executable,
@@ -290,7 +295,7 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
             "--repo-root",
             str(repo),
             "--input",
-            "request=Use map-codebase, then plan-change, then implement-plan.",
+            "selected_skills=plan-change",
             "--format",
             "json",
             "run",
@@ -302,8 +307,8 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
     assert result.returncode == 0, result.stdout + result.stderr
     response = json.loads(result.stdout)
     assert response["status"] == "complete"
-    assert response["result"]["primary_skill"] == "plan-change"
-    assert response["result"]["prerequisites"] == []
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["plan-change"]
     assert not list(tmp_path.rglob(".skill-cli-state.json"))
 
 
@@ -326,7 +331,7 @@ def test_installed_stateless_router_persists_handoff_on_request(tmp_path: Path) 
             "--repo-root",
             str(repo),
             "--input",
-            "request=Choose the planning workflow.",
+            "selected_skills=plan-change",
             "--input",
             f"handoff_output={handoff}",
             "--format",
@@ -357,8 +362,6 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
     shutil.copytree(source, installed)
     repo = tmp_path / "repo"
     repo.mkdir()
-    plan = tmp_path / "approved.md"
-    plan.write_text("# Approved\n", encoding="utf-8")
 
     approved = subprocess.run(
         [
@@ -367,9 +370,9 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
             "--repo-root",
             str(repo),
             "--input",
-            "request=Apply the requested change.",
+            "selected_skills=implement-plan",
             "--input",
-            f"approved_plan={plan}",
+            "approved_plan_available=true",
             "--format",
             "json",
             "run",
@@ -381,8 +384,8 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
     assert approved.returncode == 0, approved.stdout + approved.stderr
     response = json.loads(approved.stdout)
     assert response["status"] == "complete"
-    assert response["result"]["primary_skill"] == "implement-plan"
-    assert response["result"]["reason"] == "approved_plan_execution"
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["implement-plan"]
 
     issue = subprocess.run(
         [
@@ -391,9 +394,9 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
             "--repo-root",
             str(repo),
             "--input",
-            "request=Scope the reported behavior against the checkout.",
+            "selected_skills=scope-issue",
             "--input",
-            "issue_number=42",
+            "issue_context_available=true",
             "--format",
             "json",
             "run",
@@ -405,8 +408,8 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
     assert issue.returncode == 0, issue.stdout + issue.stderr
     response = json.loads(issue.stdout)
     assert response["status"] == "complete"
-    assert response["result"]["primary_skill"] == "scope-issue"
-    assert response["result"]["reason"] == "github_issue_work"
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["scope-issue"]
 
     without_facts = subprocess.run(
         [
@@ -415,7 +418,7 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
             "--repo-root",
             str(repo),
             "--input",
-            "request=Apply the requested change.",
+            "selected_skills=implement-plan",
             "--format",
             "json",
             "run",
@@ -426,8 +429,11 @@ def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
     )
     assert without_facts.returncode == 0, without_facts.stdout + without_facts.stderr
     response = json.loads(without_facts.stdout)
-    assert response["result"]["primary_skill"] == "plan-change"
-    assert response["result"]["follow_up"] == ["implement-plan"]
+    assert response["result"]["valid"] is False
+    assert [error["code"] for error in response["result"]["errors"]] == [
+        "dependency.missing_artifact",
+        "gate.approval_required",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -470,7 +476,7 @@ def test_installed_router_rejects_handoff_output_inside_repo_or_skill(
             "--repo-root",
             str(repo),
             "--input",
-            "request=Choose the planning workflow.",
+            "selected_skills=plan-change",
             "--input",
             f"handoff_output={destination}",
             "--format",

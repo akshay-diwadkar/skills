@@ -8,28 +8,29 @@ from pathlib import Path
 
 import jsonschema
 import pytest
+from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL_ROOT = REPO_ROOT / "skills" / "routing" / "route-work"
 SCRIPT_DIR = SKILL_ROOT / "scripts"
 SCRIPT = SCRIPT_DIR / "route_work.py"
 SCHEMA = json.loads(
-    (SKILL_ROOT / "schemas" / "routing-decision.schema.json").read_text(encoding="utf-8")
+    (SKILL_ROOT / "schemas" / "route-validation.schema.json").read_text(encoding="utf-8")
 )
+RESULT_FIELDS = {"valid", "workflow", "errors", "warnings", "route_handoff"}
 FIXTURES = Path(__file__).parent / "fixtures"
 
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from route_work import (  # noqa: E402
-    ALLOWED_ACTIONS,
-    FORBIDDEN_ACTIONS,
     SKILLS,
-    RepositoryFacts,
+    AgentDecision,
+    KnownFacts,
     canonical_path,
-    execution_requested,
     handoff_destination,
-    route_request,
+    topological_order,
     unsafe_handoff_root,
+    validate_workflow,
 )
 
 
@@ -45,91 +46,134 @@ def file_hashes(root: Path) -> dict[str, str]:
     }
 
 
-@pytest.mark.parametrize("case", load_cases("routing-cases.json"), ids=lambda case: case["id"])
-def test_deterministic_routing_fixtures(case: dict[str, object]) -> None:
-    raw_facts = case["facts"]
+def decision_from_selection(selection: dict[str, object]) -> AgentDecision:
+    raw_facts = selection.get("facts", {})
     assert isinstance(raw_facts, dict)
-    facts = RepositoryFacts(**raw_facts)
-    request = case["request"]
-    assert isinstance(request, str)
+    selected = selection["selected_skills"]
+    assert isinstance(selected, list)
+    excluded = selection.get("excluded_skills", [])
+    assert isinstance(excluded, list)
+    capabilities = selection.get("required_capabilities", [])
+    assert isinstance(capabilities, list)
+    primary = selection.get("primary_skill")
+    rationale = selection.get("rationale", "")
+    intent = selection.get("intent", "")
+    assert primary is None or isinstance(primary, str)
+    assert isinstance(rationale, str)
+    assert isinstance(intent, str)
+    return AgentDecision(
+        selected_skills=tuple(selected),
+        primary_skill=primary,
+        rationale=rationale,
+        intent=intent,
+        excluded_skills=tuple(excluded),
+        required_capabilities=tuple(capabilities),
+        known_facts=KnownFacts(**raw_facts),
+    )
+
+
+@pytest.mark.parametrize("case", load_cases("validation-cases.json"), ids=lambda case: case["id"])
+def test_validation_cases_are_deterministic_and_exact(case: dict[str, object]) -> None:
+    selection = case["selection"]
+    assert isinstance(selection, dict)
     expected = case["expected"]
     assert isinstance(expected, dict)
 
-    first = route_request(request, facts).to_dict()
-    second = route_request(request, facts).to_dict()
+    decision = decision_from_selection(selection)
+    first = cast(dict[str, Any], validate_workflow(decision).to_dict())
+    second = cast(dict[str, Any], validate_workflow(decision).to_dict())
 
     assert first == second
-    assert {key: first[key] for key in expected} == expected
-    assert first["allowed_actions"] == list(ALLOWED_ACTIONS)
-    assert first["forbidden_actions"] == list(FORBIDDEN_ACTIONS)
-    assert "route_handoff" in first
+    assert set(first) == RESULT_FIELDS
+    assert first["valid"] is expected["valid"]
+    assert first["workflow"] == expected["workflow"]
+    assert [error["code"] for error in first["errors"]] == expected["errors"]
+    assert [warning["code"] for warning in first["warnings"]] == expected["warnings"]
+
     route_handoff = first["route_handoff"]
     assert isinstance(route_handoff, str)
     assert "# Route Handoff Guidance" in route_handoff
     assert "```mermaid" in route_handoff
+    if expected["errors"]:
+        assert "## Validation Errors" in route_handoff
+    if expected["warnings"]:
+        assert "## Validation Warnings" in route_handoff
     jsonschema.validate(first, SCHEMA)
 
 
-@pytest.mark.parametrize(
-    "case",
-    load_cases("false-positive-cases.json"),
-    ids=lambda case: case["id"],
-)
-def test_simple_requests_do_not_trigger_suite_workflows(case: dict[str, object]) -> None:
-    request = case["request"]
-    assert isinstance(request, str)
-    decision = route_request(request).to_dict()
-
-    assert decision["primary_skill"] is None
-    assert decision["prerequisites"] == []
-    assert decision["follow_up"] == []
-    assert decision["workflow"] == []
-    assert decision["reason"] == "no_suite_workflow_needed"
-    assert decision["next_action"] == "answer_directly"
-    assert "route_handoff" in decision
-    route_handoff = decision["route_handoff"]
-    assert isinstance(route_handoff, str)
-    assert "Direct Answer" in route_handoff
-    forbidden_actions = decision["forbidden_actions"]
-    assert isinstance(forbidden_actions, list)
-    assert "execute_selected_workflow" in forbidden_actions
-    jsonschema.validate(decision, SCHEMA)
+def test_unknown_and_duplicate_selections_keep_agent_order_in_workflow() -> None:
+    decision = AgentDecision(
+        selected_skills=("audit-codebase", "bogus-skill", "audit-codebase"),
+    )
+    result = validate_workflow(decision)
+    assert result.valid is False
+    assert result.workflow == ("audit-codebase",)
+    codes = [error.code for error in result.errors]
+    assert codes == ["selection.unknown_skill", "selection.duplicate"]
 
 
-def test_normalization_is_stable_for_classification() -> None:
-    canonical = route_request("Plan a migration.").to_dict()
-    variant = route_request("  PLAN\u00a0a   migration.  ").to_dict()
-    # Classification fields must be normalization-stable; the handoff embeds
-    # the original request text verbatim and therefore differs.
-    canonical.pop("route_handoff")
-    variant.pop("route_handoff")
-    assert variant == canonical
+def test_gate_is_never_satisfied_by_selection() -> None:
+    pipeline = validate_workflow(
+        AgentDecision(selected_skills=("plan-change", "implement-plan"))
+    )
+    assert pipeline.valid is False
+    assert [error.code for error in pipeline.errors] == ["gate.approval_required"]
+
+    approved = validate_workflow(
+        AgentDecision(
+            selected_skills=("plan-change", "implement-plan"),
+            known_facts=KnownFacts(approved_plan_available=True),
+        )
+    )
+    assert approved.valid is True
+    assert approved.workflow == ("plan-change", "implement-plan")
 
 
-def test_route_handoff_preserves_original_request_text() -> None:
-    request = "Fix the bug in `src/AuthService.ts` and rename FEATURE_FLAG_X to FEATURE_FLAG_Y."
-    decision = route_request(request).to_dict()
-    route_handoff = decision["route_handoff"]
-    assert isinstance(route_handoff, str)
-    assert f'**User Request:** "{request}"' in route_handoff
-    assert "src/AuthService.ts" in route_handoff
-    assert "FEATURE_FLAG_X" in route_handoff
-    assert "FEATURE_FLAG_Y" in route_handoff
+def test_script_never_chooses_adds_or_removes_skills() -> None:
+    decision = AgentDecision(selected_skills=("audit-codebase", "plan-change"))
+    result = validate_workflow(decision)
+    assert set(result.workflow) == {"audit-codebase", "plan-change"}
+
+    invalid = validate_workflow(AgentDecision(selected_skills=("raise-issue",)))
+    assert invalid.valid is False
+    assert invalid.workflow == ("raise-issue",)
+
+
+def test_intent_and_rationale_are_echoed_verbatim_never_analyzed() -> None:
+    decision = AgentDecision(
+        selected_skills=("audit-codebase",),
+        intent="Fix the bug.",
+        rationale="Audit evidence shows a real risk.",
+    )
+    result = cast(dict[str, Any], validate_workflow(decision).to_dict())
+    route_handoff = result["route_handoff"]
+    assert "Fix the bug." in route_handoff
+    assert "Audit evidence shows a real risk." in route_handoff
 
 
 def test_compact_handoff_is_the_default_and_detailed_is_opt_in() -> None:
-    compact_handoff = route_request("Plan a migration.").to_dict()["route_handoff"]
-    assert isinstance(compact_handoff, str)
-    assert "## Route Steps" in compact_handoff
+    decision = AgentDecision(selected_skills=("plan-change", "implement-plan"))
+    compact_handoff = validate_workflow(decision).route_handoff
+    assert "## Workflow Route Diagram" in compact_handoff
     assert "Step-by-Step Execution Guidance" not in compact_handoff
     assert "Quick Start for New Users" not in compact_handoff
 
-    detailed_handoff = route_request("Plan a migration.", handoff_detail="detailed").to_dict()[
-        "route_handoff"
-    ]
-    assert isinstance(detailed_handoff, str)
+    detailed_handoff = validate_workflow(decision, detail="detailed").route_handoff
+    assert "## Route Steps" in detailed_handoff
     assert "Step-by-Step Execution Guidance" in detailed_handoff
     assert "Quick Start for New Users" in detailed_handoff
+
+
+def test_topological_order_detects_cycles() -> None:
+    order, members = topological_order(
+        ("a", "b"), (("a", "b"), ("b", "a"))
+    )
+    assert order is None
+    assert set(members) == {"a", "b"}
+
+    order, members = topological_order(("b", "a"), (("a", "b"),))
+    assert order == ("a", "b")
+    assert members == []
 
 
 def _mermaid_nodes_and_edges(
@@ -174,16 +218,21 @@ def _mermaid_nodes_and_edges(
 def test_mermaid_decision_branches_are_complete() -> None:
     cases = [
         (
-            "Audit the repository and publish the accepted issues afterward.",
+            ("audit-codebase", "raise-issue"),
             "Publish Issues?",
         ),
-        ("Use map-codebase, then plan-change, then implement-plan.", "Plan Approved?"),
-        ("Implement the approved plan.", "Verification Passed?"),
+        (
+            ("map-codebase", "plan-change", "implement-plan"),
+            "Plan Approved?",
+        ),
+        (
+            ("implement-plan",),
+            "Verification Passed?",
+        ),
     ]
-    for request, decision_label in cases:
-        decision = route_request(request).to_dict()
-        route_handoff = decision["route_handoff"]
-        assert isinstance(route_handoff, str)
+    for selection, decision_label in cases:
+        decision = AgentDecision(selected_skills=selection)
+        route_handoff = validate_workflow(decision).route_handoff
         nodes, edges, declarations = _mermaid_nodes_and_edges(route_handoff)
         outgoing: dict[str, list[str]] = {}
         for source, target, _ in edges:
@@ -204,41 +253,11 @@ def test_mermaid_decision_branches_are_complete() -> None:
 
 
 def test_audit_publication_mermaid_routes_through_decision() -> None:
-    decision = route_request(
-        "Audit the repository and publish the accepted issues afterward."
-    ).to_dict()
-    route_handoff = decision["route_handoff"]
-    assert isinstance(route_handoff, str)
+    decision = AgentDecision(selected_skills=("audit-codebase", "raise-issue"))
+    route_handoff = validate_workflow(decision).route_handoff
     assert 'BranchPub1 -- "Yes" --> Step2["2. raise-issue' in route_handoff
     assert 'BranchPub1 -- "No" --> End' in route_handoff
     assert "Publish Issues?" in route_handoff
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("Plan a fix.", False),
-        ("Draft a refactor plan.", False),
-        ("Plan the API change.", False),
-        ("Create an implementation plan.", False),
-        ("Brainstorm ways to change the resolver.", False),
-        ("Brainstorm implementation approaches.", False),
-        ("Fix the bug.", True),
-        ("Please update the resolver.", True),
-        ("Can you refactor this module?", True),
-        ("Audit the repository and fix confirmed issues.", True),
-        ("Plan the migration, then implement it.", True),
-        ("After planning, execute the migration.", True),
-        ("Implement the approved plan.", True),
-        ("Fixing the bug would be nice.", False),
-        ("Review the update list.", False),
-        ("What is the best way to fix the resolver?", False),
-        ("The patch is ready.", False),
-    ],
-    ids=lambda value: str(value)[:40],
-)
-def test_execution_requested_detects_intent_only(text: str, expected: bool) -> None:
-    assert execution_requested(text) is expected
 
 
 def _run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
@@ -289,8 +308,8 @@ def test_cli_rejects_unsafe_handoff_destinations_without_writes(tmp_path: Path) 
     ]
     for flag, target in destinations:
         result = _run_cli(
-            "--request",
-            "Plan a fix.",
+            "--selected-skill",
+            "audit-codebase",
             "--repo-root",
             str(repository),
             flag,
@@ -319,8 +338,8 @@ def test_cli_rejects_symlinked_handoff_destinations_resolving_into_protected_roo
     before.update(file_hashes(SKILL_ROOT))
     for link in (link_repo, link_skill):
         result = _run_cli(
-            "--request",
-            "Plan a fix.",
+            "--selected-skill",
+            "audit-codebase",
             "--repo-root",
             str(repository),
             "--output-file",
@@ -368,8 +387,8 @@ def test_cli_writes_handoff_outside_repository_and_skill(tmp_path: Path) -> None
     repository.mkdir()
     output_file = tmp_path / "external" / "route-handoff.md"
     result = _run_cli(
-        "--request",
-        "Fix the bug.",
+        "--selected-skill",
+        "audit-codebase",
         "--repo-root",
         str(repository),
         "--output-file",
@@ -382,8 +401,8 @@ def test_cli_writes_handoff_outside_repository_and_skill(tmp_path: Path) -> None
     output_dir = tmp_path / "external-dir"
     output_dir.mkdir()
     result = _run_cli(
-        "--request",
-        "Fix the bug.",
+        "--selected-skill",
+        "audit-codebase",
         "--repo-root",
         str(repository),
         "--output-dir",
@@ -400,8 +419,8 @@ def test_cli_rejects_handoff_output_inside_repository(tmp_path: Path) -> None:
         [
             sys.executable,
             str(SCRIPT),
-            "--request",
-            "Plan a fix.",
+            "--selected-skill",
+            "audit-codebase",
             "--repo-root",
             str(repository),
             "--output-dir",
@@ -423,8 +442,12 @@ def test_cli_detailed_handoff_writes_file_on_request(tmp_path: Path) -> None:
         [
             sys.executable,
             str(SCRIPT),
-            "--request",
-            "Brainstorm new feature ideas, design the architecture, and draft an implementation plan.",
+            "--selected-skill",
+            "ideate",
+            "--selected-skill",
+            "design-codebase",
+            "--selected-skill",
+            "plan-change",
             "--handoff",
             "detailed",
             "--output-file",
@@ -447,84 +470,28 @@ def test_cli_detailed_handoff_writes_file_on_request(tmp_path: Path) -> None:
     assert "Quick Start for New Users" in text
 
 
-def test_empty_request_fails_closed() -> None:
-    with pytest.raises(ValueError, match="must not be empty"):
-        route_request(" \n ")
-
-
-def test_cli_reads_existing_request_and_facts_without_writing(tmp_path: Path) -> None:
-    request = tmp_path / "request.txt"
-    plan = tmp_path / "approved-plan.md"
-    repository = tmp_path / "repository"
-    repository.mkdir()
-    request.write_text("Apply the requested change.", encoding="utf-8")
-    plan.write_text("# Approved plan\n", encoding="utf-8")
-    before = file_hashes(tmp_path)
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(SCRIPT),
-            "--request-file",
-            str(request),
-            "--repo-root",
-            str(repository),
-            "--approved-plan",
-            str(plan),
-            "--issue-number",
-            "42",
-        ],
-        cwd=SKILL_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+def test_cli_pipeline_semantics_satisfy_artifacts() -> None:
+    result = _run_cli(
+        "--selected-skill",
+        "audit-codebase",
+        "--selected-skill",
+        "raise-issue",
     )
-
     assert result.returncode == 0, result.stderr
-    assert result.stderr == ""
     decision = json.loads(result.stdout)
-    assert decision["primary_skill"] == "implement-plan"
-    jsonschema.validate(decision, SCHEMA)
-    assert file_hashes(tmp_path) == before
-
-
-def test_cli_writes_route_handoff_file(tmp_path: Path) -> None:
-    output_file = tmp_path / "route-handoff.md"
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(SCRIPT),
-            "--request",
-            "Brainstorm new feature ideas, design the architecture, and draft an implementation plan.",
-            "--output-file",
-            str(output_file),
-        ],
-        cwd=SKILL_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    assert output_file.is_file()
-    text = output_file.read_text(encoding="utf-8")
-    assert "# Route Handoff Guidance" in text
-    assert "```mermaid" in text
-    assert "ideate" in text
-    assert "design-codebase" in text
-    assert "plan-change" in text
+    assert decision["valid"] is True
+    assert decision["workflow"] == ["audit-codebase", "raise-issue"]
 
 
 @pytest.mark.parametrize(
     ("arguments", "message"),
     [
-        (["--request-file", "missing.txt"], "request file does not exist"),
-        (["--request", "Plan a fix.", "--repo-root", "missing"], "repository root does not exist"),
+        (["--selected-skill", "plan-change", "--repo-root", "missing"], "repository root does not exist"),
+        (["--repo-root", "."], "at least one --selected-skill is required"),
         (
-            ["--request", "Apply the change.", "--approved-plan", "missing.md"],
-            "approved plan does not exist",
+            ["--selected-skill", "audit-codebase", "--output-file", "route-handoff.md"],
+            "outside the repository",
         ),
-        (["--request", "Scope it.", "--issue-number", "0"], "issue number must be positive"),
-        (["--request", " "], "request must not be empty"),
     ],
 )
 def test_cli_invalid_inputs_fail_without_a_decision(
@@ -544,7 +511,55 @@ def test_cli_invalid_inputs_fail_without_a_decision(
     assert message in result.stderr
 
 
+def test_cli_rejects_nonexistent_output_directory(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    result = _run_cli(
+        "--selected-skill",
+        "audit-codebase",
+        "--repo-root",
+        str(repository),
+        "--output-dir",
+        str(tmp_path / "missing-dir"),
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "output directory does not exist" in result.stderr
+
+
 def test_routing_policy_documents_every_router_skill() -> None:
     policy = (SKILL_ROOT / "references" / "routing-policy.md").read_text(encoding="utf-8")
     undocumented = [skill for skill in SKILLS if f"`{skill}`" not in policy]
     assert undocumented == []
+
+
+def test_cli_echoes_selection_without_writing(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    before = file_hashes(tmp_path)
+
+    result = _run_cli(
+        "--selected-skill",
+        "audit-codebase",
+        "--selected-skill",
+        "raise-issue",
+        "--primary-skill",
+        "audit-codebase",
+        "--intent",
+        "Audit the repository and publish the issues.",
+        "--rationale",
+        "Evidence shows confirmed risks.",
+        "--repo-root",
+        str(repository),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    decision = json.loads(result.stdout)
+    assert decision["valid"] is True
+    assert decision["workflow"] == ["audit-codebase", "raise-issue"]
+    assert "Audit the repository and publish the issues." in decision["route_handoff"]
+    assert "Evidence shows confirmed risks." in decision["route_handoff"]
+    jsonschema.validate(decision, SCHEMA)
+    assert file_hashes(tmp_path) == before

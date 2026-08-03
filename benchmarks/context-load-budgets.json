@@ -110,8 +110,8 @@
     },
     "route-work": {
       "category": "router",
-      "diagnostic_input": "request",
-      "representative_inputs": {"request": "Choose the planning workflow."},
+      "diagnostic_input": "selected_skills",
+      "representative_inputs": {"selected_skills": "plan-change"},
       "measure_successful_run": true
     },
     "scope-issue": {
@@ -128,7 +128,7 @@
       "direction": "increase",
       "max_tokens": 1000,
       "expires": "2027-08-03",
-      "rationale": "The stateless run output carries the protocol envelope plus the compact route_handoff decision by contract; the approved_plan and issue_number protocol inputs grew that envelope and SKILL.md documents the common-CLI and direct-script interfaces. Detailed guidance stays opt-in.",
+      "rationale": "The stateless run output carries the protocol envelope plus the compact route_handoff decision by contract; the agent-decision inputs and the expanded routing policy keep that envelope bounded while detailed guidance stays opt-in.",
       "supporting_paths": ["SKILL.md", "skill-protocol.json"],
       "protected_rule_ids": ["route.read-only", "route.no-execution", "route.exact-json"]
     },

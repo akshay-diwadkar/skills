@@ -6,12 +6,18 @@
   "run_dir_policy": "outside_skill",
   "requirements": [],
   "inputs": [
-    {"name": "request", "kind": "string", "required": true, "repeatable": false, "description": "Work request to classify without executing.", "choices": []},
-    {"name": "handoff_detail", "kind": "choice", "required": false, "repeatable": false, "description": "Compact decision (default) or detailed guidance.", "choices": ["compact", "detailed"]},
-    {"name": "handoff_output", "kind": "path", "path_policy": "future", "required": false, "repeatable": false, "description": "route-handoff.md output path outside the repository.", "choices": []},
-    {"name": "approved_plan", "kind": "path", "path_policy": "existing", "required": false, "repeatable": false, "description": "Existing approved plan file.", "choices": []},
-    {"name": "issue_number", "kind": "string", "required": false, "repeatable": false, "description": "Known positive GitHub issue number.", "choices": []},
-    {"name": "repository_navigation_inadequate", "kind": "choice", "required": false, "repeatable": false, "description": "Caller signal that navigation was insufficient.", "choices": ["true"]}
+    {"name": "selected_skills", "kind": "string", "required": true, "repeatable": true, "description": "Selected skill; at least one required.", "choices": []},
+    {"name": "primary_skill", "kind": "choice", "required": false, "repeatable": false, "description": "Primary skill; must also be selected.", "choices": ["map-codebase", "design-codebase", "plan-change", "implement-plan", "audit-codebase", "optimize-codebase", "scope-issue", "diagram-codebase", "manualize", "raise-issue", "ideate"]},
+    {"name": "rationale", "kind": "string", "required": false, "repeatable": false, "description": "Echoed verbatim.", "choices": []},
+    {"name": "intent", "kind": "string", "required": false, "repeatable": false, "description": "Echoed verbatim.", "choices": []},
+    {"name": "excluded_skills", "kind": "string", "required": false, "repeatable": true, "description": "Explicitly excluded skill.", "choices": []},
+    {"name": "required_capabilities", "kind": "string", "required": false, "repeatable": true, "description": "Required capability.", "choices": []},
+    {"name": "audit_handoff_available", "kind": "choice", "required": false, "repeatable": false, "description": "Fact: audit-handoff.md exists.", "choices": ["true"]},
+    {"name": "approved_plan_available", "kind": "choice", "required": false, "repeatable": false, "description": "Fact: plan approved.", "choices": ["true"]},
+    {"name": "issue_context_available", "kind": "choice", "required": false, "repeatable": false, "description": "Fact: issue context exists.", "choices": ["true"]},
+    {"name": "repository_navigation_inadequate", "kind": "choice", "required": false, "repeatable": false, "description": "Fact: navigation inadequate.", "choices": ["true"]},
+    {"name": "handoff_detail", "kind": "choice", "required": false, "repeatable": false, "description": "compact or detailed.", "choices": ["compact", "detailed"]},
+    {"name": "handoff_output", "kind": "path", "path_policy": "future", "required": false, "repeatable": false, "description": "External handoff path.", "choices": []}
   ],
   "artifacts": [],
   "phases": {},
@@ -21,13 +27,20 @@
       "success_phase": null,
       "steps": [
         {
-          "argv": ["{python}", "{skill_dir}/scripts/route_work.py", "--request", "{input.request}", "--repo-root", "{repo_root}"],
+          "argv": ["{python}", "{skill_dir}/scripts/route_work.py", "--repo-root", "{repo_root}"],
           "repeat": [
+            {"input": "selected_skills", "flag": "--selected-skill"},
+            {"input": "primary_skill", "flag": "--primary-skill"},
+            {"input": "rationale", "flag": "--rationale"},
+            {"input": "intent", "flag": "--intent"},
+            {"input": "excluded_skills", "flag": "--excluded-skill"},
+            {"input": "required_capabilities", "flag": "--required-capability"},
+            {"input": "audit_handoff_available", "flag": "--audit-handoff-available"},
+            {"input": "approved_plan_available", "flag": "--approved-plan-available"},
+            {"input": "issue_context_available", "flag": "--issue-context-available"},
+            {"input": "repository_navigation_inadequate", "flag": "--repository-navigation-inadequate"},
             {"input": "handoff_detail", "flag": "--handoff"},
-            {"input": "handoff_output", "flag": "--output-file"},
-            {"input": "approved_plan", "flag": "--approved-plan"},
-            {"input": "issue_number", "flag": "--issue-number"},
-            {"input": "repository_navigation_inadequate", "flag": "--repository-navigation-inadequate"}
+            {"input": "handoff_output", "flag": "--output-file"}
           ],
           "capture_stdout": null,
           "diagnostics_json": true,

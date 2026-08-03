@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/akshay-diwadkar/skills/route-work/route-validation.schema.json",
+  "title": "Route validation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "valid",
+    "workflow",
+    "errors",
+    "warnings",
+    "route_handoff"
+  ],
+  "properties": {
+    "valid": {
+      "type": "boolean"
+    },
+    "workflow": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/skill"
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "route_handoff": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "skill": {
+      "enum": [
+        "map-codebase",
+        "design-codebase",
+        "plan-change",
+        "implement-plan",
+        "audit-codebase",
+        "optimize-codebase",
+        "scope-issue",
+        "diagram-codebase",
+        "manualize",
+        "raise-issue",
+        "ideate"
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "skill",
+        "requires",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^(selection|capability|compatibility|dependency|order|gate)\\.|^warn\\."
+        },
+        "skill": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requires": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
