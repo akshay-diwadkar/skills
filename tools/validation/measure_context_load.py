@@ -146,6 +146,7 @@ def _run_runtime_case(
     temp: Path,
     *,
     diagnostic: bool,
+    successful: bool = False,
 ) -> tuple[dict[str, Any], str]:
     run_dir = temp / f"{skill.name}-run"
     argv = [sys.executable, str(skill / "scripts" / "cli.py"), "--repo-root", str(root.resolve())]
@@ -154,7 +155,8 @@ def _run_runtime_case(
         argv.extend(["--run-dir", str(run_dir)])
     omitted = str(spec["diagnostic_input"]) if diagnostic else None
     argv.extend(_command_inputs(spec, temp, omit=omitted))
-    argv.extend(["--format", "json", "run" if diagnostic and stateless else "start" if diagnostic else "doctor"])
+    command = "run" if (diagnostic or successful) and stateless else "start" if diagnostic else "doctor"
+    argv.extend(["--format", "json", command])
     result = subprocess.run(
         argv,
         cwd=root,
@@ -175,6 +177,9 @@ def _run_runtime_case(
         codes = [item.get("code") for item in payload.get("diagnostics", [])]
         if result.returncode == 0 or payload.get("status") != "error" or codes != ["input.required"]:
             raise ValueError(f"{skill.name}: diagnostic case must emit exactly input.required")
+    elif successful:
+        if result.returncode != 0 or payload.get("status") not in {"complete", "ready"}:
+            raise ValueError(f"{skill.name}: successful run case failed: {result.stderr.strip() or result.stdout.strip()}")
     elif result.returncode != 0 or payload.get("status") != "ready":
         raise ValueError(f"{skill.name}: doctor case failed: {result.stderr.strip() or result.stdout.strip()}")
     normalized = _normalize_value(payload, _runtime_substitutions(root, skill, temp, run_dir))
@@ -326,6 +331,8 @@ def _validate_config(config: Mapping[str, Any], root: Path) -> list[str]:
             errors.append(f"{name}: diagnostic_input must name a required input")
         if spec.get("category") not in categories:
             errors.append(f"{name}: unknown context-load category")
+        if spec.get("measure_successful_run") and manifest.get("mode", "stateful") != "stateless":
+            errors.append(f"{name}: measure_successful_run requires a stateless skill")
         by_name = {item["name"]: item for item in manifest["inputs"]}
         for input_name, value in spec.get("representative_inputs", {}).items():
             choices = by_name[input_name].get("choices", [])
@@ -385,13 +392,19 @@ def build_report(root: Path = ROOT, config_path: Path | None = None) -> dict[str
                 root, skill, manifest, spec, temp, diagnostic=False
             )
             _, diagnostic_output = _run_runtime_case(root, skill, manifest, spec, temp, diagnostic=True)
+            _, successful_output = _run_runtime_case(
+                root, skill, manifest, spec, temp, diagnostic=False, successful=True
+            ) if spec.get("measure_successful_run") else (None, "")
             phases = _phase_measurements(skill, manifest, tokenizer)
             reference_paths = set((skill / "references").rglob("*")) if (skill / "references").is_dir() else set()
             reference_files = {path.resolve() for path in reference_paths if path.is_file()}
             worst_references = _path_measure(reference_files, skill, tokenizer)
             pre_action_paths = _doctor_required_paths(doctor_payload, skill)
             top_level = _tokens(_read_utf8(skill_md), tokenizer)
-            tool_output = _tokens(doctor_output, tokenizer)
+            tool_output = max(
+                _tokens(doctor_output, tokenizer),
+                _tokens(successful_output, tokenizer) if spec.get("measure_successful_run") else 0,
+            )
             repair_diagnostic = _tokens(diagnostic_output, tokenizer)
             pre_action = _path_measure(pre_action_paths, skill, tokenizer)["tokens"] + tool_output
             phase_max = max((row["worst"]["tokens"] for row in phases.values()), default=0)
@@ -412,6 +425,7 @@ def build_report(root: Path = ROOT, config_path: Path | None = None) -> dict[str
                 "pre_action_paths": [path.relative_to(skill).as_posix() for path in sorted(pre_action_paths)],
                 "worst_reference_paths": worst_references["paths"],
                 "phases": phases,
+                "measured_successful_run": bool(spec.get("measure_successful_run")),
             }
     aggregate_metrics = {
         metric: sum(int(row["metrics"][metric]) for row in rows.values())

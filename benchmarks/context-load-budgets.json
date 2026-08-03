@@ -108,10 +108,11 @@
       "diagnostic_input": "handoff",
       "representative_inputs": {"handoff": "{fixture_file}", "github_repo_url": "owner/repo"}
     },
-    "route-engineering-work": {
+    "route-work": {
       "category": "router",
-      "diagnostic_input": "request",
-      "representative_inputs": {"request": "Choose the planning workflow."}
+      "diagnostic_input": "selected_skills",
+      "representative_inputs": {"selected_skills": "plan-change"},
+      "measure_successful_run": true
     },
     "scope-issue": {
       "category": "user_orchestrator",
@@ -120,6 +121,17 @@
     }
   },
   "exceptions": [
+    {
+      "id": "route-work-compact-handoff-pre-action",
+      "skill": "route-work",
+      "metric": "pre_action",
+      "direction": "increase",
+      "max_tokens": 1000,
+      "expires": "2027-08-03",
+      "rationale": "The stateless run output carries the protocol envelope plus the compact route_handoff decision by contract; the agent-decision inputs and the expanded routing policy keep that envelope bounded while detailed guidance stays opt-in.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "protected_rule_ids": ["route.read-only", "route.no-execution", "route.exact-json"]
+    },
     {
       "id": "audit-typed-selection-boundary",
       "skill": "audit-codebase",

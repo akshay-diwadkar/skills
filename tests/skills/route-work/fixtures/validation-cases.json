@@ -1,0 +1,110 @@
+[
+  {
+    "id": "valid-single-audit",
+    "selection": {"selected_skills": ["audit-codebase"]},
+    "expected": {"valid": true, "workflow": ["audit-codebase"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "pipeline-audit-then-raise",
+    "selection": {"selected_skills": ["audit-codebase", "raise-issue"]},
+    "expected": {"valid": true, "workflow": ["audit-codebase", "raise-issue"], "errors": [], "warnings": ["warn.publication_approval"]}
+  },
+  {
+    "id": "raise-without-producer",
+    "selection": {"selected_skills": ["raise-issue"]},
+    "expected": {"valid": false, "workflow": ["raise-issue"], "errors": ["dependency.missing_artifact"], "warnings": ["warn.publication_approval"]}
+  },
+  {
+    "id": "raise-with-fact",
+    "selection": {"selected_skills": ["raise-issue"], "facts": {"audit_handoff_available": true}},
+    "expected": {"valid": true, "workflow": ["raise-issue"], "errors": [], "warnings": ["warn.publication_approval"]}
+  },
+  {
+    "id": "implement-requires-approval",
+    "selection": {"selected_skills": ["plan-change", "implement-plan"]},
+    "expected": {"valid": false, "workflow": ["plan-change", "implement-plan"], "errors": ["gate.approval_required"], "warnings": []}
+  },
+  {
+    "id": "implement-approved-plan",
+    "selection": {"selected_skills": ["implement-plan"], "facts": {"approved_plan_available": true}},
+    "expected": {"valid": true, "workflow": ["implement-plan"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "scope-with-context-fact",
+    "selection": {"selected_skills": ["scope-issue"], "facts": {"issue_context_available": true}},
+    "expected": {"valid": true, "workflow": ["scope-issue"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "scope-without-context",
+    "selection": {"selected_skills": ["scope-issue"]},
+    "expected": {"valid": false, "workflow": ["scope-issue"], "errors": ["dependency.missing_artifact"], "warnings": []}
+  },
+  {
+    "id": "map-first-navigation",
+    "selection": {"selected_skills": ["audit-codebase", "map-codebase"], "facts": {"repository_navigation_inadequate": true}},
+    "expected": {"valid": true, "workflow": ["map-codebase", "audit-codebase"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "design-before-plan",
+    "selection": {"selected_skills": ["plan-change", "design-codebase"]},
+    "expected": {"valid": true, "workflow": ["design-codebase", "plan-change"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "ideate-then-design",
+    "selection": {"selected_skills": ["design-codebase", "ideate"]},
+    "expected": {"valid": true, "workflow": ["ideate", "design-codebase"], "errors": [], "warnings": []}
+  },
+  {
+    "id": "unknown-skill",
+    "selection": {"selected_skills": ["bogus-skill"]},
+    "expected": {"valid": false, "workflow": [], "errors": ["selection.unknown_skill"], "warnings": []}
+  },
+  {
+    "id": "duplicate-selection",
+    "selection": {"selected_skills": ["audit-codebase", "audit-codebase"]},
+    "expected": {"valid": false, "workflow": ["audit-codebase"], "errors": ["selection.duplicate"], "warnings": []}
+  },
+  {
+    "id": "primary-not-selected",
+    "selection": {"selected_skills": ["audit-codebase"], "primary_skill": "raise-issue"},
+    "expected": {"valid": false, "workflow": ["audit-codebase"], "errors": ["selection.primary_not_selected"], "warnings": []}
+  },
+  {
+    "id": "excluded-prerequisite",
+    "selection": {"selected_skills": ["raise-issue"], "excluded_skills": ["audit-codebase"]},
+    "expected": {"valid": false, "workflow": ["raise-issue"], "errors": ["dependency.excluded_prerequisite"], "warnings": ["selection.exclusion_inert", "warn.publication_approval"]}
+  },
+  {
+    "id": "exclusion-inert",
+    "selection": {"selected_skills": ["audit-codebase"], "excluded_skills": ["ideate"]},
+    "expected": {"valid": true, "workflow": ["audit-codebase"], "errors": [], "warnings": ["selection.exclusion_inert"]}
+  },
+  {
+    "id": "capability-missing",
+    "selection": {"selected_skills": ["audit-codebase"], "required_capabilities": ["implementation"]},
+    "expected": {"valid": false, "workflow": ["audit-codebase"], "errors": ["capability.missing"], "warnings": []}
+  },
+  {
+    "id": "incompatible-pair",
+    "selection": {"selected_skills": ["ideate", "implement-plan"], "facts": {"approved_plan_available": true}},
+    "expected": {"valid": false, "workflow": ["ideate", "implement-plan"], "errors": ["compatibility.conflict"], "warnings": []}
+  },
+  {
+    "id": "excluded-primary",
+    "selection": {"selected_skills": ["audit-codebase"], "primary_skill": "audit-codebase", "excluded_skills": ["audit-codebase"]},
+    "expected": {"valid": false, "workflow": ["audit-codebase"], "errors": ["selection.excluded_primary"], "warnings": []}
+  },
+  {
+    "id": "full-pipeline-reordered",
+    "selection": {
+      "selected_skills": ["raise-issue", "implement-plan", "plan-change", "audit-codebase"],
+      "facts": {"approved_plan_available": true}
+    },
+    "expected": {
+      "valid": true,
+      "workflow": ["audit-codebase", "raise-issue", "plan-change", "implement-plan"],
+      "errors": [],
+      "warnings": ["warn.publication_approval"]
+    }
+  }
+]

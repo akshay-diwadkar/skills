@@ -105,7 +105,7 @@ def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
 
 
 def test_installed_router_executes_read_only(tmp_path: Path) -> None:
-    skill = ROOT / "skills" / "engineering" / "route-engineering-work"
+    skill = ROOT / "skills" / "routing" / "route-work"
 
     def snapshot() -> dict[str, str]:
         return {
@@ -118,9 +118,15 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             sys.executable,
-            "scripts/route_engineering_work.py",
-            "--request",
-            "Use map-codebase, then plan-change, then implement-plan.",
+            "scripts/route_work.py",
+            "--selected-skill",
+            "map-codebase",
+            "--selected-skill",
+            "plan-change",
+            "--selected-skill",
+            "implement-plan",
+            "--approved-plan-available",
+            "true",
         ],
         cwd=skill,
         capture_output=True,
@@ -131,10 +137,9 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stderr == ""
     decision = json.loads(result.stdout)
-    assert decision["primary_skill"] == "plan-change"
-    assert decision["prerequisites"] == []
-    assert decision["follow_up"] == ["implement-plan"]
-    assert decision["forbidden_actions"][-1] == "execute_selected_workflow"
+    assert decision["valid"] is True
+    assert decision["workflow"] == ["map-codebase", "plan-change", "implement-plan"]
+    assert decision["errors"] == []
     assert snapshot() == before
 
 
@@ -204,7 +209,7 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
         ("engineering", "scope-issue"),
         ("engineering", "diagram-codebase"),
         ("technical-communication", "manualize"),
-        ("engineering", "route-engineering-work"),
+        ("routing", "route-work"),
     ],
 )
 def test_remaining_skill_common_cli_runs_from_standalone_install(
@@ -250,7 +255,7 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
             f"bundle={existing}",
             f"glossary={existing}",
         ],
-        "route-engineering-work": ["request=Choose the planning workflow."],
+        "route-work": ["selected_skills=plan-change"],
     }
     argv = [
         sys.executable,
@@ -258,7 +263,7 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
         "--repo-root",
         str(repo),
     ]
-    if name != "route-engineering-work":
+    if name != "route-work":
         argv.extend(["--run-dir", str(run)])
     for value in values[name]:
         argv.extend(["--input", value])
@@ -278,8 +283,8 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
 
 
 def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_path: Path) -> None:
-    source = ROOT / "skills" / "engineering" / "route-engineering-work"
-    installed = tmp_path / "route-engineering-work"
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
     shutil.copytree(source, installed)
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -290,7 +295,7 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
             "--repo-root",
             str(repo),
             "--input",
-            "request=Use map-codebase, then plan-change, then implement-plan.",
+            "selected_skills=plan-change",
             "--format",
             "json",
             "run",
@@ -302,6 +307,191 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
     assert result.returncode == 0, result.stdout + result.stderr
     response = json.loads(result.stdout)
     assert response["status"] == "complete"
-    assert response["result"]["primary_skill"] == "plan-change"
-    assert response["result"]["prerequisites"] == []
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["plan-change"]
     assert not list(tmp_path.rglob(".skill-cli-state.json"))
+
+
+def test_installed_stateless_router_persists_handoff_on_request(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    handoff = tmp_path / "route-handoff.md"
+    before = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "selected_skills=plan-change",
+            "--input",
+            f"handoff_output={handoff}",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    response = json.loads(result.stdout)
+    assert response["status"] == "complete"
+    assert handoff.is_file()
+    assert "# Route Handoff Guidance" in handoff.read_text(encoding="utf-8")
+    # Persisting on request must not modify the installed skill package.
+    after = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    assert after == before
+
+
+def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    approved = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "selected_skills=implement-plan",
+            "--input",
+            "approved_plan_available=true",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert approved.returncode == 0, approved.stdout + approved.stderr
+    response = json.loads(approved.stdout)
+    assert response["status"] == "complete"
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["implement-plan"]
+
+    issue = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "selected_skills=scope-issue",
+            "--input",
+            "issue_context_available=true",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert issue.returncode == 0, issue.stdout + issue.stderr
+    response = json.loads(issue.stdout)
+    assert response["status"] == "complete"
+    assert response["result"]["valid"] is True
+    assert response["result"]["workflow"] == ["scope-issue"]
+
+    without_facts = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "selected_skills=implement-plan",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert without_facts.returncode == 0, without_facts.stdout + without_facts.stderr
+    response = json.loads(without_facts.stdout)
+    assert response["result"]["valid"] is False
+    assert [error["code"] for error in response["result"]["errors"]] == [
+        "dependency.missing_artifact",
+        "gate.approval_required",
+    ]
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "<repo>/route-handoff.md",
+        "<repo>/nested/route-handoff.md",
+        "<installed>/SKILL.md",
+        "<installed>/scripts/route_work.py",
+        "<installed>/nested/route-handoff.md",
+    ],
+    ids=lambda value: value.replace("<", "").replace(">", "").replace("/", "-"),
+)
+def test_installed_router_rejects_handoff_output_inside_repo_or_skill(
+    tmp_path: Path,
+    target: str,
+) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    destination = Path(
+        target.replace("<repo>", str(repo)).replace("<installed>", str(installed))
+    )
+
+    def snapshot(root: Path) -> dict[str, str]:
+        return {
+            path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(root.rglob("*"))
+            if path.is_file() and "__pycache__" not in path.parts
+        }
+
+    before_repo = snapshot(repo)
+    before_skill = snapshot(installed)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "selected_skills=plan-change",
+            "--input",
+            f"handoff_output={destination}",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 3, (target, result.stdout, result.stderr)
+    response = json.loads(result.stdout)
+    assert response["status"] == "blocked"
+    assert "handoff output must be outside the repository and installed skill" in response[
+        "diagnostics"
+    ][0]["message"]
+    assert snapshot(repo) == before_repo
+    assert snapshot(installed) == before_skill
