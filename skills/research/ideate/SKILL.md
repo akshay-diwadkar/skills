@@ -1,6 +1,6 @@
 ---
 name: ideate
-description: Generate and rank 3–7 evidence-linked candidate ideas for any researchable goal, then seal one decision-ready ideas.md. Domain-neutral: works for software, business, product, academic, hobby, lifestyle, and other goals. A repository is optional context.
+description: "Generate and rank 3–7 evidence-linked candidate ideas for any researchable goal, then seal one decision-ready ideas.md. Domain-neutral: works for software, business, product, academic, hobby, lifestyle, and other goals. A repository is optional context."
 version: 0.1.0
 metadata:
   invocation: user-invoked
