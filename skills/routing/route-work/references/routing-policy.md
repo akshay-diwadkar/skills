@@ -1,13 +1,13 @@
 # Routing Policy
 
-Use this reference to understand the deterministic classifier. The script is the executable source of truth.
+The script is the executable source of truth.
 
 ## Decision Semantics
 
 - `primary_skill`: Workflow owning the request (`null` for direct answer).
 - `prerequisites`: Workflows required before the primary workflow.
 - `follow_up`: Later workflows explicitly requested or required.
-- `workflow`: Ordered list of step objects `{"skill": ..., "description": ...}` providing guidance.
+- `workflow`: Ordered step objects `{"skill": ..., "description": ...}`.
 - `next_action`: Caller action (`answer_directly`, `invoke_prerequisite`, or `invoke_primary_skill`).
 - `allowed_actions` and `forbidden_actions`: Describe router authority, not target skill authority.
 
@@ -31,22 +31,32 @@ Apply the first matching rule:
 | 12 | Repository orientation | `map-codebase` |
 | 13 | No workflow justified | `null` |
 
+## Execution Intent
+
+`implement-plan` follow-up and approved-plan execution require explicit
+execution intent: an imperative at the request start ("Fix the bug."), a
+polite imperative ("please update", "can you implement"), or a staged action
+("then implement", "and apply"). Wording that merely mentions a change
+word ("plan a fix", "refactor plan") is planning or ideation evidence only.
+Word boundaries exclude nouns and conjugations; explicit skills and approved
+plans keep precedence.
+
 ## Overlap Rules
 
-- Route research/ideation to `ideate`; add `design-codebase`, `plan-change`, or `implement-plan` as follow-up if requested. Ideation never overrides an explicit skill name or an approved-plan execution request.
-- Route unplanned implementation requests to `plan-change` with `implement-plan` follow-up. Noun-only mentions such as "implementation plan" are planning evidence, not execution requests.
-- Route structural redesign to `design-codebase` then `plan-change`.
-- Route unknown risk discovery to `audit-codebase`. Route named bottlenecks to `optimize-codebase`.
-- Route audit with issue publication to `audit-codebase` with `raise-issue` follow-up; the diagram routes publication through a "Publish Issues?" decision.
+- Ideation → `ideate`, with `design-codebase`/`plan-change`/`implement-plan` follow-up only if requested; never overrides explicit skills or approved plans.
+- Unplanned execution requests → `plan-change` with `implement-plan` follow-up (see Execution Intent).
+- Structural redesign → `design-codebase` then `plan-change`.
+- Unknown risk discovery → `audit-codebase`; named bottlenecks → `optimize-codebase`.
+- Audit with issue publication → `audit-codebase` with `raise-issue` follow-up; the diagram routes publication through a "Publish Issues?" decision.
 - Prefer one primary skill. Never add heavyweight workflows speculatively.
 
 ## Handoff Contract
 
-- `route_handoff` is an inline Markdown document in the decision `result`; no sealed file artifact is produced or claimed.
-- The default is the compact decision (request, mermaid route diagram, route steps). Detailed step-by-step guidance is opt-in via `handoff_detail=detailed`.
-- Persist `route-handoff.md` only through the CLI (`--output-file`, `--output-dir`, or the `handoff_output` protocol input) at a caller-chosen path outside the repository; paths inside the repository are rejected.
+- `route_handoff` is an inline Markdown document in `result`; no sealed file artifact is produced or claimed.
+- Compact by default; detailed guidance is opt-in via `handoff_detail=detailed` (common CLI) or `--handoff detailed` (direct script).
+- Persist `route-handoff.md` only at a caller-chosen path outside the repository and installed skill: `handoff_output` (common CLI) or `--output-file` / `--output-dir` (direct script). The resolved destination — output file, or `<output-dir>/route-handoff.md` — is rejected before any write when inside either root, including symlinked parents.
 - The handoff embeds the original request text verbatim; only classification uses the normalized text.
 
 ## Direct-Answer Boundary
 
-Return `primary_skill: null` and `workflow: []` for general explanations, search, status summaries, or non-suite requests.
+Return `primary_skill: null` and `workflow: []` for explanations, search, summaries, or non-suite requests.

@@ -349,3 +349,143 @@ def test_installed_stateless_router_persists_handoff_on_request(tmp_path: Path) 
         if path.is_file() and "__pycache__" not in path.parts
     }
     assert after == before
+
+
+def test_installed_router_protocol_facts_affect_routing(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    plan = tmp_path / "approved.md"
+    plan.write_text("# Approved\n", encoding="utf-8")
+
+    approved = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Apply the requested change.",
+            "--input",
+            f"approved_plan={plan}",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert approved.returncode == 0, approved.stdout + approved.stderr
+    response = json.loads(approved.stdout)
+    assert response["status"] == "complete"
+    assert response["result"]["primary_skill"] == "implement-plan"
+    assert response["result"]["reason"] == "approved_plan_execution"
+
+    issue = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Scope the reported behavior against the checkout.",
+            "--input",
+            "issue_number=42",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert issue.returncode == 0, issue.stdout + issue.stderr
+    response = json.loads(issue.stdout)
+    assert response["status"] == "complete"
+    assert response["result"]["primary_skill"] == "scope-issue"
+    assert response["result"]["reason"] == "github_issue_work"
+
+    without_facts = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Apply the requested change.",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert without_facts.returncode == 0, without_facts.stdout + without_facts.stderr
+    response = json.loads(without_facts.stdout)
+    assert response["result"]["primary_skill"] == "plan-change"
+    assert response["result"]["follow_up"] == ["implement-plan"]
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "<repo>/route-handoff.md",
+        "<repo>/nested/route-handoff.md",
+        "<installed>/SKILL.md",
+        "<installed>/scripts/route_work.py",
+        "<installed>/nested/route-handoff.md",
+    ],
+    ids=lambda value: value.replace("<", "").replace(">", "").replace("/", "-"),
+)
+def test_installed_router_rejects_handoff_output_inside_repo_or_skill(
+    tmp_path: Path,
+    target: str,
+) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    destination = Path(
+        target.replace("<repo>", str(repo)).replace("<installed>", str(installed))
+    )
+
+    def snapshot(root: Path) -> dict[str, str]:
+        return {
+            path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(root.rglob("*"))
+            if path.is_file() and "__pycache__" not in path.parts
+        }
+
+    before_repo = snapshot(repo)
+    before_skill = snapshot(installed)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Choose the planning workflow.",
+            "--input",
+            f"handoff_output={destination}",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 3, (target, result.stdout, result.stderr)
+    response = json.loads(result.stdout)
+    assert response["status"] == "blocked"
+    assert "handoff output must be outside the repository and installed skill" in response[
+        "diagnostics"
+    ][0]["message"]
+    assert snapshot(repo) == before_repo
+    assert snapshot(installed) == before_skill

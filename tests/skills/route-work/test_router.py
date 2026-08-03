@@ -25,7 +25,11 @@ from route_work import (  # noqa: E402
     FORBIDDEN_ACTIONS,
     SKILLS,
     RepositoryFacts,
+    canonical_path,
+    execution_requested,
+    handoff_destination,
     route_request,
+    unsafe_handoff_root,
 )
 
 
@@ -37,7 +41,7 @@ def file_hashes(root: Path) -> dict[str, str]:
     return {
         path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(root.rglob("*"))
-        if path.is_file()
+        if path.is_file() and "__pycache__" not in path.parts
     }
 
 
@@ -208,6 +212,185 @@ def test_audit_publication_mermaid_routes_through_decision() -> None:
     assert 'BranchPub1 -- "Yes" --> Step2["2. raise-issue' in route_handoff
     assert 'BranchPub1 -- "No" --> End' in route_handoff
     assert "Publish Issues?" in route_handoff
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Plan a fix.", False),
+        ("Draft a refactor plan.", False),
+        ("Plan the API change.", False),
+        ("Create an implementation plan.", False),
+        ("Brainstorm ways to change the resolver.", False),
+        ("Brainstorm implementation approaches.", False),
+        ("Fix the bug.", True),
+        ("Please update the resolver.", True),
+        ("Can you refactor this module?", True),
+        ("Audit the repository and fix confirmed issues.", True),
+        ("Plan the migration, then implement it.", True),
+        ("After planning, execute the migration.", True),
+        ("Implement the approved plan.", True),
+        ("Fixing the bug would be nice.", False),
+        ("Review the update list.", False),
+        ("What is the best way to fix the resolver?", False),
+        ("The patch is ready.", False),
+    ],
+    ids=lambda value: str(value)[:40],
+)
+def test_execution_requested_detects_intent_only(text: str, expected: bool) -> None:
+    assert execution_requested(text) is expected
+
+
+def _run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), *arguments],
+        cwd=SKILL_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _make_directory_link(link: Path, target: Path) -> bool:
+    """Create a directory symlink, falling back to a Windows junction."""
+    try:
+        link.symlink_to(target, target_is_directory=True)
+        return True
+    except OSError:
+        if sys.platform == "win32":
+            try:
+                result = subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if result.returncode == 0 and link.is_dir():
+                    return True
+            except OSError:
+                pass
+    return False
+
+
+def test_cli_rejects_unsafe_handoff_destinations_without_writes(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    before = file_hashes(tmp_path)
+    before.update(file_hashes(SKILL_ROOT))
+    destinations = [
+        ("--output-file", repository / "route-handoff.md"),
+        ("--output-file", repository / "nested" / "route-handoff.md"),
+        ("--output-file", SKILL_ROOT / "SKILL.md"),
+        ("--output-file", SKILL_ROOT / "scripts" / "route_work.py"),
+        ("--output-file", SKILL_ROOT / "nested" / "route-handoff.md"),
+        ("--output-dir", repository),
+        ("--output-dir", repository / "nested"),
+        ("--output-dir", SKILL_ROOT),
+    ]
+    for flag, target in destinations:
+        result = _run_cli(
+            "--request",
+            "Plan a fix.",
+            "--repo-root",
+            str(repository),
+            flag,
+            str(target),
+        )
+        assert result.returncode == 2, (flag, target, result.stderr)
+        assert result.stdout == ""
+        assert "outside the repository" in result.stderr, (flag, target)
+    after = file_hashes(tmp_path)
+    after.update(file_hashes(SKILL_ROOT))
+    assert after == before
+
+
+def test_cli_rejects_symlinked_handoff_destinations_resolving_into_protected_roots(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    link_repo = tmp_path / "link-repo"
+    link_skill = tmp_path / "link-skill"
+    if not _make_directory_link(link_repo, repository) or not _make_directory_link(
+        link_skill, SKILL_ROOT
+    ):
+        pytest.skip("directory symlinks are not supported on this platform")
+    before = file_hashes(tmp_path)
+    before.update(file_hashes(SKILL_ROOT))
+    for link in (link_repo, link_skill):
+        result = _run_cli(
+            "--request",
+            "Plan a fix.",
+            "--repo-root",
+            str(repository),
+            "--output-file",
+            str(link / "route-handoff.md"),
+        )
+        assert result.returncode == 2, (link, result.stderr)
+        assert "outside the repository" in result.stderr
+    after = file_hashes(tmp_path)
+    after.update(file_hashes(SKILL_ROOT))
+    assert after == before
+
+
+def test_handoff_destination_validator_accounts_for_symlinked_and_future_paths(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    protected = (canonical_path(repository), canonical_path(SKILL_ROOT))
+
+    future_inside = handoff_destination(repository / "nested" / "route-handoff.md", None)
+    assert future_inside is not None
+    assert unsafe_handoff_root(future_inside, protected) == canonical_path(repository)
+
+    future_skill = handoff_destination(SKILL_ROOT / "deep" / "route-handoff.md", None)
+    assert future_skill is not None
+    assert unsafe_handoff_root(future_skill, protected) == canonical_path(SKILL_ROOT)
+
+    output_dir_inside = handoff_destination(None, repository / "nested")
+    assert output_dir_inside is not None
+    assert unsafe_handoff_root(output_dir_inside, protected) == canonical_path(repository)
+
+    external = handoff_destination(tmp_path / "external" / "route-handoff.md", None)
+    assert external is not None
+    assert unsafe_handoff_root(external, protected) is None
+
+    link = tmp_path / "link"
+    if _make_directory_link(link, repository):
+        via_link = handoff_destination(link / "route-handoff.md", None)
+        assert via_link is not None
+        assert unsafe_handoff_root(via_link, protected) == canonical_path(repository)
+
+
+def test_cli_writes_handoff_outside_repository_and_skill(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    output_file = tmp_path / "external" / "route-handoff.md"
+    result = _run_cli(
+        "--request",
+        "Fix the bug.",
+        "--repo-root",
+        str(repository),
+        "--output-file",
+        str(output_file),
+    )
+    assert result.returncode == 0, result.stderr
+    assert output_file.is_file()
+    assert "# Route Handoff Guidance" in output_file.read_text(encoding="utf-8")
+
+    output_dir = tmp_path / "external-dir"
+    output_dir.mkdir()
+    result = _run_cli(
+        "--request",
+        "Fix the bug.",
+        "--repo-root",
+        str(repository),
+        "--output-dir",
+        str(output_dir),
+    )
+    assert result.returncode == 0, result.stderr
+    assert (output_dir / "route-handoff.md").is_file()
 
 
 def test_cli_rejects_handoff_output_inside_repository(tmp_path: Path) -> None:

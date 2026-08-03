@@ -364,5 +364,122 @@
       "confidence": "high",
       "next_action": "invoke_primary_skill"
     }
+  },
+  {
+    "id": "plan-a-fix-is-planning-only",
+    "request": "Plan a fix.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "draft-a-refactor-plan-is-planning-only",
+    "request": "Draft a refactor plan.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "plan-the-api-change-is-planning-only",
+    "request": "Plan the API change.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "brainstorm-ways-to-change-is-ideation",
+    "request": "Brainstorm ways to change the resolver.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "ideate",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "research_ideation_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "fix-the-bug-routes-plan-then-implement",
+    "request": "Fix the bug.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": ["implement-plan"],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "polite-update-routes-plan-then-implement",
+    "request": "Please update the resolver.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": ["implement-plan"],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "polite-refactor-question-routes-plan-then-implement",
+    "request": "Can you refactor this module?",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": ["implement-plan"],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "audit-and-fix-confirmed-issues",
+    "request": "Audit the repository and fix confirmed issues.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "audit-codebase",
+      "prerequisites": [],
+      "follow_up": ["plan-change", "implement-plan"],
+      "reason": "unknown_risk_discovery",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "plan-migration-then-implement",
+    "request": "Plan the migration, then implement it.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": ["implement-plan"],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
   }
 ]

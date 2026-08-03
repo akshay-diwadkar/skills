@@ -96,7 +96,7 @@ FORBIDDEN_ACTIONS: Final[tuple[str, ...]] = (
     "execute_selected_workflow",
 )
 
-IMPLEMENT_WORDS: Final[tuple[str, ...]] = (
+EXECUTION_VERBS: Final[tuple[str, ...]] = (
     "apply",
     "build",
     "change",
@@ -109,6 +109,22 @@ IMPLEMENT_WORDS: Final[tuple[str, ...]] = (
     "refactor",
     "rename",
     "update",
+)
+_EXECUTION_VERB_ALTERNATION: Final[str] = "|".join(
+    re.escape(verb) for verb in EXECUTION_VERBS
+)
+IMPERATIVE_START_RE: Final[re.Pattern[str]] = re.compile(
+    rf"^(?:{_EXECUTION_VERB_ALTERNATION})\b"
+)
+POLITE_IMPERATIVE_RE: Final[re.Pattern[str]] = re.compile(
+    rf"^(?:please|can you please|can you|could you please|could you|"
+    rf"would you please|would you|will you)\s+(?:{_EXECUTION_VERB_ALTERNATION})\b"
+)
+STAGED_ACTION_RE: Final[re.Pattern[str]] = re.compile(
+    rf"\b(?:then|afterwards|subsequently|afterward|next)\s+"
+    rf"(?:{_EXECUTION_VERB_ALTERNATION})\b"
+    rf"|\band\s+(?:{_EXECUTION_VERB_ALTERNATION})\b"
+    rf"|\bafter\s+planning[\s,]+(?:{_EXECUTION_VERB_ALTERNATION})\b"
 )
 PLAN_WORDS: Final[tuple[str, ...]] = (
     "plan",
@@ -282,12 +298,67 @@ def normalize_request(request: str) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
+SKILL_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
+HANDOFF_FILENAME = "route-handoff.md"
+
+
+def canonical_path(path: Path) -> Path:
+    """Resolve existing symlinked ancestors of a possibly-future path."""
+    return path.expanduser().resolve(strict=False)
+
+
+def is_within(path: Path, parent: Path) -> bool:
+    """True when path equals or descends from parent (canonical containment)."""
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def handoff_destination(output_file: Path | None, output_dir: Path | None) -> Path | None:
+    """Return the canonical file a handoff write would create, if any."""
+    if output_file is not None:
+        return canonical_path(output_file)
+    if output_dir is not None:
+        return canonical_path(output_dir / HANDOFF_FILENAME)
+    return None
+
+
+def unsafe_handoff_root(
+    destination: Path, protected_roots: tuple[Path, ...]
+) -> Path | None:
+    """Return the first protected root containing the destination, or None."""
+    for root in protected_roots:
+        if is_within(destination, root):
+            return root
+    return None
+
+
+def execution_requested(text: str) -> bool:
+    """Return True only when the request carries clear execution intent.
+
+    Execution is detected from an imperative action at the request start, a
+    polite imperative form ("please fix", "can you implement"), or an
+    explicitly staged action ("then implement", "and apply", "after planning,
+    execute"). Planning and ideation wording that merely mentions a change noun
+    or verb ("plan a fix", "refactor plan", "ways to change the resolver")
+    never triggers execution by itself.
+    """
+    if not text:
+        return False
+    text = normalize_request(text)
+    if not text:
+        return False
+    if IMPERATIVE_START_RE.match(text):
+        return True
+    if POLITE_IMPERATIVE_RE.match(text):
+        return True
+    return STAGED_ACTION_RE.search(text) is not None
+
+
 def contains_any(text: str, values: tuple[str, ...]) -> bool:
     return any(value in text for value in values)
-
-
-def has_word(text: str, word: str) -> bool:
-    return re.search(rf"(?<![\w-]){re.escape(word)}(?![\w-])", text) is not None
 
 
 def named_skills(text: str) -> list[Skill]:
@@ -541,7 +612,7 @@ def route_request(
     issue_context = facts.issue_context_available or bool(
         re.search(r"(?:github\s+)?issue\s*#?\d+", text)
     )
-    implementation_requested = any(has_word(text, word) for word in IMPLEMENT_WORDS)
+    implementation_requested = execution_requested(text)
     planning_requested = contains_any(text, PLAN_WORDS)
     orientation_requested = contains_any(text, ORIENTATION_PHRASES)
 
@@ -805,16 +876,15 @@ def validated_inputs(
         parser.error(f"approved plan does not exist: {args.approved_plan}")
     if args.issue_number is not None and args.issue_number <= 0:
         parser.error("issue number must be positive")
-    if args.repo_root is not None:
-        repository = args.repo_root.resolve()
-        for label, target in (
-            ("output file", args.output_file),
-            ("output directory", args.output_dir),
-        ):
-            if target is not None and (
-                target.resolve() == repository or repository in target.resolve().parents
-            ):
-                parser.error(f"{label} must be outside the repository: {target}")
+    repository = args.repo_root.resolve() if args.repo_root is not None else None
+    destination = handoff_destination(args.output_file, args.output_dir)
+    if destination is not None:
+        protected_roots = tuple(root for root in (SKILL_ROOT, repository) if root is not None)
+        if unsafe_handoff_root(destination, protected_roots) is not None:
+            parser.error(
+                "handoff output must be outside the repository and installed skill: "
+                f"{destination}"
+            )
     if args.output_dir is not None and not args.output_dir.is_dir():
         parser.error(f"output directory does not exist: {args.output_dir}")
 

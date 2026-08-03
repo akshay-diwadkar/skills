@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8816,
-    "repair_diagnostic": 2871,
-    "tool_output": 2406,
-    "top_level": 6410,
-    "worst_context": 27219,
-    "worst_references": 17819
+    "pre_action": 8872,
+    "repair_diagnostic": 2920,
+    "tool_output": 2455,
+    "top_level": 6417,
+    "worst_context": 27363,
+    "worst_references": 17907
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "7e6e58023928139cb1ea208b09c585659cbfbceafcc16fedde8b9d5c139f9c2f",
+  "config_sha256": "b2f6d309923fec6c8ef5d7709b595c82109bdb61699809e69012ed9faff21e68",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -345,19 +345,19 @@
       "measured_successful_run": true,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 924,
-        "repair_diagnostic": 316,
-        "tool_output": 435,
-        "top_level": 489,
-        "worst_context": 1635,
-        "worst_references": 711
+        "pre_action": 980,
+        "repair_diagnostic": 365,
+        "tool_output": 484,
+        "top_level": 496,
+        "worst_context": 1779,
+        "worst_references": 799
       },
       "path": "skills/routing/route-work/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "580377b30e109acda751e00fe0098d87bb6a7fd5d059dd46f2942b2d28bc62c5",
+      "source_hash": "74bc9ced0d9da4be138fd557cda88a76e7d6662a219ce354b4e0300118cb896b",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]

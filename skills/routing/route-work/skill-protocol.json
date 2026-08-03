@@ -7,9 +7,11 @@
   "requirements": [],
   "inputs": [
     {"name": "request", "kind": "string", "required": true, "repeatable": false, "description": "Work request to classify without executing.", "choices": []},
-    {"name": "handoff_detail", "kind": "choice", "required": false, "repeatable": false, "description": "Compact routing decision (default) or detailed guidance.", "choices": ["compact", "detailed"]},
+    {"name": "handoff_detail", "kind": "choice", "required": false, "repeatable": false, "description": "Compact decision (default) or detailed guidance.", "choices": ["compact", "detailed"]},
     {"name": "handoff_output", "kind": "path", "path_policy": "future", "required": false, "repeatable": false, "description": "route-handoff.md output path outside the repository.", "choices": []},
-    {"name": "repository_navigation_inadequate", "kind": "choice", "required": false, "repeatable": false, "description": "Caller signal that native navigation was insufficient.", "choices": ["true"]}
+    {"name": "approved_plan", "kind": "path", "path_policy": "existing", "required": false, "repeatable": false, "description": "Existing approved plan file.", "choices": []},
+    {"name": "issue_number", "kind": "string", "required": false, "repeatable": false, "description": "Known positive GitHub issue number.", "choices": []},
+    {"name": "repository_navigation_inadequate", "kind": "choice", "required": false, "repeatable": false, "description": "Caller signal that navigation was insufficient.", "choices": ["true"]}
   ],
   "artifacts": [],
   "phases": {},
@@ -23,6 +25,8 @@
           "repeat": [
             {"input": "handoff_detail", "flag": "--handoff"},
             {"input": "handoff_output", "flag": "--output-file"},
+            {"input": "approved_plan", "flag": "--approved-plan"},
+            {"input": "issue_number", "flag": "--issue-number"},
             {"input": "repository_navigation_inadequate", "flag": "--repository-navigation-inadequate"}
           ],
           "capture_stdout": null,

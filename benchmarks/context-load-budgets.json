@@ -126,9 +126,9 @@
       "skill": "route-work",
       "metric": "pre_action",
       "direction": "increase",
-      "max_tokens": 950,
+      "max_tokens": 1000,
       "expires": "2027-08-03",
-      "rationale": "Context-load now measures the successful stateless run output, which carries the protocol envelope and the compact route_handoff decision (mermaid diagram plus decision fields) by contract; detailed guidance stays opt-in and SKILL.md was trimmed to 489 tokens.",
+      "rationale": "The stateless run output carries the protocol envelope plus the compact route_handoff decision by contract; the approved_plan and issue_number protocol inputs grew that envelope and SKILL.md documents the common-CLI and direct-script interfaces. Detailed guidance stays opt-in.",
       "supporting_paths": ["SKILL.md", "skill-protocol.json"],
       "protected_rule_ids": ["route.read-only", "route.no-execution", "route.exact-json"]
     },

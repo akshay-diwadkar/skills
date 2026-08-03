@@ -1,3 +1,9 @@
+# Intent-aware routing and hardened handoff writes
+
+`route-work` 3.2.0 detects execution intent instead of matching execution words: `execution_requested` requires an imperative at the request start, a polite imperative ("please fix", "can you implement"), or an explicitly staged action ("then implement", "and apply"), so "Plan a fix." and "Draft a refactor plan." route to `plan-change` only while "Fix the bug." and "Please update the resolver." add `implement-plan` follow-up.
+
+Handoff persistence is hardened: `handoff_output`, `--output-file`, and `--output-dir` are validated against canonical resolved paths and rejected before any write when they resolve inside the target repository or the installed skill, including through symlinked parents. SKILL.md documents the common-CLI protocol inputs (`handoff_detail`, `handoff_output`) and lists the `route_work.py` direct-script options separately; the `approved_plan` and `issue_number` protocol inputs expose caller-known facts that affect routing.
+
 # Truthful route handoff and corrected routing precedence
 
 `route-work` 3.1.0 returns the `route_handoff` document inline in the decision result; the sealed-file contract is replaced by explicit, truthful wording. The compact routing decision is the default and the detailed step-by-step document is opt-in (`--handoff detailed`); `route-handoff.md` is persisted only through the CLI at a caller-chosen path outside the repository.
