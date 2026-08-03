@@ -358,6 +358,41 @@ def test_unknown_evidence_reference() -> None:
     assert "ideas.unknown_evidence_reference" in codes
 
 
+def test_candidate_missing_evidence() -> None:
+    # Candidate I1 references no evidence despite E1 being declared
+    cands = (
+        "### I1. Alpha\n"
+        "- Mechanism: do X\n- Why it applies: because Y\n- Evidence: (none)\n"
+        "- Expected impact: high\n- Effort: low\n- Risk: low\n"
+        "- Confidence: moderate\n- What would disconfirm it: Z fails\n"
+        "- Cheapest decisive experiment: try Z\n\n"
+        "### I2. Beta\n"
+        "- Mechanism: do Y\n- Why it applies: because Z\n- Evidence: E1\n"
+        "- Expected impact: medium\n- Effort: medium\n- Risk: medium\n"
+        "- Confidence: low\n- What would disconfirm it: A fails\n"
+        "- Cheapest decisive experiment: try A\n\n"
+        "### I3. Gamma\n"
+        "- Mechanism: do Z\n- Why it applies: because W\n- Evidence: E1\n"
+        "- Expected impact: low\n- Effort: high\n- Risk: high\n"
+        "- Confidence: low\n- What would disconfirm it: B fails\n"
+        "- Cheapest decisive experiment: try B\n\n"
+    )
+    body = _valid_body(candidates=cands)
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.candidate_missing_evidence" in codes
+
+
+def test_uncited_evidence() -> None:
+    # E2 is declared but no candidate cites it
+    ext_rows = (
+        "| E1 | Found X | https://a.com | § 1 | 2026-07 | high |\n"
+        "| E2 | Found Y | https://b.com | § 2 | 2026-07 | medium |\n"
+    )
+    body = _valid_body(ext_rows=ext_rows)
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.uncited_evidence" in codes
+
+
 # ---------------------------------------------------------------------------
 # Local evidence path
 # ---------------------------------------------------------------------------

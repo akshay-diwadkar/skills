@@ -29,44 +29,18 @@ REQUIRED_HEADINGS = (
     "## 5. Recommendation",
     "## 6. Contradictions and open questions",
 )
-# Section 7 is optional.
-OPTIONAL_HEADING = "## 7. Optional downstream action"
-
 HANDOFF_STATES = {"decision-ready", "experiment-first", "research-limited"}
 EXTERNAL_STATUSES = {"completed", "limited", "unavailable", "user-disabled", "local-only"}
 
 CANDIDATE_ID_RE = re.compile(r"^### (I[1-7])\. ", re.MULTILINE)
 CANDIDATE_ALL_RE = re.compile(r"^### (I\d+)\. ", re.MULTILINE)  # for counting
-CANDIDATE_BLOCK_RE = re.compile(r"^### (I[1-7])\. .+?(?=^### I|\Z)", re.MULTILINE | re.DOTALL)
 LOCAL_EVIDENCE_ID_RE = re.compile(r"^\| (L\d+) \|", re.MULTILINE)
 EXTERNAL_EVIDENCE_ID_RE = re.compile(r"^\| (E\d+) \|", re.MULTILINE)
 COMPARISON_RANK_RE = re.compile(r"^\| (\d+) \| (I[1-7]) \|", re.MULTILINE)
 RECOMMENDATION_LEAD_RE = re.compile(r"^- Provisional lead:\s*(.+)$", re.MULTILINE)
-LOCAL_EVIDENCE_TABLE_RE = re.compile(
-    r"### Local evidence\s*\n(?:<!-- Optional.*?-->\s*)?\n?"
-    r"(\| ID \| Claim \| Source path \| Locator \| Verification \|\n"
-    r"\| --- \| --- \| --- \| --- \| --- \|\n"
-    r"(?:\|.*\|\n)*)",
-    re.DOTALL,
-)
-LOCAL_ROW_RE = re.compile(
-    r"^\| (L\d+) \| (?P<claim>[^|]+) \| (?P<path>[^|]+) \| (?P<locator>[^|]+) \| (?P<verification>[^|]+) \|$"
-)
 EXTERNAL_STATUS_LINE_RE = re.compile(r"^External research status:\s*(.+)$", re.MULTILINE)
 TITLE_RE = re.compile(r"^# Ideas: .+$", re.MULTILINE)
 HANDOFF_STATE_RE = re.compile(r"^- State:\s*(.+)$", re.MULTILINE)
-CANDIDATE_FIELD_RE = re.compile(
-    r"^- Mechanism:\s*.+$|"
-    r"^- Why it applies:\s*.+$|"
-    r"^- Evidence:\s*.+$|"
-    r"^- Expected impact:\s*.+$|"
-    r"^- Effort:\s*.+$|"
-    r"^- Risk:\s*.+$|"
-    r"^- Confidence:\s*.+$|"
-    r"^- What would disconfirm it:\s*.+$|"
-    r"^- Cheapest decisive experiment:\s*.+$",
-    re.MULTILINE,
-)
 REQUIRED_CANDIDATE_FIELDS = (
     "Mechanism:",
     "Why it applies:",
@@ -137,16 +111,6 @@ class Diagnostic:
 # ---------------------------------------------------------------------------
 
 
-def _line_numbers(text: str) -> dict[str, int]:
-    """Return first-occurrence line number (1-indexed) for key substrings."""
-    result: dict[str, int] = {}
-    for i, line in enumerate(text.splitlines(), 1):
-        stripped = line.strip()
-        if stripped and stripped not in result:
-            result[stripped] = i
-    return result
-
-
 def _section_body(text: str, heading: str) -> str:
     """Extract text from heading to next same-level heading or end."""
     pattern = re.compile(
@@ -155,6 +119,29 @@ def _section_body(text: str, heading: str) -> str:
     )
     m = pattern.search(text)
     return m.group(1) if m else ""
+
+
+def _validate_id_sequence(
+    ids: list[str],
+    prefix: str,
+    domain: str,
+    dup_code: str,
+    noncontig_code: str,
+) -> list[Diagnostic]:
+    """Validate uniqueness and contiguity for ID lists (e.g. L1.., E1.., I1..)."""
+    errors: list[Diagnostic] = []
+    if ids:
+        nums = [int(item[len(prefix):]) for item in ids]
+        if len(set(nums)) != len(nums):
+            errors.append(Diagnostic(dup_code, f"{domain} IDs must be unique"))
+        elif nums != list(range(1, len(nums) + 1)):
+            errors.append(
+                Diagnostic(
+                    noncontig_code,
+                    f"{domain} IDs must be contiguous starting at {prefix}1",
+                )
+            )
+    return errors
 
 
 # ---------------------------------------------------------------------------
@@ -225,21 +212,25 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     declared_local: list[str] = LOCAL_EVIDENCE_ID_RE.findall(text)
     declared_external: list[str] = EXTERNAL_EVIDENCE_ID_RE.findall(text)
 
-    # Check contiguity and uniqueness for local evidence
-    if declared_local:
-        nums = [int(lid[1:]) for lid in declared_local]
-        if len(set(nums)) != len(nums):
-            errors.append(Diagnostic("ideas.duplicate_local_evidence", "local evidence IDs must be unique"))
-        elif nums != list(range(1, len(nums) + 1)):
-            errors.append(Diagnostic("ideas.noncontiguous_local_evidence", "local evidence IDs must be contiguous starting at L1"))
-
-    # Check contiguity and uniqueness for external evidence
-    if declared_external:
-        nums = [int(eid[1:]) for eid in declared_external]
-        if len(set(nums)) != len(nums):
-            errors.append(Diagnostic("ideas.duplicate_external_evidence", "external evidence IDs must be unique"))
-        elif nums != list(range(1, len(nums) + 1)):
-            errors.append(Diagnostic("ideas.noncontiguous_external_evidence", "external evidence IDs must be contiguous starting at E1"))
+    # Check contiguity and uniqueness for local & external evidence
+    errors.extend(
+        _validate_id_sequence(
+            declared_local,
+            "L",
+            "local evidence",
+            "ideas.duplicate_local_evidence",
+            "ideas.noncontiguous_local_evidence",
+        )
+    )
+    errors.extend(
+        _validate_id_sequence(
+            declared_external,
+            "E",
+            "external evidence",
+            "ideas.duplicate_external_evidence",
+            "ideas.noncontiguous_external_evidence",
+        )
+    )
 
     # Validate local evidence rows: non-empty locator and verification
     evidence_section = _section_body(text, "## 2. Evidence")
@@ -281,16 +272,21 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         )
     # Use valid-range IDs for further checks (when count in range)
     if total_count <= 7:
-        if candidate_ids and len(set(candidate_ids)) != len(candidate_ids):
-            errors.append(Diagnostic("ideas.duplicate_candidate_ids", "candidate IDs must be unique"))
-        if candidate_ids:
-            nums = [int(cid[1:]) for cid in candidate_ids]
-            if nums != list(range(1, len(nums) + 1)):
-                errors.append(Diagnostic("ideas.noncontiguous_candidate_ids", "candidate IDs must be contiguous starting at I1"))
+        errors.extend(
+            _validate_id_sequence(
+                candidate_ids,
+                "I",
+                "candidate",
+                "ideas.duplicate_candidate_ids",
+                "ideas.noncontiguous_candidate_ids",
+            )
+        )
 
     # 8. Each candidate must reference declared evidence and have required fields
     declared_all = set(declared_local) | set(declared_external)
     candidate_section = _section_body(text, "## 3. Candidate ideas")
+    all_cited_evidence: set[str] = set()
+
     # Split into per-candidate blocks
     cand_blocks = re.split(r"(?=^### I[1-7]\. )", candidate_section, flags=re.MULTILINE)
     for block in cand_blocks:
@@ -306,9 +302,27 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 errors.append(Diagnostic("ideas.missing_candidate_field", f"{cid}: required field '- {field}' is absent"))
         # Check evidence references
         refs = set(EVIDENCE_REF_RE.findall(block))
+        if declared_all and not refs:
+            errors.append(
+                Diagnostic(
+                    "ideas.candidate_missing_evidence",
+                    f"{cid}: candidate must reference at least one declared evidence ID",
+                )
+            )
         unknown = refs - declared_all
         for ref in sorted(unknown):
             errors.append(Diagnostic("ideas.unknown_evidence_reference", f"{cid}: references undeclared evidence {ref!r}"))
+        all_cited_evidence.update(refs & declared_all)
+
+    # Check for declared evidence that is never cited by any candidate
+    uncited = declared_all - all_cited_evidence
+    for uncited_id in sorted(uncited):
+        errors.append(
+            Diagnostic(
+                "ideas.uncited_evidence",
+                f"declared evidence {uncited_id!r} is never referenced by any candidate idea",
+            )
+        )
 
     # 9. Comparison table
     comparison_body = _section_body(text, "## 4. Comparison")
