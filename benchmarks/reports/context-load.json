@@ -1,11 +1,11 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8815,
+    "pre_action": 8816,
     "repair_diagnostic": 2871,
-    "tool_output": 2405,
+    "tool_output": 2406,
     "top_level": 6410,
-    "worst_context": 27218,
+    "worst_context": 27219,
     "worst_references": 17819
   },
   "baseline": {
@@ -345,11 +345,11 @@
       "measured_successful_run": true,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 923,
+        "pre_action": 924,
         "repair_diagnostic": 316,
-        "tool_output": 434,
+        "tool_output": 435,
         "top_level": 489,
-        "worst_context": 1634,
+        "worst_context": 1635,
         "worst_references": 711
       },
       "path": "skills/routing/route-work/SKILL.md",

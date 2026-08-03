@@ -841,7 +841,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.output_dir is not None:
         (args.output_dir / "route-handoff.md").write_text(decision.route_handoff, encoding="utf-8")
 
-    json.dump(decision.to_dict(), sys.stdout, ensure_ascii=False, separators=(",", ":"))
+    json.dump(decision.to_dict(), sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
     return 0
 
