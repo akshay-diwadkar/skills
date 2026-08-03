@@ -4,7 +4,7 @@
     "name": "Akshay Diwadkar",
     "url": "https://github.com/akshay-diwadkar"
   },
-  "description": "Repository-grounded engineering and technical communication skills.",
+  "description": "Repository-grounded engineering, research, and technical communication skills.",
   "plugins": [
     {
       "name": "engineering-skills",
@@ -24,6 +24,14 @@
       ]
     },
     {
+      "name": "research-skills",
+      "source": "./",
+      "description": "Skills for domain-neutral ideation and evidence-based decision support.",
+      "skills": [
+        "./skills/research/ideate"
+      ]
+    },
+    {
       "name": "technical-communication-skills",
       "source": "./",
       "description": "Skills for source-grounded technical documentation.",
@@ -33,3 +41,4 @@
     }
   ]
 }
+

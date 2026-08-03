@@ -28,6 +28,7 @@
     "plan-change": "both",
     "raise-issue": "user-invoked",
     "route-engineering-work": "model-invoked",
+    "ideate": "user-invoked",
     "scope-issue": "user-invoked"
   }
 }
