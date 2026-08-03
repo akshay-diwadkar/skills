@@ -5,8 +5,8 @@
     "repair_diagnostic": 2594,
     "tool_output": 1995,
     "top_level": 5941,
-    "worst_context": 24198,
-    "worst_references": 15663
+    "worst_context": 24258,
+    "worst_references": 15723
   },
   "baseline": {
     "requirements": [
@@ -315,15 +315,15 @@
         "repair_diagnostic": 260,
         "tool_output": 186,
         "top_level": 441,
-        "worst_context": 1367,
-        "worst_references": 666
+        "worst_context": 1427,
+        "worst_references": 726
       },
       "path": "skills/engineering/route-engineering-work/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "7104b5e10b96c4de958ece60316113a6d9e3ca54c35100ea333b61883170e907",
+      "source_hash": "6d0b4f8beaac507ab6382ed6f44b01b26f842330ca3d9efcd9d438b3229d7ff6",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]

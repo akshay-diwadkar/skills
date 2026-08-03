@@ -25,15 +25,16 @@ Apply the first resolved branch:
 | --- | --- | --- |
 | 1 | Explicit suite skill name or explicit multi-stage chain | Named workflow, subject to its prerequisites |
 | 2 | Execute an available approved or finalized plan | `implement-plan` |
-| 3 | GitHub issue, issue inventory, or backlog triage | `scope-issue` |
-| 4 | Manual, procedure, runbook, notice, or controlled technical documentation | `manualize` |
-| 5 | Diagram, architecture picture, or workflow visualization | `diagram-codebase` |
-| 6 | Boundary, dependency direction, state ownership, abstraction, or subsystem design | `design-codebase` |
-| 7 | Named performance, build, CI, dependency, maintainability, or developer-experience bottleneck | `optimize-codebase` |
-| 8 | Broad or unknown bug, security, performance, test-gap, or maintainability discovery | `audit-codebase` |
-| 9 | Feature, fix, refactor, migration, integration, or other source change without an approved plan | `plan-change` |
-| 10 | Repository orientation or implementation ownership | `map-codebase` |
-| 11 | No suite workflow is justified | `null` |
+| 3 | Publish, create, open, or raise issues from a sealed audit handoff | `raise-issue` |
+| 4 | GitHub issue, issue inventory, or backlog triage | `scope-issue` |
+| 5 | Manual, procedure, runbook, notice, or controlled technical documentation | `manualize` |
+| 6 | Diagram, architecture picture, or workflow visualization | `diagram-codebase` |
+| 7 | Boundary, dependency direction, state ownership, abstraction, or subsystem design | `design-codebase` |
+| 8 | Named performance, build, CI, dependency, maintainability, or developer-experience bottleneck | `optimize-codebase` |
+| 9 | Broad or unknown bug, security, performance, test-gap, or maintainability discovery | `audit-codebase` |
+| 10 | Feature, fix, refactor, migration, integration, or other source change without an approved plan | `plan-change` |
+| 11 | Repository orientation or implementation ownership | `map-codebase` |
+| 12 | No suite workflow is justified | `null` |
 
 ## Overlap Rules
 
@@ -43,6 +44,8 @@ Apply the first resolved branch:
   `implement-plan` only when execution was requested.
 - Route unknown risk discovery to `audit-codebase`. Route a named measurable
   bottleneck to `optimize-codebase`.
+- Route an audit request that also asks to create, open, publish, or raise
+  issues to `audit-codebase` with `raise-issue` as follow-up.
 - Represent an explicit
   `map-codebase -> plan-change -> implement-plan` request with
   `primary_skill: plan-change`, `map-codebase` as prerequisite, and
