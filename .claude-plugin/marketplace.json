@@ -4,12 +4,12 @@
     "name": "Akshay Diwadkar",
     "url": "https://github.com/akshay-diwadkar"
   },
-  "description": "Repository-grounded engineering, research, and technical communication skills.",
+  "description": "Repository-grounded engineering, research, technical communication, and routing skills.",
   "plugins": [
     {
       "name": "engineering-skills",
       "source": "./",
-      "description": "Skills for routing, understanding, designing, planning, implementing, optimizing, auditing, and visualizing codebases.",
+      "description": "Skills for understanding, designing, planning, implementing, optimizing, auditing, and visualizing codebases.",
       "skills": [
         "./skills/engineering/audit-codebase",
         "./skills/engineering/design-codebase",
@@ -19,8 +19,15 @@
         "./skills/engineering/optimize-codebase",
         "./skills/engineering/plan-change",
         "./skills/engineering/raise-issue",
-        "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue"
+      ]
+    },
+    {
+      "name": "routing-skills",
+      "source": "./",
+      "description": "Skills for domain-neutral request routing and skill workflow guidance.",
+      "skills": [
+        "./skills/routing/route-work"
       ]
     },
     {
@@ -41,4 +48,3 @@
     }
   ]
 }
-

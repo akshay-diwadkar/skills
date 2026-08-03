@@ -19,9 +19,9 @@ EXPECTED_GROUPS = {
         "optimize-codebase",
         "plan-change",
         "raise-issue",
-        "route-engineering-work",
         "scope-issue",
     },
+    "Routing Skills": {"route-work"},
     "Research Skills": {"ideate"},
     "Technical Communication Skills": {"manualize"},
 }

@@ -10,9 +10,9 @@ import jsonschema
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SKILL_ROOT = REPO_ROOT / "skills" / "engineering" / "route-engineering-work"
+SKILL_ROOT = REPO_ROOT / "skills" / "routing" / "route-work"
 SCRIPT_DIR = SKILL_ROOT / "scripts"
-SCRIPT = SCRIPT_DIR / "route_engineering_work.py"
+SCRIPT = SCRIPT_DIR / "route_work.py"
 SCHEMA = json.loads(
     (SKILL_ROOT / "schemas" / "routing-decision.schema.json").read_text(encoding="utf-8")
 )
@@ -20,7 +20,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from route_engineering_work import (  # noqa: E402
+from route_work import (  # noqa: E402
     ALLOWED_ACTIONS,
     FORBIDDEN_ACTIONS,
     SKILLS,
@@ -58,6 +58,9 @@ def test_deterministic_routing_fixtures(case: dict[str, object]) -> None:
     assert {key: first[key] for key in expected} == expected
     assert first["allowed_actions"] == list(ALLOWED_ACTIONS)
     assert first["forbidden_actions"] == list(FORBIDDEN_ACTIONS)
+    assert "route_handoff" in first
+    assert "# Route Handoff Guidance" in first["route_handoff"]
+    assert "```mermaid" in first["route_handoff"]
     jsonschema.validate(first, SCHEMA)
 
 
@@ -74,8 +77,11 @@ def test_simple_requests_do_not_trigger_suite_workflows(case: dict[str, object])
     assert decision["primary_skill"] is None
     assert decision["prerequisites"] == []
     assert decision["follow_up"] == []
+    assert decision["workflow"] == []
     assert decision["reason"] == "no_suite_workflow_needed"
     assert decision["next_action"] == "answer_directly"
+    assert "route_handoff" in decision
+    assert "Direct Answer" in decision["route_handoff"]
     forbidden_actions = decision["forbidden_actions"]
     assert isinstance(forbidden_actions, list)
     assert "execute_selected_workflow" in forbidden_actions
@@ -126,6 +132,32 @@ def test_cli_reads_existing_request_and_facts_without_writing(tmp_path: Path) ->
     assert decision["primary_skill"] == "implement-plan"
     jsonschema.validate(decision, SCHEMA)
     assert file_hashes(tmp_path) == before
+
+
+def test_cli_writes_route_handoff_file(tmp_path: Path) -> None:
+    output_file = tmp_path / "route-handoff.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--request",
+            "Brainstorm new feature ideas, design architecture, and plan change.",
+            "--output-file",
+            str(output_file),
+        ],
+        cwd=SKILL_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert output_file.is_file()
+    text = output_file.read_text(encoding="utf-8")
+    assert "# Route Handoff Guidance" in text
+    assert "```mermaid" in text
+    assert "ideate" in text
+    assert "design-codebase" in text
+    assert "plan-change" in text
 
 
 @pytest.mark.parametrize(

@@ -158,6 +158,32 @@
     }
   },
   {
+    "id": "ideate-research",
+    "request": "Brainstorm candidate ideas for optimizing search indexing.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "ideate",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "research_ideation_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "ideate-then-plan",
+    "request": "Brainstorm feature ideas and plan the implementation.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "ideate",
+      "prerequisites": [],
+      "follow_up": ["plan-change", "implement-plan"],
+      "reason": "research_ideation_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
     "id": "explicit-map-plan-implement-chain",
     "request": "Use map-codebase, then plan-change, then implement-plan.",
     "facts": {},

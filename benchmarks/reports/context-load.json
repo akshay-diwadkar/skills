@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8519,
-    "repair_diagnostic": 2815,
-    "tool_output": 2157,
-    "top_level": 6362,
-    "worst_context": 27011,
-    "worst_references": 17834
+    "pre_action": 8555,
+    "repair_diagnostic": 2811,
+    "tool_output": 2155,
+    "top_level": 6400,
+    "worst_context": 26851,
+    "worst_references": 17640
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "93b86fdf130f38466b6b145812926dbd46453ba1f0c9e30a908a8a91eb855636",
+  "config_sha256": "25d09880e9436339beb04bfc8cf7f36b48fc24d0eb335036c444f459679c14a2",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -330,23 +330,23 @@
       "source_hash": "eb8d3f968580a5ba45e3e0e621e96e74c2c60f34eed0b209d1412ae0eadcc9b5",
       "worst_reference_paths": []
     },
-    "route-engineering-work": {
+    "route-work": {
       "category": "router",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 627,
-        "repair_diagnostic": 260,
-        "tool_output": 186,
-        "top_level": 441,
-        "worst_context": 1427,
-        "worst_references": 726
+        "pre_action": 663,
+        "repair_diagnostic": 256,
+        "tool_output": 184,
+        "top_level": 479,
+        "worst_context": 1267,
+        "worst_references": 532
       },
-      "path": "skills/engineering/route-engineering-work/SKILL.md",
+      "path": "skills/routing/route-work/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "6d0b4f8beaac507ab6382ed6f44b01b26f842330ca3d9efcd9d438b3229d7ff6",
+      "source_hash": "6fe956699c314a223b83d8246858099806c53a38346483dd74f5b949c37ec839",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]

@@ -1,13 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/akshay-diwadkar/skills/route-engineering-work/routing-decision.schema.json",
-  "title": "Engineering routing decision",
+  "$id": "https://github.com/akshay-diwadkar/skills/route-work/routing-decision.schema.json",
+  "title": "Work routing decision",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "primary_skill",
     "prerequisites",
     "follow_up",
+    "workflow",
+    "route_handoff",
     "reason",
     "confidence",
     "next_action",
@@ -38,6 +40,28 @@
         "$ref": "#/$defs/skill"
       },
       "uniqueItems": true
+    },
+    "workflow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "skill",
+          "description"
+        ],
+        "properties": {
+          "skill": {
+            "$ref": "#/$defs/skill"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "route_handoff": {
+      "type": "string"
     },
     "reason": {
       "type": "string",
@@ -88,7 +112,8 @@
         "scope-issue",
         "diagram-codebase",
         "manualize",
-        "raise-issue"
+        "raise-issue",
+        "ideate"
       ]
     }
   }

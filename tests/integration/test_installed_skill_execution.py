@@ -105,7 +105,7 @@ def test_installed_manualize_language_cli_executes(tmp_path: Path) -> None:
 
 
 def test_installed_router_executes_read_only(tmp_path: Path) -> None:
-    skill = ROOT / "skills" / "engineering" / "route-engineering-work"
+    skill = ROOT / "skills" / "routing" / "route-work"
 
     def snapshot() -> dict[str, str]:
         return {
@@ -118,7 +118,7 @@ def test_installed_router_executes_read_only(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             sys.executable,
-            "scripts/route_engineering_work.py",
+            "scripts/route_work.py",
             "--request",
             "Use map-codebase, then plan-change, then implement-plan.",
         ],
@@ -204,7 +204,7 @@ def test_core_skill_clis_use_packaged_runtime_when_installed_alone(tmp_path: Pat
         ("engineering", "scope-issue"),
         ("engineering", "diagram-codebase"),
         ("technical-communication", "manualize"),
-        ("engineering", "route-engineering-work"),
+        ("routing", "route-work"),
     ],
 )
 def test_remaining_skill_common_cli_runs_from_standalone_install(
@@ -250,7 +250,7 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
             f"bundle={existing}",
             f"glossary={existing}",
         ],
-        "route-engineering-work": ["request=Choose the planning workflow."],
+        "route-work": ["request=Choose the planning workflow."],
     }
     argv = [
         sys.executable,
@@ -258,7 +258,7 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
         "--repo-root",
         str(repo),
     ]
-    if name != "route-engineering-work":
+    if name != "route-work":
         argv.extend(["--run-dir", str(run)])
     for value in values[name]:
         argv.extend(["--input", value])
@@ -278,8 +278,8 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
 
 
 def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_path: Path) -> None:
-    source = ROOT / "skills" / "engineering" / "route-engineering-work"
-    installed = tmp_path / "route-engineering-work"
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
     shutil.copytree(source, installed)
     repo = tmp_path / "repo"
     repo.mkdir()

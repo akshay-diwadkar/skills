@@ -22,7 +22,7 @@ CANONICAL_SKILLS = {
     ("engineering", "optimize-codebase"),
     ("engineering", "plan-change"),
     ("engineering", "raise-issue"),
-    ("engineering", "route-engineering-work"),
+    ("routing", "route-work"),
     ("engineering", "scope-issue"),
     ("research", "ideate"),
     ("technical-communication", "manualize"),

@@ -26,7 +26,7 @@ MARKETPLACE_PATH = ROOT / ".claude-plugin" / "marketplace.json"
 INVOCATION_POLICY_PATH = ROOT / "invocation-policy.json"
 QUALITY_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "quality.yml"
 ROUTER_SCHEMA_PATH = (
-    ROOT / "skills" / "engineering" / "route-engineering-work" / "schemas" / "routing-decision.schema.json"
+    ROOT / "skills" / "routing" / "route-work" / "schemas" / "routing-decision.schema.json"
 )
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -75,8 +75,10 @@ EXPECTED_MARKETPLACE_GROUPS = {
         "./skills/engineering/optimize-codebase",
         "./skills/engineering/plan-change",
         "./skills/engineering/raise-issue",
-        "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue",
+    },
+    "routing-skills": {
+        "./skills/routing/route-work",
     },
     "research-skills": {
         "./skills/research/ideate",
@@ -96,11 +98,14 @@ ROUTED_SKILLS = {
     "diagram-codebase",
     "manualize",
     "raise-issue",
+    "ideate",
 }
 ROUTER_FIELDS = {
     "primary_skill",
     "prerequisites",
     "follow_up",
+    "workflow",
+    "route_handoff",
     "reason",
     "confidence",
     "next_action",
@@ -591,23 +596,23 @@ def validate_router_contract(path: Path | None = None) -> list[str]:
     required = payload.get("required")
     definitions = payload.get("$defs")
     if not isinstance(properties, dict) or set(properties) != ROUTER_FIELDS:
-        errors.append("route-engineering-work: decision properties must remain exact")
+        errors.append("route-work: decision properties must remain exact")
         return errors
     if not isinstance(required, list) or set(required) != ROUTER_FIELDS:
-        errors.append("route-engineering-work: every decision property must remain required")
+        errors.append("route-work: every decision property must remain required")
     if not isinstance(definitions, dict):
-        errors.append("route-engineering-work: decision schema must define routed skills")
+        errors.append("route-work: decision schema must define routed skills")
     else:
         skill = definitions.get("skill")
         skill_enum = skill.get("enum") if isinstance(skill, dict) else None
         if not isinstance(skill_enum, list) or set(skill_enum) != ROUTED_SKILLS:
-            errors.append("route-engineering-work: routed skill enum must remain exact")
+            errors.append("route-work: routed skill enum must remain exact")
     if properties["allowed_actions"].get("const") != ROUTER_ALLOWED_ACTIONS:
-        errors.append("route-engineering-work: allowed actions must remain read-only")
+        errors.append("route-work: allowed actions must remain read-only")
     if properties["forbidden_actions"].get("const") != ROUTER_FORBIDDEN_ACTIONS:
-        errors.append("route-engineering-work: forbidden actions must remain exact")
+        errors.append("route-work: forbidden actions must remain exact")
     if payload.get("additionalProperties") is not False:
-        errors.append("route-engineering-work: routing decisions must reject additional properties")
+        errors.append("route-work: routing decisions must reject additional properties")
     return errors
 
 

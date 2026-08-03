@@ -108,7 +108,7 @@
       "diagnostic_input": "handoff",
       "representative_inputs": {"handoff": "{fixture_file}", "github_repo_url": "owner/repo"}
     },
-    "route-engineering-work": {
+    "route-work": {
       "category": "router",
       "diagnostic_input": "request",
       "representative_inputs": {"request": "Choose the planning workflow."}

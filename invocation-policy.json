@@ -21,14 +21,14 @@
     "audit-codebase": "user-invoked",
     "design-codebase": "both",
     "diagram-codebase": "user-invoked",
+    "ideate": "user-invoked",
     "implement-plan": "user-invoked",
-    "map-codebase": "model-invoked",
     "manualize": "both",
+    "map-codebase": "model-invoked",
     "optimize-codebase": "user-invoked",
     "plan-change": "both",
     "raise-issue": "user-invoked",
-    "route-engineering-work": "model-invoked",
-    "ideate": "user-invoked",
+    "route-work": "model-invoked",
     "scope-issue": "user-invoked"
   }
 }

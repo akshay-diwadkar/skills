@@ -1,18 +1,18 @@
 ---
-name: route-engineering-work
-description: Route engineering requests to one repository workflow without executing it. Use when the user does not know which suite skill applies, asks which engineering workflow to use, combines discovery, design, planning, implementation, audit, optimization, issue, diagram, or manual work, or gives an ambiguous request that could trigger multiple heavyweight skills.
-version: 2.2.1
+name: route-work
+description: Route work requests across engineering, research, technical communication, and general workflows without executing them. Use when the user does not know which suite skill applies, asks which workflow to use, combines ideation, research, discovery, design, planning, implementation, audit, optimization, issue management, diagramming, or documentation, or gives an ambiguous request that could trigger multiple heavyweight skills.
+version: 3.0.0
 metadata:
   invocation: model-invoked
 disable-model-invocation: false
 user-invocable: false
 ---
 
-# Route Engineering Work
+# Route Work
 
 ## Purpose and authority
 
-Classify one request, emit one routing decision, and stop. Remain read-only.
+Classify one request, emit one routing decision with an ordered guidance workflow of skill steps and a sealed `route-handoff.md` artifact (including a Mermaid route diagram with decision branches and verification loops), and stop. Remain read-only.
 Never plan, edit source, publish, commit, push, create a pull request, invoke a
 selected skill, or create an input file for conversational text.
 
@@ -37,7 +37,7 @@ paths but does not inspect plan contents or contact GitHub.
 3. Do not invoke a prerequisite, primary skill, or follow-up.
 4. Preserve the exact allowed and forbidden actions in the decision.
 
-The direct `scripts/route_engineering_work.py` command remains the legacy JSON
+The direct `scripts/route_work.py` command remains the legacy JSON
 entry point; use the common CLI when a protocol envelope is required.
 
 ## Completion and recovery
