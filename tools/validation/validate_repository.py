@@ -78,6 +78,9 @@ EXPECTED_MARKETPLACE_GROUPS = {
         "./skills/engineering/route-engineering-work",
         "./skills/engineering/scope-issue",
     },
+    "research-skills": {
+        "./skills/research/ideate",
+    },
     "technical-communication-skills": {
         "./skills/technical-communication/manualize",
     },

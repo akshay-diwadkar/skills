@@ -108,4 +108,4 @@ def test_every_blocking_manifest_step_requests_structured_diagnostics() -> None:
                         blocked += 1
                         assert step["diagnostics_json"] is True, manifest_path
     # Stateless v4 sealers have one blocking command per normal-success path.
-    assert blocked == 22
+    assert blocked == 23

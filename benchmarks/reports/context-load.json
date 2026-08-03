@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 7936,
-    "repair_diagnostic": 2594,
-    "tool_output": 1995,
-    "top_level": 5941,
-    "worst_context": 24258,
-    "worst_references": 15723
+    "pre_action": 8519,
+    "repair_diagnostic": 2815,
+    "tool_output": 2157,
+    "top_level": 6362,
+    "worst_context": 27011,
+    "worst_references": 17834
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "ed3cba5317b1cd92c9f7c971a8c07efda187500c55332283a4faae32cdd7c009",
+  "config_sha256": "93b86fdf130f38466b6b145812926dbd46453ba1f0c9e30a908a8a91eb855636",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -87,6 +87,29 @@
       "source_hash": "e3d50c661a26eed7f0a5a428bb63eaf700d5dfe534018a1c0abea2a402ca27a8",
       "worst_reference_paths": [
         "references/diagram-output-guide.md"
+      ]
+    },
+    "ideate": {
+      "category": "user_orchestrator",
+      "metrics": {
+        "phase_references": 0,
+        "pre_action": 583,
+        "repair_diagnostic": 221,
+        "tool_output": 162,
+        "top_level": 421,
+        "worst_context": 2753,
+        "worst_references": 2111
+      },
+      "path": "skills/research/ideate/SKILL.md",
+      "phases": {},
+      "pre_action_paths": [
+        "SKILL.md"
+      ],
+      "source_hash": "74468fb9e1b26dccd8c0985bf69fc9e2ff7013504e15a2bf4358fbe961fa4d83",
+      "worst_reference_paths": [
+        "references/delegation-protocol.md",
+        "references/ideation-contract.md",
+        "references/source-playbooks.md"
       ]
     },
     "implement-plan": {

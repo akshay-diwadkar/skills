@@ -1,12 +1,12 @@
-# Typed handoff-only analysis pipeline
+# Domain-neutral ideation skill
 
-Audit, design, optimization, and issue-scoping skills now stop at one typed,
-sealed handoff for `plan-change`. Optimization and issue scoping no longer own
-implementation or GitHub-write workflows, and `plan-change` records the
-verified upstream handoff type and selected audit finding in its proof.
+New `ideate` skill under `skills/research/` for generating and ranking
+evidence-linked candidate ideas for any researchable goal. Works with
+repository context, supplied non-repository context, or external-only
+research. Produces one receipt-sealed `ideas.md` with 3–7 compared
+candidates and a provisional recommendation.
 
-# Router and README raise-issue documentation correction
+# Research marketplace group
 
-The router policy now documents the sealed audit-handoff publication branch
-and the README lists `raise-issue` in the invocation behavior table and the
-workflow diagram.
+A third installer group `research-skills` is now available alongside
+`engineering-skills` and `technical-communication-skills`.

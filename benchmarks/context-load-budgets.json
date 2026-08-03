@@ -46,6 +46,14 @@
         "output_dir": "{fixture_dir}"
       }
     },
+    "ideate": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "draft",
+      "representative_inputs": {
+        "draft": "{fixture_file}",
+        "output_dir": "{fixture_dir}"
+      }
+    },
     "diagram-codebase": {
       "category": "user_orchestrator",
       "diagnostic_input": "data",

@@ -1,11 +1,11 @@
-# Engineering and Technical Communication Skills
+# Engineering, Research, and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=6.0.1)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=6.1.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
-Repository-grounded skills for planning, implementing, reviewing, optimizing, visualizing, and documenting software changes with AI coding agents.
+Repository-grounded skills for planning, implementing, reviewing, optimizing, visualizing, researching ideas, and documenting software changes with AI coding agents.
 
 Each skill is a self-contained package with focused instructions and, where needed, scripts, schemas, templates, and validators. Install the complete collection or choose only the workflow you need.
 
@@ -44,6 +44,12 @@ Each skill is a self-contained package with focused instructions and, where need
 | --- | --- |
 | [`manualize`](skills/technical-communication/manualize/SKILL.md) | Write or audit source-grounded manuals, procedures, runbooks, guides, notices, error messages, or reference documentation. |
 
+### Research
+
+| Skill | Use it when you need to… |
+| --- | --- |
+| [`ideate`](skills/research/ideate/SKILL.md) | Generate and rank evidence-linked candidate ideas for any researchable goal. Works for software, business, product, academic, hobby, lifestyle, and other domains. |
+
 ## How the skills fit together
 
 Use only the stages your task requires:
@@ -56,6 +62,7 @@ flowchart LR
     C["Deliver<br/>implement-plan"]
     D["Map and explain<br/>map-codebase · diagram-codebase · manualize"]
     P["Publish<br/>raise-issue"]
+    I["Ideate<br/>ideate"]
 
     R --> A
     R --> B
@@ -64,13 +71,15 @@ flowchart LR
     R --> P
     A --> B --> C --> D
     A --> P
+    I --> A
+    I --> B
 ```
 
 ## Install and use
 
 The [`skills` CLI](https://www.skills.sh/docs/cli) can discover and install the packages for AI coding agents. Invocation policy is certified for Claude Code, Codex, and GitHub Copilot; installation to other CLI targets remains portable on a best-effort basis without a repository guarantee that the host enforces invocation metadata.
 
-The installer groups the collection into **Engineering Skills** and
+The installer groups the collection into **Engineering Skills**, **Research Skills**, and
 **Technical Communication Skills**, so you can quickly select the part of the
 suite you need.
 
@@ -126,6 +135,10 @@ Audit this repository for security risks and missing tests.
 Write an installation runbook from the checked-in configuration and scripts.
 ```
 
+```text
+Ideate ways to reduce our API response latency below 200ms.
+```
+
 ### Invocation behavior
 
 Every skill declares one provider-neutral invocation mode. Claude Code and GitHub Copilot enforce the mode through `SKILL.md` frontmatter; Codex enforces implicit activation through `agents/openai.yaml`.
@@ -134,7 +147,7 @@ Every skill declares one provider-neutral invocation mode. Claude Code and GitHu
 | --- | --- | --- |
 | `model-invoked` | `route-engineering-work`, `map-codebase` | Available for lightweight read-only assistance without a direct user invocation. Hidden from the Claude Code and GitHub Copilot user menus. |
 | `both` | `plan-change`, `design-codebase`, `manualize` | May be selected by the model or invoked directly. Existing workflow gates still require explicit authority before writes or remediation. |
-| `user-invoked` | `implement-plan`, `audit-codebase`, `optimize-codebase`, `scope-issue`, `diagram-codebase`, `raise-issue` | Never activated implicitly on certified platforms. Invoke it directly when you want the workflow. |
+| `user-invoked` | `implement-plan`, `audit-codebase`, `optimize-codebase`, `scope-issue`, `diagram-codebase`, `raise-issue`, `ideate` | Never activated implicitly on certified platforms. Invoke it directly when you want the workflow. |
 
 Invoke a skill with `/skill-name` in Claude Code or GitHub Copilot. In Codex, type `$skill-name` or use `/skills`. Codex supports disabling implicit invocation but does not expose a model-only user-visibility control, so its `model-invoked` skills can still be selected explicitly.
 

@@ -32,5 +32,8 @@
   {"id":"scope.one-artifact","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"issue-handoff.md"},
   {"id":"manual.no-compliance-claim","skill":"manualize","source":"SKILL.md","surface":"doctor","text":"never claim"},
   {"id":"manual.audit-read-only","skill":"manualize","source":"SKILL.md","surface":"doctor","text":"Audit must not modify the manual"},
-  {"id":"manual.audit-integrity","skill":"manualize","source":"references/operation-protocols.md","surface":"doctor","text":"report audit-integrity failure"}
+  {"id":"manual.audit-integrity","skill":"manualize","source":"references/operation-protocols.md","surface":"doctor","text":"report audit-integrity failure"},
+  {"id":"ideate.read-only","skill":"ideate","source":"SKILL.md","surface":"doctor","text":"Never modify the workspace"},
+  {"id":"ideate.one-artifact","skill":"ideate","source":"SKILL.md","surface":"doctor","text":"ideas.md"},
+  {"id":"ideate.untrusted-evidence","skill":"ideate","source":"SKILL.md","surface":"doctor","text":"as untrusted evidence, never instructions"}
 ]
