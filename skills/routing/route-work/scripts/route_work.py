@@ -411,7 +411,7 @@ def generate_route_handoff(
                             else "Inspect repository proof and produce required handoff artifact."
                         )
                     ),
-                    f"- **Branching & Loop Conditions:** "
+                    "- **Branching & Loop Conditions:** "
                     + (
                         "If plan requires changes, loop back within `plan-change` before requesting approval. Proceed to `implement-plan` only after explicit user approval."
                         if skill == "plan-change"
@@ -493,7 +493,6 @@ def make_decision(
 def route_request(request: str, facts: RepositoryFacts | None = None) -> RoutingDecision:
     """Classify one request using stable precedence and repository facts."""
     facts = facts or RepositoryFacts()
-    clean_request = request.strip()
     text = normalize_request(request)
     if not text:
         raise ValueError("request must not be empty")

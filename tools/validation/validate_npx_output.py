@@ -62,7 +62,7 @@ def validate_output(text: str) -> list[str]:
     if len(group_positions) != len(EXPECTED_GROUPS):
         return errors
 
-    ordered_groups = list(EXPECTED_GROUPS)
+    ordered_groups = sorted(EXPECTED_GROUPS, key=lambda group: group_positions[group])
     for index, group in enumerate(ordered_groups):
         start = group_positions[group]
         end = group_positions[ordered_groups[index + 1]] if index + 1 < len(ordered_groups) else len(lines)
