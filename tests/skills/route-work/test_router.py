@@ -92,9 +92,176 @@ def test_simple_requests_do_not_trigger_suite_workflows(case: dict[str, object])
     jsonschema.validate(decision, SCHEMA)
 
 
-def test_normalization_is_stable() -> None:
+def test_normalization_is_stable_for_classification() -> None:
     canonical = route_request("Plan a migration.").to_dict()
-    assert route_request("  PLAN\u00a0a   migration.  ").to_dict() == canonical
+    variant = route_request("  PLAN\u00a0a   migration.  ").to_dict()
+    # Classification fields must be normalization-stable; the handoff embeds
+    # the original request text verbatim and therefore differs.
+    canonical.pop("route_handoff")
+    variant.pop("route_handoff")
+    assert variant == canonical
+
+
+def test_route_handoff_preserves_original_request_text() -> None:
+    request = "Fix the bug in `src/AuthService.ts` and rename FEATURE_FLAG_X to FEATURE_FLAG_Y."
+    decision = route_request(request).to_dict()
+    route_handoff = decision["route_handoff"]
+    assert isinstance(route_handoff, str)
+    assert f'**User Request:** "{request}"' in route_handoff
+    assert "src/AuthService.ts" in route_handoff
+    assert "FEATURE_FLAG_X" in route_handoff
+    assert "FEATURE_FLAG_Y" in route_handoff
+
+
+def test_compact_handoff_is_the_default_and_detailed_is_opt_in() -> None:
+    compact_handoff = route_request("Plan a migration.").to_dict()["route_handoff"]
+    assert isinstance(compact_handoff, str)
+    assert "## Route Steps" in compact_handoff
+    assert "Step-by-Step Execution Guidance" not in compact_handoff
+    assert "Quick Start for New Users" not in compact_handoff
+
+    detailed_handoff = route_request("Plan a migration.", handoff_detail="detailed").to_dict()[
+        "route_handoff"
+    ]
+    assert isinstance(detailed_handoff, str)
+    assert "Step-by-Step Execution Guidance" in detailed_handoff
+    assert "Quick Start for New Users" in detailed_handoff
+
+
+def _mermaid_nodes_and_edges(
+    route_handoff: str,
+) -> tuple[set[str], list[tuple[str, str, str]], dict[str, str]]:
+    block = route_handoff.split("```mermaid\n", 1)[1].split("\n```", 1)[0]
+    nodes: set[str] = set()
+    edges: list[tuple[str, str, str]] = []
+    declarations: dict[str, str] = {}
+
+    def node_id(raw: str) -> str:
+        for separator in ("[", "{", "("):
+            raw = raw.split(separator, 1)[0]
+        return raw.strip()
+
+    def record(raw: str) -> str:
+        identifier = node_id(raw)
+        nodes.add(identifier)
+        declarations.setdefault(identifier, raw.strip())
+        return identifier
+
+    for line in block.splitlines():
+        line = line.strip()
+        if not line or line.startswith("flowchart"):
+            continue
+        if "-->" in line:
+            left, right = line.split("-->", 1)
+            target = record(right)
+            source = left.strip()
+            label = ""
+            if ' -- "' in left:
+                source, label = left.split(' -- "', 1)
+                source = source.strip()
+                label = label.rstrip('"')
+            source = record(source)
+            edges.append((source, target, label))
+        else:
+            record(line)
+    return nodes, edges, declarations
+
+
+def test_mermaid_decision_branches_are_complete() -> None:
+    cases = [
+        (
+            "Audit the repository and publish the accepted issues afterward.",
+            "Publish Issues?",
+        ),
+        ("Use map-codebase, then plan-change, then implement-plan.", "Plan Approved?"),
+        ("Implement the approved plan.", "Verification Passed?"),
+    ]
+    for request, decision_label in cases:
+        decision = route_request(request).to_dict()
+        route_handoff = decision["route_handoff"]
+        assert isinstance(route_handoff, str)
+        nodes, edges, declarations = _mermaid_nodes_and_edges(route_handoff)
+        outgoing: dict[str, list[str]] = {}
+        for source, target, _ in edges:
+            outgoing.setdefault(source, []).append(target)
+        decision_nodes = [node for node in nodes if node.startswith("Branch")]
+        assert decision_nodes, route_handoff
+        for node in decision_nodes:
+            assert len(outgoing[node]) == 2, (node, outgoing[node], route_handoff)
+            assert "?" in declarations[node], route_handoff
+            assert len([edge for edge in edges if edge[1] == node]) == 1, (
+                node,
+                edges,
+                route_handoff,
+            )
+        assert any(
+            decision_label in declaration for declaration in declarations.values()
+        ), route_handoff
+
+
+def test_audit_publication_mermaid_routes_through_decision() -> None:
+    decision = route_request(
+        "Audit the repository and publish the accepted issues afterward."
+    ).to_dict()
+    route_handoff = decision["route_handoff"]
+    assert isinstance(route_handoff, str)
+    assert 'BranchPub1 -- "Yes" --> Step2["2. raise-issue' in route_handoff
+    assert 'BranchPub1 -- "No" --> End' in route_handoff
+    assert "Publish Issues?" in route_handoff
+
+
+def test_cli_rejects_handoff_output_inside_repository(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--request",
+            "Plan a fix.",
+            "--repo-root",
+            str(repository),
+            "--output-dir",
+            str(repository / "docs"),
+        ],
+        cwd=SKILL_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "outside the repository" in result.stderr
+
+
+def test_cli_detailed_handoff_writes_file_on_request(tmp_path: Path) -> None:
+    output_file = tmp_path / "route-handoff.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--request",
+            "Brainstorm new feature ideas, design the architecture, and draft an implementation plan.",
+            "--handoff",
+            "detailed",
+            "--output-file",
+            str(output_file),
+        ],
+        cwd=SKILL_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert output_file.is_file()
+    text = output_file.read_text(encoding="utf-8")
+    assert "# Route Handoff Guidance" in text
+    assert "```mermaid" in text
+    assert "ideate" in text
+    assert "design-codebase" in text
+    assert "plan-change" in text
+    assert "Step-by-Step Execution Guidance" in text
+    assert "Quick Start for New Users" in text
 
 
 def test_empty_request_fails_closed() -> None:
@@ -145,7 +312,7 @@ def test_cli_writes_route_handoff_file(tmp_path: Path) -> None:
             sys.executable,
             str(SCRIPT),
             "--request",
-            "Brainstorm new feature ideas, design architecture, and plan change.",
+            "Brainstorm new feature ideas, design the architecture, and draft an implementation plan.",
             "--output-file",
             str(output_file),
         ],

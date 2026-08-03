@@ -101,9 +101,9 @@ IMPLEMENT_WORDS: Final[tuple[str, ...]] = (
     "build",
     "change",
     "edit",
+    "execute",
     "fix",
     "implement",
-    "implementation",
     "migrate",
     "patch",
     "refactor",
@@ -347,6 +347,11 @@ def generate_mermaid_diagram(
         elif skill == "audit-codebase" and "raise-issue" in skills_in_order[index:]:
             pub_node = f"BranchPub{index}"
             lines.append(f'    {curr_node} --> {pub_node}{{"Publish Issues?"}}')
+            lines.append(f'    {pub_node} -- "No" --> End(["Task Complete"])')
+            prev_node = f'{pub_node} -- "Yes"'
+
+        else:
+            prev_node = curr_node
 
     lines.append(f'    {prev_node} --> End(["Task Complete"])')
     lines.append("```")
@@ -362,8 +367,14 @@ def generate_route_handoff(
     reason: str,
     confidence: Confidence,
     next_action: NextAction,
+    detail: str = "compact",
 ) -> str:
-    """Generate the formatted route-handoff.md document."""
+    """Generate the route-handoff Markdown document.
+
+    The compact document is the default routing decision summary; the detailed
+    document adds per-step execution guidance and quick-start instructions and
+    is generated only on explicit request.
+    """
     mermaid = generate_mermaid_diagram(primary, prerequisites, follow_up, workflow)
 
     lines: list[str] = [
@@ -371,7 +382,7 @@ def generate_route_handoff(
         "",
         "## Request Overview",
         "",
-        f"- **User Request:** \"{request}\"",
+        f'- **User Request:** "{request}"',
         f"- **Primary Skill:** `{primary if primary else 'null (Direct Answer)'}`",
         f"- **Confidence:** `{confidence}`",
         f"- **Reason:** `{reason}`",
@@ -380,8 +391,6 @@ def generate_route_handoff(
         "## Workflow Route Diagram",
         "",
         mermaid,
-        "",
-        "## Step-by-Step Execution Guidance",
         "",
     ]
 
@@ -394,49 +403,64 @@ def generate_route_handoff(
             ]
         )
     else:
+        lines.extend(["## Route Steps", ""])
         for idx, step in enumerate(workflow, start=1):
-            skill = step.skill
+            lines.append(f"{idx}. `{step.skill}` — {step.description}")
+        lines.append("")
+
+    if detail == "detailed":
+        lines.extend(["## Step-by-Step Execution Guidance", ""])
+        if not workflow:
             lines.extend(
                 [
-                    f"### Step {idx}: `{skill}`",
-                    f"- **Purpose:** {step.description}",
-                    f"- **Preconditions:** {SKILL_PRECONDITIONS.get(skill, 'N/A')}",
-                    f"- **Actionable Guidance:** Execute `{skill}` to perform this phase. "
-                    + (
-                        "Verify and seal plan before implementation."
-                        if skill == "plan-change"
-                        else (
-                            "Apply minimal patch and verify clean test execution."
-                            if skill == "implement-plan"
-                            else "Inspect repository proof and produce required handoff artifact."
-                        )
-                    ),
-                    "- **Branching & Loop Conditions:** "
-                    + (
-                        "If plan requires changes, loop back within `plan-change` before requesting approval. Proceed to `implement-plan` only after explicit user approval."
-                        if skill == "plan-change"
-                        else (
-                            "If tests or verification fail, diagnose root cause and apply targeted fix before finalizing. Loop back to `plan-change` if structural scope changes."
-                            if skill == "implement-plan"
-                            else "Proceed to next step upon artifact completion."
-                        )
-                    ),
-                    f"- **Expected Artifact:** {SKILL_EXPECTED_ARTIFACTS.get(skill, 'None')}",
+                    "No heavyweight suite workflow is required for this request.",
+                    "Provide a direct answer or perform standard file inspection using native tools.",
                     "",
                 ]
             )
-
-    lines.extend(
-        [
-            "## Quick Start for New Users",
-            "",
-            "1. **Follow the Route:** Execute the skills in the exact order shown above.",
-            "2. **Respect Decision Gates:** Never jump to execution (`implement-plan`) without an approved plan (`docs/plans/*.md`).",
-            "3. **Handle Loopbacks:** If verification tests fail during implementation, analyze full error logs and fix cleanly without swallowing errors.",
-            "4. **Re-route When Scope Expands:** If the user request introduces new requirements, run `route-work` again for updated guidance.",
-            "",
-        ]
-    )
+        else:
+            for idx, step in enumerate(workflow, start=1):
+                skill = step.skill
+                lines.extend(
+                    [
+                        f"### Step {idx}: `{skill}`",
+                        f"- **Purpose:** {step.description}",
+                        f"- **Preconditions:** {SKILL_PRECONDITIONS.get(skill, 'N/A')}",
+                        f"- **Actionable Guidance:** Execute `{skill}` to perform this phase. "
+                        + (
+                            "Verify and seal plan before implementation."
+                            if skill == "plan-change"
+                            else (
+                                "Apply minimal patch and verify clean test execution."
+                                if skill == "implement-plan"
+                                else "Inspect repository proof and produce required handoff artifact."
+                            )
+                        ),
+                        "- **Branching & Loop Conditions:** "
+                        + (
+                            "If plan requires changes, loop back within `plan-change` before requesting approval. Proceed to `implement-plan` only after explicit user approval."
+                            if skill == "plan-change"
+                            else (
+                                "If tests or verification fail, diagnose root cause and apply targeted fix before finalizing. Loop back to `plan-change` if structural scope changes."
+                                if skill == "implement-plan"
+                                else "Proceed to next step upon artifact completion."
+                            )
+                        ),
+                        f"- **Expected Artifact:** {SKILL_EXPECTED_ARTIFACTS.get(skill, 'None')}",
+                        "",
+                    ]
+                )
+        lines.extend(
+            [
+                "## Quick Start for New Users",
+                "",
+                "1. **Follow the Route:** Execute the skills in the exact order shown above.",
+                "2. **Respect Decision Gates:** Never jump to execution (`implement-plan`) without an approved plan (`docs/plans/*.md`).",
+                "3. **Handle Loopbacks:** If verification tests fail during implementation, analyze full error logs and fix cleanly without swallowing errors.",
+                "4. **Re-route When Scope Expands:** If the user request introduces new requirements, run `route-work` again for updated guidance.",
+                "",
+            ]
+        )
 
     return "\n".join(lines)
 
@@ -449,6 +473,7 @@ def make_decision(
     prerequisites: tuple[Skill, ...] = (),
     follow_up: tuple[Skill, ...] = (),
     confidence: Confidence = "high",
+    handoff_detail: str = "compact",
 ) -> RoutingDecision:
     prerequisites = unique_skills(tuple(skill for skill in prerequisites if skill != primary))
     follow_up = unique_skills(
@@ -476,6 +501,7 @@ def make_decision(
         reason=reason,
         confidence=confidence,
         next_action=next_action,
+        detail=handoff_detail,
     )
 
     return RoutingDecision(
@@ -490,8 +516,18 @@ def make_decision(
     )
 
 
-def route_request(request: str, facts: RepositoryFacts | None = None) -> RoutingDecision:
-    """Classify one request using stable precedence and repository facts."""
+def route_request(
+    request: str,
+    facts: RepositoryFacts | None = None,
+    handoff_detail: str = "compact",
+) -> RoutingDecision:
+    """Classify one request using stable precedence and repository facts.
+
+    Precedence: explicit skill names and chains, then approved-plan execution,
+    then implicit ideation detection, then the remaining evidence rules.
+    Only classification uses the normalized request; the original text is
+    preserved verbatim in the handoff.
+    """
     facts = facts or RepositoryFacts()
     text = normalize_request(request)
     if not text:
@@ -509,12 +545,73 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
     planning_requested = contains_any(text, PLAN_WORDS)
     orientation_requested = contains_any(text, ORIENTATION_PHRASES)
 
+    if explicit:
+        explicit_set = set(explicit)
+        if {"ideate", "plan-change"}.issubset(explicit_set):
+            ideate_follow_up: tuple[Skill, ...] = ("plan-change",)
+            if "implement-plan" in explicit_set:
+                ideate_follow_up += ("implement-plan",)
+            return make_decision(
+                "ideate",
+                "explicit_ideate_chain",
+                request,
+                follow_up=ideate_follow_up,
+                handoff_detail=handoff_detail,
+            )
+        if {"map-codebase", "plan-change", "implement-plan"}.issubset(explicit_set):
+            return make_decision(
+                "plan-change",
+                "explicit_map_plan_implementation_chain",
+                request,
+                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
+                follow_up=("implement-plan",),
+                handoff_detail=handoff_detail,
+            )
+        if {"design-codebase", "plan-change"}.issubset(explicit_set):
+            follow_up: tuple[Skill, ...] = ("plan-change",)
+            if "implement-plan" in explicit_set:
+                follow_up += ("implement-plan",)
+            return make_decision(
+                "design-codebase",
+                "explicit_design_chain",
+                request,
+                follow_up=follow_up,
+                handoff_detail=handoff_detail,
+            )
+        if "implement-plan" in explicit_set and not approved_plan:
+            return make_decision(
+                "plan-change",
+                "implementation_requires_approved_plan",
+                request,
+                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
+                follow_up=("implement-plan",),
+                handoff_detail=handoff_detail,
+            )
+        if "plan-change" in explicit_set and "implement-plan" in explicit_set:
+            return make_decision(
+                "plan-change",
+                "explicit_plan_implementation_chain",
+                request,
+                follow_up=("implement-plan",),
+                handoff_detail=handoff_detail,
+            )
+        return make_decision(
+            explicit[0],
+            "explicit_skill_request",
+            request,
+            handoff_detail=handoff_detail,
+        )
+
+    if approved_plan and implementation_requested:
+        return make_decision(
+            "implement-plan",
+            "approved_plan_execution",
+            request,
+            handoff_detail=handoff_detail,
+        )
+
     if contains_any(text, IDEATE_PHRASES):
         ideate_follow_up_skills: list[Skill] = []
-        if explicit:
-            for s in explicit:
-                if s != "ideate":
-                    ideate_follow_up_skills.append(s)
         if contains_any(text, DESIGN_PHRASES) and "design-codebase" not in ideate_follow_up_skills:
             ideate_follow_up_skills.append("design-codebase")
         if (planning_requested or contains_any(text, ("plan", "draft plan"))) and "plan-change" not in ideate_follow_up_skills:
@@ -527,62 +624,18 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "ideate",
             "research_ideation_requested",
-            text,
+            request,
             follow_up=tuple(ideate_follow_up_skills),
+            handoff_detail=handoff_detail,
         )
 
-    if explicit:
-        explicit_set = set(explicit)
-        if {"ideate", "plan-change"}.issubset(explicit_set):
-            ideate_follow_up: tuple[Skill, ...] = ("plan-change",)
-            if "implement-plan" in explicit_set:
-                ideate_follow_up += ("implement-plan",)
-            return make_decision(
-                "ideate",
-                "explicit_ideate_chain",
-                text,
-                follow_up=ideate_follow_up,
-            )
-        if {"map-codebase", "plan-change", "implement-plan"}.issubset(explicit_set):
-            return make_decision(
-                "plan-change",
-                "explicit_map_plan_implementation_chain",
-                text,
-                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
-                follow_up=("implement-plan",),
-            )
-        if {"design-codebase", "plan-change"}.issubset(explicit_set):
-            follow_up: tuple[Skill, ...] = ("plan-change",)
-            if "implement-plan" in explicit_set:
-                follow_up += ("implement-plan",)
-            return make_decision(
-                "design-codebase",
-                "explicit_design_chain",
-                text,
-                follow_up=follow_up,
-            )
-        if "implement-plan" in explicit_set and not approved_plan:
-            return make_decision(
-                "plan-change",
-                "implementation_requires_approved_plan",
-                text,
-                prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
-                follow_up=("implement-plan",),
-            )
-        if "plan-change" in explicit_set and "implement-plan" in explicit_set:
-            return make_decision(
-                "plan-change",
-                "explicit_plan_implementation_chain",
-                text,
-                follow_up=("implement-plan",),
-            )
-        return make_decision(explicit[0], "explicit_skill_request", text)
-
-    if approved_plan and implementation_requested:
-        return make_decision("implement-plan", "approved_plan_execution", text)
-
     if contains_any(text, HANDOFF_PHRASES) and contains_any(text, PUBLICATION_WORDS):
-        return make_decision("raise-issue", "audit_handoff_publication", text)
+        return make_decision(
+            "raise-issue",
+            "audit_handoff_publication",
+            request,
+            handoff_detail=handoff_detail,
+        )
     audit_requested = contains_any(text, AUDIT_PHRASES)
     publication_requested = contains_any(text, PUBLICATION_WORDS) and contains_any(
         text, ("issue", "issues")
@@ -591,24 +644,41 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "audit-codebase",
             "unknown_risk_discovery",
-            text,
+            request,
             follow_up=("raise-issue",),
+            handoff_detail=handoff_detail,
         )
     if issue_context or contains_any(text, ISSUE_PHRASES):
         issue_follow_up: tuple[Skill, ...] = ("plan-change",)
         if implementation_requested:
             issue_follow_up += ("implement-plan",)
-        return make_decision("scope-issue", "github_issue_work", text, follow_up=issue_follow_up)
+        return make_decision(
+            "scope-issue",
+            "github_issue_work",
+            request,
+            follow_up=issue_follow_up,
+            handoff_detail=handoff_detail,
+        )
 
     manual_requested = contains_any(text, MANUAL_NOUNS) and contains_any(
         text,
         ("audit", "document", "draft", "revise", "write"),
     )
     if manual_requested:
-        return make_decision("manualize", "technical_manual_work", text)
+        return make_decision(
+            "manualize",
+            "technical_manual_work",
+            request,
+            handoff_detail=handoff_detail,
+        )
 
     if contains_any(text, DIAGRAM_PHRASES):
-        return make_decision("diagram-codebase", "diagram_requested", text)
+        return make_decision(
+            "diagram-codebase",
+            "diagram_requested",
+            request,
+            handoff_detail=handoff_detail,
+        )
 
     if contains_any(text, DESIGN_PHRASES) and contains_any(
         text,
@@ -620,9 +690,10 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "design-codebase",
             "structural_design_requested",
-            text,
+            request,
             prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
             follow_up=design_follow_up,
+            handoff_detail=handoff_detail,
         )
 
     if audit_requested:
@@ -632,30 +703,48 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         return make_decision(
             "audit-codebase",
             "unknown_risk_discovery",
-            text,
+            request,
             follow_up=audit_follow_up,
+            handoff_detail=handoff_detail,
         )
 
     if contains_any(text, OPTIMIZATION_NOUNS) and contains_any(text, OPTIMIZATION_VERBS):
         optimization_follow_up: tuple[Skill, ...] = ("plan-change",)
         if implementation_requested:
             optimization_follow_up += ("implement-plan",)
-        return make_decision("optimize-codebase", "named_optimization_work", text, follow_up=optimization_follow_up)
+        return make_decision(
+            "optimize-codebase",
+            "named_optimization_work",
+            request,
+            follow_up=optimization_follow_up,
+            handoff_detail=handoff_detail,
+        )
 
     if planning_requested or implementation_requested:
         follow_up = ("implement-plan",) if implementation_requested else ()
         return make_decision(
             "plan-change",
             "source_change_requires_plan",
-            text,
+            request,
             prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
             follow_up=follow_up,
+            handoff_detail=handoff_detail,
         )
 
     if orientation_requested:
-        return make_decision("map-codebase", "repository_orientation", text)
+        return make_decision(
+            "map-codebase",
+            "repository_orientation",
+            request,
+            handoff_detail=handoff_detail,
+        )
 
-    return make_decision(None, "no_suite_workflow_needed", text)
+    return make_decision(
+        None,
+        "no_suite_workflow_needed",
+        request,
+        handoff_detail=handoff_detail,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -675,8 +764,22 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("true",),
         help="Explicit caller signal that native navigation was insufficient.",
     )
-    parser.add_argument("--output-file", type=Path, help="Target file path to write route-handoff.md")
-    parser.add_argument("--output-dir", type=Path, help="Target directory to write route-handoff.md")
+    parser.add_argument(
+        "--handoff",
+        choices=("compact", "detailed"),
+        default="compact",
+        help="Detailed handoff generation is opt-in; the compact routing decision is the default.",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=Path,
+        help="Target file path, outside the repository, to write route-handoff.md",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Target directory, outside the repository, to write route-handoff.md",
+    )
     return parser
 
 
@@ -702,6 +805,16 @@ def validated_inputs(
         parser.error(f"approved plan does not exist: {args.approved_plan}")
     if args.issue_number is not None and args.issue_number <= 0:
         parser.error("issue number must be positive")
+    if args.repo_root is not None:
+        repository = args.repo_root.resolve()
+        for label, target in (
+            ("output file", args.output_file),
+            ("output directory", args.output_dir),
+        ):
+            if target is not None and (
+                target.resolve() == repository or repository in target.resolve().parents
+            ):
+                parser.error(f"{label} must be outside the repository: {target}")
     if args.output_dir is not None and not args.output_dir.is_dir():
         parser.error(f"output directory does not exist: {args.output_dir}")
 
@@ -718,7 +831,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     request, facts = validated_inputs(parser, args)
     try:
-        decision = route_request(request, facts)
+        decision = route_request(request, facts, handoff_detail=args.handoff)
     except ValueError as exc:
         parser.error(str(exc))
 

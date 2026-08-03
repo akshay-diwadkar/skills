@@ -177,8 +177,73 @@
     "expected": {
       "primary_skill": "ideate",
       "prerequisites": [],
-      "follow_up": ["plan-change", "implement-plan"],
+      "follow_up": ["plan-change"],
       "reason": "research_ideation_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "plan-implementation-plan",
+    "request": "Create an implementation plan.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "source_change_requires_plan",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "ideate-implementation-approaches",
+    "request": "Brainstorm implementation approaches.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "ideate",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "research_ideation_requested",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "implement-approved-plan",
+    "request": "Implement the approved plan.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "implement-plan",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "approved_plan_execution",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "explicit-plan-change-beats-research-options",
+    "request": "Use plan-change and research options for the migration.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "plan-change",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "explicit_skill_request",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "approved-execution-beats-ideation",
+    "request": "Implement the approved plan and brainstorm follow-up ideas.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "implement-plan",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "approved_plan_execution",
       "confidence": "high",
       "next_action": "invoke_primary_skill"
     }

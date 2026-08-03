@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8555,
-    "repair_diagnostic": 2811,
-    "tool_output": 2155,
-    "top_level": 6400,
-    "worst_context": 26851,
-    "worst_references": 17640
+    "pre_action": 8815,
+    "repair_diagnostic": 2871,
+    "tool_output": 2405,
+    "top_level": 6410,
+    "worst_context": 27218,
+    "worst_references": 17819
   },
   "baseline": {
     "requirements": [
@@ -18,11 +18,12 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "25d09880e9436339beb04bfc8cf7f36b48fc24d0eb335036c444f459679c14a2",
+  "config_sha256": "7e6e58023928139cb1ea208b09c585659cbfbceafcc16fedde8b9d5c139f9c2f",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 789,
@@ -46,6 +47,7 @@
     },
     "design-codebase": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 788,
@@ -70,6 +72,7 @@
     },
     "diagram-codebase": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 760,
@@ -91,6 +94,7 @@
     },
     "ideate": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 583,
@@ -114,6 +118,7 @@
     },
     "implement-plan": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 840,
@@ -161,6 +166,7 @@
     },
     "manualize": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 810,
@@ -186,6 +192,7 @@
     },
     "map-codebase": {
       "category": "model_helper",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 707,
@@ -244,6 +251,7 @@
     },
     "optimize-codebase": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 677,
@@ -267,6 +275,7 @@
     },
     "plan-change": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 827,
@@ -290,6 +299,7 @@
     },
     "raise-issue": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 404,
@@ -332,27 +342,29 @@
     },
     "route-work": {
       "category": "router",
+      "measured_successful_run": true,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 663,
-        "repair_diagnostic": 256,
-        "tool_output": 184,
-        "top_level": 479,
-        "worst_context": 1267,
-        "worst_references": 532
+        "pre_action": 923,
+        "repair_diagnostic": 316,
+        "tool_output": 434,
+        "top_level": 489,
+        "worst_context": 1634,
+        "worst_references": 711
       },
       "path": "skills/routing/route-work/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "6fe956699c314a223b83d8246858099806c53a38346483dd74f5b949c37ec839",
+      "source_hash": "580377b30e109acda751e00fe0098d87bb6a7fd5d059dd46f2942b2d28bc62c5",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]
     },
     "scope-issue": {
       "category": "user_orchestrator",
+      "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
         "pre_action": 707,

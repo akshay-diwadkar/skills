@@ -33,12 +33,19 @@ Apply the first matching rule:
 
 ## Overlap Rules
 
-- Route research/ideation to `ideate`; add `design-codebase`, `plan-change`, or `implement-plan` as follow-up if requested.
-- Route unplanned implementation requests to `plan-change` with `implement-plan` follow-up.
+- Route research/ideation to `ideate`; add `design-codebase`, `plan-change`, or `implement-plan` as follow-up if requested. Ideation never overrides an explicit skill name or an approved-plan execution request.
+- Route unplanned implementation requests to `plan-change` with `implement-plan` follow-up. Noun-only mentions such as "implementation plan" are planning evidence, not execution requests.
 - Route structural redesign to `design-codebase` then `plan-change`.
 - Route unknown risk discovery to `audit-codebase`. Route named bottlenecks to `optimize-codebase`.
-- Route audit with issue publication to `audit-codebase` with `raise-issue` follow-up.
+- Route audit with issue publication to `audit-codebase` with `raise-issue` follow-up; the diagram routes publication through a "Publish Issues?" decision.
 - Prefer one primary skill. Never add heavyweight workflows speculatively.
+
+## Handoff Contract
+
+- `route_handoff` is an inline Markdown document in the decision `result`; no sealed file artifact is produced or claimed.
+- The default is the compact decision (request, mermaid route diagram, route steps). Detailed step-by-step guidance is opt-in via `handoff_detail=detailed`.
+- Persist `route-handoff.md` only through the CLI (`--output-file`, `--output-dir`, or the `handoff_output` protocol input) at a caller-chosen path outside the repository; paths inside the repository are rejected.
+- The handoff embeds the original request text verbatim; only classification uses the normalized text.
 
 ## Direct-Answer Boundary
 

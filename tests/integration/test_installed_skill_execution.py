@@ -305,3 +305,47 @@ def test_installed_stateless_router_returns_inline_result_without_run_state(tmp_
     assert response["result"]["primary_skill"] == "plan-change"
     assert response["result"]["prerequisites"] == []
     assert not list(tmp_path.rglob(".skill-cli-state.json"))
+
+
+def test_installed_stateless_router_persists_handoff_on_request(tmp_path: Path) -> None:
+    source = ROOT / "skills" / "routing" / "route-work"
+    installed = tmp_path / "route-work"
+    shutil.copytree(source, installed)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    handoff = tmp_path / "route-handoff.md"
+    before = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(installed / "scripts" / "cli.py"),
+            "--repo-root",
+            str(repo),
+            "--input",
+            "request=Choose the planning workflow.",
+            "--input",
+            f"handoff_output={handoff}",
+            "--format",
+            "json",
+            "run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    response = json.loads(result.stdout)
+    assert response["status"] == "complete"
+    assert handoff.is_file()
+    assert "# Route Handoff Guidance" in handoff.read_text(encoding="utf-8")
+    # Persisting on request must not modify the installed skill package.
+    after = {
+        path.relative_to(installed).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in installed.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+    assert after == before

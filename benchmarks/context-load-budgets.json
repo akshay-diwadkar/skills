@@ -111,7 +111,8 @@
     "route-work": {
       "category": "router",
       "diagnostic_input": "request",
-      "representative_inputs": {"request": "Choose the planning workflow."}
+      "representative_inputs": {"request": "Choose the planning workflow."},
+      "measure_successful_run": true
     },
     "scope-issue": {
       "category": "user_orchestrator",
@@ -120,6 +121,17 @@
     }
   },
   "exceptions": [
+    {
+      "id": "route-work-compact-handoff-pre-action",
+      "skill": "route-work",
+      "metric": "pre_action",
+      "direction": "increase",
+      "max_tokens": 950,
+      "expires": "2027-08-03",
+      "rationale": "Context-load now measures the successful stateless run output, which carries the protocol envelope and the compact route_handoff decision (mermaid diagram plus decision fields) by contract; detailed guidance stays opt-in and SKILL.md was trimmed to 489 tokens.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "protected_rule_ids": ["route.read-only", "route.no-execution", "route.exact-json"]
+    },
     {
       "id": "audit-typed-selection-boundary",
       "skill": "audit-codebase",
