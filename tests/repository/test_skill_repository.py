@@ -216,6 +216,15 @@ def test_readme_latest_release_badge_tracks_package_version(tmp_path: Path) -> N
     ]
 
 
+def test_readme_user_invoked_row_matches_invocation_policy() -> None:
+    policy = json.loads((REPO_ROOT / "invocation-policy.json").read_text(encoding="utf-8"))
+    expected = sorted(skill for skill, mode in policy["skills"].items() if mode == "user-invoked")
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    row = next(line for line in readme.splitlines() if "| `user-invoked` |" in line)
+    listed = [item.strip().strip("`") for item in row.split("|")[2].split(",")]
+    assert sorted(listed) == expected
+
+
 def test_marketplace_groups_every_skill_once() -> None:
     assert validator.validate_marketplace() == []
     expected_paths = set().union(*validator.EXPECTED_MARKETPLACE_GROUPS.values())

@@ -23,6 +23,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from route_engineering_work import (  # noqa: E402
     ALLOWED_ACTIONS,
     FORBIDDEN_ACTIONS,
+    SKILLS,
     RepositoryFacts,
     route_request,
 )
@@ -155,3 +156,9 @@ def test_cli_invalid_inputs_fail_without_a_decision(
     assert result.returncode == 2
     assert result.stdout == ""
     assert message in result.stderr
+
+
+def test_routing_policy_documents_every_router_skill() -> None:
+    policy = (SKILL_ROOT / "references" / "routing-policy.md").read_text(encoding="utf-8")
+    undocumented = [skill for skill in SKILLS if f"`{skill}`" not in policy]
+    assert undocumented == []

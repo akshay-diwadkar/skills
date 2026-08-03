@@ -1,7 +1,7 @@
 # Engineering and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=6.0.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=6.0.1)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -55,12 +55,15 @@ flowchart LR
     B["Plan<br/>plan-change"]
     C["Deliver<br/>implement-plan"]
     D["Map and explain<br/>map-codebase · diagram-codebase · manualize"]
+    P["Publish<br/>raise-issue"]
 
     R --> A
     R --> B
     R --> C
     R --> D
+    R --> P
     A --> B --> C --> D
+    A --> P
 ```
 
 ## Install and use
@@ -131,7 +134,7 @@ Every skill declares one provider-neutral invocation mode. Claude Code and GitHu
 | --- | --- | --- |
 | `model-invoked` | `route-engineering-work`, `map-codebase` | Available for lightweight read-only assistance without a direct user invocation. Hidden from the Claude Code and GitHub Copilot user menus. |
 | `both` | `plan-change`, `design-codebase`, `manualize` | May be selected by the model or invoked directly. Existing workflow gates still require explicit authority before writes or remediation. |
-| `user-invoked` | `implement-plan`, `audit-codebase`, `optimize-codebase`, `scope-issue`, `diagram-codebase` | Never activated implicitly on certified platforms. Invoke it directly when you want the workflow. |
+| `user-invoked` | `implement-plan`, `audit-codebase`, `optimize-codebase`, `scope-issue`, `diagram-codebase`, `raise-issue` | Never activated implicitly on certified platforms. Invoke it directly when you want the workflow. |
 
 Invoke a skill with `/skill-name` in Claude Code or GitHub Copilot. In Codex, type `$skill-name` or use `/skills`. Codex supports disabling implicit invocation but does not expose a model-only user-visibility control, so its `model-invoked` skills can still be selected explicitly.
 
