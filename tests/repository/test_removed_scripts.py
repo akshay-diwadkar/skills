@@ -6,6 +6,7 @@ REMOVED = (
     "skills/engineering/audit-codebase/scripts/apply_audit_classification.py",
     "skills/engineering/scope-issue/scripts/apply_issue_classification.py",
     "skills/engineering/scope-issue/scripts/scaffold_issue_plan.py",
+    "skills/engineering/scope-issue/scripts/post_merge_issue_followup.py",
     "skills/engineering/implement-plan/scripts/record_change_diff.py",
     "skills/engineering/design-codebase/scripts/check_assessment.py",
     "skills/engineering/design-codebase/scripts/finalize_assessment.py",

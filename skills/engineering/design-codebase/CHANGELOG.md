@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.0 - 2026-08-03
+
+- Rename the sole sealed artifact to `design-handoff.md` and add a typed receipt.
+
 ## 1.5.1 - 2026-08-01
 
 - Update the plan-change handoff to the stateless request-plus-v6-draft flow.

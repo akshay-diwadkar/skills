@@ -1,37 +1,26 @@
-# Optimization Contract
+# Optimization Handoff Contract
 
-Use this contract to turn a named workflow into one evidence-backed candidate
-and one bounded handoff. The machine fields in
-[optimization-contract.json](optimization-contract.json) and
-[handoff-contract.json](handoff-contract.json) are authoritative when this
-prose differs.
+Turn one named workflow into one evidence-backed decision for `plan-change`.
+The machine fields in [optimization-contract.json](optimization-contract.json)
+are authoritative.
 
 ## Selection
 
-- Paths are `fast` or `full`; scopes are `targeted` or `sweep`; stages are
-  `plan` or `implementation`.
-- `targeted` scope follows a named pain and may inspect only the relevant
-  surface; `sweep` is allowed only when repository-wide discovery is explicit.
-- Choose `fast` only when every [fast-path](fast-path.md) criterion is already
-  proved: one authorized change, one file and symbol, bounded behavior, local
-  verification, and a reversible rollback.
-- Use `full` whenever any criterion is unproved. Establish a baseline, compare
-  independent candidates, and promote exactly one winner.
+- Use `targeted` for a named pain and `sweep` only for explicit repository-wide discovery.
+- Establish a measured or bounded baseline, compare independent candidates, and select one winner or a terminal state.
+- Set `H-1 next` to exactly `plan-ready`, `needs-evidence`, or `no-change`.
+- A `plan-ready` handoff names one eligible candidate; terminal states preserve exact evidence or revisit conditions.
 
 ## Evidence gates
 
-Every candidate needs a target, impact, confidence, effort, risk, blast radius,
-independence, verification strength, rollback, operational cost, and cited
-evidence. A candidate is promoted only when behavior, compatibility,
-verification, rollback, and decision gates are all affirmative. Missing,
-neutral, contradictory, or inconclusive evidence remains visible as a
-deferment or rejection; it never becomes an implicit approval.
+Every candidate records target, impact, confidence, effort, risk, blast radius,
+independence, verification strength, rollback requirement, operational cost,
+and cited evidence. Missing or inconclusive evidence remains a deferment or
+rejection.
 
-## Authority and handoff
+## Boundary
 
-Local evidence selects the mechanism. Ecosystem material may validate a chosen
-mechanism but cannot override repository facts. Implementation remains unauthorized
-until the user explicitly requests it. A plan handoff contains one
-winner, residual risks, deferments, verification commands, and rollback state.
-The sealer must receive the complete agent-authored report and return one
-canonical result; do not resurrect a multi-stage validation dance.
+Local evidence selects the mechanism. This skill never patches the repository,
+orders file edits, writes execution tests, or routes directly to
+`implement-plan`. The sealer atomically emits only `optimization-handoff.md`;
+`plan-change` owns the separate implementation blueprint.

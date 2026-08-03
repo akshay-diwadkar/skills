@@ -1,7 +1,7 @@
 ---
 name: route-engineering-work
 description: Route engineering requests to one repository workflow without executing it. Use when the user does not know which suite skill applies, asks which engineering workflow to use, combines discovery, design, planning, implementation, audit, optimization, issue, diagram, or manual work, or gives an ambiguous request that could trigger multiple heavyweight skills.
-version: 2.1.0
+version: 2.2.0
 metadata:
   invocation: model-invoked
 disable-model-invocation: false

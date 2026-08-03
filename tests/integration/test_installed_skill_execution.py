@@ -232,12 +232,11 @@ def test_remaining_skill_common_cli_runs_from_standalone_install(
         "design-codebase": [f"draft={existing}", f"output_dir={output_dir}"],
         "audit-codebase": [f"bundle={existing}"],
         "optimize-codebase": [
-            "path=full",
             "scope=targeted",
-            "stage=plan",
-            f"report={existing}",
+            f"draft={existing}",
+            f"output_dir={output_dir}",
         ],
-        "scope-issue": [f"issue_json={existing}", f"plan={existing}"],
+        "scope-issue": [f"issue_json={existing}", f"draft={existing}", f"output_dir={output_dir}"],
         "diagram-codebase": [
             f"data={existing}",
             f"output={tmp_path / 'diagram.html'}",

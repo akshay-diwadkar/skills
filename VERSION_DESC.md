@@ -1,5 +1,6 @@
-# Static map-codebase knowledge guidance
+# Typed handoff-only analysis pipeline
 
-map-codebase now writes a concise static `KNOWLEDGE.md` alongside generated
-knowledge artifacts and leaves only a minimal pointer in `AGENTS.md` and
-`CLAUDE.md`, reducing always-loaded instruction context.
+Audit, design, optimization, and issue-scoping skills now stop at one typed,
+sealed handoff for `plan-change`. Optimization and issue scoping no longer own
+implementation or GitHub-write workflows, and `plan-change` records the
+verified upstream handoff type and selected audit finding in its proof.

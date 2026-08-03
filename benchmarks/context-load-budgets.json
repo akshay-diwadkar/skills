@@ -80,12 +80,11 @@
     },
     "optimize-codebase": {
       "category": "user_orchestrator",
-      "diagnostic_input": "report",
+      "diagnostic_input": "draft",
       "representative_inputs": {
-        "path": "fast",
         "scope": "targeted",
-        "stage": "plan",
-        "report": "{fixture_file}"
+        "draft": "{fixture_file}",
+        "output_dir": "{fixture_dir}"
       }
     },
     "plan-change": {
@@ -109,10 +108,57 @@
     "scope-issue": {
       "category": "user_orchestrator",
       "diagnostic_input": "issue_json",
-      "representative_inputs": {"issue_json": "{fixture_file}", "plan": "{fixture_file}"}
+      "representative_inputs": {"issue_json": "{fixture_file}", "draft": "{fixture_file}", "output_dir": "{fixture_dir}"}
     }
   },
   "exceptions": [
+    {
+      "id": "audit-typed-selection-boundary",
+      "skill": "audit-codebase",
+      "metric": "top_level",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 650,
+      "expires": "2027-08-03",
+      "rationale": "Audit now states the one-finding-at-a-time planning boundary and deterministic delegated selection without weakening read-only or publication authority.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["audit.read-only", "audit.handoff-terminal"]
+    },
+    {
+      "id": "plan-typed-intake-top-level",
+      "skill": "plan-change",
+      "metric": "top_level",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 650,
+      "expires": "2027-08-03",
+      "rationale": "Plan intake now verifies four typed handoffs, enforces one audit finding, and records upstream provenance while preserving generic requests.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-typed-intake-pre-action",
+      "skill": "plan-change",
+      "metric": "pre_action",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 850,
+      "expires": "2027-08-03",
+      "rationale": "The optional audit selector is exposed before sealing so multi-finding handoffs fail closed without adding another planning phase.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output"]
+    },
+    {
+      "id": "scope-handoff-reference-reduction",
+      "skill": "scope-issue",
+      "metric": "worst_references",
+      "direction": "decrease",
+      "scope": "delta",
+      "expires": "2027-08-03",
+      "rationale": "Removing branch, PR, post-merge, and implementation-plan guidance leaves one compact issue-grounding rubric and handoff contract.",
+      "supporting_paths": ["references/planning-rubric.md", "references/issue-plan-contract.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
     {
       "id": "plan-change-v6-top-level-reduction",
       "skill": "plan-change",
@@ -270,15 +316,13 @@
       "direction": "decrease",
       "scope": "delta",
       "expires": "2027-07-31",
-      "rationale": "The optimization portfolio consolidates duplicated protocol, research, rubric, pattern, and example guidance into two compact contracts while preserving fast-path and machine contracts.",
+      "rationale": "The handoff-only optimization portfolio removes execution guidance and the separate plan request contract.",
       "supporting_paths": [
-        "references/fast-path.md",
         "references/optimization-contract.json",
-        "references/handoff-contract.json",
         "references/optimization-contract.md",
         "references/optimization-techniques.md"
       ],
-      "protected_rule_ids": ["optimize.explicit-implementation", "optimize.fast-all-criteria", "optimize.revert-inconclusive"]
+      "protected_rule_ids": ["optimize.handoff-only", "optimize.one-artifact"]
     },
     {
       "id": "audit-codebase-reference-consolidation",

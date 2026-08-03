@@ -2,7 +2,7 @@
 
 Delegation is optional. Use it only for independent read-only design review
 when the platform supports subagents. Otherwise execute the same roles
-sequentially. The primary agent chooses the design and owns `handoff.md`.
+sequentially. The primary agent chooses the design and owns `design-handoff.md`.
 
 ## Authority and result envelope
 

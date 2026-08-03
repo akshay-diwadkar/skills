@@ -34,6 +34,10 @@ ROLLOUT_DOMAINS = {
     "external-integration",
     "irreversible-external-effect",
 }
+HANDOFF_RECEIPT_RE = re.compile(
+    r"^<!-- (?P<kind>audit|design|optimization|issue)-handoff: (?P<version>\d+); sha256: (?P<digest>[0-9a-f]{64}) -->$"
+)
+HANDOFF_LIKE_RE = re.compile(r"^<!-- [^>]*handoff[^>]*-->$", re.IGNORECASE)
 REQUIRED_SECTIONS = ("Outcome", "Evidence", "Implementation", "Verification")
 SECTION_ORDER = (
     "Outcome",
@@ -1067,7 +1071,72 @@ def canonical_body(text: str) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def build_proof_bundle(plan: Plan, view: RepositoryView, request_bytes: bytes, fact_proofs: Iterable[dict[str, str]]) -> dict[str, Any]:
+def _intake_error(code: str, message: str) -> ValueError:
+    error = ValueError(message)
+    setattr(
+        error,
+        "diagnostics",
+        (Diagnostic(code, message, "Repair or replace the request handoff and rerun the same seal command."),),
+    )
+    return error
+
+
+def detect_request_source(request_bytes: bytes, handoff_item: str | None = None) -> dict[str, Any]:
+    """Verify a typed handoff envelope and return its proof binding."""
+    try:
+        text = request_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise _intake_error("request.encoding", "Request files must be valid UTF-8.") from exc
+    first, separator, body = text.partition("\n")
+    match = HANDOFF_RECEIPT_RE.fullmatch(first.rstrip("\r"))
+    if match is None:
+        if handoff_item is not None:
+            raise _intake_error("handoff.item.unexpected", "handoff_item is valid only for audit handoffs.")
+        if HANDOFF_LIKE_RE.fullmatch(first.rstrip("\r")):
+            raise _intake_error("handoff.marker.unsupported", "The request uses an unknown or unsupported handoff marker.")
+        return {"kind": "generic", "contract_version": None, "item": None}
+    if not separator:
+        raise _intake_error("handoff.receipt.malformed", "Typed handoff content is missing after its receipt.")
+    kind = match.group("kind")
+    version = int(match.group("version"))
+    if version != 1:
+        raise _intake_error("handoff.version.unsupported", f"Unsupported {kind} handoff contract version {version}.")
+    if hashlib.sha256(body.encode("utf-8")).hexdigest() != match.group("digest"):
+        raise _intake_error("handoff.receipt.stale", "Typed handoff receipt does not match its content.")
+    if kind != "audit" and handoff_item is not None:
+        raise _intake_error("handoff.item.unexpected", "handoff_item is valid only for audit handoffs.")
+    selected: str | None = None
+    if kind == "audit":
+        findings = re.findall(r"^## Issue (?P<id>\S+)\s*$", body, re.MULTILINE)
+        if not findings:
+            raise _intake_error("handoff.audit.empty", "Audit handoff has no accepted findings to plan.")
+        if handoff_item is None and len(findings) > 1:
+            raise _intake_error("handoff.item.required", "Multi-finding audit handoffs require one handoff_item finding ID.")
+        selected = handoff_item or findings[0]
+        if selected not in findings:
+            raise _intake_error("handoff.item.unknown", f"Audit handoff does not contain finding {selected!r}.")
+    elif kind == "optimization":
+        states = [item.strip() for item in re.findall(r"^- H-\d+:[^\n]*\bnext:\s*([^|\n]+)", body, re.MULTILINE)]
+        if states != ["plan-ready"]:
+            raise _intake_error("handoff.not_actionable", "Optimization handoff must have exactly one plan-ready state.")
+    elif kind == "issue":
+        metadata_match = re.search(r"<!-- issue-handoff-metadata -->\s*```json\s*(\{.*?\})\s*```", body, re.DOTALL)
+        try:
+            metadata = json.loads(metadata_match.group(1)) if metadata_match else {}
+        except json.JSONDecodeError as exc:
+            raise _intake_error("handoff.issue.metadata", "Issue handoff metadata is malformed.") from exc
+        if metadata.get("status") != "plan-ready":
+            raise _intake_error("handoff.not_actionable", "Issue handoff status must be plan-ready.")
+    return {"kind": kind, "contract_version": version, "item": selected}
+
+
+def build_proof_bundle(
+    plan: Plan,
+    view: RepositoryView,
+    request_bytes: bytes,
+    fact_proofs: Iterable[dict[str, str]],
+    request_source: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     roles: dict[str, set[str]] = defaultdict(set)
     for fact in plan.records.get("F", ()):
         roles[fact.fields["path"].replace("\\", "/")].add("evidence")
@@ -1086,7 +1155,7 @@ def build_proof_bundle(plan: Plan, view: RepositoryView, request_bytes: bytes, f
     ]
     identity, head = view.repository_identity()
     body = canonical_body(plan.text)
-    return {
+    proof = {
         "version": 6,
         "facts": list(fact_proofs),
         "binding": {
@@ -1097,6 +1166,9 @@ def build_proof_bundle(plan: Plan, view: RepositoryView, request_bytes: bytes, f
             "files": files,
         },
     }
+    if request_source is not None:
+        proof["request"] = request_source
+    return proof
 
 
 def render_sealed_plan(text: str, proof: dict[str, Any]) -> str:
@@ -1113,20 +1185,27 @@ def render_sealed_plan(text: str, proof: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def seal_plan(repo_root: Path, request_file: Path, draft_file: Path) -> SealResult:
+def seal_plan(
+    repo_root: Path,
+    request_file: Path,
+    draft_file: Path,
+    *,
+    handoff_item: str | None = None,
+) -> SealResult:
     root = repo_root.resolve()
     request = request_file.resolve()
     draft = draft_file.resolve()
     if not request.is_file() or not draft.is_file():
         raise ValueError("request_file and draft_file must be existing files")
     request_bytes = request.read_bytes()
+    request_source = detect_request_source(request_bytes, handoff_item)
     draft_text = draft.read_text(encoding="utf-8")
     result = validate_draft(draft_text, root)
     if not result.valid or result.plan is None:
         error = ValueError("draft validation failed")
         setattr(error, "diagnostics", result.diagnostics)
         raise error
-    proof = build_proof_bundle(result.plan, result.view, request_bytes, result.fact_proofs)
+    proof = build_proof_bundle(result.plan, result.view, request_bytes, result.fact_proofs, request_source)
     sealed = render_sealed_plan(draft_text, proof)
     return SealResult(sealed, proof, result.view.counters())
 
@@ -1152,8 +1231,20 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
     diagnostics.extend(validation.diagnostics)
     binding = proof.get("binding")
     binding_fields = binding if isinstance(binding, dict) else {}
+    request_source = proof.get("request")
+    legacy_shape = set(proof) == {"version", "facts", "binding"}
+    enriched_shape = set(proof) == {"version", "facts", "binding", "request"}
+    request_shape_valid = (
+        legacy_shape
+        or enriched_shape
+        and isinstance(request_source, dict)
+        and set(request_source) == {"kind", "contract_version", "item"}
+        and request_source.get("kind") in {"generic", "audit", "design", "optimization", "issue"}
+        and (request_source.get("contract_version") is None or request_source.get("contract_version") == 1)
+        and (request_source.get("item") is None or isinstance(request_source.get("item"), str))
+    )
     proof_shape_valid = (
-        set(proof) == {"version", "facts", "binding"}
+        request_shape_valid
         and proof.get("version") == CONTRACT_VERSION
         and isinstance(proof.get("facts"), list)
         and isinstance(binding, dict)
@@ -1191,6 +1282,14 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
             )
         if proof_shape_valid and request_bytes is not None and binding_fields.get("request_sha256") != _sha256(request_bytes):
             diagnostics.append(Diagnostic("proof.stale", "Request digest changed.", "Use the request sealed with the plan.", category="stale_evidence"))
+        if proof_shape_valid and request_bytes is not None and enriched_shape:
+            try:
+                selected_item = request_source.get("item") if isinstance(request_source, dict) else None
+                detected = detect_request_source(request_bytes, selected_item)
+            except ValueError:
+                detected = None
+            if detected != request_source:
+                diagnostics.append(Diagnostic("proof.stale", "Request handoff type, version, or selected item changed.", "Use the request sealed with the plan.", category="stale_evidence"))
         return (
             dataclasses.replace(
                 validation.plan,

@@ -1,34 +1,17 @@
 {
   "contract_version": 1,
-  "marker": "<!-- github-issue-plan-contract: 1 -->",
-  "statuses": [
-    "ready-for-implementation",
-    "ready-for-senior-plan",
-    "needs-info",
-    "blocked",
-    "close-candidate"
-  ],
-  "task_types": [
-    "feature",
-    "bug-fix",
-    "refactor",
-    "public-contract",
-    "security",
-    "concurrency",
-    "external-integration"
-  ],
-  "senior_tiers": ["tiny", "standard", "high-risk"],
+  "statuses": ["plan-ready", "needs-info", "blocked", "close-candidate"],
   "required_sections": [
     "Outcome and Scope",
     "Issue Claims (Untrusted)",
     "Local Evidence Ledger",
-    "Decisions and Implementation",
-    "Interfaces, Edge Cases, and Compatibility",
-    "Verification",
-    "Risks, Assumptions, and Open Questions",
-    "Senior Handoff"
+    "Issue-Level Decisions",
+    "Constraints and Protected Behavior",
+    "Risks and Open Questions",
+    "Plan-Change Handoff"
   ],
   "required_metadata": [
+    "contract_version",
     "source.repo",
     "source.issue_number",
     "source.issue_url",
@@ -39,46 +22,21 @@
     "checkout.commit",
     "checkout.dirty",
     "status",
-    "routing.senior_required",
-    "routing.task_types",
-    "routing.tier",
-    "routing.reasons",
-    "open_decisions",
     "questions",
     "blockers",
     "close_evidence"
   ],
   "record_formats": {
-    "SC": "- SC-n: observable outcome",
+    "SC": "- SC-n: observable issue outcome",
     "F": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
-    "D": "- D-n: selected: approach | because: local evidence | rejected: alternative and drawback",
-    "CH": "- CH-n: `path` | anchor: `symbol` | status: existing|new | change: exact behavior",
-    "C": "- C-n: constraint | status: preserved|modified|at-risk",
-    "T": "- T-n: given: exact input/state | expect: exact output/error/side effect | command: `exact command`"
+    "D": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback",
+    "C": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk"
   },
   "status_requirements": {
-    "ready-for-implementation": {
-      "records": ["SC", "F", "D", "CH", "C", "T"],
-      "senior_required": false,
-      "open_decisions_empty": true
-    },
-    "ready-for-senior-plan": {
-      "records": ["SC", "F", "C"],
-      "senior_required": true,
-      "routing_required": true
-    },
-    "needs-info": {
-      "records": ["SC", "F", "C"],
-      "questions_required": true
-    },
-    "blocked": {
-      "records": ["F"],
-      "blockers_required": true
-    },
-    "close-candidate": {
-      "records": ["F", "T"],
-      "close_evidence_required": true
-    }
+    "plan-ready": {"records": ["SC", "F", "C"]},
+    "needs-info": {"records": ["SC", "F", "C"], "questions_required": true},
+    "blocked": {"records": ["F"], "blockers_required": true},
+    "close-candidate": {"records": ["F"], "close_evidence_required": true}
   },
   "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"]
 }

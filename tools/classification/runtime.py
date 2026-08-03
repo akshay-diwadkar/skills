@@ -482,7 +482,7 @@ def _diagram(request_path: Path, root: Path, text: str) -> dict[str, Any]:
 
 def _scope_issue(artifact: Path, root: Path, text: str) -> dict[str, Any]:
     metadata_match = re.search(
-        r"<!--\s*issue-plan-metadata\s*-->\s*```json\s*(\{.*?\})\s*```",
+        r"<!--\s*issue-handoff-metadata\s*-->\s*```json\s*(\{.*?\})\s*```",
         text,
         re.DOTALL,
     )
@@ -493,34 +493,19 @@ def _scope_issue(artifact: Path, root: Path, text: str) -> dict[str, Any]:
             metadata = parsed if isinstance(parsed, dict) else {}
         except json.JSONDecodeError:
             metadata = {}
-    questions = [
-        *metadata.get("questions", []),
-        *metadata.get("open_decisions", []),
-    ]
+    questions = list(metadata.get("questions", []))
     blockers = metadata.get("blockers", [])
     close_evidence = metadata.get("close_evidence", [])
-    routing = metadata.get("routing", {}) if isinstance(metadata.get("routing"), dict) else {}
-    reasons = sorted(str(value) for value in routing.get("reasons", []) if isinstance(value, str))
-    mandatory = bool(
-        routing.get("senior_required")
-        or _contains(" ".join(reasons), ("public", "shared", "migration", "security", "concurrency", "external", "irreversible", "subsystem"))
-    )
     if blockers or not metadata:
         status = "blocked"
     elif questions:
         status = "needs-info"
     elif close_evidence:
         status = "close-candidate"
-    elif mandatory:
-        status = "ready-for-senior-plan"
     else:
-        status = "ready-for-implementation"
+        status = "plan-ready"
     values = {
-        "routing_reasons": reasons,
-        "senior_required": mandatory,
         "status": status,
-        "task_types": sorted(str(value) for value in routing.get("task_types", []) if isinstance(value, str)),
-        "tier": str(routing.get("tier", "standard")),
     }
     return _finish(
         values,
@@ -528,11 +513,10 @@ def _scope_issue(artifact: Path, root: Path, text: str) -> dict[str, Any]:
         "high" if metadata else "low",
         [
             {"field": "status", "value": value, "reason": "Status precedence is determined by structured blockers, questions, close evidence, and mandatory routing."}
-            for value in ("blocked", "needs-info", "close-candidate", "ready-for-senior-plan", "ready-for-implementation") if value != status
+            for value in ("blocked", "needs-info", "close-candidate", "plan-ready") if value != status
         ],
         {
             "status": "Cite current checkout evidence and the matching structured status requirement.",
-            "senior_required": "Cite current source proving mandatory routing is absent or present.",
         },
         status="ready" if metadata else "insufficient-evidence",
     )

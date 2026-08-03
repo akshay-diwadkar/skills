@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-version: 3.1.0
+version: 3.2.0
 metadata:
   implementation-contract: "3"
   invocation: user-invoked
@@ -19,7 +19,8 @@ Implement the exact approved plan as the smallest complete patch. The plan
 limits behavior changes; repository evidence determines local form; the v3
 implementation contract proves the result.
 
-Accept only finalized plan-contract v6 plans.
+Accept finalized plan-contract v6 plans with either the legacy request binding
+or the enriched typed-handoff kind, version, and selected-item binding.
 Reject ambiguous, unfinalized, unsupported, receipt-mismatched, or materially
 contradicted plans. Route semantic gaps to `plan-change`; never reinterpret
 product intent during implementation. Preserve unrelated dirty work byte for

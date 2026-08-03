@@ -48,6 +48,7 @@ def test_v6_tiny_seals_with_generated_hashes_and_canonical_receipt(tmp_path: Pat
     proof_match = PROOF_RE.search(result.text)
     assert proof_match is not None
     proof = json.loads(proof_match.group("json"))
+    assert proof["request"] == {"kind": "generic", "contract_version": None, "item": None}
     fact = proof["facts"][0]
     assert fact["file_sha256"] == hashlib.sha256((repo / "src" / "names.py").read_bytes()).hexdigest()
     assert fact["verified_kind"] == "source"
@@ -315,6 +316,23 @@ def _rewrite_receipt(text: str, proof: dict[str, Any]) -> str:
         + " -->"
     )
     return updated[: receipt_match.start()] + receipt + updated[receipt_match.end() :]
+
+
+def test_legacy_proof_without_typed_request_binding_remains_valid(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    draft.write_text(tiny_plan(), encoding="utf-8")
+    sealed = seal_plan(repo, request, draft).text
+    match = PROOF_RE.search(sealed)
+    assert match is not None
+    proof = json.loads(match.group("json"))
+    proof.pop("request")
+    legacy = _rewrite_receipt(sealed, proof)
+    plan, diagnostics, _view = verify_sealed_plan(legacy, repo, request_bytes=request.read_bytes())
+    assert plan is not None
+    assert diagnostics == []
 
 
 def test_recomputed_receipt_cannot_remove_derived_proof_files(tmp_path: Path) -> None:
