@@ -166,6 +166,16 @@ def test_delta_only_exception_does_not_relax_absolute_budget() -> None:
     budgets = config()
     measured = copy.deepcopy(base)
     measured["skills"]["audit-codebase"]["metrics"]["top_level"] += 33
+    budgets["exceptions"] = [
+        exception
+        for exception in budgets["exceptions"]
+        if not (
+            exception.get("skill") == "audit-codebase"
+            and exception.get("metric") == "top_level"
+            and exception.get("direction") == "increase"
+            and exception.get("scope") == "delta"
+        )
+    ]
     budgets["exceptions"].append(
         {
             "id": "audit-top-level-delta",
