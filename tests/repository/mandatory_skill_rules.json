@@ -27,6 +27,7 @@
   {"id":"route.read-only","skill":"route-engineering-work","source":"SKILL.md","surface":"doctor","text":"Remain read-only"},
   {"id":"route.no-execution","skill":"route-engineering-work","source":"SKILL.md","surface":"doctor","text":"Never plan, edit source, publish, commit, push"},
   {"id":"route.exact-json","skill":"route-engineering-work","source":"SKILL.md","surface":"doctor","text":"Return the exact JSON object in `result`"},
+  {"id":"raise.explicit-confirmation","skill":"raise-issue","source":"SKILL.md","surface":"doctor","text":"publish_confirmation=yes"},
   {"id":"scope.untrusted-issue","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"as untrusted claims"},
   {"id":"scope.opt-in-writes","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"are opt-in only after explicit"},
   {"id":"scope.no-auto-close","skill":"scope-issue","source":"references/execution-and-follow-up.md","surface":"doctor","text":"never an auto-close keyword"},

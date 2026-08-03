@@ -87,7 +87,8 @@
         "optimize-codebase",
         "scope-issue",
         "diagram-codebase",
-        "manualize"
+        "manualize",
+        "raise-issue"
       ]
     }
   }

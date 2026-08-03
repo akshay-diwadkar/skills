@@ -76,10 +76,10 @@ class AuditBundleTests(unittest.TestCase):
                 bundle["candidates"][0][field] = value
                 self.assert_error_contains(bundle, f".{field} must be one of")
 
-    def test_accepted_candidate_requires_exactly_one_issue(self):
+    def test_accepted_candidate_needs_no_duplicate_issue_record(self):
         bundle = valid_bundle()
         bundle["issues"] = []
-        self.assert_error_contains(bundle, "issues are missing accepted candidate(s): C-001")
+        self.assertEqual(audit_bundle.validate_audit_bundle(bundle), [])
 
     def test_duplicate_root_causes_are_rejected(self):
         bundle = valid_bundle()

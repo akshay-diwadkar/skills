@@ -22,6 +22,7 @@ Skill = Literal[
     "scope-issue",
     "diagram-codebase",
     "manualize",
+    "raise-issue",
 ]
 Confidence = Literal["high", "medium", "low"]
 NextAction = Literal["answer_directly", "invoke_prerequisite", "invoke_primary_skill"]
@@ -36,6 +37,7 @@ SKILLS: Final[tuple[Skill, ...]] = (
     "scope-issue",
     "diagram-codebase",
     "manualize",
+    "raise-issue",
 )
 ALLOWED_ACTIONS: Final[tuple[str, ...]] = (
     "read_request",
@@ -159,6 +161,7 @@ ISSUE_PHRASES: Final[tuple[str, ...]] = (
     "triage issue",
     "scope issue",
 )
+RAISE_ISSUE_PHRASES: Final[tuple[str, ...]] = ("audit-handoff", "raise issue", "publish issues", "create issues")
 
 
 @dataclass(frozen=True)
@@ -307,6 +310,8 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
     if approved_plan and implementation_requested:
         return make_decision("implement-plan", "approved_plan_execution")
 
+    if contains_any(text, RAISE_ISSUE_PHRASES) and ("handoff" in text or "raise" in text or "publish" in text or "create" in text):
+        return make_decision("raise-issue", "audit_handoff_publication")
     if issue_context or contains_any(text, ISSUE_PHRASES):
         return make_decision("scope-issue", "github_issue_work")
 

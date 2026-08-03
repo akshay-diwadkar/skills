@@ -15,6 +15,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
+from link_agent_docs import ensure_knowledge_guide
 from knowledge.discovery import (
     discover_files,
     filter_internal_paths,
@@ -315,6 +316,7 @@ def build_knowledge(
     for name, data in artifacts.items():
         write_file_deterministic(out / name, serialize_json_deterministic(data))
     write_file_deterministic(out / "manifest.json", serialize_json_deterministic(manifest))
+    ensure_knowledge_guide(out)
     for old in (out / "context.md", out / "architecture.md", out / "index.json"):
         if old.exists():
             old.unlink()

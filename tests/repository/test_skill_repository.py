@@ -21,6 +21,7 @@ CANONICAL_SKILLS = {
     ("engineering", "map-codebase"),
     ("engineering", "optimize-codebase"),
     ("engineering", "plan-change"),
+    ("engineering", "raise-issue"),
     ("engineering", "route-engineering-work"),
     ("engineering", "scope-issue"),
     ("technical-communication", "manualize"),
@@ -99,11 +100,11 @@ def test_invocation_safety_capabilities_require_user_invocation() -> None:
         for skill in validator.discover_skills()
     }
     assert {name for name, values in capabilities.items() if values} == {
-        "audit-codebase",
         "implement-plan",
+        "raise-issue",
         "scope-issue",
     }
-    assert "external-write" in capabilities["audit-codebase"]
+    assert "external-write" in capabilities["raise-issue"]
     assert {"implementation", "repository-write"} <= capabilities["implement-plan"]
     assert "external-write" in capabilities["scope-issue"]
 
@@ -163,9 +164,10 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version_description() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
-    assert versions["map-codebase"] == "2.3.0"
+    assert versions["map-codebase"] == "2.4.0"
+    assert versions["audit-codebase"] == "4.0.0"
+    assert versions["raise-issue"] == "1.0.0"
     assert versions["plan-change"] == "3.0.0"
-    assert versions["audit-codebase"] == "3.1.0"
     assert versions["design-codebase"] == "2.1.0"
     assert versions["implement-plan"] == "3.1.0"
     assert versions["scope-issue"] == "3.1.0"

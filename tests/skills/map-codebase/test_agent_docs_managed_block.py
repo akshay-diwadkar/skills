@@ -17,8 +17,10 @@ def test_managed_block_creation_and_update(tmp_path: Path):
 
     content1 = agents_file.read_text(encoding="utf-8")
     assert "# User Written Agent Rules" in content1
-    assert MANAGED_BEGIN in content1
-    assert MANAGED_END in content1
+    assert "## Repository Knowledge" in content1
+    assert "KNOWLEDGE.md" in content1
+    assert MANAGED_BEGIN not in content1
+    assert MANAGED_END not in content1
 
     # Second run: idempotency test
     res2 = link_agent_docs(tmp_path)
@@ -46,8 +48,10 @@ def test_legacy_managed_block_migrates_in_place(tmp_path: Path):
     content = agents_file.read_text(encoding="utf-8")
     assert result["modified"] == ["AGENTS.md"]
     assert result["created"] == ["CLAUDE.md"]
-    assert MANAGED_BEGIN in content
-    assert MANAGED_END in content
+    assert "## Repository Knowledge" in content
+    assert "KNOWLEDGE.md" in content
+    assert MANAGED_BEGIN not in content
+    assert MANAGED_END not in content
     assert LEGACY_MANAGED_BEGIN not in content
     assert LEGACY_MANAGED_END not in content
     assert "old content" not in content

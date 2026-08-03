@@ -31,6 +31,7 @@ def test_build_knowledge_artifacts(sample_repo: Path):
     assert not (out_dir / "context.md").exists()
     assert not (out_dir / "architecture.md").exists()
     assert (out_dir / "manifest.json").is_file()
+    assert (out_dir / "KNOWLEDGE.md").is_file()
     assert not (sample_repo / "AGENTS.md").exists()
     assert not (sample_repo / "CLAUDE.md").exists()
     assert not (sample_repo / ".github" / "workflows" / "refresh-codebase-knowledge.yml").exists()

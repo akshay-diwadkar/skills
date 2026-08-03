@@ -21,7 +21,6 @@ CATEGORIES = {
 SEVERITIES = {"critical", "high", "medium", "low"}
 CONFIDENCE_LEVELS = {"high", "medium", "low"}
 RISK_LEVELS = {"critical", "high", "medium", "low"}
-OUTPUT_MODES = {"local-draft", "github-draft", "publish-ready", "resolution-follow-up"}
 SURFACE_STATUSES = {"accepted", "clean", "rejected", "deferred"}
 COVERAGE_STATUSES = {"complete", "not-applicable", "deferred"}
 CANDIDATE_DECISIONS = {"accepted", "rejected", "deferred", "merged"}
@@ -51,6 +50,7 @@ class AuditBundleError(Exception):
 
 @dataclass(frozen=True)
 class IssueDraft:
+    """Compatibility type retained while publication moves to raise-issue."""
     title: str
     body: str
     labels: list[str]
@@ -166,7 +166,6 @@ def validate_audit_bundle(raw: Any) -> list[str]:
     if len(categories) != len(set(categories)):
         errors.append("audit_context.categories must not contain duplicates")
     threshold = _enum(context.get("severity_threshold"), SEVERITIES, "audit_context.severity_threshold", errors)
-    _enum(context.get("output_mode"), OUTPUT_MODES, "audit_context.output_mode", errors)
     _strings(context, "scope_exclusions", "audit_context", errors)
     limitations = _strings(context, "limitations", "audit_context", errors)
 
@@ -413,26 +412,6 @@ def validate_audit_bundle(raw: Any) -> list[str]:
     linked_reject_ids = surface_reject_links | coverage_reject_links | deep_reject_links
     for reject_id in sorted(reject_ids - linked_reject_ids):
         errors.append(f"reject record {reject_id!r} is not linked from a risk surface or coverage")
-
-    issue_candidate_ids: list[str] = []
-    issues = _objects(bundle.get("issues"), "issues", errors)
-    for index, issue in enumerate(issues):
-        path = f"issues[{index}]"
-        candidate_id = _string(issue, "candidate_id", path, errors)
-        _string(issue, "title", path, errors)
-        _strings(issue, "labels", path, errors, nonempty=True)
-        issue_candidate_ids.append(candidate_id)
-        if candidate_id not in accepted_candidate_ids:
-            errors.append(f"{path}.candidate_id must reference an accepted candidate")
-    if len(issue_candidate_ids) != len(set(issue_candidate_ids)):
-        errors.append("issues must not link the same candidate more than once")
-    if set(issue_candidate_ids) != accepted_candidate_ids:
-        missing = sorted(accepted_candidate_ids - set(issue_candidate_ids))
-        extra = sorted(set(issue_candidate_ids) - accepted_candidate_ids)
-        if missing:
-            errors.append(f"issues are missing accepted candidate(s): {', '.join(missing)}")
-        if extra:
-            errors.append(f"issues link non-accepted candidate(s): {', '.join(extra)}")
 
     return errors
 

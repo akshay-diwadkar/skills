@@ -4,7 +4,7 @@ Use this reference when exact artifact, freshness, finalization, or failure sema
 
 ## Authority and Artifacts
 
-The knowledge directory contains deterministic machine artifacts only: `manifest.json`, `repo-map.json`, `symbols.json`, `symbol-index.json`, `relationships.json`, `evidence-index.json`, and catalogued symbol/evidence shards. Evidence shards are content-addressed by file hash, language, and extractor version, so unchanged files are reused without changing the projected repository map. It contains no Markdown orientation artifacts. Consumers verify returned source before acting.
+The knowledge directory contains machine artifacts: `manifest.json`, `repo-map.json`, `symbols.json`, `symbol-index.json`, `relationships.json`, `evidence-index.json`, and catalogued symbol/evidence shards. Evidence shards are content-addressed by file hash, language, and extractor version, so unchanged files are reused without changing the projected repository map. It also contains static `KNOWLEDGE.md`: concise asset locations and navigation guidance, with no repository-specific state. `KNOWLEDGE.md` is excluded from hashes and freshness. Consumers verify returned source before acting.
 
 ## Command and Agent-Mode Contract
 
@@ -12,17 +12,17 @@ The knowledge directory contains deterministic machine artifacts only: `manifest
 | --- | --- | --- |
 | `status`, `resolve`, `validate`, direct reads | Read | Permitted in no-write modes. Missing, stale, unwritable, or already-managed instruction files never gate these operations. |
 | `build`, `refresh` | Write | Write knowledge artifacts and finalize instruction files when invoked through the unified CLI or standalone executables. |
-| Imported `build_knowledge()`, `refresh_knowledge()` | Write | Update artifacts only; never edit instruction files. |
-| `link-docs` | Write | Explicitly repairs or reapplies instruction-file references. |
+| Imported `build_knowledge()`, `refresh_knowledge()` | Write | Update artifacts only; full builds also ensure static `KNOWLEDGE.md`; never edit instruction files. |
+| `link-docs` | Write | Explicitly repairs static guidance and instruction-file references. |
 | `generate-workflow` | Write | Creates a managed workflow only when explicitly requested. |
 
 When knowledge is missing or invalid in a no-write mode, inspect authoritative source directly. Valid existing knowledge may be resolved at any reported freshness state.
 
 ## Agent-Document Finalization
 
-After a successful unified CLI or standalone build/refresh executable, `AGENTS.md` and `CLAUDE.md` each contain one managed MAP-CODEBASE reference to the resolved output path. Missing files are created, user text outside the managed block is preserved, and `<!-- OPT-OUT MAP-CODEBASE -->` skips only the containing file.
+After a successful unified CLI or standalone build/refresh executable, `AGENTS.md` and `CLAUDE.md` each contain the skill-owned `## Repository Knowledge` heading followed by one pointer to the resolved `KNOWLEDGE.md`. Missing files are created, user text outside that section is preserved, and `<!-- OPT-OUT MAP-CODEBASE -->` skips only the containing instruction file. Valid legacy marker blocks migrate on write; markerless duplicate headings are rejected.
 
-Finalization plans and validates both targets before writing either. Each changed file is written through a same-directory temporary file and atomically replaced while preserving existing modes where supported. A two-file commit failure attempts to restore original bytes and remove files created by the failed transaction; incomplete rollback is reported. Knowledge artifacts remain available when finalization fails.
+Finalization plans and validates the static guide and both instruction files before writing any of them. Each changed file is written through a same-directory temporary file and atomically replaced while preserving existing modes where supported. A commit failure attempts to restore original bytes and remove files created by the failed transaction; incomplete rollback is reported. Knowledge artifacts remain available when finalization fails.
 
 ## Freshness State Machine
 

@@ -33,8 +33,10 @@ def _run(script: str, repo_root: Path, *args: str) -> subprocess.CompletedProces
 def _assert_docs(repo_root: Path, knowledge_path: str = ".agent/knowledge/") -> None:
     for name in ("AGENTS.md", "CLAUDE.md"):
         content = (repo_root / name).read_text(encoding="utf-8")
-        assert content.count(MANAGED_BEGIN) == 1
-        assert knowledge_path in content
+        assert content.count("## Repository Knowledge") == 1
+        assert f"Read `{knowledge_path}KNOWLEDGE.md` before repository exploration." in content
+        assert MANAGED_BEGIN not in content
+    assert (repo_root / knowledge_path / "KNOWLEDGE.md").is_file()
 
 
 def test_standalone_build_finalizes_docs_and_custom_output(sample_repo: Path):
@@ -151,6 +153,7 @@ def test_second_write_failure_removes_new_files(tmp_path: Path, monkeypatch: pyt
         ensure_agent_docs(tmp_path)
     assert not (tmp_path / "AGENTS.md").exists()
     assert not (tmp_path / "CLAUDE.md").exists()
+    assert not (tmp_path / ".agent" / "knowledge" / "KNOWLEDGE.md").exists()
 
 
 def test_mixed_create_modify_rollback_and_incomplete_rollback_reporting(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

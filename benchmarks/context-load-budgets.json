@@ -34,7 +34,8 @@
       "category": "user_orchestrator",
       "diagnostic_input": "bundle",
       "representative_inputs": {
-        "bundle": "{fixture_file}"
+        "bundle": "{fixture_file}",
+        "output_dir": "{fixture_dir}"
       }
     },
     "design-codebase": {
@@ -94,6 +95,11 @@
         "request_file": "{fixture_file}",
         "draft_file": "{fixture_file}"
       }
+    },
+    "raise-issue": {
+      "category": "user_orchestrator",
+      "diagnostic_input": "handoff",
+      "representative_inputs": {"handoff": "{fixture_file}", "github_repo_url": "owner/repo"}
     },
     "route-engineering-work": {
       "category": "router",
