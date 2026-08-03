@@ -75,7 +75,7 @@ def _trusted_text(text: str) -> str:
 
 
 def _parse_records(text: str, formats: dict[str, str]) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
-    records = {prefix: [] for prefix in RECORD_TOKENIZERS}
+    records: dict[str, list[dict[str, str]]] = {prefix: [] for prefix in RECORD_TOKENIZERS}
     errors: list[str] = []
     for line_number, line in enumerate(text.splitlines(), 1):
         candidate = RECORD_CANDIDATE_RE.fullmatch(line)

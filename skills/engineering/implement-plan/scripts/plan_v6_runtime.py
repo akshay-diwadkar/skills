@@ -1284,7 +1284,8 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
             diagnostics.append(Diagnostic("proof.stale", "Request digest changed.", "Use the request sealed with the plan.", category="stale_evidence"))
         if proof_shape_valid and request_bytes is not None and enriched_shape:
             try:
-                detected = detect_request_source(request_bytes, request_source.get("item"))
+                selected_item = request_source.get("item") if isinstance(request_source, dict) else None
+                detected = detect_request_source(request_bytes, selected_item)
             except ValueError:
                 detected = None
             if detected != request_source:

@@ -330,10 +330,10 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
             follow_up=("raise-issue",),
         )
     if issue_context or contains_any(text, ISSUE_PHRASES):
-        follow_up: tuple[Skill, ...] = ("plan-change",)
+        issue_follow_up: tuple[Skill, ...] = ("plan-change",)
         if implementation_requested:
-            follow_up += ("implement-plan",)
-        return make_decision("scope-issue", "github_issue_work", follow_up=follow_up)
+            issue_follow_up += ("implement-plan",)
+        return make_decision("scope-issue", "github_issue_work", follow_up=issue_follow_up)
 
     manual_requested = contains_any(text, MANUAL_NOUNS) and contains_any(
         text,
@@ -349,14 +349,14 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         text,
         ("choose", "decide", "design", "redesign", "restructure", "change", "implement", "build"),
     ):
-        follow_up = ("plan-change",)
+        design_follow_up: tuple[Skill, ...] = ("plan-change",)
         if implementation_requested:
-            follow_up += ("implement-plan",)
+            design_follow_up += ("implement-plan",)
         return make_decision(
             "design-codebase",
             "structural_design_requested",
             prerequisites=("map-codebase",) if facts.repository_navigation_inadequate else (),
-            follow_up=follow_up,
+            follow_up=design_follow_up,
         )
 
     if audit_requested:
@@ -370,10 +370,10 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         )
 
     if contains_any(text, OPTIMIZATION_NOUNS) and contains_any(text, OPTIMIZATION_VERBS):
-        follow_up: tuple[Skill, ...] = ("plan-change",)
+        optimization_follow_up: tuple[Skill, ...] = ("plan-change",)
         if implementation_requested:
-            follow_up += ("implement-plan",)
-        return make_decision("optimize-codebase", "named_optimization_work", follow_up=follow_up)
+            optimization_follow_up += ("implement-plan",)
+        return make_decision("optimize-codebase", "named_optimization_work", follow_up=optimization_follow_up)
 
     if planning_requested or implementation_requested:
         follow_up = ("implement-plan",) if implementation_requested else ()
