@@ -1,7 +1,7 @@
 ---
 name: optimize-codebase
 description: Investigate a named performance, build, CI, dependency, maintainability, or developer-experience bottleneck and seal one evidence-backed optimization handoff for plan-change. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery.
-version: 4.0.0
+version: 4.0.1
 metadata:
   invocation: user-invoked
 disable-model-invocation: true

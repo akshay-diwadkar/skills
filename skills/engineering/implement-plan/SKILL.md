@@ -1,10 +1,10 @@
 ---
 name: implement-plan
 description: Execute an approved implementation plan as the smallest complete patch — preserving existing patterns and uncommitted work, with layered verification and an exact change report. Use when the user has an approved or written plan and asks to implement, apply, or build it. Vague plans are refused back to planning.
-version: 3.2.0
+version: 3.2.1
 metadata:
-  implementation-contract: "3"
   invocation: user-invoked
+  implementation-contract: "3"
   finalizer: "scripts/seal_implementation.py"
   validation-required: "true"
 disable-model-invocation: true

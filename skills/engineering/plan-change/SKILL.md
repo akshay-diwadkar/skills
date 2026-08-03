@@ -1,10 +1,10 @@
 ---
 name: plan-change
 description: Produce and mechanically seal a repository-grounded implementation plan for a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository. Use native repository tools for exploration, then cite narrow evidence in a plan-contract v6 draft.
-version: 4.0.0
+version: 4.0.1
 metadata:
-  plan-contract: "6"
   invocation: both
+  plan-contract: "6"
   finalizer: "scripts/seal_plan.py"
   validation-required: "true"
 disable-model-invocation: false

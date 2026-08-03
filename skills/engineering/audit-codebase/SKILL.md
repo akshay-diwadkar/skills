@@ -1,10 +1,10 @@
 ---
 name: audit-codebase
 description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, then seal accepted findings into an audit handoff. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-version: 4.1.0
+version: 4.1.1
 metadata:
-  audit-contract: "1"
   invocation: user-invoked
+  audit-contract: "1"
   validator: "scripts/validate_audit_bundle.py"
   validation-required: "true"
 disable-model-invocation: true

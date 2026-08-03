@@ -1,7 +1,7 @@
 ---
 name: raise-issue
 description: Preview and publish sealed audit findings as GitHub issues. Use when given an audit-handoff.md and asked to create, open, raise, or publish its issues to an explicit GitHub repository.
-version: 1.0.0
+version: 1.0.1
 metadata:
   invocation: user-invoked
 disable-model-invocation: true
