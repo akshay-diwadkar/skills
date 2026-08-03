@@ -1,7 +1,7 @@
 ---
 name: plan-change
 description: Produce and mechanically seal a repository-grounded implementation plan for a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository. Use native repository tools for exploration, then cite narrow evidence in a plan-contract v6 draft.
-version: 3.0.0
+version: 4.0.0
 metadata:
   plan-contract: "6"
   invocation: both
@@ -24,6 +24,9 @@ never rediscover the repository.
 ## Workflow
 
 1. Interpret the request and select intent, tier, and applicable risk domains.
+   For a typed audit, design, optimization, or issue handoff, verify its receipt
+   and actionable state first. Plan one audit finding per run; pass
+   `handoff_item=<finding-id>` for a multi-finding audit.
 2. Explore with native search and reading tools. Inspect only enough current
    implementation, callers, tests, contracts, configuration, and boundaries to
    make the plan decision-complete.
@@ -46,7 +49,9 @@ python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
 
 The draft is the only agent-authored planning artifact. A successful run
 performs one semantic validation and reads only explicitly referenced repository
-files plus minimal Git identity metadata.
+files plus minimal Git identity metadata. The proof records request kind,
+handoff contract version, and selected audit item; generic Markdown requests
+remain supported.
 
 ## Depth
 

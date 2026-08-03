@@ -128,30 +128,22 @@ class CheckGitHubEnvTests(unittest.TestCase):
         manifest = (SKILL_ROOT / "skill-protocol.json").read_text(encoding="utf-8")
         self.assertIn("scripts/seal_issue_plan.py", manifest)
 
-    def test_skill_docs_preserve_opt_in_execution_boundary(self):
+    def test_skill_docs_define_read_only_handoff_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
-        docs += (SKILL_ROOT / "references" / "execution-and-follow-up.md").read_text(encoding="utf-8")
         docs = " ".join(docs.split())
-        self.assertIn("Planning is GitHub-read-only", docs)
-        self.assertIn("opt-in only", docs)
-        self.assertIn("after explicit user authorization", docs)
-        self.assertIn("one issue per branch", docs)
-        self.assertIn("Never batch issues into one branch or PR", docs)
-        self.assertIn("Refs #<number>", docs)
-        self.assertIn("never an auto-close keyword", docs)
-        self.assertIn("scripts/post_merge_issue_followup.py", docs)
-        self.assertIn("never closes or labels", docs)
+        self.assertIn("Remain read-only", docs)
+        self.assertIn("Never edit the target repository", docs)
+        self.assertIn("issue-handoff.md", docs)
+        self.assertNotIn("post_merge_issue_followup.py", docs)
 
     def test_skill_docs_require_validated_single_issue_handoff(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
         docs += (SKILL_ROOT / "references" / "planning-rubric.md").read_text(encoding="utf-8")
-        docs += (SKILL_ROOT / "references" / "execution-and-follow-up.md").read_text(encoding="utf-8")
         docs = " ".join(docs.split())
-        self.assertIn("plan one issue per pass", docs.lower())
+        self.assertIn("select one issue", docs.lower())
         self.assertIn("Issue Claims (Untrusted)", docs)
-        self.assertIn("ready-for-senior-plan", docs)
-        self.assertIn("$plan-change", docs)
-        self.assertIn("check_issue_plan.py", docs)
+        self.assertIn("plan-ready", docs)
+        self.assertIn("plan-change", docs)
 
 
 if __name__ == "__main__":

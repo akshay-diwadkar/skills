@@ -1,7 +1,7 @@
 ---
 name: audit-codebase
 description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, then seal accepted findings into an audit handoff. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-version: 4.0.0
+version: 4.1.0
 metadata:
   audit-contract: "1"
   invocation: user-invoked
@@ -43,7 +43,10 @@ read only `required_reads`, write only `allowed_writes`, and stop on every
 2. Use [Bounded Delegation Protocol](references/delegation-protocol.md) for optional read-only category scouts; the primary retains authority.
 3. Maintain the exact artifact shape in [Audit Contract](references/audit-contract.md) and inspect the selected surfaces with [Audit Techniques](references/audit-techniques.md).
 4. Disconfirm candidates, validate, and review every accepted, rejected, and deferred outcome.
-7. Stop after `audit-handoff.md` is sealed; use `raise-issue` only when the user separately requests publication.
+5. Stop after `audit-handoff.md` is sealed. Pass one accepted finding at a
+   time to `plan-change`; for multiple findings, use the explicit finding ID.
+   When the user delegates selection, rank severity first and stable finding
+   ID second. Use `raise-issue` only when publication is separately requested.
 
 ## Completion and recovery
 

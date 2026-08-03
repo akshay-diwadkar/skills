@@ -1,3 +1,4 @@
 -r structured-evidence-requirements.txt
 -r ../../skills/engineering/map-codebase/requirements.txt
+-r ../../skills/engineering/scope-issue/requirements.txt
 -r ../../skills/technical-communication/manualize/requirements.txt

@@ -102,11 +102,9 @@ def test_invocation_safety_capabilities_require_user_invocation() -> None:
     assert {name for name, values in capabilities.items() if values} == {
         "implement-plan",
         "raise-issue",
-        "scope-issue",
     }
     assert "external-write" in capabilities["raise-issue"]
     assert {"implementation", "repository-write"} <= capabilities["implement-plan"]
-    assert "external-write" in capabilities["scope-issue"]
 
 
 def test_invocation_registry_rejects_missing_stale_and_unknown_entries(tmp_path: Path) -> None:
@@ -165,13 +163,13 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "2.4.0"
-    assert versions["audit-codebase"] == "4.0.0"
+    assert versions["audit-codebase"] == "4.1.0"
     assert versions["raise-issue"] == "1.0.0"
-    assert versions["plan-change"] == "3.0.0"
-    assert versions["design-codebase"] == "2.1.0"
-    assert versions["implement-plan"] == "3.1.0"
-    assert versions["scope-issue"] == "3.1.0"
-    assert versions["optimize-codebase"] == "3.1.0"
+    assert versions["plan-change"] == "4.0.0"
+    assert versions["design-codebase"] == "3.0.0"
+    assert versions["implement-plan"] == "3.2.0"
+    assert versions["scope-issue"] == "4.0.0"
+    assert versions["optimize-codebase"] == "4.0.0"
     assert "3.0.0" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
@@ -277,6 +275,7 @@ def test_pre_release_workflow_matches_release_validation_environment() -> None:
     for skill_requirements in (
         "structured-evidence-requirements.txt",
         "skills/engineering/map-codebase/requirements.txt",
+        "skills/engineering/scope-issue/requirements.txt",
         "skills/technical-communication/manualize/requirements.txt",
     ):
         assert skill_requirements in requirements

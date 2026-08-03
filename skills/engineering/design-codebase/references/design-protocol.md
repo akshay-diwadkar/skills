@@ -1,6 +1,6 @@
 # Design Protocol
 
-Complete the seven gates in order. Keep working notes internal; `handoff.md` is
+Complete the seven gates in order. Keep working notes internal; `design-handoff.md` is
 the sole primary artifact.
 
 **Shared vocabulary**
@@ -75,7 +75,7 @@ python scripts/seal_assessment.py --repo-root /absolute/repo \
 ```
 
 Complete only when it exits successfully and returns canonical diagnostics on
-failure or exactly one `handoff.md` on success.
+failure or exactly one `design-handoff.md` on success.
 
 ## 7. Seal one handoff
 
@@ -83,5 +83,5 @@ The seal command performs structural validation, local evidence verification,
 missing-hash backfill, and the atomic artifact write in one pass. Do not run a
 separate validate, finalize, or verify command.
 
-Complete only when the sealer emits exactly one `handoff.md` and every local
+Complete only when the sealer emits exactly one `design-handoff.md` and every local
 evidence binding verifies. Never edit the validated draft or finalized artifact.

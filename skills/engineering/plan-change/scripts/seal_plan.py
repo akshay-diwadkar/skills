@@ -15,10 +15,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--request-file", type=Path, required=True)
+    parser.add_argument("--handoff-item")
     parser.add_argument("--draft", type=Path, required=True)
     args = parser.parse_args()
     try:
-        result = seal_plan(args.repo_root, args.request_file, args.draft)
+        result = seal_plan(args.repo_root, args.request_file, args.draft, handoff_item=args.handoff_item)
     except (OSError, UnicodeError, ValueError) as exc:
         diagnostics = getattr(exc, "diagnostics", None)
         if not diagnostics:

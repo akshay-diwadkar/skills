@@ -68,6 +68,10 @@ def main() -> int:
         parser.error("--output-dir must be absolute")
     content = render(bundle)
     destination = args.output_dir / "audit-handoff.md"
+    extras = [path for path in args.output_dir.iterdir() if path != destination] if args.output_dir.is_dir() else []
+    if extras:
+        print("output directory contains artifacts other than audit-handoff.md")
+        return 1
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path: Path | None = None
     try:

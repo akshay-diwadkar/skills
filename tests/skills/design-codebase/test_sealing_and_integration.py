@@ -89,13 +89,14 @@ def test_sealer_emits_only_deterministic_handoff(tmp_path: Path) -> None:
     output = tmp_path / "output"
     command = seal_command(repo, output, draft)
     first = subprocess.run(command, capture_output=True, text=True, check=True)
-    first_text = (output / "handoff.md").read_text(encoding="utf-8")
+    first_text = (output / "design-handoff.md").read_text(encoding="utf-8")
     second = subprocess.run(command, capture_output=True, text=True, check=True)
 
-    assert Path(first.stdout.strip()) == output / "handoff.md"
-    assert Path(second.stdout.strip()) == output / "handoff.md"
-    assert {path.name for path in output.iterdir()} == {"handoff.md"}
-    assert (output / "handoff.md").read_text(encoding="utf-8") == first_text
+    assert Path(first.stdout.strip()) == output / "design-handoff.md"
+    assert Path(second.stdout.strip()) == output / "design-handoff.md"
+    assert {path.name for path in output.iterdir()} == {"design-handoff.md"}
+    assert first_text.startswith("<!-- design-handoff: 1; sha256: ")
+    assert (output / "design-handoff.md").read_text(encoding="utf-8") == first_text
     assert "assessment-validation" not in first_text
     assert "design-assessment-contract" not in first_text
 
@@ -113,7 +114,7 @@ def test_sealer_backfills_all_local_evidence_hashes(tmp_path: Path) -> None:
         check=True,
     )
 
-    sealed = (output / "handoff.md").read_text(encoding="utf-8")
+    sealed = (output / "design-handoff.md").read_text(encoding="utf-8")
     assert sealed.count(" | sha256: ") == 4
     _parsed, diagnostics = handoff_contract.validate_handoff(
         sealed,
@@ -145,7 +146,7 @@ def test_invalid_draft_preserves_existing_artifact_without_write_attempt(tmp_pat
     draft.write_text(example().replace("## Problem & Scope", "## Missing"), encoding="utf-8")
     output = tmp_path / "output"
     output.mkdir()
-    destination = output / "handoff.md"
+    destination = output / "design-handoff.md"
     destination.write_text("existing sealed artifact\n", encoding="utf-8")
 
     with patch.object(seal_assessment, "_write_atomic") as write_atomic:
@@ -213,7 +214,7 @@ def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
         check=True,
     )
 
-    handoff = output / "handoff.md"
+    handoff = output / "design-handoff.md"
     plan = tmp_path / "plan.md"
     plan.write_text(
         """# Introduce a payment gateway boundary
@@ -272,7 +273,7 @@ def test_sealer_reports_source_mutation_before_handoff(tmp_path: Path) -> None:
         text=True,
         check=True,
     )
-    handoff = output / "handoff.md"
+    handoff = output / "design-handoff.md"
     fresh = subprocess.run(
         seal_command(repo, tmp_path / "verify-output", handoff),
         capture_output=True,

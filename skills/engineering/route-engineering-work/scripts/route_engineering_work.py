@@ -330,7 +330,10 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
             follow_up=("raise-issue",),
         )
     if issue_context or contains_any(text, ISSUE_PHRASES):
-        return make_decision("scope-issue", "github_issue_work")
+        follow_up: tuple[Skill, ...] = ("plan-change",)
+        if implementation_requested:
+            follow_up += ("implement-plan",)
+        return make_decision("scope-issue", "github_issue_work", follow_up=follow_up)
 
     manual_requested = contains_any(text, MANUAL_NOUNS) and contains_any(
         text,
@@ -346,11 +349,9 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         text,
         ("choose", "decide", "design", "redesign", "restructure", "change", "implement", "build"),
     ):
-        follow_up = ()
-        if planning_requested or implementation_requested:
-            follow_up = ("plan-change",)
-            if implementation_requested:
-                follow_up += ("implement-plan",)
+        follow_up = ("plan-change",)
+        if implementation_requested:
+            follow_up += ("implement-plan",)
         return make_decision(
             "design-codebase",
             "structural_design_requested",
@@ -359,9 +360,9 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         )
 
     if audit_requested:
-        audit_follow_up: tuple[Skill, ...] = (
-            ("plan-change", "implement-plan") if implementation_requested else ()
-        )
+        audit_follow_up: tuple[Skill, ...] = ("plan-change",)
+        if implementation_requested:
+            audit_follow_up += ("implement-plan",)
         return make_decision(
             "audit-codebase",
             "unknown_risk_discovery",
@@ -369,7 +370,10 @@ def route_request(request: str, facts: RepositoryFacts | None = None) -> Routing
         )
 
     if contains_any(text, OPTIMIZATION_NOUNS) and contains_any(text, OPTIMIZATION_VERBS):
-        return make_decision("optimize-codebase", "named_optimization_work")
+        follow_up: tuple[Skill, ...] = ("plan-change",)
+        if implementation_requested:
+            follow_up += ("implement-plan",)
+        return make_decision("optimize-codebase", "named_optimization_work", follow_up=follow_up)
 
     if planning_requested or implementation_requested:
         follow_up = ("implement-plan",) if implementation_requested else ()

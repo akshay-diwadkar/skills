@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 2.1.0
+version: 3.0.0
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -14,7 +14,7 @@ user-invocable: true
 
 Decide what the target design is and why it is the right structural choice.
 Inspect the repository without editing implementation files. Produce one
-validated `handoff.md` for `plan-change`.
+validated `design-handoff.md` for `plan-change`.
 
 Stop at design. Never classify implementation tier, perform a full propagation
 sweep, prescribe file-level edits, write test or execution blueprints, order
@@ -53,7 +53,8 @@ the protocol's shared vocabulary only where it sharpens the decision.
 ## Completion and recovery
 
 Complete only when phase `complete` returns exactly
-`/absolute/output/handoff.md`, evidence verification passes, and no other
+`/absolute/output/design-handoff.md`, its typed receipt and evidence verification
+pass, and no other
 primary artifact exists. Pass that file to
 `plan-change` as `request_file`; the planning agent writes the separate v6
 draft after native exploration and seals both inputs with the stateless run.

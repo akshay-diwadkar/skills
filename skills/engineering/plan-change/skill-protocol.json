@@ -23,6 +23,14 @@
       "description": "Existing absolute path to the agent-authored v6 draft.",
       "choices": [],
       "path_policy": "existing"
+    },
+    {
+      "name": "handoff_item",
+      "kind": "string",
+      "required": false,
+      "repeatable": true,
+      "description": "Selected audit finding ID; rejected for every other request kind.",
+      "choices": []
     }
   ],
   "artifacts": [
@@ -45,7 +53,7 @@
             "--draft",
             "{input.draft_file}"
           ],
-          "repeat": [],
+          "repeat": [{"input":"handoff_item","flag":"--handoff-item"}],
           "capture_stdout": "final",
           "diagnostics_json": true,
           "failure": "blocked"

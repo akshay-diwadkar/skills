@@ -39,17 +39,17 @@ Apply the first resolved branch:
 
 - Route an implementation request without an approved plan to `plan-change`
   with `implement-plan` as follow-up.
-- Route a structural redesign to `design-codebase`; add `plan-change` and
-  `implement-plan` as follow-ups only when later planning or execution was
-  requested.
+- Route a structural redesign to `design-codebase`, then `plan-change`; add
+  `implement-plan` only when execution was requested.
 - Route unknown risk discovery to `audit-codebase`. Route a named measurable
   bottleneck to `optimize-codebase`.
 - Represent an explicit
   `map-codebase -> plan-change -> implement-plan` request with
   `primary_skill: plan-change`, `map-codebase` as prerequisite, and
   `implement-plan` as follow-up.
-- Let `scope-issue` and `optimize-codebase` own their internal conditional
-  handoffs. Do not speculate about downstream workflows.
+- Route actionable audit, design, optimization, and issue handoffs through
+  `plan-change`; terminal handoff states stop locally. Add `implement-plan`
+  only when execution was requested.
 - Prefer one primary skill. Never add a heavyweight workflow merely because it
   might become useful.
 

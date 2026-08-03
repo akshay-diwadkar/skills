@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.0.0 - 2026-08-03
+
+- Stop at one read-only `issue-handoff.md` and remove execution and post-merge ownership.
+
 ## 2.3.0 - 2026-08-01
 
 - Route new senior handoffs through stateless plan-contract v6 sealing.

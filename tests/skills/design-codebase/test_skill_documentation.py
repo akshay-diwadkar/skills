@@ -24,15 +24,15 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     protocol = (SKILL / "references" / "design-protocol.md").read_text(encoding="utf-8")
     assert protocol.count("## ") == 7
-    assert "emits exactly one `handoff.md`" in protocol
-    assert "handoff.md" in text
+    assert "emits exactly one `design-handoff.md`" in protocol
+    assert "design-handoff.md" in text
     assert not (SKILL / "scripts" / "assessment_contract.py").exists()
     assert not (SKILL / "scripts" / "scaffold_assessment.py").exists()
     assert not (SKILL / "references" / "assessment-contract.json").exists()
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
-    assert "version: 2.1.0" in text
+    assert "version: 3.0.0" in text
     assert "seal_assessment.py" in protocol
     assert "check_assessment.py" not in protocol
     assert "finalize_assessment.py" not in protocol

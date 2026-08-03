@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 7914,
-    "repair_diagnostic": 2559,
-    "tool_output": 1956,
-    "top_level": 5958,
-    "worst_context": 26578,
-    "worst_references": 18061
+    "pre_action": 7936,
+    "repair_diagnostic": 2594,
+    "tool_output": 1995,
+    "top_level": 5941,
+    "worst_context": 24198,
+    "worst_references": 15663
   },
   "baseline": {
     "requirements": [
@@ -18,18 +18,18 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "d6c83f0334ca4defc8a465cfd7cf4ce889a186f2fb19c56fd235087cae9fdaf8",
+  "config_sha256": "ed3cba5317b1cd92c9f7c971a8c07efda187500c55332283a4faae32cdd7c009",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 748,
+        "pre_action": 789,
         "repair_diagnostic": 223,
         "tool_output": 163,
-        "top_level": 585,
-        "worst_context": 2198,
+        "top_level": 626,
+        "worst_context": 2239,
         "worst_references": 1390
       },
       "path": "skills/engineering/audit-codebase/SKILL.md",
@@ -37,7 +37,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "c4e62e950ce7058dab35706437fa6c2af3b2408182d4afd8d8c316716969710f",
+      "source_hash": "2415c2f4eccbf7e37f0e2dfe05f994d21ffd441c02cd53ba9e5034205f2133f6",
       "worst_reference_paths": [
         "references/audit-contract.md",
         "references/audit-techniques.md",
@@ -48,19 +48,19 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 782,
+        "pre_action": 788,
         "repair_diagnostic": 224,
         "tool_output": 163,
-        "top_level": 619,
-        "worst_context": 4937,
-        "worst_references": 4094
+        "top_level": 625,
+        "worst_context": 4947,
+        "worst_references": 4098
       },
       "path": "skills/engineering/design-codebase/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "1cb62e8d1a0a18c25ae63dcb48abe76ef492828497af07266ea5b5df2fd13dd7",
+      "source_hash": "4907abca682c8b8d8b29fe641cbac38e2dc9f23b238ca5c0a544a1cabf7aeb65",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/design-protocol.md",
@@ -93,11 +93,11 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 820,
+        "pre_action": 840,
         "repair_diagnostic": 228,
         "tool_output": 173,
-        "top_level": 647,
-        "worst_context": 2982,
+        "top_level": 667,
+        "worst_context": 3002,
         "worst_references": 2107
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
@@ -128,7 +128,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "db5724d6264715e664e8839b2567c2dad5b88b301054c71a08ac989d43c311be",
+      "source_hash": "1790a46f00b41d9f94f8b6286cdaa940e9eada2dfd524c4ccc542bf02a0f4a4c",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/implementation-contract.json",
@@ -223,22 +223,20 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 753,
-        "repair_diagnostic": 223,
-        "tool_output": 174,
-        "top_level": 579,
-        "worst_context": 2524,
-        "worst_references": 1722
+        "pre_action": 677,
+        "repair_diagnostic": 225,
+        "tool_output": 170,
+        "top_level": 507,
+        "worst_context": 1594,
+        "worst_references": 862
       },
       "path": "skills/engineering/optimize-codebase/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "f6cb16d0b2694ca806c9d3d127dc92aae221c1df5a42741debc34ea1968063b5",
+      "source_hash": "7c8d41e566d7929797077dbae1e622bde921be409617eead9f4f26d03bac0ce2",
       "worst_reference_paths": [
-        "references/fast-path.md",
-        "references/handoff-contract.json",
         "references/optimization-contract.json",
         "references/optimization-contract.md",
         "references/optimization-techniques.md"
@@ -248,11 +246,11 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 721,
-        "repair_diagnostic": 228,
-        "tool_output": 165,
-        "top_level": 556,
-        "worst_context": 1989,
+        "pre_action": 827,
+        "repair_diagnostic": 261,
+        "tool_output": 198,
+        "top_level": 629,
+        "worst_context": 2095,
         "worst_references": 1205
       },
       "path": "skills/engineering/plan-change/SKILL.md",
@@ -260,7 +258,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "079bcfcbcb45a3a03a6ab0d181b86316419899aee38c26b60184f846d2f10efe",
+      "source_hash": "c54886e36fa2a5e76e877bf0c059ebb8c70677b64984319b17a1f61db05f2403",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",
@@ -317,15 +315,15 @@
         "repair_diagnostic": 260,
         "tool_output": 186,
         "top_level": 441,
-        "worst_context": 1364,
-        "worst_references": 663
+        "worst_context": 1367,
+        "worst_references": 666
       },
       "path": "skills/engineering/route-engineering-work/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "c1a52c29862d7c70765bbc52c1a5d5b6eadf79021f1be8339566b9f970e8b14d",
+      "source_hash": "7104b5e10b96c4de958ece60316113a6d9e3ca54c35100ea333b61883170e907",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]
@@ -334,21 +332,20 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 782,
+        "pre_action": 707,
         "repair_diagnostic": 225,
-        "tool_output": 164,
-        "top_level": 618,
-        "worst_context": 3135,
-        "worst_references": 2292
+        "tool_output": 174,
+        "top_level": 533,
+        "worst_context": 1505,
+        "worst_references": 747
       },
       "path": "skills/engineering/scope-issue/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "692c4e4ab63161af5b33100ecd83c148c1b25eee1f3c4c5323e89cb58f794cd1",
+      "source_hash": "1e8dd72768ed137f942a96187afe5ecee6925ce1da9b183be09c3f04fa149c5e",
       "worst_reference_paths": [
-        "references/execution-and-follow-up.md",
         "references/issue-plan-contract.json",
         "references/planning-rubric.md"
       ]
