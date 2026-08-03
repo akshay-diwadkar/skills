@@ -5,10 +5,10 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import jsonschema
 import pytest
-from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL_ROOT = REPO_ROOT / "skills" / "routing" / "route-work"
