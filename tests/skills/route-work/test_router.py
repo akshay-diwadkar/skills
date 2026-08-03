@@ -59,8 +59,10 @@ def test_deterministic_routing_fixtures(case: dict[str, object]) -> None:
     assert first["allowed_actions"] == list(ALLOWED_ACTIONS)
     assert first["forbidden_actions"] == list(FORBIDDEN_ACTIONS)
     assert "route_handoff" in first
-    assert "# Route Handoff Guidance" in first["route_handoff"]
-    assert "```mermaid" in first["route_handoff"]
+    route_handoff = first["route_handoff"]
+    assert isinstance(route_handoff, str)
+    assert "# Route Handoff Guidance" in route_handoff
+    assert "```mermaid" in route_handoff
     jsonschema.validate(first, SCHEMA)
 
 
@@ -81,7 +83,9 @@ def test_simple_requests_do_not_trigger_suite_workflows(case: dict[str, object])
     assert decision["reason"] == "no_suite_workflow_needed"
     assert decision["next_action"] == "answer_directly"
     assert "route_handoff" in decision
-    assert "Direct Answer" in decision["route_handoff"]
+    route_handoff = decision["route_handoff"]
+    assert isinstance(route_handoff, str)
+    assert "Direct Answer" in route_handoff
     forbidden_actions = decision["forbidden_actions"]
     assert isinstance(forbidden_actions, list)
     assert "execute_selected_workflow" in forbidden_actions
