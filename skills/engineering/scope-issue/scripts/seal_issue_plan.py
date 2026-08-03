@@ -13,7 +13,6 @@ from pathlib import Path
 
 from check_issue_plan import validate_plan
 
-
 RECEIPT_RE = re.compile(r"^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
 
 

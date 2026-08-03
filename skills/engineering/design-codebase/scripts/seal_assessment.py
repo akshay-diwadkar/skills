@@ -15,7 +15,6 @@ from typing import Any
 
 from handoff_contract import seal_handoff
 
-
 RECEIPT_RE = re.compile(r"^<!-- design-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
 
 

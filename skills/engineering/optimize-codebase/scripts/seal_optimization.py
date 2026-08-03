@@ -13,7 +13,6 @@ from pathlib import Path
 
 from check_optimization import validate
 
-
 RECEIPT_RE = re.compile(r"^<!-- optimization-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
 
 
