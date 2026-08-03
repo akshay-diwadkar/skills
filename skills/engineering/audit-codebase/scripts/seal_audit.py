@@ -66,12 +66,24 @@ def main() -> int:
         return 1
     if not args.output_dir.is_absolute():
         parser.error("--output-dir must be absolute")
+    content = render(bundle)
     destination = args.output_dir / "audit-handoff.md"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="\n", dir=destination.parent, delete=False) as temp:
-        temp.write(render(bundle))
-        name = temp.name
-    os.replace(name, destination)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            newline="\n",
+            dir=destination.parent,
+            delete=False,
+        ) as temp:
+            temp.write(content)
+            temporary_path = Path(temp.name)
+        os.replace(temporary_path, destination)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
     print(json.dumps({"status":"sealed", "path":str(destination), "issue_count":sum(c.get("decision") == "accepted" for c in bundle["candidates"])}))
     return 0
 

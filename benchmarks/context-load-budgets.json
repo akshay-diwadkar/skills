@@ -293,7 +293,7 @@
         "references/audit-contract.md",
         "references/audit-techniques.md"
       ],
-      "protected_rule_ids": ["audit.read-only", "audit.untrusted-authority", "audit.delegation-authority", "audit.publish-confirmation"]
+      "protected_rule_ids": ["audit.read-only", "audit.untrusted-authority", "audit.delegation-authority", "audit.handoff-terminal"]
     },
     {
       "id": "implement-plan-reference-consolidation",

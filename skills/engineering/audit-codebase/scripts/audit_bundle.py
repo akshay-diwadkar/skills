@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Validate audit bundles and render their structured issue drafts."""
+"""Validate audit bundles that terminate in a sealed handoff."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CATEGORIES = {
     "bug",
     "security",
@@ -45,26 +44,7 @@ SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
 class AuditBundleError(Exception):
-    """Raised when an audit bundle or legacy issue input is invalid."""
-
-
-@dataclass(frozen=True)
-class IssueDraft:
-    """Compatibility type retained while publication moves to raise-issue."""
-    title: str
-    body: str
-    labels: list[str]
-    severity: str
-    category: str
-    evidence: list[str]
-    acceptance_criteria: list[str]
-    candidate_id: str = ""
-    summary: str = ""
-    affected_workflow: str = ""
-    impact: str = ""
-    root_cause: str = ""
-    verification: list[str] | None = None
-    confidence: str = ""
+    """Raised when an audit bundle is invalid."""
 
 
 def read_json(path: Path) -> Any:
@@ -153,7 +133,19 @@ def validate_audit_bundle(raw: Any) -> list[str]:
         return errors
 
     if bundle.get("schema_version") != SCHEMA_VERSION:
-        errors.append(f"schema_version must be {SCHEMA_VERSION}")
+        errors.append("schema_version must be 2; regenerate or explicitly convert legacy v1 audit bundles")
+    legacy_keys = {
+        "github_repo_url",
+        "issues",
+        "output_mode",
+        "publication",
+        "publish_confirmation",
+    }
+    for key in sorted(legacy_keys.intersection(bundle)):
+        errors.append(
+            f"bundle.{key} is not supported in schema v2; "
+            "keep publication state outside audit-codebase"
+        )
 
     context = _object(bundle.get("audit_context"), "audit_context", errors) or {}
     _string(context, "target", "audit_context", errors)
@@ -252,6 +244,7 @@ def validate_audit_bundle(raw: Any) -> list[str]:
             errors.append(f"{path}.merged_into is required when decision is merged")
 
         if decision == "accepted":
+            _strings(candidate, "labels", path, errors, nonempty=True)
             accepted_candidate_ids.add(candidate_id)
             if confidence != "high":
                 errors.append(f"{path}.confidence must be high for an accepted candidate")
@@ -414,122 +407,3 @@ def validate_audit_bundle(raw: Any) -> list[str]:
         errors.append(f"reject record {reject_id!r} is not linked from a risk surface or coverage")
 
     return errors
-
-
-def _legacy_strings(value: Any, field: str, issue_index: int) -> list[str]:
-    if not isinstance(value, list) or not value:
-        raise AuditBundleError(f"issue {issue_index}: `{field}` must be a non-empty list of strings")
-    normalized: list[str] = []
-    for item in value:
-        if not isinstance(item, str) or not item.strip():
-            raise AuditBundleError(f"issue {issue_index}: `{field}` must contain only non-empty strings")
-        normalized.append(item.strip())
-    return normalized
-
-
-def legacy_issue(raw: Any, issue_index: int) -> IssueDraft:
-    required = {"title", "body", "labels", "severity", "category", "evidence", "acceptance_criteria"}
-    if not isinstance(raw, dict):
-        raise AuditBundleError(f"issue {issue_index}: expected an object")
-    missing = sorted(required - set(raw))
-    if missing:
-        raise AuditBundleError(f"issue {issue_index}: missing required field(s): {', '.join(missing)}")
-    title = raw["title"]
-    body = raw["body"]
-    severity = raw["severity"]
-    category = raw["category"]
-    if not isinstance(title, str) or not title.strip():
-        raise AuditBundleError(f"issue {issue_index}: `title` must be a non-empty string")
-    if not isinstance(body, str) or not body.strip():
-        raise AuditBundleError(f"issue {issue_index}: `body` must be a non-empty string")
-    if severity not in SEVERITIES:
-        raise AuditBundleError(f"issue {issue_index}: `severity` must be one of {', '.join(sorted(SEVERITIES))}")
-    if category not in CATEGORIES:
-        raise AuditBundleError(f"issue {issue_index}: `category` must be one of {', '.join(sorted(CATEGORIES))}")
-    return IssueDraft(
-        title=title.strip(),
-        body=body.strip(),
-        labels=_legacy_strings(raw["labels"], "labels", issue_index),
-        severity=severity,
-        category=category,
-        evidence=_legacy_strings(raw["evidence"], "evidence", issue_index),
-        acceptance_criteria=_legacy_strings(raw["acceptance_criteria"], "acceptance_criteria", issue_index),
-    )
-
-
-def issues_from_input(raw: Any) -> list[IssueDraft]:
-    if is_audit_bundle(raw):
-        errors = validate_audit_bundle(raw)
-        if errors:
-            raise AuditBundleError("invalid audit bundle:\n  - " + "\n  - ".join(errors))
-        assert isinstance(raw, dict)
-        candidates = {candidate["id"]: candidate for candidate in raw["candidates"]}
-        drafts: list[IssueDraft] = []
-        for issue in raw["issues"]:
-            candidate = candidates[issue["candidate_id"]]
-            evidence = [
-                f"{item['location']}: {item['observation']}" for item in candidate["evidence"]
-            ]
-            drafts.append(
-                IssueDraft(
-                    title=issue["title"].strip(),
-                    body="",
-                    labels=[label.strip() for label in issue["labels"]],
-                    severity=candidate["severity"],
-                    category=candidate["category"],
-                    evidence=evidence,
-                    acceptance_criteria=list(candidate["acceptance_criteria"]),
-                    candidate_id=candidate["id"],
-                    summary=candidate["summary"],
-                    affected_workflow=candidate["affected_workflow"],
-                    impact=candidate["impact"],
-                    root_cause=candidate["root_cause"],
-                    verification=list(candidate["verification"]),
-                    confidence=candidate["confidence"],
-                )
-            )
-        return drafts
-
-    raw_issues = raw.get("issues") if isinstance(raw, dict) and "issues" in raw else raw
-    if not isinstance(raw_issues, list) or not raw_issues:
-        raise AuditBundleError("input must be a non-empty issue array, an object with an `issues` array, or an audit bundle")
-    return [legacy_issue(issue, index + 1) for index, issue in enumerate(raw_issues)]
-
-
-def format_issue_body(issue: IssueDraft) -> str:
-    if issue.candidate_id:
-        verification = issue.verification or []
-        return "\n\n".join(
-            [
-                f"## Summary\n\n{issue.summary}",
-                f"## Impact\n\n{issue.impact}\n\nAffected workflow: {issue.affected_workflow}",
-                f"## Root cause\n\n{issue.root_cause}",
-                "## Evidence\n\n" + "\n".join(f"- {item}" for item in issue.evidence),
-                "## Verification\n\n" + "\n".join(f"- {item}" for item in verification),
-                "## Acceptance criteria\n\n"
-                + "\n".join(f"- [ ] {item}" for item in issue.acceptance_criteria),
-                "## Audit metadata\n\n"
-                f"- Candidate: `{issue.candidate_id}`\n"
-                f"- Severity: `{issue.severity}`\n"
-                f"- Category: `{issue.category}`\n"
-                f"- Confidence: `{issue.confidence}`",
-            ]
-        )
-
-    body = issue.body.strip()
-    body_lower = body.lower()
-    sections = [body]
-    if "## evidence" not in body_lower:
-        sections.append("## Evidence\n\n" + "\n".join(f"- {item}" for item in issue.evidence))
-    if "## acceptance criteria" not in body_lower:
-        sections.append(
-            "## Acceptance criteria\n\n"
-            + "\n".join(f"- [ ] {item}" for item in issue.acceptance_criteria)
-        )
-    if "## audit metadata" not in body_lower:
-        sections.append(
-            "## Audit metadata\n\n"
-            f"- Severity: `{issue.severity}`\n"
-            f"- Category: `{issue.category}`"
-        )
-    return "\n\n".join(sections)

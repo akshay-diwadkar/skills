@@ -3,7 +3,7 @@
 Delegation is optional. Use category scouts only for isolated read-only risk
 evidence collection when the platform supports subagents. Otherwise execute
 the same scout contracts sequentially. The primary agent owns coverage,
-candidate decisions, issue drafts, validation, and publication.
+candidate decisions, validation, and handoff sealing.
 
 ## Authority, trust, and result envelope
 
@@ -67,7 +67,7 @@ same frame snapshot. Never split one category across overlapping scouts.
    is an omission, not coverage.
 5. Rerun each omitted scout sequentially exactly once. If it still fails,
    record a terminal limitation and block complete coverage. The primary alone
-   promotes or rejects candidates, writes issues, validates, and publishes.
+   promotes or rejects candidates, validates, and seals the handoff.
 
 When subagents are unavailable or intentionally skipped, the primary agent
 executes every selected category scout sequentially with identical inputs,

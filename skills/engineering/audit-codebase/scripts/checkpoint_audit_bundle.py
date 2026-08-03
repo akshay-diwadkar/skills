@@ -18,7 +18,7 @@ PHASE_FIELDS = {
     "risk_surfaces": ("risk_surfaces",),
     "coverage": ("coverage", "deep_analysis"),
     "candidates": ("candidates", "rejects"),
-    "issues": ("issues",),
+    "handoff": ("candidates", "coverage", "risk_surfaces"),
 }
 
 

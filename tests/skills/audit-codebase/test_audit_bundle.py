@@ -27,7 +27,6 @@ import validate_audit_bundle  # noqa: E402
 
 FIXTURE_DIR = DEV_DIR / "fixtures"
 VALID_BUNDLE_PATH = FIXTURE_DIR / "valid_bundle.json"
-LEGACY_ISSUES_PATH = FIXTURE_DIR / "legacy_issues.json"
 
 
 def valid_bundle() -> dict[str, Any]:
@@ -76,10 +75,15 @@ class AuditBundleTests(unittest.TestCase):
                 bundle["candidates"][0][field] = value
                 self.assert_error_contains(bundle, f".{field} must be one of")
 
-    def test_accepted_candidate_needs_no_duplicate_issue_record(self):
+    def test_redundant_issue_record_is_rejected(self):
         bundle = valid_bundle()
         bundle["issues"] = []
-        self.assertEqual(audit_bundle.validate_audit_bundle(bundle), [])
+        self.assert_error_contains(bundle, "bundle.issues is not supported")
+
+    def test_v1_bundle_has_actionable_migration_error(self):
+        bundle = valid_bundle()
+        bundle["schema_version"] = 1
+        self.assert_error_contains(bundle, "regenerate or explicitly convert legacy v1")
 
     def test_duplicate_root_causes_are_rejected(self):
         bundle = valid_bundle()
@@ -87,16 +91,12 @@ class AuditBundleTests(unittest.TestCase):
         duplicate["id"] = "C-002"
         duplicate["title"] = "Duplicate candidate"
         bundle["candidates"].append(duplicate)
-        bundle["issues"].append(
-            {"candidate_id": "C-002", "title": "Duplicate candidate", "labels": ["audit", "bug"]}
-        )
         self.assert_error_contains(bundle, "root_cause duplicates accepted candidate")
 
     def test_high_risk_deferment_requires_reported_limitation(self):
         bundle = valid_bundle()
         candidate = bundle["candidates"][0]
         candidate["decision"] = "deferred"
-        bundle["issues"] = []
         bundle["rejects"] = [
             {
                 "id": "R-001",
@@ -113,21 +113,6 @@ class AuditBundleTests(unittest.TestCase):
 
         bundle["audit_context"]["limitations"] = ["Production dependency unavailable"]
         self.assertEqual(audit_bundle.validate_audit_bundle(bundle), [])
-
-    def test_legacy_input_remains_supported(self):
-        drafts = audit_bundle.issues_from_input(audit_bundle.read_json(LEGACY_ISSUES_PATH))
-        self.assertEqual(len(drafts), 1)
-        self.assertEqual(drafts[0].title, "Preserve an explicit zero retry count")
-        self.assertEqual(drafts[0].candidate_id, "")
-
-    def test_structured_body_is_deterministic(self):
-        draft = audit_bundle.issues_from_input(valid_bundle())[0]
-        first = audit_bundle.format_issue_body(draft)
-        second = audit_bundle.format_issue_body(draft)
-        self.assertEqual(first, second)
-        self.assertIn("## Verification", first)
-        self.assertIn("Candidate: `C-001`", first)
-        self.assertIn("Confidence: `high`", first)
 
     def test_evaluation_scorer_checks_recall_and_decoys(self):
         expectations = {
@@ -182,12 +167,12 @@ class AuditBundleTests(unittest.TestCase):
                             "--input",
                             str(input_path),
                             "--phase",
-                            "issues",
+                            "handoff",
                         ]
                     ),
                     0,
                 )
-            self.assertIn("Saved issues checkpoint", stdout.getvalue())
+            self.assertIn("Saved handoff checkpoint", stdout.getvalue())
             saved_text = checkpoint_path.read_text(encoding="utf-8")
             self.assertEqual(json.loads(saved_text), bundle)
 
@@ -223,7 +208,7 @@ class AuditBundleTests(unittest.TestCase):
                             "--input",
                             str(input_path),
                             "--phase",
-                            "issues",
+                            "handoff",
                         ]
                     ),
                     2,

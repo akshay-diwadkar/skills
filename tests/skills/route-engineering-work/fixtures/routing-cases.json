@@ -67,6 +67,45 @@
     }
   },
   {
+    "id": "publish-audit-handoff",
+    "request": "Publish the issues from audit-handoff.md.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "raise-issue",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "audit_handoff_publication",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "audit-then-publish",
+    "request": "Audit the repository and publish the accepted issues afterward.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "audit-codebase",
+      "prerequisites": [],
+      "follow_up": ["raise-issue"],
+      "reason": "unknown_risk_discovery",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
+    "id": "generic-create-issues-stays-scope",
+    "request": "Create issues for the current backlog triage.",
+    "facts": {},
+    "expected": {
+      "primary_skill": "scope-issue",
+      "prerequisites": [],
+      "follow_up": [],
+      "reason": "github_issue_work",
+      "confidence": "high",
+      "next_action": "invoke_primary_skill"
+    }
+  },
+  {
     "id": "optimize-latency",
     "request": "Investigate and reduce the checkout latency bottleneck.",
     "facts": {},

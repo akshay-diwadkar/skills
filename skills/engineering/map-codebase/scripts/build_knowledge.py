@@ -15,7 +15,6 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 from knowledge.config import load_config, resolve_knowledge_directory
-from link_agent_docs import ensure_knowledge_guide
 from knowledge.discovery import (
     discover_files,
     filter_internal_paths,
@@ -29,6 +28,7 @@ from knowledge.fingerprint import compute_file_hash
 from knowledge.indexing import IndexedFile, classify_and_extract, project, shard_id
 from knowledge.schemas import validate_schema_json, validate_semantic_graph
 from knowledge.serialization import serialize_json_deterministic, write_file_deterministic
+from link_agent_docs import ensure_knowledge_guide
 
 SCHEMA_VERSION = "6.0"
 EXTRACTOR_VERSION = "6.0.0"

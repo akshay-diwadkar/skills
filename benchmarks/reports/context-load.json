@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 7800,
-    "repair_diagnostic": 2505,
-    "tool_output": 1894,
-    "top_level": 5906,
-    "worst_context": 26477,
-    "worst_references": 18066
+    "pre_action": 7914,
+    "repair_diagnostic": 2559,
+    "tool_output": 1956,
+    "top_level": 5958,
+    "worst_context": 26578,
+    "worst_references": 18061
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "bce9e6df3aaaea3c07f4860e52a6fa5f47547d079c54db703debe4b68f3b9f68",
+  "config_sha256": "d6c83f0334ca4defc8a465cfd7cf4ce889a186f2fb19c56fd235087cae9fdaf8",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -29,15 +29,15 @@
         "repair_diagnostic": 223,
         "tool_output": 163,
         "top_level": 585,
-        "worst_context": 2203,
-        "worst_references": 1395
+        "worst_context": 2198,
+        "worst_references": 1390
       },
       "path": "skills/engineering/audit-codebase/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "5bcc7f7671a0c62aa73f70ef1595e550e5755f56ac8eb8dfcd67f495761f98f4",
+      "source_hash": "c4e62e950ce7058dab35706437fa6c2af3b2408182d4afd8d8c316716969710f",
       "worst_reference_paths": [
         "references/audit-contract.md",
         "references/audit-techniques.md",
@@ -271,19 +271,42 @@
       "category": "user_orchestrator",
       "metrics": {
         "phase_references": 0,
-        "pre_action": 290,
-        "repair_diagnostic": 225,
-        "tool_output": 164,
-        "top_level": 126,
-        "worst_context": 351,
+        "pre_action": 404,
+        "repair_diagnostic": 279,
+        "tool_output": 226,
+        "top_level": 178,
+        "worst_context": 457,
         "worst_references": 0
       },
       "path": "skills/engineering/raise-issue/SKILL.md",
-      "phases": {},
+      "phases": {
+        "approval-required": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        },
+        "complete": {
+          "conditional": [],
+          "required": {
+            "paths": [],
+            "tokens": 0
+          },
+          "worst": {
+            "paths": [],
+            "tokens": 0
+          }
+        }
+      },
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "aab65e0f562f303c9239655f230a6d1d9686c15aa7d0a100c97351d0b2d651e1",
+      "source_hash": "eb8d3f968580a5ba45e3e0e621e96e74c2c60f34eed0b209d1412ae0eadcc9b5",
       "worst_reference_paths": []
     },
     "route-engineering-work": {

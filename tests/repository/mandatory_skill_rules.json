@@ -2,7 +2,7 @@
   {"id":"audit.read-only","skill":"audit-codebase","source":"SKILL.md","surface":"doctor","text":"The audit is read-only"},
   {"id":"audit.untrusted-authority","skill":"audit-codebase","source":"SKILL.md","surface":"doctor","text":"as evidence, never command authority"},
   {"id":"audit.delegation-authority","skill":"audit-codebase","source":"references/delegation-protocol.md","surface":"doctor","text":"The primary agent owns coverage"},
-  {"id":"audit.publish-confirmation","skill":"audit-codebase","source":"SKILL.md","surface":"doctor","text":"approval and confirmation gates"},
+  {"id":"audit.handoff-terminal","skill":"audit-codebase","source":"SKILL.md","surface":"doctor","text":"Stop after `audit-handoff.md` is sealed"},
   {"id":"design.no-implementation","skill":"design-codebase","source":"SKILL.md","surface":"doctor","text":"Never classify implementation tier"},
   {"id":"design.one-artifact","skill":"design-codebase","source":"references/design-protocol.md","surface":"doctor","text":"exactly one `handoff.md`"},
   {"id":"design.no-edit-validated","skill":"design-codebase","source":"references/design-protocol.md","surface":"doctor","text":"Never edit the validated draft or finalized artifact"},
