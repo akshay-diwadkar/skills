@@ -21,7 +21,7 @@
     "audit-codebase": "user-invoked",
     "design-codebase": "both",
     "diagram-codebase": "user-invoked",
-    "ideate": "user-invoked",
+    "ideate": "both",
     "implement-plan": "user-invoked",
     "manualize": "both",
     "map-codebase": "model-invoked",

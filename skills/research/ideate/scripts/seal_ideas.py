@@ -107,15 +107,63 @@ def main(argv: list[str] | None = None) -> int:
     if not args.draft.is_file():
         parser.error("--draft must be a readable Markdown file")
 
+    repo_resolved = args.repo_root.resolve()
+    skill_resolved = SKILL_ROOT.resolve()
+    draft_resolved = args.draft.resolve()
+    out_resolved = args.output_dir.resolve()
+
     # Draft and output dir must be outside the skill dir
     try:
-        args.draft.resolve().relative_to(SKILL_ROOT.resolve())
+        draft_resolved.relative_to(skill_resolved)
         parser.error("--draft must be outside the installed skill directory")
     except ValueError:
         pass
     try:
-        args.output_dir.resolve().relative_to(SKILL_ROOT.resolve())
+        out_resolved.relative_to(skill_resolved)
         parser.error("--output-dir must be outside the installed skill directory")
+    except ValueError:
+        pass
+
+    # ZERO WORKSPACE WRITES: Output dir and draft must not resolve inside the target repository
+    try:
+        out_resolved.relative_to(repo_resolved)
+        print(
+            json.dumps(
+                {
+                    "valid": False,
+                    "diagnostics": [
+                        {
+                            "code": "ideas.output_in_workspace",
+                            "message": f"output directory {args.output_dir} resolves inside the target repository {args.repo_root}",
+                        }
+                    ],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        return 1
+    except ValueError:
+        pass
+
+    try:
+        draft_resolved.relative_to(repo_resolved)
+        print(
+            json.dumps(
+                {
+                    "valid": False,
+                    "diagnostics": [
+                        {
+                            "code": "ideas.draft_in_workspace",
+                            "message": f"draft path {args.draft} resolves inside the target repository {args.repo_root}",
+                        }
+                    ],
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        return 1
     except ValueError:
         pass
 
@@ -144,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
     sealed = _with_receipt(normalized)
 
     # --- Check output directory ---
-    destination = args.output_dir.resolve() / "ideas.md"
+    destination = out_resolved / "ideas.md"
     if destination.parent.is_dir():
         extras = [p for p in destination.parent.iterdir() if p.resolve() != destination.resolve()]
         if extras:

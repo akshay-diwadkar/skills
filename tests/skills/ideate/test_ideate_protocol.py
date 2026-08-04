@@ -15,10 +15,14 @@ def _valid_draft_text() -> str:
         "## 1. Handoff\n"
         "- State: decision-ready\n"
         "- Goal: reduce latency\n"
+        "- Success measure: p99 < 200ms\n"
+        "- Baseline / status quo: p99 = 500ms\n"
         "- Scope: API layer\n"
         "- Non-goals: database\n"
         "- Assumptions: current p99 = 500 ms\n"
+        "- Material unknowns: none\n"
         "- Decision horizon: Q3 2026\n"
+        "- Decision criteria: latency, effort\n"
         "- Selected source playbooks: software/engineering\n"
         "- Research coverage: docs\n"
         "- Research limitations: none\n\n"
@@ -30,20 +34,41 @@ def _valid_draft_text() -> str:
         "| E1 | Caching helps | https://example.com | § 1 | 2026-07 | high |\n\n"
         "## 3. Candidate ideas\n\n"
         "### I1. Add cache\n"
-        "- Mechanism: cache responses\n- Why it applies: E1 says so\n- Evidence: E1\n"
-        "- Expected impact: high\n- Effort: low\n- Risk: low\n"
-        "- Confidence: moderate\n- What would disconfirm it: low hit rate\n"
-        "- Cheapest decisive experiment: shadow cache\n\n"
+        "- Mechanism: cache responses\n"
+        "- Mechanism category: caching\n"
+        "- Why it applies: E1 says so\n"
+        "- Evidence: E1\n"
+        "- Expected impact: high\n"
+        "- Assumptions and dependencies: none\n"
+        "- Effort: low\n"
+        "- Risk: low\n"
+        "- Confidence: moderate\n"
+        "- What would disconfirm it: low hit rate\n"
+        "- Cheapest decisive experiment: shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
         "### I2. Compress\n"
-        "- Mechanism: gzip\n- Why it applies: saves bytes\n- Evidence: E1\n"
-        "- Expected impact: medium\n- Effort: low\n- Risk: low\n"
-        "- Confidence: low\n- What would disconfirm it: negligible size\n"
-        "- Cheapest decisive experiment: benchmark\n\n"
+        "- Mechanism: gzip\n"
+        "- Mechanism category: compression\n"
+        "- Why it applies: saves bytes\n"
+        "- Evidence: E1\n"
+        "- Expected impact: medium\n"
+        "- Assumptions and dependencies: none\n"
+        "- Effort: low\n"
+        "- Risk: low\n"
+        "- Confidence: low\n"
+        "- What would disconfirm it: negligible size\n"
+        "- Cheapest decisive experiment: benchmark; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
         "### I3. Pool connections\n"
-        "- Mechanism: reuse\n- Why it applies: overhead\n- Evidence: E1\n"
-        "- Expected impact: medium\n- Effort: high\n- Risk: medium\n"
-        "- Confidence: low\n- What would disconfirm it: no overhead\n"
-        "- Cheapest decisive experiment: profile\n\n"
+        "- Mechanism: reuse\n"
+        "- Mechanism category: pooling\n"
+        "- Why it applies: overhead\n"
+        "- Evidence: E1\n"
+        "- Expected impact: medium\n"
+        "- Assumptions and dependencies: none\n"
+        "- Effort: high\n"
+        "- Risk: medium\n"
+        "- Confidence: low\n"
+        "- What would disconfirm it: no overhead\n"
+        "- Cheapest decisive experiment: profile; metric: time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
         "## 4. Comparison\n\n"
         "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
         "| --- | --- | --- | --- | --- | --- | --- |\n"
@@ -53,8 +78,10 @@ def _valid_draft_text() -> str:
         "## 5. Recommendation\n"
         "- Provisional lead: I1 — Add cache\n"
         "- Why it leads: best ratio\n"
-        "- Cheapest decisive experiment: shadow cache\n"
-        "- What could change the ranking: hit rate data\n\n"
+        "- Why it beats rank 2: lower effort\n"
+        "- Cheapest decisive experiment: shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
+        "- What could change the ranking: hit rate data\n"
+        "- Conditions that would change the ranking: hit rate < 20%\n\n"
         "## 6. Contradictions and open questions\n"
         "- None identified.\n"
     )
@@ -105,7 +132,6 @@ def test_stateless_run(tmp_path: Path) -> None:
 
 def test_missing_input_draft(tmp_path: Path) -> None:
     output = tmp_path / "output"
-    output.mkdir()
     result = subprocess.run(
         [
             sys.executable,
@@ -124,11 +150,11 @@ def test_missing_input_draft(tmp_path: Path) -> None:
 def test_invocation_metadata() -> None:
     import re
     skill_md = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-    assert "disable-model-invocation: true" in skill_md
+    assert "disable-model-invocation: false" in skill_md
     assert "user-invocable: true" in skill_md
     version_m = re.search(r"^version:\s*(.+)$", skill_md, re.MULTILINE)
     assert version_m is not None
-    assert version_m.group(1).strip() == "0.1.1"
+    assert version_m.group(1).strip() == "1.0.0"
 
 
 def test_vendored_runtime_matches_canonical() -> None:

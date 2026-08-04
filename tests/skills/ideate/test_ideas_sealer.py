@@ -21,10 +21,14 @@ def _valid_draft() -> str:
         "## 1. Handoff\n"
         "- State: decision-ready\n"
         "- Goal: reduce latency\n"
+        "- Success measure: p99 < 200ms\n"
+        "- Baseline / status quo: p99 = 500ms\n"
         "- Scope: API layer\n"
         "- Non-goals: database\n"
         "- Assumptions: current p99 = 500 ms\n"
+        "- Material unknowns: none\n"
         "- Decision horizon: Q3 2026\n"
+        "- Decision criteria: latency, effort\n"
         "- Selected source playbooks: software/engineering\n"
         "- Research coverage: docs, benchmarks\n"
         "- Research limitations: none\n\n"
@@ -37,34 +41,40 @@ def _valid_draft() -> str:
         "## 3. Candidate ideas\n\n"
         "### I1. Add cache\n"
         "- Mechanism: cache responses\n"
+        "- Mechanism category: caching\n"
         "- Why it applies: E1 shows 50% reduction\n"
         "- Evidence: E1\n"
         "- Expected impact: high\n"
+        "- Assumptions and dependencies: none\n"
         "- Effort: low\n"
         "- Risk: low\n"
         "- Confidence: moderate\n"
         "- What would disconfirm it: cache hit rate < 20%\n"
-        "- Cheapest decisive experiment: run 1-day shadow cache\n\n"
+        "- Cheapest decisive experiment: run 1-day shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
         "### I2. Reduce payload\n"
         "- Mechanism: compress JSON\n"
+        "- Mechanism category: compression\n"
         "- Why it applies: E1 secondary finding\n"
         "- Evidence: E1\n"
         "- Expected impact: medium\n"
+        "- Assumptions and dependencies: none\n"
         "- Effort: medium\n"
         "- Risk: low\n"
         "- Confidence: low\n"
         "- What would disconfirm it: < 10% size reduction\n"
-        "- Cheapest decisive experiment: benchmark gzip\n\n"
+        "- Cheapest decisive experiment: benchmark gzip; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
         "### I3. Connection pooling\n"
         "- Mechanism: reuse connections\n"
+        "- Mechanism category: pooling\n"
         "- Why it applies: E1 mentions pool overhead\n"
         "- Evidence: E1\n"
         "- Expected impact: medium\n"
+        "- Assumptions and dependencies: none\n"
         "- Effort: high\n"
         "- Risk: medium\n"
         "- Confidence: low\n"
         "- What would disconfirm it: no connection overhead\n"
-        "- Cheapest decisive experiment: profile connection setup\n\n"
+        "- Cheapest decisive experiment: profile connection setup; metric: setup time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
         "## 4. Comparison\n\n"
         "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
         "| --- | --- | --- | --- | --- | --- | --- |\n"
@@ -74,8 +84,10 @@ def _valid_draft() -> str:
         "## 5. Recommendation\n"
         "- Provisional lead: I1 — Add cache\n"
         "- Why it leads: highest impact, lowest effort\n"
-        "- Cheapest decisive experiment: run 1-day shadow cache\n"
-        "- What could change the ranking: cache hit rate data\n\n"
+        "- Why it beats rank 2: lower effort than compression\n"
+        "- Cheapest decisive experiment: run 1-day shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
+        "- What could change the ranking: cache hit rate data\n"
+        "- Conditions that would change the ranking: hit rate < 20%\n\n"
         "## 6. Contradictions and open questions\n"
         "- None identified.\n"
     )
@@ -144,7 +156,6 @@ def test_valid_reseal(tmp_path: Path) -> None:
     )
     sealed_path = output / "ideas.md"
     sealed_text = sealed_path.read_text(encoding="utf-8")
-    # Use sealed file as new draft
     draft2 = tmp_path / "draft2.md"
     draft2.write_text(sealed_text, encoding="utf-8")
     output2 = tmp_path / "output2"
@@ -155,7 +166,6 @@ def test_valid_reseal(tmp_path: Path) -> None:
     )
     data = json.loads(result.stdout)
     assert data["status"] == "sealed"
-    # Content should be identical
     assert (output2 / "ideas.md").read_text(encoding="utf-8") == sealed_path.read_text(encoding="utf-8")
 
 
@@ -170,7 +180,6 @@ def test_mismatched_receipt_rejection(tmp_path: Path) -> None:
          "--repo-root", str(repo), "--draft", str(draft), "--output-dir", str(output)],
         check=True, capture_output=True,
     )
-    # Tamper with the body while preserving the receipt line
     sealed_path = output / "ideas.md"
     sealed_text = sealed_path.read_text(encoding="utf-8")
     tampered = sealed_text + "\n<!-- extra line -->\n"
@@ -182,7 +191,6 @@ def test_mismatched_receipt_rejection(tmp_path: Path) -> None:
          "--repo-root", str(repo), "--draft", str(tampered_draft), "--output-dir", str(output2)],
         capture_output=True, text=True,
     )
-    # Should fail — either non-zero exit or JSON with error
     assert result.returncode != 0 or "error" in result.stdout.lower() or "diagnostics" in result.stdout
 
 
@@ -206,7 +214,6 @@ def test_no_partial_output_on_failure(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     draft = tmp_path / "draft.md"
-    # Write an invalid draft (only 2 candidates)
     draft.write_text("# Ideas: test\n\n## 1. Handoff\n- State: decision-ready\n", encoding="utf-8")
     output = tmp_path / "output"
     result = subprocess.run(
@@ -224,14 +231,12 @@ def test_atomic_replacement_after_correction(tmp_path: Path) -> None:
     draft = tmp_path / "draft.md"
     draft.write_text(_valid_draft(), encoding="utf-8")
     output = tmp_path / "output"
-    # First seal
     subprocess.run(
         [sys.executable, str(SKILL / "scripts" / "seal_ideas.py"),
          "--repo-root", str(repo), "--draft", str(draft), "--output-dir", str(output)],
         check=True, capture_output=True,
     )
     original = (output / "ideas.md").read_bytes()
-    # Re-seal from original draft (same content = same digest)
     result = subprocess.run(
         [sys.executable, str(SKILL / "scripts" / "seal_ideas.py"),
          "--repo-root", str(repo), "--draft", str(draft), "--output-dir", str(output)],
@@ -248,7 +253,6 @@ def test_rejects_extra_artifacts(tmp_path: Path) -> None:
     draft.write_text(_valid_draft(), encoding="utf-8")
     output = tmp_path / "output"
     output.mkdir()
-    # Put an extra file in the output dir
     (output / "extra.txt").write_text("unexpected", encoding="utf-8")
     result = subprocess.run(
         [sys.executable, str(SKILL / "scripts" / "seal_ideas.py"),
@@ -256,7 +260,6 @@ def test_rejects_extra_artifacts(tmp_path: Path) -> None:
         capture_output=True, text=True,
     )
     assert result.returncode != 0
-    # extra.txt should still be there (sealer didn't delete it)
     assert (output / "extra.txt").exists()
 
 
@@ -272,5 +275,57 @@ def test_no_workspace_writes(tmp_path: Path) -> None:
          "--repo-root", str(repo), "--draft", str(draft), "--output-dir", str(output)],
         check=True, capture_output=True,
     )
-    # Workspace should only have the pre-existing file
     assert {p.name for p in repo.iterdir()} == {"existing.py"}
+
+
+# ---------------------------------------------------------------------------
+# Requirement §5 Workspace Write Guard Tests
+# ---------------------------------------------------------------------------
+
+
+def test_rejects_output_inside_repo(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    draft = tmp_path / "draft.md"
+    draft.write_text(_valid_draft(), encoding="utf-8")
+    output_inside = repo / "ideas_output"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SKILL / "scripts" / "seal_ideas.py"),
+            "--repo-root", str(repo),
+            "--draft", str(draft),
+            "--output-dir", str(output_inside),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    data = json.loads(result.stdout)
+    assert "ideas.output_in_workspace" in str(data)
+    assert not (output_inside / "ideas.md").exists()
+
+
+def test_rejects_draft_inside_repo(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    draft_inside = repo / "draft.md"
+    draft_inside.write_text(_valid_draft(), encoding="utf-8")
+    output = tmp_path / "output"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SKILL / "scripts" / "seal_ideas.py"),
+            "--repo-root", str(repo),
+            "--draft", str(draft_inside),
+            "--output-dir", str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    data = json.loads(result.stdout)
+    assert "ideas.draft_in_workspace" in str(data)
+    assert not (output / "ideas.md").exists()

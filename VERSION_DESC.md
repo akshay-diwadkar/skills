@@ -1,3 +1,7 @@
+# Ideate 1.0.0: Production-grade ideation skill
+
+`ideate` 1.0.0 replaces the initial 0.1.1 release with a production-grade ideation workflow. The explicit 6-step agent workflow (frame, source, research, generate, challenge, rank) replaces the previous minimal Start section. The ideation contract adds required fields for baseline/status quo, success measure, decision criteria, material unknowns, mechanism categories, assumptions and dependencies per candidate, structured experiments, ranking rationale, and conditions that would change the ranking. The validator enforces title positioning, heading uniqueness, field non-emptiness, evidence scoping, mechanism distinctness, table structure, workspace write guards (including symlink resolution), and coherent state/status combinations. The invocation policy changes from `user-invoked` to `both`, enabling agent-selected routing. Evaluation is an offline, deterministic structural coverage checker: 12 objective dimensions score any `ideas.md` draft against the contract using local fixtures (valid baselines and mutated defect fixtures) with zero LLM API calls or usage costs.
+
 # Standardize Skill YAML Frontmatter
 
 Standardized YAML frontmatters across all `SKILL.md` files in the repository. Standard key order (`name`, `description`, `version`, `metadata`, `disable-model-invocation`, `user-invocable`) and `metadata` field layout (`invocation` listed first) are now strictly enforced via repository validation.
