@@ -10,11 +10,12 @@ task efficiently without subagents.
 | `context-scout` | Bounded local material; repository work follows current map-codebase outputs |
 | `external-research-scout` | Prior art, evidence, trade-offs, and disconfirmation from external sources |
 | `constraint-scout` | Only when important constraints are distributed or specialized |
+| `adversarial-scout` | Challenge provisional lead; surface counter-arguments when it materially improves task |
 
 ## Limits
 
-- Maximum three scouts.
-- One scout per role.
+- Maximum three scouts total.
+- One scout per role. Drop least critical role if adding `adversarial-scout`.
 - Maximum 1,800 response tokens per scout.
 - Maximum 4,000 aggregate scout-response tokens.
 - Parallel only for independent scouts.
@@ -43,7 +44,7 @@ Each scout must return a result in this schema:
 
 ```text
 delegation_id: string
-role: context-scout | external-research-scout | constraint-scout
+role: context-scout | external-research-scout | constraint-scout | adversarial-scout
 status: complete | partial | blocked
 scope_examined: [string]
 evidence: [{evidence_id, claim, source, locator, freshness, relevance, trust}]

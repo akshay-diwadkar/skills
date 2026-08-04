@@ -3,10 +3,14 @@
 ## 1. Handoff
 - State: decision-ready | experiment-first | research-limited
 - Goal:
+- Success measure:
+- Baseline / status quo:
 - Scope:
 - Non-goals:
 - Assumptions:
+- Material unknowns:
 - Decision horizon:
+- Decision criteria:
 - Selected source playbooks:
 - Research coverage:
 - Research limitations:
@@ -14,7 +18,6 @@
 ## 2. Evidence
 
 ### Local evidence
-<!-- Optional; omit this subsection when no local context was gathered. -->
 
 | ID | Claim | Source path | Locator | Verification |
 | --- | --- | --- | --- | --- |
@@ -30,9 +33,11 @@ External research status: completed | limited | unavailable | user-disabled | lo
 
 ### I1. <name>
 - Mechanism:
+- Mechanism category:
 - Why it applies:
 - Evidence:
 - Expected impact:
+- Assumptions and dependencies:
 - Effort:
 - Risk:
 - Confidence:
@@ -41,9 +46,11 @@ External research status: completed | limited | unavailable | user-disabled | lo
 
 ### I2. <name>
 - Mechanism:
+- Mechanism category:
 - Why it applies:
 - Evidence:
 - Expected impact:
+- Assumptions and dependencies:
 - Effort:
 - Risk:
 - Confidence:
@@ -52,9 +59,11 @@ External research status: completed | limited | unavailable | user-disabled | lo
 
 ### I3. <name>
 - Mechanism:
+- Mechanism category:
 - Why it applies:
 - Evidence:
 - Expected impact:
+- Assumptions and dependencies:
 - Effort:
 - Risk:
 - Confidence:
@@ -72,11 +81,12 @@ External research status: completed | limited | unavailable | user-disabled | lo
 ## 5. Recommendation
 - Provisional lead: I1 — <name>
 - Why it leads:
+- Why it beats rank 2:
 - Cheapest decisive experiment:
 - What could change the ranking:
+- Conditions that would change the ranking:
 
 ## 6. Contradictions and open questions
 - None identified.
 
 ## 7. Optional downstream action
-<!-- Optional; omit this section when no useful next action exists. -->
