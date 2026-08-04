@@ -2,7 +2,7 @@
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
 [![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=7.1.1)](https://github.com/akshay-diwadkar/skills/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
 Repository-grounded skills for planning, implementing, reviewing, optimizing, visualizing, researching ideas, and documenting software changes with AI coding agents.
