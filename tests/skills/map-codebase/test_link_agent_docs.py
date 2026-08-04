@@ -14,6 +14,11 @@ from link_agent_docs import MANAGED_BEGIN, MANAGED_END, AgentDocumentError, ensu
 def _assert_knowledge_pointer(content: str, knowledge_path: str) -> None:
     assert content.count("## Repository Knowledge") == 1
     assert f"Read `{knowledge_path}KNOWLEDGE.md` before repository exploration." in content
+    assert "Use the `map-codebase` resolver as the default navigation entry point" in content
+    assert "resolve phase 1 for the current task" in content
+    assert "read only returned targets and selected symbol shards" in content
+    assert "expand only when its stop condition is unmet" in content
+    assert "Verify conclusions in source." in content
     assert MANAGED_BEGIN not in content
     assert MANAGED_END not in content
 
@@ -28,6 +33,7 @@ def _assert_knowledge_guide(path: Path) -> None:
     assert "`relationships.json`" in content
     assert "`evidence/*.json`" in content
     assert "Check freshness before broad exploration" in content
+    assert "Use the `map-codebase` resolver at phase 1" in content
 
 
 def test_neither_file_exists_creates_both_with_default_path(tmp_path: Path):
