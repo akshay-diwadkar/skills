@@ -122,6 +122,42 @@
   },
   "exceptions": [
     {
+      "id": "plan-change-v7-top-level-delta",
+      "skill": "plan-change",
+      "metric": "top_level",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 760,
+      "expires": "2027-08-04",
+      "rationale": "The v7 workflow step 3 states the obligations-anchoring, CH dependency graph, and bounded propagation accounting sequence required to author valid v7 drafts, raising top-level guidance from 629 to 756 tokens.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v7-pre-action-delta",
+      "skill": "plan-change",
+      "metric": "pre_action",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1000,
+      "expires": "2027-08-04",
+      "rationale": "The v7 draft input description and sealing guidance extend the pre-action envelope from 827 to 954 tokens while the stateless one-command protocol and protected rules stay unchanged.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
+      "id": "plan-change-v7-reference-delta",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1900,
+      "expires": "2027-08-04",
+      "rationale": "The v7 contract and task guidance document the mandatory Obligations section, CH dependency graph rules, propagation accounting, expanded intents, and rollout requirements, growing the reference portfolio from 1205 to 1883 tokens.",
+      "supporting_paths": ["references/plan-contract.md", "references/task-guidance.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
       "id": "route-work-compact-handoff-pre-action",
       "skill": "route-work",
       "metric": "pre_action",

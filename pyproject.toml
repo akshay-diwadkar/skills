@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-exclude = ["benchmarks/repos"]
+exclude = ["benchmarks/repos", "tests/skills/plan-change/fixtures/v7-quality/*/repo"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
