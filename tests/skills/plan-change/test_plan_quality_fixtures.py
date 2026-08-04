@@ -13,6 +13,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -23,7 +24,7 @@ sys.path.insert(0, str(ROOT / "tests" / "skills" / "plan-change"))
 import v6_helpers as HELPERS  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "tests" / "skills" / "plan-change" / "evals" / "tools"))
-import score_plan_quality as SCORER  # noqa: E402
+import score_plan_quality as SCORER  # noqa: E402  # type: ignore[import-not-found]
 
 RUNTIME = HELPERS.RUNTIME
 
@@ -55,7 +56,7 @@ def _repo(scenario: Path, tmp_path: Path) -> Path:
     return repo
 
 
-def _seal(scenario: Path, manifest: dict, tmp_path: Path, draft: Path) -> tuple[Path, Path, object]:
+def _seal(scenario: Path, manifest: dict, tmp_path: Path, draft: Path) -> tuple[Path, Path, Any]:
     repo = _repo(scenario, tmp_path)
     request = _request_file(scenario, manifest, tmp_path)
     sealed = RUNTIME.seal_plan(repo, request, draft, handoff_item=manifest.get("handoff_item"))

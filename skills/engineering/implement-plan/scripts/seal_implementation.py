@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 from implementation_contract import plan_contract_version, sha256_file, validate_plan_text
 
@@ -17,7 +18,7 @@ def _snapshot_path(output_path: Path, repo_path: str) -> Path:
 
 
 def _verify_plan_with_recorded_state(
-    plan: object, output_path: Path, diagnostics: list
+    plan: Any, output_path: Path, diagnostics: list
 ) -> str | None:
     """Verify the sealed plan against the bundle's recorded pre-state snapshots.
 
