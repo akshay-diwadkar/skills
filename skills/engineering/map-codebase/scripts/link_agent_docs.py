@@ -40,7 +40,14 @@ class PlannedAgentDoc:
 
 def generate_managed_block(rel_k_path: str) -> str:
     """Generate the concise repository-knowledge instruction section."""
-    return f"{REPOSITORY_KNOWLEDGE_HEADING}\nRead `{rel_k_path}/{KNOWLEDGE_GUIDE}` before repository exploration."
+    return (
+        f"{REPOSITORY_KNOWLEDGE_HEADING}\n"
+        f"Read `{rel_k_path}/{KNOWLEDGE_GUIDE}` before repository exploration. Navigate "
+        "it with the `map-codebase` resolver:\n"
+        "- Start at phase 1; read only returned targets and selected symbol shards.\n"
+        "- Expand only when the phase stop condition is unmet.\n"
+        "- Verify conclusions in current source."
+    )
 
 
 def generate_knowledge_guide() -> str:
@@ -60,7 +67,7 @@ Use this directory for repository navigation; verify selected conclusions in cur
 ## Workflow
 
 1. Check freshness before broad exploration; build or refresh only when missing, invalid, or stale.
-2. Resolve phase 1, read only returned targets and selected symbol shards, then expand only when its stop condition is unmet.
+2. Use the `map-codebase` resolver: start at phase 1 for the current task, read only returned targets and selected symbol shards, then expand only when the phase stop condition is unmet.
 3. Do not preload maps or shards. Knowledge guides navigation; source remains authoritative.
 """
 

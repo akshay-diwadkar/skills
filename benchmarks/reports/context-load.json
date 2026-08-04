@@ -241,7 +241,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "8db3fa1733019c9e253e7ffd0411413b7a5d5b00bfcc078c9ad62bd3e5443767",
+      "source_hash": "8214a36c4afbd50eab034da3580729bddefe8d1ebf34947de9d0b9f385e0eaed",
       "worst_reference_paths": [
         "references/example-walkthrough.md",
         "references/extractor-coverage.md",
