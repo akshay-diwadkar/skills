@@ -25,7 +25,9 @@ def _valid_draft_text() -> str:
         "- Decision criteria: latency, effort\n"
         "- Selected source playbooks: software/engineering\n"
         "- Research coverage: docs\n"
-        "- Research limitations: none\n\n"
+        "- Research limitations: none\n"
+        "- Research stop condition: stop after 5 sources or 30 minutes\n"
+        "- Research stop reason: condition met\n\n"
         "## 2. Evidence\n\n"
         "### External evidence\n\n"
         "External research status: completed\n\n"
@@ -37,7 +39,9 @@ def _valid_draft_text() -> str:
         "- Mechanism: cache responses\n"
         "- Mechanism category: caching\n"
         "- Why it applies: E1 says so\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: best on latency\n"
         "- Expected impact: high\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: low\n"
@@ -49,7 +53,9 @@ def _valid_draft_text() -> str:
         "- Mechanism: gzip\n"
         "- Mechanism category: compression\n"
         "- Why it applies: saves bytes\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: good on effort\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: low\n"
@@ -61,7 +67,9 @@ def _valid_draft_text() -> str:
         "- Mechanism: reuse\n"
         "- Mechanism category: pooling\n"
         "- Why it applies: overhead\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: hypothesis\n"
+        "- Decision-criteria fit: weakest on effort\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: high\n"
@@ -81,9 +89,13 @@ def _valid_draft_text() -> str:
         "- Why it beats rank 2: lower effort\n"
         "- Cheapest decisive experiment: shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         "- What could change the ranking: hit rate data\n"
-        "- Conditions that would change the ranking: hit rate < 20%\n\n"
+        "- Conditions that would change the ranking: hit rate < 20%\n"
+        "- How decision criteria were applied: latency dominated, then effort broke the tie\n\n"
         "## 6. Contradictions and open questions\n"
-        "- None identified.\n"
+        "- Strongest challenge to rank 1: cache misses\n"
+        "- Baseline / status quo comparison: better than baseline\n"
+        "- Condition for a different winner: rank 2 wins if size dominates\n"
+        "- Remaining contradiction or uncertainty: none remaining \u2014 same dataset\n"
     )
 
 
@@ -154,7 +166,7 @@ def test_invocation_metadata() -> None:
     assert "user-invocable: true" in skill_md
     version_m = re.search(r"^version:\s*(.+)$", skill_md, re.MULTILINE)
     assert version_m is not None
-    assert version_m.group(1).strip() == "1.0.0"
+    assert version_m.group(1).strip() == "2.0.0"
 
 
 def test_vendored_runtime_matches_canonical() -> None:

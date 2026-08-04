@@ -194,7 +194,7 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert versions["implement-plan"] == "3.2.1"
     assert versions["scope-issue"] == "4.0.1"
     assert versions["optimize-codebase"] == "4.0.1"
-    assert versions["ideate"] == "1.0.0"
+    assert versions["ideate"] == "2.0.0"
     assert "3.0.1" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")

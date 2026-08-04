@@ -14,6 +14,8 @@
 - Selected source playbooks: software/engineering
 - Research coverage: internal docs, benchmark logs
 - Research limitations: none
+- Research stop condition: stop after 5 external sources or 30 minutes
+- Research stop reason: condition met
 
 ## 2. Evidence
 
@@ -44,7 +46,7 @@ External research status: completed
 
 ### I2. Response Payload Compression
 - Mechanism: compress JSON responses with Brotli
-- Mechanism category: in-memory-caching
+- Mechanism category: payload-compression
 - Why it applies: large payloads slow down transmission
 - Evidence: E1 secondary finding on transfer size
 - Support basis: evidence-backed: E1
@@ -81,12 +83,16 @@ External research status: completed
 | 3 | I3 | medium | medium | medium | moderate | moderate |
 
 ## 5. Recommendation
-- Provisional lead: I1 — In-Memory Response Caching
+- Provisional lead: I10 — In-Memory Response Caching
 - Why it leads: highest latency reduction with lowest implementation effort
 - Why it beats rank 2: Caching eliminates computation, while compression only speeds network transfer
 - Cheapest decisive experiment: benchmark cache prototype; metric: hit rate; pass/fail: >60%; duration: 1d; cost/effort: low
 - What could change the ranking: Redis infrastructure cost exceeds budget
 - Conditions that would change the ranking: cache hit rate < 30% or memory cost > $5k/mo
+- How decision criteria were applied: latency reduction was weighted first; I1 wins on latency, and cost confirmed the order over I2
 
 ## 6. Contradictions and open questions
-- None identified.
+- Strongest challenge to rank 1: cache invalidation coordination across microservices
+- Baseline / status quo comparison: all candidates improve on the 500ms baseline; I1 improves it most
+- Condition for a different winner: I2 wins if payload size dominates user-perceived latency
+- Remaining contradiction or uncertainty: none remaining — E1 measured on the same benchmark dataset

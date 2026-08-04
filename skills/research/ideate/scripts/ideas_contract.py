@@ -19,7 +19,7 @@ from _diagnostic_contract import normalize_diagnostic
 # Structural constants
 # ---------------------------------------------------------------------------
 
-RECEIPT_PREFIX = "<!-- ideas-handoff: 1;"
+RECEIPT_PREFIX = "<!-- ideas-handoff: 2;"
 
 REQUIRED_HEADINGS = (
     "## 1. Handoff",
@@ -35,16 +35,26 @@ OPTIONAL_HEADINGS = (
 
 HANDOFF_STATES = {"decision-ready", "experiment-first", "research-limited"}
 EXTERNAL_STATUSES = {"completed", "limited", "unavailable", "user-disabled", "local-only"}
+CONTEXTUAL_ORIGINS = {"user-provided", "direct observation", "prior attempt", "general knowledge"}
+RESEARCH_STOP_REASONS = ("condition met", "diminishing returns", "unavailable sources", "user limit")
 
 CANDIDATE_ID_RE = re.compile(r"^### (I[1-7])\. (.*)$", re.MULTILINE)
 CANDIDATE_HEADING_RE = re.compile(r"^###+.*$", re.MULTILINE)
 LOCAL_EVIDENCE_ID_RE = re.compile(r"^\| (L\d+) \|", re.MULTILINE)
 EXTERNAL_EVIDENCE_ID_RE = re.compile(r"^\| (E\d+) \|", re.MULTILINE)
+CONTEXTUAL_EVIDENCE_ID_RE = re.compile(r"^\| (C\d+) \|", re.MULTILINE)
 COMPARISON_RANK_RE = re.compile(r"^\| (\d+) \| (I[1-7]) \|", re.MULTILINE)
 RECOMMENDATION_LEAD_RE = re.compile(r"^- Provisional lead:[ \t]*(.+)$", re.MULTILINE)
+RECOMMENDATION_LEAD_ID_RE = re.compile(r"^- Provisional lead:[ \t]*I([1-7])\b", re.MULTILINE)
 EXTERNAL_STATUS_LINE_RE = re.compile(r"^External research status:[ \t]*(.+)$", re.MULTILINE)
 TITLE_RE = re.compile(r"^# Ideas:[ \t]*(.+)$")
 HANDOFF_STATE_RE = re.compile(r"^- State:[ \t]*(.+)$", re.MULTILINE)
+RESEARCH_STOP_REASON_RE = re.compile(r"^- Research stop reason:[ \t]*(.+)$", re.MULTILINE)
+SUPPORT_BASIS_LINE_RE = re.compile(r"^- Support basis:[ \t]*(.*)$", re.MULTILINE)
+SUPPORT_BASIS_RE = re.compile(
+    r"^- Support basis:[ \t]*(evidence-backed|assumption-backed|hypothesis)(?:[ \t]*:[ \t]*(.*))?$",
+    re.MULTILINE,
+)
 
 HANDOFF_REQUIRED_FIELDS = (
     "- State:",
@@ -60,6 +70,8 @@ HANDOFF_REQUIRED_FIELDS = (
     "- Selected source playbooks:",
     "- Research coverage:",
     "- Research limitations:",
+    "- Research stop condition:",
+    "- Research stop reason:",
 )
 
 REQUIRED_CANDIDATE_FIELDS = (
@@ -67,6 +79,8 @@ REQUIRED_CANDIDATE_FIELDS = (
     "Mechanism category:",
     "Why it applies:",
     "Evidence:",
+    "Support basis:",
+    "Decision-criteria fit:",
     "Expected impact:",
     "Assumptions and dependencies:",
     "Effort:",
@@ -83,6 +97,14 @@ RECOMMENDATION_REQUIRED_FIELDS = (
     "- Cheapest decisive experiment:",
     "- What could change the ranking:",
     "- Conditions that would change the ranking:",
+    "- How decision criteria were applied:",
+)
+
+SECTION6_REQUIRED_FIELDS = (
+    "- Strongest challenge to rank 1:",
+    "- Baseline / status quo comparison:",
+    "- Condition for a different winner:",
+    "- Remaining contradiction or uncertainty:",
 )
 
 PROHIBITED_RE = re.compile(
@@ -94,12 +116,13 @@ STRONG_VERIFICATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-EVIDENCE_REF_RE = re.compile(r"\b([EL]\d+)\b")
+EVIDENCE_REF_RE = re.compile(r"\b([CEL]\d+)\b")
 DIGEST_RE = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 
 LOCAL_HEADER = "| ID | Claim | Source path | Locator | Verification |"
 EXTERNAL_HEADER = "| ID | Finding | Source | Locator | Date/freshness | Relevance |"
 COMPARISON_HEADER = "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |"
+CONTEXTUAL_HEADER = "| ID | Claim | Origin | Verification |"
 
 # ---------------------------------------------------------------------------
 # Diagnostic dataclass
@@ -279,7 +302,20 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 )
             )
 
-    # 5. External research status
+    # 5. Research stop reason vocabulary
+    stop_reason_m = RESEARCH_STOP_REASON_RE.search(handoff_body)
+    if stop_reason_m and stop_reason_m.group(1).strip():
+        stop_value = stop_reason_m.group(1).strip()
+        stop_lowered = stop_value.casefold()
+        if not any(stop_lowered.startswith(reason) for reason in RESEARCH_STOP_REASONS):
+            errors.append(
+                Diagnostic(
+                    "ideas.invalid_research_stop_reason",
+                    f"research stop reason {stop_value!r} must begin with one of: {', '.join(RESEARCH_STOP_REASONS)}",
+                )
+            )
+
+    # 6. External research status
     evidence_section = _section_body(text, "## 2. Evidence")
     ext_status_m = EXTERNAL_STATUS_LINE_RE.search(evidence_section)
     if not ext_status_m:
@@ -295,19 +331,23 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 )
             )
 
-    # 6. Collect declared evidence IDs and verify location
+    # 7. Collect declared evidence IDs and verify location
     declared_local: list[str] = LOCAL_EVIDENCE_ID_RE.findall(evidence_section)
     declared_external: list[str] = EXTERNAL_EVIDENCE_ID_RE.findall(evidence_section)
+    declared_contextual: list[str] = CONTEXTUAL_EVIDENCE_ID_RE.findall(evidence_section)
 
     all_doc_local = LOCAL_EVIDENCE_ID_RE.findall(text)
     all_doc_external = EXTERNAL_EVIDENCE_ID_RE.findall(text)
+    all_doc_contextual = CONTEXTUAL_EVIDENCE_ID_RE.findall(text)
 
     if len(all_doc_local) > len(declared_local):
         errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "local evidence IDs must be declared only inside Section 2"))
     if len(all_doc_external) > len(declared_external):
         errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "external evidence IDs must be declared only inside Section 2"))
+    if len(all_doc_contextual) > len(declared_contextual):
+        errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "contextual evidence IDs must be declared only inside Section 2"))
 
-    # Check contiguity and uniqueness for local & external evidence
+    # Check contiguity and uniqueness for local, external, and contextual evidence
     errors.extend(
         _validate_id_sequence(
             declared_local,
@@ -324,6 +364,15 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             "external evidence",
             "ideas.duplicate_external_evidence",
             "ideas.noncontiguous_external_evidence",
+        )
+    )
+    errors.extend(
+        _validate_id_sequence(
+            declared_contextual,
+            "C",
+            "contextual evidence",
+            "ideas.duplicate_contextual_evidence",
+            "ideas.noncontiguous_contextual_evidence",
         )
     )
 
@@ -348,6 +397,39 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             if len(parts) != 6:
                 errors.append(Diagnostic("ideas.invalid_external_table_row_width", f"External evidence row width must have 6 columns, found {len(parts)}"))
 
+    # Contextual evidence table header, row widths, and row content
+    if "### Contextual evidence" in evidence_section:
+        if CONTEXTUAL_HEADER not in evidence_section:
+            errors.append(Diagnostic("ideas.invalid_contextual_table_header", f"Contextual evidence table header must exactly match {CONTEXTUAL_HEADER!r}"))
+    for line in evidence_section.splitlines():
+        line_s = line.strip()
+        if line_s.startswith("| C") and line_s.endswith("|"):
+            parts = [p.strip() for p in line_s.split("|")[1:-1]]
+            if len(parts) != 4:
+                errors.append(Diagnostic("ideas.invalid_contextual_table_row_width", f"Contextual evidence row width must have 4 columns, found {len(parts)}"))
+    for row_m in re.finditer(
+        r"^\| (C\d+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$",
+        evidence_section,
+        re.MULTILINE,
+    ):
+        cid, c_claim, c_origin, c_verification = (
+            row_m.group(1),
+            row_m.group(2).strip(),
+            row_m.group(3).strip(),
+            row_m.group(4).strip(),
+        )
+        if not c_claim or c_claim in ("-", "â€”"):
+            errors.append(Diagnostic("ideas.empty_contextual_claim", f"{cid}: claim must be non-empty"))
+        if c_origin.casefold() not in CONTEXTUAL_ORIGINS:
+            errors.append(
+                Diagnostic(
+                    "ideas.invalid_contextual_origin",
+                    f"{cid}: origin {c_origin!r} must be one of: {', '.join(sorted(CONTEXTUAL_ORIGINS))}",
+                )
+            )
+        if not c_verification or c_verification in ("-", "â€”"):
+            errors.append(Diagnostic("ideas.empty_contextual_verification", f"{cid}: verification must be non-empty"))
+
     # Validate local evidence rows: non-empty locator, verification, existence, hash-digest check
     for row_m in re.finditer(
         r"^\| (L\d+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$",
@@ -361,14 +443,14 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             row_m.group(4).strip(),
             row_m.group(5).strip(),
         )
-        if not locator or locator in ("-", "—"):
+        if not locator or locator in ("-", "â€”"):
             errors.append(Diagnostic("ideas.empty_local_locator", f"{lid}: locator must be non-empty"))
-        if not verification or verification in ("-", "—"):
+        if not verification or verification in ("-", "â€”"):
             errors.append(Diagnostic("ideas.empty_local_verification", f"{lid}: verification must be non-empty"))
 
         # Path escape and file existence check
         resolved = None
-        if repo_root is not None and local_path and local_path not in ("-", "—"):
+        if repo_root is not None and local_path and local_path not in ("-", "â€”"):
             try:
                 resolved = (repo_root / local_path).resolve()
                 resolved.relative_to(repo_root.resolve())
@@ -398,7 +480,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                         )
                     )
 
-    # 7. Candidate ideas
+    # 8. Candidate ideas
     candidate_section = _section_body(text, "## 3. Candidate ideas")
     candidate_matches = CANDIDATE_ID_RE.findall(candidate_section)
     candidate_ids = [cid for cid, _ in candidate_matches]
@@ -435,9 +517,10 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         )
 
     # Validate candidate names and fields
-    declared_all = set(declared_local) | set(declared_external)
+    declared_all = set(declared_local) | set(declared_external) | set(declared_contextual)
     all_cited_evidence: set[str] = set()
     mechanism_categories: list[str] = []
+    support_labels: list[str] = []
 
     cand_blocks = re.split(r"(?=^### I[1-7]\. )", candidate_section, flags=re.MULTILINE)
     for block in cand_blocks:
@@ -468,29 +551,49 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         if cat_m and cat_m.group(1).strip():
             mechanism_categories.append(cat_m.group(1).strip().casefold())
 
-        # Check evidence references strictly from candidate's '- Evidence:' field
-        ev_field_m = re.search(r"^- Evidence:[ \t]*(.+)$", block, re.MULTILINE)
-        if ev_field_m:
-            ev_line_val = ev_field_m.group(1).strip()
-            refs = set(EVIDENCE_REF_RE.findall(ev_line_val))
-            if declared_all and not refs:
-                errors.append(
-                    Diagnostic(
-                        "ideas.candidate_missing_evidence",
-                        f"{cid}: candidate must reference at least one declared evidence ID in '- Evidence:' field",
-                    )
-                )
-            unknown = refs - declared_all
-            for ref in sorted(unknown):
-                errors.append(Diagnostic("ideas.unknown_evidence_reference", f"{cid}: references undeclared evidence {ref!r}"))
-            all_cited_evidence.update(refs & declared_all)
-        elif declared_all:
+        # Check support basis: single machine-parsed support declaration
+        sb_line_m = SUPPORT_BASIS_LINE_RE.search(block)
+        sb_m = SUPPORT_BASIS_RE.search(block)
+        if sb_line_m and sb_line_m.group(1).strip() and not sb_m:
             errors.append(
                 Diagnostic(
-                    "ideas.candidate_missing_evidence",
-                    f"{cid}: candidate must reference at least one declared evidence ID",
+                    "ideas.invalid_support_basis",
+                    f"{cid}: support basis must be 'evidence-backed: <IDs>', 'assumption-backed: <assumption>', or 'hypothesis'",
                 )
             )
+        elif sb_m:
+            label = sb_m.group(1).strip().casefold()
+            qualifier = (sb_m.group(2) or "").strip()
+            support_labels.append(label)
+            if label == "evidence-backed":
+                refs = set(EVIDENCE_REF_RE.findall(qualifier))
+                if not refs:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.evidence_backed_without_refs",
+                            f"{cid}: support basis 'evidence-backed' requires at least one declared evidence ID (L/E/C)",
+                        )
+                    )
+                unknown = refs - declared_all
+                for ref in sorted(unknown):
+                    errors.append(Diagnostic("ideas.unknown_evidence_reference", f"{cid}: references undeclared evidence {ref!r}"))
+                all_cited_evidence.update(refs & declared_all)
+            elif label == "assumption-backed":
+                if not qualifier:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.invalid_support_basis",
+                            f"{cid}: support basis 'assumption-backed' must identify the material assumption",
+                        )
+                    )
+            else:  # hypothesis
+                if qualifier:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.invalid_support_basis",
+                            f"{cid}: support basis 'hypothesis' must be a bare label",
+                        )
+                    )
 
     # Mechanism distinctness check
     if mechanism_categories and len(mechanism_categories) != len(set(mechanism_categories)):
@@ -508,7 +611,18 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             )
         )
 
-    # 8. Comparison table
+    # State coherence: decision-ready cannot rely solely on unsupported hypotheses
+    if state == "decision-ready" and support_labels and not any(
+        label in ("evidence-backed", "assumption-backed") for label in support_labels
+    ):
+        errors.append(
+            Diagnostic(
+                "ideas.unsupported_decision_ready",
+                "handoff state 'decision-ready' requires at least one evidence-backed or assumption-backed candidate",
+            )
+        )
+
+    # 9. Comparison table
     comparison_body = _section_body(text, "## 4. Comparison")
     if comparison_body.strip():
         if COMPARISON_HEADER not in comparison_body:
@@ -540,7 +654,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             if len(parts) != 7:
                 errors.append(Diagnostic("ideas.invalid_comparison_table_row_width", f"Comparison row width must have 7 columns, found {len(parts)}"))
 
-    # 9. Recommendation
+    # 10. Recommendation
     rec_body = _section_body(text, "## 5. Recommendation")
     for field in RECOMMENDATION_REQUIRED_FIELDS:
         field_pattern = re.compile(rf"^{re.escape(field)}[ \t]*(.*)$", re.MULTILINE)
@@ -551,12 +665,13 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     lead_m = RECOMMENDATION_LEAD_RE.search(rec_body)
     if lead_m and comparison_rows:
         rank1 = next((c for r, c in comparison_rows if int(r) == 1), None)
-        lead_text = lead_m.group(1).strip()
-        if rank1 and rank1 not in lead_text:
+        lead_id_m = RECOMMENDATION_LEAD_ID_RE.search(rec_body)
+        lead_id = "I" + lead_id_m.group(1) if lead_id_m else None
+        if rank1 and lead_id != rank1:
             errors.append(
                 Diagnostic(
                     "ideas.recommendation_mismatch",
-                    f"provisional lead mentions {lead_text!r} but rank 1 is {rank1!r}",
+                    f"provisional lead must parse exactly to {rank1!r}, found {lead_id!r}",
                 )
             )
 
@@ -564,7 +679,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     if rec_exp_m:
         errors.extend(_validate_decisive_experiment("recommendation", rec_exp_m.group(1)))
 
-    # 10. External status agreement with evidence & State coherence
+    # 11. External status agreement with evidence & State coherence
     if ext_status == "local-only" and declared_external:
         errors.append(
             Diagnostic("ideas.status_evidence_mismatch", "external status 'local-only' but external evidence rows are present")
@@ -578,7 +693,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             Diagnostic("ideas.incoherent_state_status", "handoff state 'research-limited' is incoherent with external status 'completed'")
         )
 
-    # 11. research-limited restriction (applies to external evidence / findings, not local facts)
+    # 12. research-limited restriction (applies to external evidence / findings, not local facts)
     if state == "research-limited":
         ext_evidence_text = ""
         ext_m = re.search(r"### External evidence.*?(?=### |\Z)", evidence_section, re.DOTALL)
@@ -592,7 +707,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 )
             )
 
-    # 12. Section 7 routing restriction
+    # 13. Section 7 routing restriction
     sec7_body = _section_body(text, "## 7. Optional downstream action")
     if sec7_body and "implement-plan" in sec7_body.lower():
         errors.append(
@@ -602,7 +717,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             )
         )
 
-    # 13. Prohibited implementation patches
+    # 14. Prohibited implementation patches
     if PROHIBITED_RE.search(text):
         errors.append(
             Diagnostic(
@@ -611,7 +726,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             )
         )
 
-    # 14. Section 6 non-emptiness
+    # 15. Section 6 non-emptiness and required challenge fields
     sec6_body = _section_body(text, "## 6. Contradictions and open questions")
     if not sec6_body.strip():
         errors.append(
@@ -620,6 +735,16 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 "Section 6 (Contradictions and open questions) must be non-empty",
             )
         )
+    for field in SECTION6_REQUIRED_FIELDS:
+        field_pattern = re.compile(rf"^{re.escape(field)}[ \t]*(.*)$", re.MULTILINE)
+        m = field_pattern.search(sec6_body)
+        if not m or not m.group(1).strip():
+            errors.append(
+                Diagnostic(
+                    "ideas.empty_section6_field",
+                    f"required Section 6 field is missing or empty: {field!r}",
+                )
+            )
 
     return errors
 

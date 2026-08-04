@@ -14,6 +14,8 @@
 - Selected source playbooks: software/engineering
 - Research coverage: internal docs, benchmark logs
 - Research limitations: none
+- Research stop condition: stop after 5 external sources or 30 minutes
+- Research stop reason: condition met
 
 ## 2. Evidence
 
@@ -31,33 +33,39 @@ External research status: completed
 - Mechanism: store frequent endpoint responses in Redis
 - Mechanism category: in-memory-caching
 - Why it applies: 80% of requests are read-only repeated queries
-- Evidence: E1
+- Evidence: E1 benchmark supports the mechanism
+- Support basis: evidence-backed: E1
+- Decision-criteria fit: best latency reduction at low cost
 - Expected impact: high
 - Assumptions and dependencies: Redis cluster available
 - Effort: low
 - Risk: low
 - Confidence: high
 - What would disconfirm it: cache hit rate < 40%
-- Cheapest decisive experiment: try running a quick cache test
+- Cheapest decisive experiment: run a quick cache test
 
 ### I2. Response Payload Compression
 - Mechanism: compress JSON responses with Brotli
 - Mechanism category: payload-compression
 - Why it applies: large payloads slow down transmission
-- Evidence: E1
+- Evidence: E1 secondary finding on transfer size
+- Support basis: evidence-backed: E1
+- Decision-criteria fit: moderate latency gain, low cost
 - Expected impact: medium
 - Assumptions and dependencies: CPU overhead acceptable
 - Effort: medium
 - Risk: low
 - Confidence: moderate
 - What would disconfirm it: CPU usage spikes > 90%
-- Cheapest decisive experiment: try compression on sample payload
+- Cheapest decisive experiment: try compression on a sample
 
 ### I3. Connection Pooling
 - Mechanism: reuse HTTP/2 TCP connections
 - Mechanism category: connection-pooling
 - Why it applies: handshake overhead adds 50ms per request
-- Evidence: E1
+- Evidence: E1 mentions connection setup cost
+- Support basis: hypothesis
+- Decision-criteria fit: uncertain gain at medium cost
 - Expected impact: medium
 - Assumptions and dependencies: upstream supports HTTP/2
 - Effort: medium
@@ -77,10 +85,14 @@ External research status: completed
 ## 5. Recommendation
 - Provisional lead: I1 — In-Memory Response Caching
 - Why it leads: highest latency reduction with lowest implementation effort
-- Why it beats rank 2: Caching eliminates computation
-- Cheapest decisive experiment: run cache test
+- Why it beats rank 2: Caching eliminates computation, while compression only speeds network transfer
+- Cheapest decisive experiment: run a quick cache test
 - What could change the ranking: Redis infrastructure cost exceeds budget
-- Conditions that would change the ranking: cache hit rate < 30%
+- Conditions that would change the ranking: cache hit rate < 30% or memory cost > $5k/mo
+- How decision criteria were applied: latency reduction was weighted first; I1 wins on latency, and cost confirmed the order over I2
 
 ## 6. Contradictions and open questions
-- Cache invalidation strategy requires coordination across microservices.
+- Strongest challenge to rank 1: cache invalidation coordination across microservices
+- Baseline / status quo comparison: all candidates improve on the 500ms baseline; I1 improves it most
+- Condition for a different winner: I2 wins if payload size dominates user-perceived latency
+- Remaining contradiction or uncertainty: none remaining — E1 measured on the same benchmark dataset

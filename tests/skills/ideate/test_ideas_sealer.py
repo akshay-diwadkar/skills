@@ -31,7 +31,9 @@ def _valid_draft() -> str:
         "- Decision criteria: latency, effort\n"
         "- Selected source playbooks: software/engineering\n"
         "- Research coverage: docs, benchmarks\n"
-        "- Research limitations: none\n\n"
+        "- Research limitations: none\n"
+        "- Research stop condition: stop after 5 sources or 30 minutes\n"
+        "- Research stop reason: condition met\n\n"
         "## 2. Evidence\n\n"
         "### External evidence\n\n"
         "External research status: completed\n\n"
@@ -43,7 +45,9 @@ def _valid_draft() -> str:
         "- Mechanism: cache responses\n"
         "- Mechanism category: caching\n"
         "- Why it applies: E1 shows 50% reduction\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: best on latency\n"
         "- Expected impact: high\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: low\n"
@@ -55,7 +59,9 @@ def _valid_draft() -> str:
         "- Mechanism: compress JSON\n"
         "- Mechanism category: compression\n"
         "- Why it applies: E1 secondary finding\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: good on effort\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: medium\n"
@@ -67,7 +73,9 @@ def _valid_draft() -> str:
         "- Mechanism: reuse connections\n"
         "- Mechanism category: pooling\n"
         "- Why it applies: E1 mentions pool overhead\n"
-        "- Evidence: E1\n"
+        "- Evidence: E1 finding\n"
+        "- Support basis: hypothesis\n"
+        "- Decision-criteria fit: weakest on effort\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: high\n"
@@ -87,9 +95,13 @@ def _valid_draft() -> str:
         "- Why it beats rank 2: lower effort than compression\n"
         "- Cheapest decisive experiment: run 1-day shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         "- What could change the ranking: cache hit rate data\n"
-        "- Conditions that would change the ranking: hit rate < 20%\n\n"
+        "- Conditions that would change the ranking: hit rate < 20%\n"
+        "- How decision criteria were applied: latency dominated, then effort broke the tie\n\n"
         "## 6. Contradictions and open questions\n"
-        "- None identified.\n"
+        "- Strongest challenge to rank 1: cache misses under load\n"
+        "- Baseline / status quo comparison: better than the 500ms baseline\n"
+        "- Condition for a different winner: rank 2 wins if size matters more\n"
+        "- Remaining contradiction or uncertainty: none remaining \u2014 both candidates share the same dataset\n"
     )
 
 
@@ -138,9 +150,29 @@ def test_receipt_digest_matches(tmp_path: Path) -> None:
     )
     sealed = (output / "ideas.md").read_text(encoding="utf-8")
     first, _, body = sealed.partition("\n")
-    assert first.startswith("<!-- ideas-handoff: 1; sha256: ")
+    assert first.startswith("<!-- ideas-handoff: 2; sha256: ")
     digest = first.split("sha256: ")[1].rstrip(" -->")
     assert hashlib.sha256(body.encode("utf-8")).hexdigest() == digest
+
+
+def test_rejects_v1_receipt(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    draft = tmp_path / "draft.md"
+    v1 = (
+        "<!-- ideas-handoff: 1; sha256: " + ("a" * 64) + " -->\n"
+        + _valid_draft()
+    )
+    draft.write_text(v1, encoding="utf-8")
+    output = tmp_path / "output"
+    result = subprocess.run(
+        [sys.executable, str(SKILL / "scripts" / "seal_ideas.py"),
+         "--repo-root", str(repo), "--draft", str(draft), "--output-dir", str(output)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "receipt version 1 is outdated" in result.stdout
+    assert not (output / "ideas.md").exists()
 
 
 def test_valid_reseal(tmp_path: Path) -> None:

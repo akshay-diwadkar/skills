@@ -14,6 +14,8 @@
 - Selected source playbooks: software/engineering
 - Research coverage: internal docs, benchmark logs
 - Research limitations: none
+- Research stop condition: stop after 5 external sources or 30 minutes
+- Research stop reason: condition met
 
 ## 2. Evidence
 
@@ -33,7 +35,6 @@ External research status: completed
 - Why it applies: 80% of requests are read-only repeated queries
 - Evidence: E1 benchmark supports the mechanism
 - Support basis: evidence-backed: E1
-- Decision-criteria fit: best latency reduction at low cost
 - Expected impact: high
 - Assumptions and dependencies: Redis cluster available
 - Effort: low
@@ -44,11 +45,10 @@ External research status: completed
 
 ### I2. Response Payload Compression
 - Mechanism: compress JSON responses with Brotli
-- Mechanism category: in-memory-caching
+- Mechanism category: payload-compression
 - Why it applies: large payloads slow down transmission
 - Evidence: E1 secondary finding on transfer size
 - Support basis: evidence-backed: E1
-- Decision-criteria fit: moderate latency gain, low cost
 - Expected impact: medium
 - Assumptions and dependencies: CPU overhead acceptable
 - Effort: medium
@@ -63,7 +63,6 @@ External research status: completed
 - Why it applies: handshake overhead adds 50ms per request
 - Evidence: E1 mentions connection setup cost
 - Support basis: hypothesis
-- Decision-criteria fit: uncertain gain at medium cost
 - Expected impact: medium
 - Assumptions and dependencies: upstream supports HTTP/2
 - Effort: medium
@@ -89,4 +88,7 @@ External research status: completed
 - Conditions that would change the ranking: cache hit rate < 30% or memory cost > $5k/mo
 
 ## 6. Contradictions and open questions
-- None identified.
+- Strongest challenge to rank 1: cache invalidation coordination across microservices
+- Baseline / status quo comparison: all candidates improve on the 500ms baseline; I1 improves it most
+- Condition for a different winner: I2 wins if payload size dominates user-perceived latency
+- Remaining contradiction or uncertainty: none remaining — E1 measured on the same benchmark dataset

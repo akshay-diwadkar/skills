@@ -1,134 +1,129 @@
 # Ideation Contract
 
-This document specifies the exact format of `ideas.md`. The sealer validates every rule deterministically using standard-library Python only.
+The exact `ideas.md` format (contract version 2), enforced by the sealer with
+standard-library Python only. **Enforced** rules fail sealing on violation;
+**obligation** rules are agent duties too semantic for safe keyword checks.
 
-## Document structure
+## Structure (enforced)
 
-```text
-# Ideas: <goal>
+`# Ideas: <goal>` (first line, non-empty goal); `## 1. Handoff` … `## 6.
+Contradictions and open questions` in exact order, once each; optional
+`## 7. Optional downstream action` after Section 6.
 
-## 1. Handoff
-## 2. Evidence
-## 3. Candidate ideas
-## 4. Comparison
-## 5. Recommendation
-## 6. Contradictions and open questions
-## 7. Optional downstream action   ← optional; omit when absent
-```
+## Section 1: Handoff (enforced)
 
-Document title must be the first line with a non-empty goal. Headings must appear in exact order, once each.
+All fields non-empty: State:, Goal:, Success measure:, Baseline / status quo:,
+Scope:, Non-goals:, Assumptions:, Material unknowns:, Decision horizon:,
+Decision criteria:, Selected source playbooks:, Research coverage:, Research
+limitations:, Research stop condition:, Research stop reason:.
 
-## Section 1: Handoff
+`State:` decision-ready = evidence sufficient; experiment-first = decisive
+experiment required; research-limited = external research curtailed — no strong
+external verification claims (local facts verifiable). `Research stop
+condition:` the pre-set condition that ended research. `Research stop reason:`
+`condition met | diminishing returns | unavailable sources | user limit`,
+optionally `— <explanation>`.
 
-Required non-empty fields:
+## Section 2: Evidence (enforced)
 
-```text
-- State: decision-ready | experiment-first | research-limited
-- Goal:
-- Success measure:
-- Baseline / status quo:
-- Scope:
-- Non-goals:
-- Assumptions:
-- Material unknowns:
-- Decision horizon:
-- Decision criteria:
-- Selected source playbooks:
-- Research coverage:
-- Research limitations:
-```
-
-- `decision-ready`: Evidence sufficient for action.
-- `experiment-first`: Decisive experiment required before ranking is reliable.
-- `research-limited`: External research unavailable/curtailed. Must not claim strong external verification ("verified", "confirmed local", "directly verified"). Local facts may be verified.
-
-## Section 2: Evidence
-
-Evidence IDs (`L1..`, `E1..`) must be declared only inside Section 2 tables.
+IDs (`L1..`, `E1..`, `C1..`) declared only in Section 2 tables.
 
 ### Local evidence (optional)
 
-Omit when absent. Required header when present:
+Omit when absent; header when present:
 
 ```markdown
 | ID | Claim | Source path | Locator | Verification |
 | --- | --- | --- | --- | --- |
 ```
 
-Rules: `L1`, `L2`, … unique and contiguous. Source path must resolve under workspace root, exist, and be a regular file. Locator/Verification non-empty. `hash-verified` requires a SHA-256 digest.
+`L1..` unique/contiguous; path under workspace root, existing, regular file;
+Locator/Verification non-empty; `hash-verified` requires SHA-256 digest.
+
+### Contextual evidence (optional)
+
+Omit when absent; header when present:
+
+```markdown
+| ID | Claim | Origin | Verification |
+| --- | --- | --- | --- |
+```
+
+`C1..` unique/contiguous; `Origin` ∈
+`user-provided | direct observation | prior attempt | general knowledge`; cells
+non-empty; never path-checked; no effect on `External research status`.
 
 ### External evidence
 
-Required status line: `External research status: completed | limited | unavailable | user-disabled | local-only`. `completed` requires rows; `local-only` prohibits them. `research-limited` + `completed` is invalid.
-
-Required header when table present:
+Status: `External research status: completed | limited | unavailable | user-disabled | local-only` — `completed` requires rows, `local-only` prohibits them, `research-limited` + `completed` invalid. Header when present:
 
 ```markdown
 | ID | Finding | Source | Locator | Date/freshness | Relevance |
 | --- | --- | --- | --- | --- | --- |
 ```
 
-External IDs: `E1`, `E2`, … unique and contiguous.
+`E1..` unique/contiguous.
 
-## Section 3: Candidate ideas
+## Section 3: Candidate ideas (enforced)
 
-3 to 7 candidates (`### I1. <name>` .. `### I7. <name>`). IDs contiguous starting at `I1`. Candidate names and fields non-empty.
+3–7 candidates (`### I1. <name>` …), contiguous from `I1`, names/fields
+non-empty. Required per candidate: Mechanism:, Mechanism category:, Why it
+applies:, Evidence:, Support basis:, Decision-criteria fit:, Expected impact:,
+Assumptions and dependencies:, Effort:, Risk:, Confidence:, What would
+disconfirm it:, Cheapest decisive experiment:. `Support basis:` is the single
+machine-parsed declaration: `evidence-backed: <declared IDs>` |
+`assumption-backed: <assumption>` | `hypothesis`; every declared ID must be
+cited.
+- `Evidence:` prose, unparsed; never pass off contextual material as a
+  repository file or publication (obligation).
+- `Decision-criteria fit:` non-empty qualitative statement vs the framed
+  criteria; numeric weights discouraged (obligation).
+- `Mechanism category:` unique per candidate; identical mechanisms not split
+  (obligation).
+- `Cheapest decisive experiment:` metric, pass/fail rule, duration bound,
+  effort/cost bound.
+- `decision-ready` requires ≥1 `evidence-backed` or `assumption-backed`
+  candidate; hypotheses-only invalid.
 
-Required fields per candidate:
+## Section 4: Comparison (enforced)
 
-```markdown
-- Mechanism:
-- Mechanism category:
-- Why it applies:
-- Evidence:
-- Expected impact:
-- Assumptions and dependencies:
-- Effort:
-- Risk:
-- Confidence:
-- What would disconfirm it:
-- Cheapest decisive experiment:
-```
-
-Rules:
-- `- Evidence:` references declared IDs (`L1`, `E1`). Every declared ID must be cited by at least one candidate.
-- Candidates must be mechanism-distinct by unique agent-authored `Mechanism category:`.
-- `Cheapest decisive experiment:` must include metric, pass/fail rule, duration bound, and effort/cost bound.
-
-## Section 4: Comparison
-
-Table ranking every candidate exactly once with header:
+Every candidate exactly once:
 
 ```markdown
 | Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |
 | --- | --- | --- | --- | --- | --- | --- |
 ```
 
-Ranks unique and contiguous from 1.
+Ranks unique/contiguous from 1.
 
-## Section 5: Recommendation
+## Section 5: Recommendation (enforced)
 
-Required fields:
+Provisional lead: I<n> — <name>, Why it leads:, Why it beats rank 2:,
+Cheapest decisive experiment:, What could change the ranking:, Conditions that
+would change the ranking:, How decision criteria were applied:.
 
-```markdown
-- Provisional lead: I<n> — <name>
-- Why it leads:
-- Why it beats rank 2:
-- Cheapest decisive experiment:
-- What could change the ranking:
-- Conditions that would change the ranking:
-```
+Lead ID must exactly equal rank-1 ID (substring invalid). Decisive experiment:
+metric, pass/fail, duration, cost/effort. Criteria statement links Section 1
+criteria to the ranking.
 
-`Provisional lead` must match Rank 1 candidate. `Cheapest decisive experiment:` must include metric, pass/fail rule, duration, and cost/effort.
+## Section 6: Contradictions and open questions (enforced)
 
-## Section 6: Contradictions and open questions
+Strongest challenge to rank 1:, Baseline / status quo comparison:, Condition
+for a different winner:, Remaining contradiction or uncertainty: — all
+non-empty.
 
-Non-empty body required. `None identified` is valid.
+`Remaining contradiction or uncertainty:` may say none remains only with an
+evidence-backed explanation (e.g. `None remaining — both candidates validated
+on the same dataset`); bare `None identified.` insufficient.
 
-## Section 7: Optional downstream action (optional)
+## Section 7: Optional downstream action (enforced, optional)
 
-Omit when absent. Must appear after Section 6. May name downstream skills (`design-codebase`, `optimize-codebase`, `plan-change`). Must never route directly to `implement-plan`.
+Omit when absent; after Section 6; may name skills (`design-codebase`,
+`optimize-codebase`, `plan-change`); never `implement-plan`; no diff/patch
+blocks.
 
-## Prohibited content
+## Obligations (not enforced)
 
-Diff/patch code blocks, fabricated precision, file edit instructions, workspace edits, extra primary artifacts beyond `ideas.md`.
+No fabricated precision. No file-edit or implementation directives or extra
+primary artifacts. Honest source selection, research scope, and stop
+conditions — the sealer checks only structure and vocabulary.
