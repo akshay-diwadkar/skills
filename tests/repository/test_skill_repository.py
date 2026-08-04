@@ -158,21 +158,44 @@ def test_invocation_validation_rejects_frontmatter_adapter_mismatch(tmp_path: Pa
     assert any("disable-model-invocation must be false for both" in error for error in errors)
 
 
+def test_skill_frontmatter_structure_validation(tmp_path: Path) -> None:
+    source = REPO_ROOT / "skills" / "engineering" / "design-codebase"
+    skill = tmp_path / "design-codebase"
+    shutil.copytree(source, skill)
+
+    assert validator.validate_frontmatter(skill) == []
+
+    skill_md = skill / "SKILL.md"
+    skill_md.write_text(
+        "---\nname: design-codebase\nversion: 3.0.1\ndescription: Test\nmetadata:\n  invocation: both\ndisable-model-invocation: false\nuser-invocable: true\n---\nBody\n",
+        encoding="utf-8",
+    )
+    errors = validator.validate_frontmatter(skill)
+    assert any("frontmatter keys must be ordered as" in error for error in errors)
+
+    skill_md.write_text(
+        "---\nname: design-codebase\ndescription: Test\nversion: 3.0.1\nmetadata:\n  foo: bar\n  invocation: both\ndisable-model-invocation: false\nuser-invocable: true\n---\nBody\n",
+        encoding="utf-8",
+    )
+    errors = validator.validate_frontmatter(skill)
+    assert any("metadata section must start with 'invocation'" in error for error in errors)
+
+
 def test_package_and_independent_skill_versions_are_valid() -> None:
     assert validator.validate_version() == []
     assert validator.validate_version_description() == []
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
-    assert versions["map-codebase"] == "2.4.0"
-    assert versions["audit-codebase"] == "4.1.0"
-    assert versions["raise-issue"] == "1.0.0"
-    assert versions["plan-change"] == "4.0.0"
-    assert versions["design-codebase"] == "3.0.0"
-    assert versions["implement-plan"] == "3.2.0"
-    assert versions["scope-issue"] == "4.0.0"
-    assert versions["optimize-codebase"] == "4.0.0"
-    assert versions["ideate"] == "0.1.0"
-    assert "3.0.0" in set(versions.values())
+    assert versions["map-codebase"] == "2.4.1"
+    assert versions["audit-codebase"] == "4.1.1"
+    assert versions["raise-issue"] == "1.0.1"
+    assert versions["plan-change"] == "4.0.1"
+    assert versions["design-codebase"] == "3.0.1"
+    assert versions["implement-plan"] == "3.2.1"
+    assert versions["scope-issue"] == "4.0.1"
+    assert versions["optimize-codebase"] == "4.0.1"
+    assert versions["ideate"] == "0.1.1"
+    assert "3.0.1" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")

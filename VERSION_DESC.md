@@ -1,3 +1,7 @@
+# Standardize Skill YAML Frontmatter
+
+Standardized YAML frontmatters across all `SKILL.md` files in the repository. Standard key order (`name`, `description`, `version`, `metadata`, `disable-model-invocation`, `user-invocable`) and `metadata` field layout (`invocation` listed first) are now strictly enforced via repository validation.
+
 # Agent-first routing validation
 
 `route-work` 4.0.0 is no longer a request classifier: the agent decides whether skills are needed, which skills to select, the primary skill, exclusions, required capabilities, and caller-known facts, and the router only validates that selection against a declarative skill graph. The result is `{valid, workflow, errors, warnings, route_handoff}`; `workflow` is the agent's selection in stable topological order when valid, unchanged otherwise. The router never inspects request text, never chooses, adds, or removes a skill, and never grants execution authority.

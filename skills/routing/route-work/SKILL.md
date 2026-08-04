@@ -1,7 +1,7 @@
 ---
 name: route-work
 description: Validate the agent-chosen workflow across suite skills and return one inline `route_handoff` decision. Use when no suite skill clearly applies and the agent must confirm its selection.
-version: 4.0.0
+version: 4.0.1
 metadata:
   invocation: model-invoked
 disable-model-invocation: false

@@ -38,7 +38,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "2415c2f4eccbf7e37f0e2dfe05f994d21ffd441c02cd53ba9e5034205f2133f6",
+      "source_hash": "83834befa6aa8b5c22b27fc3ce56c734178f279168dfa16d64dcc123c8a6ff76",
       "worst_reference_paths": [
         "references/audit-contract.md",
         "references/audit-techniques.md",
@@ -62,7 +62,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "4907abca682c8b8d8b29fe641cbac38e2dc9f23b238ca5c0a544a1cabf7aeb65",
+      "source_hash": "f7ab4d169a64295c5bea32f1754b47d028350ca5606e7c949a2e5c1a8c5131cc",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/design-protocol.md",
@@ -87,7 +87,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "e3d50c661a26eed7f0a5a428bb63eaf700d5dfe534018a1c0abea2a402ca27a8",
+      "source_hash": "59a0f9474330a9bebc7cd937577c0ac4e523ac19f213fb750b06706cbf5bb45c",
       "worst_reference_paths": [
         "references/diagram-output-guide.md"
       ]
@@ -109,7 +109,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "74468fb9e1b26dccd8c0985bf69fc9e2ff7013504e15a2bf4358fbe961fa4d83",
+      "source_hash": "6889a3bf411ce74a38e4687a9d2e29ad3ef62199c11e5db8503fd0cc12fcb7e6",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/ideation-contract.md",
@@ -156,7 +156,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "1790a46f00b41d9f94f8b6286cdaa940e9eada2dfd524c4ccc542bf02a0f4a4c",
+      "source_hash": "26303e20ff842238a23c3fd3ea004d99452b4439ed094285d1aa8ca52bf5d758",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/implementation-contract.json",
@@ -181,7 +181,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "cb2fc2bc148a0107de38da9645f4fff8c73cd64064135ddc781830d5b30a491a",
+      "source_hash": "e47a766ce9e44b38f8043c88c5811690de17254b603b35faa0c3a6d8e1afba6d",
       "worst_reference_paths": [
         "references/audit-report.md",
         "references/manual-bundle.md",
@@ -241,7 +241,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "b1e7c471c64e48e3eafa6253590f60b3030843c8f70fd346625fa0e84ff0a3fc",
+      "source_hash": "8db3fa1733019c9e253e7ffd0411413b7a5d5b00bfcc078c9ad62bd3e5443767",
       "worst_reference_paths": [
         "references/example-walkthrough.md",
         "references/extractor-coverage.md",
@@ -266,7 +266,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "7c8d41e566d7929797077dbae1e622bde921be409617eead9f4f26d03bac0ce2",
+      "source_hash": "fcb784d0dcf9013c3e9d871280674057481fc64c9fea0434bb4eadf6b0409c90",
       "worst_reference_paths": [
         "references/optimization-contract.json",
         "references/optimization-contract.md",
@@ -290,7 +290,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "c54886e36fa2a5e76e877bf0c059ebb8c70677b64984319b17a1f61db05f2403",
+      "source_hash": "f2540b94fb9bdd84f03724751b6cb28e3ebee44d8044445fc685ef805e1f863b",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",
@@ -337,7 +337,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "eb8d3f968580a5ba45e3e0e621e96e74c2c60f34eed0b209d1412ae0eadcc9b5",
+      "source_hash": "67536818a6bb4b9658ce9fea7e6ced7ab2e0a11e00417d9ab9dd8398f3d1e684",
       "worst_reference_paths": []
     },
     "route-work": {
@@ -357,7 +357,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "65dea7c194ec53d684c175e7439c7c8cae8594c609d8b172b9a89ba205129af1",
+      "source_hash": "5fa779b5a9994e2a31677df3f64a612f21ec8afd0598b9fa326197b8e6060c4e",
       "worst_reference_paths": [
         "references/routing-policy.md"
       ]
@@ -379,7 +379,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "1e8dd72768ed137f942a96187afe5ecee6925ce1da9b183be09c3f04fa149c5e",
+      "source_hash": "127370dda725daefe9bd5d7186229d05143a684f412b840e39f0de381efbe30f",
       "worst_reference_paths": [
         "references/issue-plan-contract.json",
         "references/planning-rubric.md"

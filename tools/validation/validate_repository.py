@@ -190,27 +190,58 @@ def validate_domain_layout() -> list[str]:
 
 def validate_frontmatter(skill_dir: Path) -> list[str]:
     skill_md = skill_dir / "SKILL.md"
+    rel_md = skill_md.relative_to(ROOT) if skill_md.is_relative_to(ROOT) else skill_md
+    rel_dir = skill_dir.relative_to(ROOT) if skill_dir.is_relative_to(ROOT) else skill_dir
     if not skill_md.is_file():
-        return [f"{skill_dir.relative_to(ROOT)}: missing SKILL.md"]
+        return [f"{rel_dir}: missing SKILL.md"]
     text = skill_md.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
-        return [f"{skill_md.relative_to(ROOT)}: missing YAML frontmatter"]
+        return [f"{rel_md}: missing YAML frontmatter"]
     frontmatter = text.split("---", 2)[1]
     name = re.search(r"^name:\s*(.+)$", frontmatter, re.MULTILINE)
     description = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
     version = re.search(r"^version:\s*(.+)$", frontmatter, re.MULTILINE)
     errors: list[str] = []
     if not name or name.group(1).strip() != skill_dir.name:
-        errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter name must match the skill directory")
+        errors.append(f"{rel_md}: frontmatter name must match the skill directory")
     if not description or not description.group(1).strip():
-        errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter description is required")
+        errors.append(f"{rel_md}: frontmatter description is required")
     if not version:
-        errors.append(f"{skill_md.relative_to(ROOT)}: frontmatter version is required")
+        errors.append(f"{rel_md}: frontmatter version is required")
     elif not SEMVER_RE.fullmatch(version.group(1).strip()):
         errors.append(
-            f"{skill_md.relative_to(ROOT)}: version "
+            f"{rel_md}: version "
             f"{version.group(1).strip()!r} is not valid Semantic Versioning"
         )
+
+    top_keys = re.findall(r"^([a-zA-Z0-9_-]+):", frontmatter, re.MULTILINE)
+    expected_keys = [
+        "name",
+        "description",
+        "version",
+        "metadata",
+        "disable-model-invocation",
+        "user-invocable",
+    ]
+    if top_keys != expected_keys:
+        errors.append(
+            f"{rel_md}: frontmatter keys must be ordered as {expected_keys}"
+        )
+
+    metadata_match = re.search(
+        r"^metadata:\s*\n(?P<body>(?:^[ \t]+[^\n]*(?:\n|$))*)",
+        frontmatter,
+        re.MULTILINE,
+    )
+    if metadata_match:
+        meta_keys = re.findall(
+            r"^[ \t]+([a-zA-Z0-9_-]+):", metadata_match.group("body"), re.MULTILINE
+        )
+        if not meta_keys or meta_keys[0] != "invocation":
+            errors.append(
+                f"{rel_md}: metadata section must start with 'invocation'"
+            )
+
     return errors
 
 
