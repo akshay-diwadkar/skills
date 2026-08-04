@@ -1,7 +1,10 @@
 # CLAUDE.md
 
 ## Repository Knowledge
-Read `.agent/knowledge/KNOWLEDGE.md` before repository exploration.
+Read `.agent/knowledge/KNOWLEDGE.md` before repository exploration. Navigate it with the `map-codebase` resolver:
+- Start at phase 1; read only returned targets and selected symbol shards.
+- Expand only when the phase stop condition is unmet.
+- Verify conclusions in current source.
 
 ## Versioning
 
