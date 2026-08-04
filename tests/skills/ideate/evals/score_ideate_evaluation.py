@@ -34,7 +34,10 @@ def score_ideas_draft(draft_path: Path, repo_root: Path | None = None) -> dict[s
         "7_confidence_calibration": not any(d.code == "ideas.limited_strong_verification" for d in diagnostics),
         "8_experiment_decisiveness": "Cheapest decisive experiment:" in raw_text and not any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics),
         "9_handling_of_contradictions": "## 6. Contradictions and open questions" in raw_text and not any(d.code == "ideas.empty_section6" for d in diagnostics),
-        "10_no_hallucination_fake_precision": not any(d.code == "ideas.hash_verified_without_digest" for d in diagnostics),
+        "10_no_hallucination_fake_precision": not any(
+            d.code in ("ideas.hash_verified_without_digest", "ideas.hash_verified_digest_mismatch")
+            for d in diagnostics
+        ),
         "11_actionability": "- Why it beats rank 2:" in raw_text and "- Conditions that would change the ranking:" in raw_text,
         "12_structural_completeness": len(diagnostics) == 0,
     }

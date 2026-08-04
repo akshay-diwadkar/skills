@@ -36,8 +36,8 @@ OPTIONAL_HEADINGS = (
 HANDOFF_STATES = {"decision-ready", "experiment-first", "research-limited"}
 EXTERNAL_STATUSES = {"completed", "limited", "unavailable", "user-disabled", "local-only"}
 
-CANDIDATE_ID_RE = re.compile(r"^### (I[1-7])\.[ \t]*(.*)$", re.MULTILINE)
-CANDIDATE_ALL_RE = re.compile(r"^### (I\d+)\.", re.MULTILINE)
+CANDIDATE_ID_RE = re.compile(r"^### (I[1-7])\. (.*)$", re.MULTILINE)
+CANDIDATE_HEADING_RE = re.compile(r"^###+.*$", re.MULTILINE)
 LOCAL_EVIDENCE_ID_RE = re.compile(r"^\| (L\d+) \|", re.MULTILINE)
 EXTERNAL_EVIDENCE_ID_RE = re.compile(r"^\| (E\d+) \|", re.MULTILINE)
 COMPARISON_RANK_RE = re.compile(r"^\| (\d+) \| (I[1-7]) \|", re.MULTILINE)
@@ -167,6 +167,49 @@ def _validate_id_sequence(
                     f"{domain} IDs must be contiguous starting at {prefix}1",
                 )
             )
+    return errors
+
+
+EXPERIMENT_COMPONENT_RE = re.compile(
+    r"(metric|pass/fail|duration|cost/effort|cost|effort)\s*:\s*([^;]*)",
+    re.IGNORECASE,
+)
+REQUIRED_EXPERIMENT_COMPONENTS = ("metric", "pass/fail", "duration")
+COST_EFFORT_COMPONENTS = ("cost/effort", "cost", "effort")
+
+
+def _parse_experiment_components(value: str) -> dict[str, str]:
+    """Parse 'metric: m; pass/fail: p; ...' into component name -> trimmed value."""
+    components: dict[str, str] = {}
+    for m in EXPERIMENT_COMPONENT_RE.finditer(value):
+        name = m.group(1).lower()
+        components[name] = m.group(2).strip()
+    return components
+
+
+def _validate_decisive_experiment(owner: str, value: str) -> list[Diagnostic]:
+    """Require a metric, pass/fail rule, duration bound, and cost/effort bound.
+
+    Each component must be present with a non-empty value; a bare label such
+    as 'metric:' does not satisfy the contract.
+    """
+    errors: list[Diagnostic] = []
+    components = _parse_experiment_components(value)
+    for name in REQUIRED_EXPERIMENT_COMPONENTS:
+        if not components.get(name, ""):
+            errors.append(
+                Diagnostic(
+                    "ideas.decisive_experiment_incomplete",
+                    f"{owner}: decisive experiment requires a non-empty '{name}:' value",
+                )
+            )
+    if not any(components.get(name, "") for name in COST_EFFORT_COMPONENTS):
+        errors.append(
+            Diagnostic(
+                "ideas.decisive_experiment_incomplete",
+                f"{owner}: decisive experiment requires a non-empty 'cost:' or 'effort:' bound",
+            )
+        )
     return errors
 
 
@@ -322,13 +365,9 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             errors.append(Diagnostic("ideas.empty_local_locator", f"{lid}: locator must be non-empty"))
         if not verification or verification in ("-", "—"):
             errors.append(Diagnostic("ideas.empty_local_verification", f"{lid}: verification must be non-empty"))
-        elif "hash-verified" in verification.lower():
-            if not DIGEST_RE.search(verification):
-                errors.append(
-                    Diagnostic("ideas.hash_verified_without_digest", f"{lid}: 'hash-verified' requires a SHA-256 digest")
-                )
 
         # Path escape and file existence check
+        resolved = None
         if repo_root is not None and local_path and local_path not in ("-", "—"):
             try:
                 resolved = (repo_root / local_path).resolve()
@@ -337,15 +376,43 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                     errors.append(
                         Diagnostic("ideas.local_path_not_found", f"{lid}: path {local_path!r} does not exist or is not a regular file")
                     )
+                    resolved = None
             except ValueError:
+                resolved = None
                 errors.append(Diagnostic("ideas.local_path_escape", f"{lid}: path {local_path!r} escapes the workspace root"))
+
+        # hash-verified: digest must be present and match the referenced file
+        if "hash-verified" in verification.lower():
+            digest_m = DIGEST_RE.search(verification)
+            if not digest_m:
+                errors.append(
+                    Diagnostic("ideas.hash_verified_without_digest", f"{lid}: 'hash-verified' requires a SHA-256 digest")
+                )
+            elif resolved is not None:
+                actual = hashlib.sha256(resolved.read_bytes()).hexdigest()
+                if digest_m.group(0).lower() != actual:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.hash_verified_digest_mismatch",
+                            f"{lid}: 'hash-verified' digest does not match file {local_path!r}",
+                        )
+                    )
 
     # 7. Candidate ideas
     candidate_section = _section_body(text, "## 3. Candidate ideas")
     candidate_matches = CANDIDATE_ID_RE.findall(candidate_section)
     candidate_ids = [cid for cid, _ in candidate_matches]
-    all_candidate_refs = CANDIDATE_ALL_RE.findall(candidate_section)
-    total_count = len(all_candidate_refs)
+    total_count = len(candidate_ids)
+
+    # Reject headings in Section 3 that are not canonical '### I1..I7. <name>'
+    for heading_line in CANDIDATE_HEADING_RE.findall(candidate_section):
+        if not CANDIDATE_ID_RE.match(heading_line):
+            errors.append(
+                Diagnostic(
+                    "ideas.noncanonical_candidate_heading",
+                    f"candidate heading {heading_line.strip()!r} must match '### I1..I7. <name>'",
+                )
+            )
 
     if total_count < 3:
         errors.append(
@@ -376,7 +443,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     for block in cand_blocks:
         if not block.strip():
             continue
-        cid_m = re.match(r"^### (I[1-7])\.[ \t]*(.*)$", block, re.MULTILINE)
+        cid_m = CANDIDATE_ID_RE.match(block)
         if not cid_m:
             continue
         cid = cid_m.group(1)
@@ -394,22 +461,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         # Check decisive experiment subfields
         exp_m = re.search(r"^- Cheapest decisive experiment:[ \t]*(.+)$", block, re.MULTILINE)
         if exp_m:
-            exp_val = exp_m.group(1).strip().lower()
-            for keyword in ("metric:", "pass/fail:", "duration:"):
-                if keyword not in exp_val:
-                    errors.append(
-                        Diagnostic(
-                            "ideas.decisive_experiment_incomplete",
-                            f"{cid}: decisive experiment missing required component '{keyword}'",
-                        )
-                    )
-            if "cost:" not in exp_val and "effort:" not in exp_val and "cost/effort:" not in exp_val:
-                errors.append(
-                    Diagnostic(
-                        "ideas.decisive_experiment_incomplete",
-                        f"{cid}: decisive experiment missing 'cost:' or 'effort:' bound",
-                    )
-                )
+            errors.extend(_validate_decisive_experiment(cid, exp_m.group(1)))
 
         # Collect Mechanism category for distinctness check
         cat_m = re.search(r"^- Mechanism category:[ \t]*(.+)$", block, re.MULTILINE)
@@ -480,9 +532,10 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     elif candidate_ids:
         errors.append(Diagnostic("ideas.missing_comparison_rows", "comparison table must rank all candidates"))
 
+    comparison_row_re = re.compile(r"^\| ?\d+ ?\|")
     for line in comparison_body.splitlines():
         line_s = line.strip()
-        if line_s.startswith("| 1 |") or line_s.startswith("| 2 |") or line_s.startswith("| 3 |"):
+        if comparison_row_re.match(line_s):
             parts = [p.strip() for p in line_s.split("|")[1:-1]]
             if len(parts) != 7:
                 errors.append(Diagnostic("ideas.invalid_comparison_table_row_width", f"Comparison row width must have 7 columns, found {len(parts)}"))
@@ -509,22 +562,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
 
     rec_exp_m = re.search(r"^- Cheapest decisive experiment:[ \t]*(.+)$", rec_body, re.MULTILINE)
     if rec_exp_m:
-        rec_exp_val = rec_exp_m.group(1).strip().lower()
-        for keyword in ("metric:", "pass/fail:", "duration:"):
-            if keyword not in rec_exp_val:
-                errors.append(
-                    Diagnostic(
-                        "ideas.decisive_experiment_incomplete",
-                        f"recommendation: decisive experiment missing required component '{keyword}'",
-                    )
-                )
-        if "cost:" not in rec_exp_val and "effort:" not in rec_exp_val and "cost/effort:" not in rec_exp_val:
-            errors.append(
-                Diagnostic(
-                    "ideas.decisive_experiment_incomplete",
-                    "recommendation: decisive experiment missing 'cost:' or 'effort:' bound",
-                )
-            )
+        errors.extend(_validate_decisive_experiment("recommendation", rec_exp_m.group(1)))
 
     # 10. External status agreement with evidence & State coherence
     if ext_status == "local-only" and declared_external:
