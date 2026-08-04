@@ -85,7 +85,7 @@ def _valid_draft() -> str:
         "- Provisional lead: I1 — Add cache\n"
         "- Why it leads: highest impact, lowest effort\n"
         "- Why it beats rank 2: lower effort than compression\n"
-        "- Cheapest decisive experiment: run 1-day shadow cache\n"
+        "- Cheapest decisive experiment: run 1-day shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         "- What could change the ranking: cache hit rate data\n"
         "- Conditions that would change the ranking: hit rate < 20%\n\n"
         "## 6. Contradictions and open questions\n"

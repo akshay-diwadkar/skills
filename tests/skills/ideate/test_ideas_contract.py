@@ -97,7 +97,7 @@ def _valid_body(
         + f"- Provisional lead: {actual_rec_lead} \u2014 Alpha\n"
         + "- Why it leads: best ratio\n"
         + "- Why it beats rank 2: lower effort\n"
-        + "- Cheapest decisive experiment: try Z\n"
+        + "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         + "- What could change the ranking: new evidence\n"
         + "- Conditions that would change the ranking: hit rate < 20%\n\n"
         "## 6. Contradictions and open questions\n"
@@ -415,3 +415,46 @@ def test_research_limited_with_valid_local_verification(tmp_path: Path) -> None:
         ),
     )
     assert validate_ideas(body, repo_root=tmp_path) == []
+
+
+def test_decisive_experiment_incomplete_in_candidate() -> None:
+    body = _valid_body(
+        candidates=(
+            "### I1. Alpha\n"
+            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1\n"
+            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
+            "- Confidence: moderate\n- What would disconfirm it: Z\n"
+            "- Cheapest decisive experiment: try Z\n\n"
+            "### I2. Beta\n"
+            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
+            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
+            "- Confidence: low\n- What would disconfirm it: A\n"
+            "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
+            "### I3. Gamma\n"
+            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: E1\n"
+            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
+            "- Confidence: low\n- What would disconfirm it: B\n"
+            "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
+        )
+    )
+    diagnostics = validate_ideas(body)
+    assert any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics)
+
+
+def test_decisive_experiment_incomplete_in_recommendation() -> None:
+    body = _valid_body()
+    # Replace recommendation experiment with incomplete string
+    body = body.replace(
+        "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low",
+        "- Cheapest decisive experiment: try Z",
+    )
+    diagnostics = validate_ideas(body)
+    assert any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics)
+
+
+def test_empty_section6() -> None:
+    body = _valid_body()
+    body = body.replace("## 6. Contradictions and open questions\n- None identified.\n", "## 6. Contradictions and open questions\n\n")
+    diagnostics = validate_ideas(body)
+    assert any(d.code == "ideas.empty_section6" for d in diagnostics)
+

@@ -1,7 +1,6 @@
 # Ideation Contract
 
-This document specifies the exact format of `ideas.md`. The sealer validates
-every rule deterministically using standard-library Python only.
+This document specifies the exact format of `ideas.md`. The sealer validates every rule deterministically using standard-library Python only.
 
 ## Document structure
 
@@ -17,12 +16,11 @@ every rule deterministically using standard-library Python only.
 ## 7. Optional downstream action   ← optional; omit when absent
 ```
 
-Document title must be the first line with a non-empty goal.
-Headings must appear in this exact order, exactly once each.
+Document title must be the first line with a non-empty goal. Headings must appear in exact order, once each.
 
 ## Section 1: Handoff
 
-Required fields (each must be non-empty):
+Required non-empty fields:
 
 ```text
 - State: decision-ready | experiment-first | research-limited
@@ -40,21 +38,9 @@ Required fields (each must be non-empty):
 - Research limitations:
 ```
 
-**Allowed states**
-
-| State | When to use |
-| --- | --- |
-| `decision-ready` | Evidence is sufficient to act on the recommendation |
-| `experiment-first` | A decisive experiment must be run before the ranking is reliable |
-| `research-limited` | External research was unavailable or severely curtailed |
-```
-
-`research-limited` must not claim strong verification for external evidence.
-Phrases like "verified", "confirmed local", or "directly verified" in external
-evidence or unsupported certainty are prohibited under `research-limited`.
-Legitimately verified local facts are allowed.
-
-Record selected, searched, skipped, unavailable, and user-excluded source classes.
+- `decision-ready`: Evidence sufficient for action.
+- `experiment-first`: Decisive experiment required before ranking is reliable.
+- `research-limited`: External research unavailable/curtailed. Must not claim strong external verification ("verified", "confirmed local", "directly verified"). Local facts may be verified.
 
 ## Section 2: Evidence
 
@@ -62,46 +48,33 @@ Evidence IDs (`L1..`, `E1..`) must be declared only inside Section 2 tables.
 
 ### Local evidence (optional)
 
-Omit subsection when no local context was gathered. When present, include exact header:
+Omit when absent. Required header when present:
 
 ```markdown
 | ID | Claim | Source path | Locator | Verification |
 | --- | --- | --- | --- | --- |
-| L1 | ... | relative/path/to/file | line 42: symbol_name | truthful-verification |
 ```
 
-**Rules**
-- IDs: `L1`, `L2`, … unique and contiguous.
-- Source path: must resolve beneath workspace root, exist, and be a regular file.
-- Locator and Verification: non-empty.
-- Do not use `hash-verified` unless an actual digest (SHA-256) is provided. Otherwise use truthful terms (e.g. `line-matched`, `inspected`).
+Rules: `L1`, `L2`, … unique and contiguous. Source path must resolve under workspace root, exist, and be a regular file. Locator/Verification non-empty. `hash-verified` requires a SHA-256 digest.
 
 ### External evidence
 
-Required status line:
+Required status line: `External research status: completed | limited | unavailable | user-disabled | local-only`. `completed` requires rows; `local-only` prohibits them. `research-limited` + `completed` is invalid.
 
-```text
-External research status: completed | limited | unavailable | user-disabled | local-only
-```
-
-Status agreement: `completed` requires external rows; `local-only` prohibits them.
-`research-limited` with `completed` is incoherent and invalid.
-
-External evidence table (when present), with exact header:
+Required header when table present:
 
 ```markdown
 | ID | Finding | Source | Locator | Date/freshness | Relevance |
 | --- | --- | --- | --- | --- | --- |
-| E1 | ... | url-or-citation | section | 2026-08 | high |
 ```
 
 External IDs: `E1`, `E2`, … unique and contiguous.
 
 ## Section 3: Candidate ideas
 
-Between 3 and 7 candidates (`### I1. <name>` .. `### I7. <name>`). Candidate names and IDs must be non-empty, unique, and contiguous starting at `I1`.
+3 to 7 candidates (`### I1. <name>` .. `### I7. <name>`). IDs contiguous starting at `I1`. Candidate names and fields non-empty.
 
-Each candidate requires all fields (non-empty):
+Required fields per candidate:
 
 ```markdown
 - Mechanism:
@@ -117,27 +90,25 @@ Each candidate requires all fields (non-empty):
 - Cheapest decisive experiment:
 ```
 
-**Rules**
-- Candidate evidence references are parsed strictly from the candidate's `- Evidence:` line. References must cite declared IDs (`L1`, `E1`). Every declared ID must be cited by at least one candidate.
-- Every candidate must be mechanism-distinct by an agent-authored `Mechanism category:`. No two candidates may share the same category string.
-- `Cheapest decisive experiment:` must include description, metric, pass/fail rule, duration bound, and effort/cost bound.
-- Ordinal values (impact, effort, risk, confidence) use anchored ordinal judgments (extensible per goal).
+Rules:
+- `- Evidence:` references declared IDs (`L1`, `E1`). Every declared ID must be cited by at least one candidate.
+- Candidates must be mechanism-distinct by unique agent-authored `Mechanism category:`.
+- `Cheapest decisive experiment:` must include metric, pass/fail rule, duration bound, and effort/cost bound.
 
 ## Section 4: Comparison
 
-Markdown table ranking every candidate exactly once with exact header:
+Table ranking every candidate exactly once with header:
 
 ```markdown
 | Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | I2 | high | medium | low | moderate | strong |
 ```
 
-- Ranks unique and contiguous from 1. Every declared candidate appears exactly once.
+Ranks unique and contiguous from 1.
 
 ## Section 5: Recommendation
 
-Required fields (each non-empty):
+Required fields:
 
 ```markdown
 - Provisional lead: I<n> — <name>
@@ -148,19 +119,16 @@ Required fields (each non-empty):
 - Conditions that would change the ranking:
 ```
 
-`Provisional lead` must name the candidate holding rank 1 in Section 4.
+`Provisional lead` must match Rank 1 candidate. `Cheapest decisive experiment:` must include metric, pass/fail rule, duration, and cost/effort.
 
 ## Section 6: Contradictions and open questions
 
-Free text (non-empty). `None identified` is valid.
+Non-empty body required. `None identified` is valid.
 
 ## Section 7: Optional downstream action (optional)
 
-Omit when absent. Must appear only after Section 6. May name downstream skills (e.g. `design-codebase`, `optimize-codebase`, `plan-change`). Must never route directly to `implement-plan`.
+Omit when absent. Must appear after Section 6. May name downstream skills (`design-codebase`, `optimize-codebase`, `plan-change`). Must never route directly to `implement-plan`.
 
 ## Prohibited content
 
-- Implementation patches (`diff` or `patch` code blocks with hunk markers).
-- Fabricated precision (unsupported numerical measurements).
-- File-level edit instructions.
-- Workspace modifications or extra primary artifacts beyond `ideas.md`.
+Diff/patch code blocks, fabricated precision, file edit instructions, workspace edits, extra primary artifacts beyond `ideas.md`.

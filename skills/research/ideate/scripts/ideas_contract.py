@@ -391,6 +391,26 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             if not m or not m.group(1).strip():
                 errors.append(Diagnostic("ideas.empty_candidate_field", f"{cid}: required field '- {field}' is empty"))
 
+        # Check decisive experiment subfields
+        exp_m = re.search(r"^- Cheapest decisive experiment:[ \t]*(.+)$", block, re.MULTILINE)
+        if exp_m:
+            exp_val = exp_m.group(1).strip().lower()
+            for keyword in ("metric:", "pass/fail:", "duration:"):
+                if keyword not in exp_val:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.decisive_experiment_incomplete",
+                            f"{cid}: decisive experiment missing required component '{keyword}'",
+                        )
+                    )
+            if "cost:" not in exp_val and "effort:" not in exp_val and "cost/effort:" not in exp_val:
+                errors.append(
+                    Diagnostic(
+                        "ideas.decisive_experiment_incomplete",
+                        f"{cid}: decisive experiment missing 'cost:' or 'effort:' bound",
+                    )
+                )
+
         # Collect Mechanism category for distinctness check
         cat_m = re.search(r"^- Mechanism category:[ \t]*(.+)$", block, re.MULTILINE)
         if cat_m and cat_m.group(1).strip():
@@ -487,6 +507,25 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 )
             )
 
+    rec_exp_m = re.search(r"^- Cheapest decisive experiment:[ \t]*(.+)$", rec_body, re.MULTILINE)
+    if rec_exp_m:
+        rec_exp_val = rec_exp_m.group(1).strip().lower()
+        for keyword in ("metric:", "pass/fail:", "duration:"):
+            if keyword not in rec_exp_val:
+                errors.append(
+                    Diagnostic(
+                        "ideas.decisive_experiment_incomplete",
+                        f"recommendation: decisive experiment missing required component '{keyword}'",
+                    )
+                )
+        if "cost:" not in rec_exp_val and "effort:" not in rec_exp_val and "cost/effort:" not in rec_exp_val:
+            errors.append(
+                Diagnostic(
+                    "ideas.decisive_experiment_incomplete",
+                    "recommendation: decisive experiment missing 'cost:' or 'effort:' bound",
+                )
+            )
+
     # 10. External status agreement with evidence & State coherence
     if ext_status == "local-only" and declared_external:
         errors.append(
@@ -531,6 +570,16 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             Diagnostic(
                 "ideas.prohibited_implementation",
                 "ideas.md must not contain implementation patches or diff hunks",
+            )
+        )
+
+    # 14. Section 6 non-emptiness
+    sec6_body = _section_body(text, "## 6. Contradictions and open questions")
+    if not sec6_body.strip():
+        errors.append(
+            Diagnostic(
+                "ideas.empty_section6",
+                "Section 6 (Contradictions and open questions) must be non-empty",
             )
         )
 

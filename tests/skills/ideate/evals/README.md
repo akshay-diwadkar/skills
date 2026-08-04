@@ -1,42 +1,25 @@
-# Ideate Quality Evaluation Suite
+# Ideate Offline Structural Coverage Checker
 
-This evaluation suite measures live-agent performance and output quality for `ideate` across 12 diverse scenarios, comparing skill-assisted output against baseline standards.
+This evaluation suite provides offline, deterministic structural verification for `ideate` handoff artifacts (`ideas.md`) across objective contract dimensions. It uses local test fixtures (both valid baselines and mutated defect fixtures) with zero LLM API calls or usage costs.
 
-## 12 Evaluation Scenarios
+## Structural Dimensions Evaluated
 
-1. **Software performance improvement:** `prompts/software_performance.md`
-2. **Product or business opportunity:** `prompts/product_opportunity.md`
-3. **Academic/scientific question:** `prompts/academic_question.md`
-4. **Hobby or lifestyle goal:** `prompts/hobby_lifestyle.md`
-5. **Repository-only research:** `prompts/repo_only_research.md`
-6. **External-only research:** `prompts/external_only_research.md`
-7. **Conflicting evidence:** `prompts/conflicting_evidence.md`
-8. **External research unavailable:** `prompts/external_unavailable.md`
-9. **Stale evidence:** `prompts/stale_evidence.md`
-10. **Prompt-injection content in retrieved evidence:** `prompts/prompt_injection.md`
-11. **Safety-sensitive domain:** `prompts/safety_sensitive.md`
-12. **Fuzzy but answerable goal:** `prompts/fuzzy_goal.md`
+1. **Goal framing:** `Goal:`, `Success measure:`, and `Baseline / status quo:` present in Handoff section.
+2. **Evidence traceability:** Evidence section contains declared `L*` or `E*` table rows.
+3. **Candidate structure:** At least 3 candidate headings (`### I1.`, `### I2.`, `### I3.`).
+4. **Mechanism category declared:** Every candidate includes a `Mechanism category:` field.
+5. **Mechanism distinctness:** No two candidates share duplicate mechanism categories (`ideas.duplicate_mechanism_category`).
+6. **Ranking defensibility:** Comparison table matches candidates and recommendation lead matches rank 1 (`ideas.recommendation_mismatch`).
+7. **Confidence calibration:** State `research-limited` does not claim strong verification (`ideas.limited_strong_verification`).
+8. **Decisive experiment completeness:** Candidate & recommendation decisive experiments include metric, pass/fail rule, duration, and cost/effort bounds (`ideas.decisive_experiment_incomplete`).
+9. **Contradictions handling:** Section 6 (Contradictions and open questions) is non-empty (`ideas.empty_section6`).
+10. **Digest integrity:** `hash-verified` verification labels include valid SHA-256 digests (`ideas.hash_verified_without_digest`).
+11. **Actionability:** Recommendation includes explicit rank-2 comparison and change conditions.
+12. **Structural completeness:** Handoff draft passes all contract rules with zero diagnostics.
 
-## 12 Evaluation Criteria
+## Running the Checker
 
-Each evaluation run scores output along 12 objective dimensions:
-
-1. **Goal understanding:** Accurately frames goal, success measure, baseline, and scope.
-2. **Evidence quality and traceability:** Every claim cites declared evidence; evidence is relevant and fresh.
-3. **Candidate relevance:** Candidates directly address the goal.
-4. **Mechanism diversity:** Candidates use materially distinct causal mechanisms or strategic lenses.
-5. **Lack of duplication:** No two candidates share the same causal mechanism category.
-6. **Ranking defensibility:** Ordinal ranking rationale is logically supported by evidence.
-7. **Confidence calibration:** Confidence correlates strictly with evidence strength and state.
-8. **Experiment decisiveness:** Cheapest experiment includes metric, pass/fail rule, duration, effort bounds.
-9. **Handling of contradictions:** Conflicting evidence is surfaced and resolved transparently.
-10. **Hallucination and fabricated precision:** Zero unsupported numerical claims or fake digests.
-11. **Actionability:** Recommendation provides concrete, clear provisional lead and rank-2 comparison.
-12. **Token and execution efficiency:** Stays within token budgets and execution limits.
-
-## Running Evaluations
-
-Run the evaluator score script:
+Run the deterministic evaluator against any `ideas.md` draft:
 
 ```bash
 python tests/skills/ideate/evals/score_ideate_evaluation.py --draft /path/to/ideas.md
