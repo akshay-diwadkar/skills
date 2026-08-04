@@ -1,10 +1,10 @@
 ---
 name: plan-change
-description: Produce and mechanically seal a repository-grounded implementation plan for a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository. Use native repository tools for exploration, then cite narrow evidence in a plan-contract v6 draft.
-version: 4.0.1
+description: Produce and mechanically seal a repository-grounded implementation plan for a feature, bug fix, refactor, migration, integration, security, or operational code change without editing the target repository. Use native repository tools for exploration, then cite narrow evidence in a plan-contract v7 draft.
+version: 5.0.0
 metadata:
   invocation: both
-  plan-contract: "6"
+  plan-contract: "7"
   finalizer: "scripts/seal_plan.py"
   validation-required: "true"
 disable-model-invocation: false
@@ -30,8 +30,16 @@ never rediscover the repository.
 2. Explore with native search and reading tools. Inspect only enough current
    implementation, callers, tests, contracts, configuration, and boundaries to
    make the plan decision-complete.
-3. Write one v6 draft. Cite only evidence already inspected; do not calculate
-   hashes. Use [Plan Contract](references/plan-contract.md) for exact syntax,
+3. Author one v7 draft in this sequence: extract every obligation from the
+   exact request or handoff and anchor each to verbatim request text; identify
+   the owning change and its root-cause or decision seam; build the `CH`
+   dependency graph with `depends_on`; perform the bounded propagation sweep
+   and account every non-tiny change with `P` records or an evidence-backed
+   `propagation` declaration; map every obligation to verification through
+   `covered_by` and `T.covers`; then seal one final draft. Stop exploring at
+   the first point where the draft is decision-complete. Cite only evidence
+   already inspected; do not calculate hashes. Use
+   [Plan Contract](references/plan-contract.md) for exact syntax,
    [Task Guidance](references/task-guidance.md) only for the matching task/risk
    branch, and [Evidence Kinds](references/evidence-kinds.md) only when selecting
    a structured fact.
@@ -50,8 +58,8 @@ python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
 The draft is the only agent-authored planning artifact. A successful run
 performs one semantic validation and reads only explicitly referenced repository
 files plus minimal Git identity metadata. The proof records request kind,
-handoff contract version, and selected audit item; generic Markdown requests
-remain supported.
+handoff contract version, selected audit item, and verified obligation anchors;
+generic Markdown requests remain supported.
 
 ## Depth
 

@@ -1,0 +1,26 @@
+{
+  "scenario": "feature-defaults-errors",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Add default shipping selection", "obligation": "missing shipping input must fall back to standard shipping"}
+  ],
+  "owners": [{"path": "src/order.py", "anchor": "place_order"}],
+  "paths": ["src/order.py"],
+  "order": [],
+  "propagation_surfaces": ["src/order.py"],
+  "protected": ["explicit standard and express choices keep working"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "missing input is standard, invalid input is rejected, and explicit choices survive"}
+  ],
+  "weak": {
+    "omit-protected": {"mode": "score", "expected_missing": ["protected"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]},
+    "omit-obligation": {"mode": "score", "expected_missing": ["obligations"]},
+    "omit-propagation": {"mode": "reject", "expected_code": ["propagation.accounting"]}
+  }
+}

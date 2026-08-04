@@ -6,11 +6,14 @@ sealed plan and one implementation bundle.
 
 ## Intake and ownership
 
-Accept only a sealed plan-contract v6 plan with a supported tier, complete typed
-record graph, current repository binding, and matching receipt. Reject
-ambiguous, unsupported, unfinalized, receipt-mismatched, or materially
-contradicted plans; route semantic gaps back to `plan-change`. The plan limits
-behavior changes, while current repository evidence determines local form.
+Accept only a sealed plan-contract v6 or v7 plan with a supported tier, complete
+typed record graph, current repository binding, and matching receipt. v6 plans
+pass through the isolated frozen compatibility reader without new v7 rules;
+v7 change records execute in declared dependency order with one change row per
+`CH` for standard and high-risk work. Reject ambiguous, unsupported,
+unfinalized, receipt-mismatched, or materially contradicted plans; route
+semantic gaps back to `plan-change`. The plan limits behavior changes, while
+current repository evidence determines local form.
 
 The primary agent owns edits, scope reconciliation, and completion. Preserve
 unrelated dirty work byte-for-byte. Do not edit a dirty target without explicit

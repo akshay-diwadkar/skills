@@ -202,7 +202,7 @@ def test_sealer_json_failure_is_canonical(tmp_path: Path) -> None:
     assert all(_diagnostic_contract.is_canonical(item) for item in diagnostics)
 
 
-def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
+def test_handoff_is_a_valid_plan_change_v7_request_file(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     draft = tmp_path / "draft.md"
     draft.write_text(example(), encoding="utf-8")
@@ -219,17 +219,23 @@ def test_handoff_is_a_valid_plan_change_v6_request_file(tmp_path: Path) -> None:
     plan.write_text(
         """# Introduce a payment gateway boundary
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {"intent":"refactor","tier":"standard","risk_domains":[]} -->
 
 ## Outcome
 SC-1: given: checkout and renewal payment callers | when: charging moves behind a gateway | then: callers use the shared gateway contract | unchanged: provider decline behavior remains stable
 
+## Obligations
+RQ-1: source: handoff | anchor: PaymentGateway protocol | obligation: both payment callers must use the shared gateway charge contract | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: source | path: payments/service.py | lines: 1-7 | anchor: charge_payment | claim: charge_payment owns provider request construction and charging
 
 ## Implementation
-CH-1: path: payments/service.py | anchor: charge_payment | status: existing | evidence: F-1 | change: introduce the selected PaymentGateway charge boundary while preserving provider error behavior | locality: shared | reversibility: reversible
+CH-1: path: payments/service.py | anchor: charge_payment | status: existing | evidence: F-1 | depends_on: none | change: introduce the selected PaymentGateway charge boundary while preserving provider error behavior | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: consumer | disposition: changed | path: payments/service.py | owner: CH-1 | reason: F-1
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: checkout and renewal payment scenarios | when: targeted payment tests execute | then: both callers use the gateway and preserve decline behavior | command: python -m pytest tests/test_checkout.py -q

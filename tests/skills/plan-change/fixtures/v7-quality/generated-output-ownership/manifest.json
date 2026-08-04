@@ -1,0 +1,25 @@
+{
+  "scenario": "generated-output-ownership",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Generate the names adapter", "obligation": "the generator must own the declared adapter output"}
+  ],
+  "owners": [{"path": "tools/gen_names.py", "anchor": "render_adapter"}],
+  "paths": ["src/generated_names.py"],
+  "order": [],
+  "propagation_surfaces": ["src/generated_names.py"],
+  "protected": ["handwritten normalization remains authoritative"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "regeneration is stable and delegation passes"}
+  ],
+  "weak": {
+    "omit-ownership": {"mode": "reject", "expected_code": ["change.evidence"]},
+    "omit-propagation": {"mode": "reject", "expected_code": ["propagation.accounting"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]}
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "scenario": "multi-finding-audit-selection",
+  "tier": "standard",
+  "request": "handoff-body.md",
+  "handoff_kind": "audit",
+  "handoff_item": "A-1",
+  "obligations": [
+    {"anchor": "Fix absent-name normalization", "obligation": "absent input names must normalize to an empty string"}
+  ],
+  "owners": [{"path": "src/names.py", "anchor": "normalize_name"}],
+  "paths": ["src/names.py"],
+  "order": [],
+  "propagation_surfaces": ["src/names.py"],
+  "protected": ["present names remain normalized"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "absent input is empty and present input is stripped"}
+  ],
+  "weak": {
+    "omit-root-cause": {"mode": "score", "expected_missing": ["owners"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]},
+    "omit-obligation": {"mode": "score", "expected_missing": ["obligations"]}
+  }
+}

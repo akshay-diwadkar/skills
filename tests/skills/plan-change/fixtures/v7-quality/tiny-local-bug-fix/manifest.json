@@ -1,0 +1,26 @@
+{
+  "scenario": "tiny-local-bug-fix",
+  "tier": "tiny",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Fix absent target input", "obligation": "an absent target input must produce an empty string"}
+  ],
+  "owners": [{"path": "src/target.py", "anchor": "target"}],
+  "paths": ["src/target.py"],
+  "order": [],
+  "propagation_surfaces": ["src/target.py"],
+  "protected": ["present values remain stripped"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "absent input is empty and present input is stripped"}
+  ],
+  "weak": {
+    "omit-ownership": {"mode": "reject", "expected_code": ["change.evidence"]},
+    "omit-protected": {"mode": "score", "expected_missing": ["protected"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]},
+    "omit-propagation": {"mode": "score", "expected_missing": ["propagation"]}
+  }
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and seal one agent-authored plan-contract v6 draft."""
+"""Validate and seal one agent-authored plan-contract v7 draft."""
 
 from __future__ import annotations
 

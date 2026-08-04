@@ -43,12 +43,16 @@ def test_v6_tiny_seals_with_generated_hashes_and_canonical_receipt(tmp_path: Pat
     result = seal_plan(repo, request, draft)
 
     assert result.text.count("<!-- plan-proof:") == 1
-    assert result.text.count("<!-- plan-validation: 6;") == 1
+    assert result.text.count("<!-- plan-validation: 7;") == 1
     assert "file-sha256" not in draft.read_text(encoding="utf-8")
     proof_match = PROOF_RE.search(result.text)
     assert proof_match is not None
     proof = json.loads(proof_match.group("json"))
+    assert proof["version"] == 7
     assert proof["request"] == {"kind": "generic", "contract_version": None, "item": None}
+    obligation = proof["obligations"][0]
+    assert obligation["obligation_id"] == "RQ-1"
+    assert obligation["anchor"] == "Fix absent names"
     fact = proof["facts"][0]
     assert fact["file_sha256"] == hashlib.sha256((repo / "src" / "names.py").read_bytes()).hexdigest()
     assert fact["verified_kind"] == "source"
@@ -145,7 +149,7 @@ def test_incomplete_consumer_plan_can_seal_for_quality_judging(tmp_path: Path) -
     repo = make_repo(tmp_path / "repo")
     request = tmp_path / "request.md"
     draft = tmp_path / "draft.md"
-    request.write_text("Refactor normalization and all affected consumers.\n", encoding="utf-8")
+    request.write_text("Fix absent names and refactor normalization for all consumers.\n", encoding="utf-8")
     draft.write_text(tiny_plan().replace('"tier":"tiny"', '"tier":"standard"'), encoding="utf-8")
     assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
 
@@ -309,7 +313,7 @@ def _rewrite_receipt(text: str, proof: dict[str, Any]) -> str:
     receipt_match = VALIDATION_RE.search(updated)
     assert receipt_match is not None
     receipt = (
-        "<!-- plan-validation: 6; body-sha256: "
+        "<!-- plan-validation: 7; body-sha256: "
         + hashlib.sha256(canonical_body(updated).encode()).hexdigest()
         + "; proof-sha256: "
         + hashlib.sha256(proof_json.encode()).hexdigest()
@@ -377,17 +381,20 @@ def test_recomputed_receipt_cannot_hide_invalid_plan_semantics(tmp_path: Path) -
 def _javascript_call_plan() -> str:
     return """# Update JavaScript name delegation
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {"intent":"refactor","tier":"tiny","risk_domains":[]} -->
 
 ## Outcome
 SC-1: given: a JavaScript name caller | when: caller delegates normalization | then: callee supplies the normalized value | unchanged: caller return behavior remains stable
 
+## Obligations
+RQ-1: source: request | anchor: JavaScript delegation | obligation: name delegation must stay direct and stable | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: call-edge | path: src/names.js | lines: 1-4 | anchor: caller | claim: caller delegates to callee | caller: caller | callee: callee
 
 ## Implementation
-CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | change: preserve the direct callee delegation while reorganizing the surrounding name module | locality: local | reversibility: reversible
+CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | depends_on: none | change: preserve the direct callee delegation while reorganizing the surrounding name module | locality: local | reversibility: reversible | propagation: local
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: a JavaScript name input | when: targeted JavaScript tests execute | then: caller returns the callee result | command: npm test -- names
@@ -484,18 +491,25 @@ def test_new_change_ownership_cycles_are_rejected(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     draft = """# Add mutually dependent name modules
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {"intent":"feature","tier":"standard","risk_domains":[]} -->
 
 ## Outcome
 SC-1: given: two new name modules | when: the package imports them | then: both modules expose their declared behavior | unchanged: existing normalization remains stable
 
+## Obligations
+RQ-1: source: request | anchor: mutually dependent modules | obligation: both new modules must expose their declared behavior | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: directory-ownership | path: src/__init__.py | lines: 1-1 | anchor: package | claim: src owns name modules | directory: src
 
 ## Implementation
-CH-1: path: src/first.py | anchor: first module seam | status: new | owner: CH-2 | change: add the first concrete name module with an explicit package-facing entry point | locality: shared | reversibility: reversible
-CH-2: path: src/second.py | anchor: second module seam | status: new | owner: CH-1 | change: add the second concrete name module with an explicit package-facing entry point | locality: shared | reversibility: reversible
+CH-1: path: src/first.py | anchor: first module seam | status: new | owner: CH-2 | depends_on: none | change: add the first concrete name module with an explicit package-facing entry point | locality: shared | reversibility: reversible
+CH-2: path: src/second.py | anchor: second module seam | status: new | owner: CH-1 | depends_on: none | change: add the second concrete name module with an explicit package-facing entry point | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: consumer | disposition: changed | path: src/first.py | owner: CH-1 | reason: F-1
+P-2: surface: consumer | disposition: changed | path: src/second.py | owner: CH-2 | reason: F-1
 
 ## Verification
 T-1: covers: SC-1, CH-1, CH-2 | given: both new modules | when: targeted package tests execute | then: both imports expose the declared behavior | command: python -m pytest tests/test_names.py -q

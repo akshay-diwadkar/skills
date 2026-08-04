@@ -44,3 +44,6 @@ markers = [
 testpaths = [
   "tests",
 ]
+norecursedirs = [
+  "tests/skills/plan-change/fixtures/v7-quality/*/repo",
+]

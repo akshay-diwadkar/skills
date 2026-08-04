@@ -20,7 +20,7 @@
       "kind": "path",
       "required": true,
       "repeatable": false,
-      "description": "Existing absolute path to the agent-authored v6 draft.",
+      "description": "Existing absolute path to the agent-authored v7 draft.",
       "choices": [],
       "path_policy": "existing"
     },

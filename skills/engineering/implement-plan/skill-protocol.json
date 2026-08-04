@@ -5,7 +5,7 @@
   "run_dir_policy": "outside_skill_and_repo",
   "requirements": [],
   "inputs": [
-    {"name": "plan_file", "kind": "path", "required": true, "repeatable": false, "description": "Sealed plan-contract v6 plan.", "choices": []},
+    {"name": "plan_file", "kind": "path", "required": true, "repeatable": false, "description": "Sealed plan-contract v6 or v7 plan.", "choices": []},
     {"name": "bundle", "kind": "path", "path_policy": "future", "required": true, "repeatable": false, "description": "Implementation report bundle.", "choices": []}
   ],
   "artifacts": [],

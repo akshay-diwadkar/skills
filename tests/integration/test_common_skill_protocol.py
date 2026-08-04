@@ -27,17 +27,20 @@ def snapshot() -> dict[str, str]:
 def draft(anchor: str = "normalize_name") -> str:
     return f"""# Fix absent-name normalization
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {{"intent":"bug-fix","tier":"tiny","risk_domains":[]}} -->
 
 ## Outcome
 SC-1: given: an absent input name | when: normalize_name handles the value | then: it returns an empty string | unchanged: present names remain normalized
 
+## Obligations
+RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: {anchor} | claim: normalize_name owns normalization
 
 ## Implementation
-CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return an empty string before stripping and lowering present names | locality: local | reversibility: reversible
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | depends_on: none | change: return an empty string before stripping and lowering present names | locality: local | reversibility: reversible | propagation: local
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: absent and present names | when: targeted normalization tests execute | then: absent input is empty and present input stays normalized | command: python -m pytest tests/test_names.py -q
@@ -75,7 +78,7 @@ def test_plan_change_common_protocol_is_stateless_and_preserves_skill(tmp_path: 
     assert complete["status"] == complete["phase"] == "complete"
     assert complete["result"].startswith("# Fix absent-name normalization")
     assert "<!-- plan-proof:" in complete["result"]
-    assert "<!-- plan-validation: 6;" in complete["result"]
+    assert "<!-- plan-validation: 7;" in complete["result"]
     assert not list(tmp_path.rglob(".skill-cli-state.json"))
     assert snapshot() == before
 

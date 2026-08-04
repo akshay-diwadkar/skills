@@ -1,0 +1,74 @@
+{
+  "environment": {
+    "date": "2026-08-04",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.15"
+  },
+  "fixture_coverage": {
+    "label": "offline plan-quality fixture suite is separate from sealing performance",
+    "runner": "tests/skills/plan-change/test_plan_quality_fixtures.py",
+    "scorer": "tests/skills/plan-change/evals/tools/score_plan_quality.py"
+  },
+  "methodology": {
+    "benchmark_type": "targeted sealing microbenchmark",
+    "end_to_end_native_agent_parity": "not_measured",
+    "excluded": [
+      "agent exploration",
+      "agent drafting",
+      "tool-call accounting",
+      "token accounting"
+    ]
+  },
+  "schema_version": 3,
+  "v7_sealing_microbenchmark": {
+    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 1 --output benchmarks/reports/plan-change-v7.json",
+    "iterations": 1,
+    "label": "v7 sealing only; excludes repository exploration and agent work",
+    "operation_counts": {
+      "high-risk": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      },
+      "standard": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      },
+      "tiny": {
+        "bytes_read": 54,
+        "git_command_count": 1,
+        "hash_count": 1,
+        "opened_paths": [
+          "src/target.py"
+        ],
+        "python_parse_count": 0,
+        "tree_parse_count": 0
+      }
+    },
+    "timings_seconds": {
+      "high-risk": {
+        "median": 0.08502149998093955,
+        "p95": 0.08502149998093955
+      },
+      "standard": {
+        "median": 0.06960690001142211,
+        "p95": 0.06960690001142211
+      },
+      "tiny": {
+        "median": 0.09119330000248738,
+        "p95": 0.09119330000248738
+      }
+    }
+  }
+}

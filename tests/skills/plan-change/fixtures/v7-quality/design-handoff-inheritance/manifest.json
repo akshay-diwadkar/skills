@@ -1,0 +1,25 @@
+{
+  "scenario": "design-handoff-inheritance",
+  "tier": "standard",
+  "request": "handoff-body.md",
+  "handoff_kind": "design",
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "introduce a repository cache facade", "obligation": "the cache facade must delegate reads to the existing store"}
+  ],
+  "owners": [{"path": "src/store.py", "anchor": "fetch"}],
+  "paths": ["src/store.py"],
+  "order": [],
+  "propagation_surfaces": ["src/store.py"],
+  "protected": ["direct store reads remain valid"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "the facade delegates reads and invalidates consistently"}
+  ],
+  "weak": {
+    "omit-root-cause": {"mode": "score", "expected_missing": ["owners"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]},
+    "omit-obligation": {"mode": "score", "expected_missing": ["obligations"]}
+  }
+}

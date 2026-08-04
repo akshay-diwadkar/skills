@@ -1,0 +1,26 @@
+{
+  "scenario": "concurrency-idempotency",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Make the job claim idempotent", "obligation": "duplicate concurrent claims must converge to one owned execution"}
+  ],
+  "owners": [{"path": "src/queue.py", "anchor": "claim_job"}],
+  "paths": ["src/queue.py"],
+  "order": [],
+  "propagation_surfaces": ["src/queue.py"],
+  "protected": ["sequential claim outcomes remain stable"],
+  "risk_domains": ["durable-state"],
+  "risks": [{"owner": "CH-1", "tests": "T-1"}],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "exactly one worker owns every job and outcomes stay stable"}
+  ],
+  "weak": {
+    "omit-risk": {"mode": "score", "expected_missing": ["risk"]},
+    "omit-rollout": {"mode": "reject", "expected_code": ["section.order"]},
+    "omit-propagation": {"mode": "reject", "expected_code": ["propagation.accounting"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]}
+  }
+}

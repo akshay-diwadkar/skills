@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_installed_plan_change_exposes_only_v6_sealer(tmp_path: Path) -> None:
+def test_installed_plan_change_exposes_only_v7_sealer(tmp_path: Path) -> None:
     skill = ROOT / "skills" / "engineering" / "plan-change"
     scripts = {path.name for path in (skill / "scripts").glob("*.py")}
     assert "seal_plan.py" in scripts
@@ -34,17 +34,20 @@ def test_installed_plan_change_fails_closed_without_optional_tree_sitter(tmp_pat
     draft = tmp_path / "draft.md"
     plan = """# Preserve JavaScript delegation
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {"intent":"refactor","tier":"tiny","risk_domains":[]} -->
 
 ## Outcome
 SC-1: given: a JavaScript caller | when: delegation executes | then: the callee result is returned | unchanged: direct delegation remains stable
 
+## Obligations
+RQ-1: source: request | anchor: Preserve JavaScript delegation | obligation: direct delegation must remain stable | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: call-edge | path: src/names.js | lines: 1-4 | anchor: caller | claim: caller delegates to callee | caller: caller | callee: callee
 
 ## Implementation
-CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | change: preserve direct callee delegation while reorganizing the surrounding module implementation | locality: local | reversibility: reversible
+CH-1: path: src/names.js | anchor: caller | status: existing | evidence: F-1 | depends_on: none | change: preserve direct callee delegation while reorganizing the surrounding module implementation | locality: local | reversibility: reversible | propagation: local
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: a JavaScript input | when: targeted tests execute | then: caller returns the callee result | command: npm test -- names

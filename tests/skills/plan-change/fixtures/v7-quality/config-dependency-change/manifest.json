@@ -1,0 +1,28 @@
+{
+  "scenario": "config-dependency-change",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Update the pinned dependency", "obligation": "the pin must move to the supported minor release and the requester must adapt"}
+  ],
+  "owners": [
+    {"path": "pyproject.toml", "anchor": "requests"},
+    {"path": "src/requester.py", "anchor": "requests"}
+  ],
+  "paths": ["pyproject.toml", "src/requester.py"],
+  "order": [["CH-1", "CH-2"]],
+  "propagation_surfaces": ["pyproject.toml", "src/requester.py"],
+  "protected": ["the fetch timeout and response behavior remain stable"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1", "CH-2"], "then": "the dependency resolves and the requester behavior stays stable"}
+  ],
+  "weak": {
+    "omit-ordering": {"mode": "score", "expected_missing": ["ordering"]},
+    "omit-propagation": {"mode": "reject", "expected_code": ["propagation.accounting"]},
+    "omit-root-cause": {"mode": "score", "expected_missing": ["owners"]}
+  }
+}

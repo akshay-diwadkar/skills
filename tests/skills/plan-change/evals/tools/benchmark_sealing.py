@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure the v6 one-pass plan sealer without retired v5 runtime code."""
+"""Measure the v7 one-pass plan sealer without retired runtime code."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _make_repo(root: Path) -> Path:
     return root
 
 
-def _v6_draft(tier: str) -> str:
+def _v7_draft(tier: str) -> str:
     metadata = {
         "tiny": '{"intent":"bug-fix","tier":"tiny","risk_domains":[]}',
         "standard": '{"intent":"refactor","tier":"standard","risk_domains":[]}',
@@ -55,20 +55,29 @@ def _v6_draft(tier: str) -> str:
 B-1: class: trusted input boundary | evidence: F-1 | flow: caller input -> authorization decision -> target normalization
 R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: unauthorized input could cross the normalization boundary
 """
+    propagation = ""
+    if tier != "tiny":
+        propagation = """
+## Propagation
+P-1: surface: consumer | disposition: changed | path: src/target.py | owner: CH-1 | reason: F-1
+"""
     return f"""# Update the target behavior
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {metadata} -->
 
 ## Outcome
 SC-1: given: a padded target value | when: target processes the input | then: it returns the stripped value | unchanged: the public string result remains stable
 
+## Obligations
+RQ-1: source: request | anchor: Update the target | obligation: target must return the stripped value | covered_by: SC-1, CH-1
+
 ## Evidence
 F-1: kind: source | path: src/target.py | lines: 1-2 | anchor: target | claim: target owns the current string normalization
 
 ## Implementation
-CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: preserve exact string normalization while applying the requested tier-specific implementation update | locality: shared | reversibility: reversible
-{boundaries}## Verification
+CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | depends_on: none | change: preserve exact string normalization while applying the requested tier-specific implementation update | locality: shared | reversibility: reversible
+{propagation}{boundaries}## Verification
 T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted tests execute | then: both values retain the exact normalized result | command: python -m pytest tests/test_target.py -q
 """
 
@@ -82,9 +91,9 @@ def _measure(iterations: int) -> dict[str, Any]:
         repo = _make_repo(root / "repo")
         for tier in tiers:
             request = root / f"{tier}-request.md"
-            request.write_text(f"Apply the equivalent {tier} target change.\n", encoding="utf-8")
-            draft = root / f"{tier}-v6.md"
-            draft.write_text(_v6_draft(tier), encoding="utf-8")
+            request.write_text(f"Update the target for the {tier} tier.\n", encoding="utf-8")
+            draft = root / f"{tier}-v7.md"
+            draft.write_text(_v7_draft(tier), encoding="utf-8")
             for _ in range(iterations):
                 started = time.perf_counter()
                 sealed = HELPERS.RUNTIME.seal_plan(repo, request, draft)
@@ -111,14 +120,19 @@ def main() -> int:
             "excluded": ["agent exploration", "agent drafting", "tool-call accounting", "token accounting"],
             "end_to_end_native_agent_parity": "not_measured",
         },
-        "v6_sealing_microbenchmark": {
-            "label": "v6 sealing only; excludes repository exploration and agent work",
+        "v7_sealing_microbenchmark": {
+            "label": "v7 sealing only; excludes repository exploration and agent work",
             "command": command,
             "iterations": args.iterations,
             "timings_seconds": measured["timings"],
             "operation_counts": measured["operations"],
         },
-        "environment": {"date": "2026-08-01", "platform": platform.platform(), "python": platform.python_version()},
+        "fixture_coverage": {
+            "label": "offline plan-quality fixture suite is separate from sealing performance",
+            "runner": "tests/skills/plan-change/test_plan_quality_fixtures.py",
+            "scorer": "tests/skills/plan-change/evals/tools/score_plan_quality.py",
+        },
+        "environment": {"date": "2026-08-04", "platform": platform.platform(), "python": platform.python_version()},
     }
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:

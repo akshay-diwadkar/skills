@@ -1,4 +1,12 @@
-"""Plan-contract v6 parsing, targeted evidence verification, and sealing."""
+"""FROZEN Plan-contract v6 compatibility reader. Do not edit or re-sync.
+
+This module is frozen at the retired v6 behavior so sealed v6 plans remain
+readable after the plan-change runtime moves to contract v7. The v7 sync
+source never overwrites this file; it is excluded from
+tools/validation/sync_plan_runtime.py by design.
+
+Plan-contract v6 parsing, targeted evidence verification, and sealing.
+"""
 
 from __future__ import annotations
 

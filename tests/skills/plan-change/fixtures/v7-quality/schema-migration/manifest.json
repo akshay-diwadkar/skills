@@ -1,0 +1,25 @@
+{
+  "scenario": "schema-migration",
+  "tier": "high-risk",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Migrate stored names to the durable normalized schema", "obligation": "stored names must converge to the durable normalized schema exactly once"}
+  ],
+  "owners": [{"path": "src/names.py", "anchor": "normalize_name"}],
+  "paths": ["src/names.py"],
+  "order": [],
+  "propagation_surfaces": ["src/names.py"],
+  "protected": ["already-normalized names remain stable"],
+  "risk_domains": ["migration", "durable-state"],
+  "risks": [{"owner": "CH-1", "tests": "T-1"}],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "all values converge exactly once without a second mutation"}
+  ],
+  "weak": {
+    "omit-risk": {"mode": "reject", "expected_code": ["record.invalid"]},
+    "omit-rollout": {"mode": "reject", "expected_code": ["section.order"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]}
+  }
+}

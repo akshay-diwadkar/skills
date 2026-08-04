@@ -1,0 +1,26 @@
+{
+  "scenario": "external-integration",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Add an idempotency key to external payment calls", "obligation": "ambiguous success must retry exactly once and never double-charge"}
+  ],
+  "owners": [{"path": "src/billing.py", "anchor": "charge"}],
+  "paths": ["src/billing.py"],
+  "order": [],
+  "propagation_surfaces": ["src/billing.py"],
+  "protected": ["successful charges remain single"],
+  "risk_domains": ["external-integration"],
+  "risks": [{"owner": "CH-1", "tests": "T-1"}],
+  "verification": [
+    {"covers": ["SC-1", "CH-1"], "then": "ambiguous responses retry exactly once and successful charges stay single"}
+  ],
+  "weak": {
+    "omit-risk": {"mode": "score", "expected_missing": ["risk"]},
+    "omit-propagation": {"mode": "reject", "expected_code": ["propagation.accounting"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]},
+    "omit-obligation": {"mode": "score", "expected_missing": ["obligations"]}
+  }
+}

@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-SEALER = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "seal_plan.py"
+V6_RUNTIME_PATH = ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "plan_v6_runtime.py"
 SCAFFOLD = ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "scaffold_implementation.py"
+
+sys.path.insert(0, str(V6_RUNTIME_PATH.parent))
+SPEC = importlib.util.spec_from_file_location("frozen_plan_v6_runtime", V6_RUNTIME_PATH)
+assert SPEC and SPEC.loader
+V6_RUNTIME = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = V6_RUNTIME
+SPEC.loader.exec_module(V6_RUNTIME)
 
 
 def test_implement_plan_accepts_current_v6_sealed_plan(tmp_path: Path) -> None:
@@ -44,13 +52,8 @@ T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted tar
 """,
         encoding="utf-8",
     )
-    sealed = subprocess.run(
-        [sys.executable, str(SEALER), "--repo-root", str(repo), "--request-file", str(request), "--draft", str(draft)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    plan.write_text(sealed.stdout, encoding="utf-8")
+    sealed = V6_RUNTIME.seal_plan(repo, request, draft)
+    plan.write_text(sealed.text, encoding="utf-8")
     scaffolded = subprocess.run(
         [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
         capture_output=True,

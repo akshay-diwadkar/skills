@@ -213,6 +213,17 @@
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
+      "id": "plan-change-v7-top-level",
+      "skill": "plan-change",
+      "metric": "top_level",
+      "direction": "increase",
+      "max_tokens": 760,
+      "expires": "2027-08-04",
+      "rationale": "The v7 workflow step 3 states the obligations-anchoring, CH dependency graph, and bounded propagation accounting sequence required to author valid v7 drafts; guidance stays a single-step rewrite that retains every protected authority and safety rule.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
       "id": "audit-codebase-bounded-delegation-phase",
       "skill": "audit-codebase",
       "metric": "phase_references",

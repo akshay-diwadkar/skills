@@ -1,0 +1,26 @@
+{
+  "scenario": "shared-refactor-callers",
+  "tier": "standard",
+  "request": "request.md",
+  "handoff_kind": null,
+  "handoff_item": null,
+  "obligations": [
+    {"anchor": "Refactor the shared name normalization helper", "obligation": "both consumers and the re-export must route through the helper seam"}
+  ],
+  "owners": [{"path": "src/lib/core.py", "anchor": "normalize"}],
+  "paths": ["src/lib/core.py", "src/consumer_a.py"],
+  "order": [["CH-1", "CH-2"]],
+  "propagation_surfaces": ["src/consumer_a.py", "src/lib/__init__.py"],
+  "protected": ["the normalized output remains stable"],
+  "risk_domains": [],
+  "risks": [],
+  "verification": [
+    {"covers": ["SC-1", "CH-1", "CH-2"], "then": "both surfaces produce identical normalized output"}
+  ],
+  "weak": {
+    "omit-ordering": {"mode": "score", "expected_missing": ["ordering"]},
+    "omit-propagation": {"mode": "score", "expected_missing": ["propagation"]},
+    "omit-root-cause": {"mode": "score", "expected_missing": ["owners"]},
+    "omit-verification": {"mode": "score", "expected_missing": ["verification"]}
+  }
+}

@@ -8,6 +8,21 @@ Read only the matching branch.
   include a regression test that fails before the fix.
 - Refactor: preserve observable behavior and enumerate agent-identified callers,
   re-exports, fixtures, and contract surfaces.
+- Migration: describe old/new shapes, mixed-version behavior, deployment order,
+  interrupted state, and rollback or roll-forward.
+- Operational: describe the change in operator-visible behavior, monitoring,
+  alerting, and rollback or roll-forward for the operation.
+- Dependency or configuration change: name the pinned version or key, the
+  consumer surfaces, and the verification that pins behavior.
+- Schemas and generated artifacts: cite the generator and its outputs, and the
+  regeneration command that proves generated output ownership.
+- Compatibility and mixed-version migrations: cover both shapes, the
+  compatibility window, and the convergence check.
+- External calls with ambiguous success or idempotency: cover API version,
+  authentication, timeouts, retry classes, rate limits, ambiguous success,
+  idempotency, and compensation/reconciliation.
+- Rollout and observability: name deployment order, feature or rollback
+  trigger, and the metric or log that proves the new behavior.
 - Public contract or migration: describe old/new shapes, mixed-version behavior,
   deployment order, interrupted state, and rollback or roll-forward.
 - Security: identify principal, tenant/trust boundary, authorization owner,
