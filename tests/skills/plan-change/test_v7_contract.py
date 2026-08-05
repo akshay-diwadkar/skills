@@ -328,7 +328,7 @@ def _rewrite_receipt(text: str, proof: dict[str, Any]) -> str:
     return updated[: receipt_match.start()] + receipt + updated[receipt_match.end() :]
 
 
-def test_legacy_proof_without_typed_request_binding_remains_valid(tmp_path: Path) -> None:
+def test_v7_proof_without_request_binding_is_rejected(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     request = tmp_path / "request.md"
     draft = tmp_path / "draft.md"
@@ -342,7 +342,7 @@ def test_legacy_proof_without_typed_request_binding_remains_valid(tmp_path: Path
     legacy = _rewrite_receipt(sealed, proof)
     plan, diagnostics, _view = verify_sealed_plan(legacy, repo, request_bytes=request.read_bytes())
     assert plan is not None
-    assert diagnostics == []
+    assert any(item.code == "proof.stale" for item in diagnostics)
 
 
 def test_recomputed_receipt_cannot_remove_derived_proof_files(tmp_path: Path) -> None:

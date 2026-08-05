@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8997,
+    "pre_action": 9023,
     "repair_diagnostic": 3073,
     "tool_output": 2461,
-    "top_level": 6536,
-    "worst_context": 27584,
-    "worst_references": 17975
+    "top_level": 6562,
+    "worst_context": 27765,
+    "worst_references": 18130
   },
   "baseline": {
     "requirements": [
@@ -121,12 +121,12 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 843,
+        "pre_action": 869,
         "repair_diagnostic": 231,
         "tool_output": 173,
-        "top_level": 670,
-        "worst_context": 3074,
-        "worst_references": 2173
+        "top_level": 696,
+        "worst_context": 3226,
+        "worst_references": 2299
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
       "phases": {
@@ -156,7 +156,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "c190659f664bcd2446947148cf8ead49364b41947572fbfbb79fbf2ef3684d56",
+      "source_hash": "97144a4790aafd9ef819bda726d38f4e7090af3a282ae74ab4b1dd5ac76b691b",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/implementation-contract.json",
@@ -282,15 +282,15 @@
         "repair_diagnostic": 261,
         "tool_output": 198,
         "top_level": 585,
-        "worst_context": 2187,
-        "worst_references": 1341
+        "worst_context": 2216,
+        "worst_references": 1370
       },
       "path": "skills/engineering/plan-change/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "f408e76183ec1b972ef8ba2ca2d5ee6edcf4f33fcda411e5739ecdcb3244f057",
+      "source_hash": "121c2bb4dc5fabd2f5b776796577d3520b2d9145db90caf2aaf141d7ad67585f",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",

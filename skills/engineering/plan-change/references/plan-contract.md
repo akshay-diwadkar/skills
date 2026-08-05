@@ -9,7 +9,7 @@ Required sections once in order; conditional sections only at shown positions.
 <!-- plan-metadata: {"intent":"feature|bug-fix|refactor|migration|operational","tier":"tiny|standard|high-risk","risk_domains":[]} -->
 
 ## Obligations
-RQ-1: source: request|audit|design|optimization|issue | anchor: <exact request/handoff text> | obligation: <material requirement> | covered_by: SC-1, CH-1
+RQ-1: source: request|audit|design|optimization|issue | category: <typed category when required> | anchor: <exact request/handoff text> | obligation: <material requirement> | covered_by: SC-1, CH-1
 
 ## Outcome
 SC-1: given: <setup> | when: <action> | then: <result> | unchanged: <preserved behavior>
@@ -42,12 +42,13 @@ Omit empty conditional sections. Records use positive IDs, `: ` after names, and
 exact ` | ` separators. Existing CH need same-path evidence; new CH use
 `owner: F-n|CH-n` resolving to `directory-ownership` or `generated-from`.
 
-Each RQ covers ≥1 SC and ≥1 CH or T. Typed handoffs require at least one RQ whose
-`source` matches the handoff kind; anchors must come from selected handoff material
-(audit finding, Chosen Design & Depth Rationale, plan-ready optimization candidate,
-or issue Outcome/Constraints sections). Every SC/CH appears in some T.covers. Every
-CH declares depends_on, locality, and reversibility. Shared CH need matching P.
-Non-tiny local CH need an evidence-backed no-propagation P (`unchanged` or
+Each RQ covers ≥1 SC and ≥1 CH or T. Typed handoffs require RQ categories for the
+handoff kind (design: decision+constraint; optimization: candidate+workflow+measure;
+issue: outcome+protected-behavior+constraint) with anchors from selected handoff
+material. Every SC/CH appears in some T.covers. Every CH declares depends_on,
+locality, and reversibility. Shared CH need matching P on a distinct path or an
+evidence-backed unchanged/out-of-scope declaration; P.surface must use the documented
+enum. Non-tiny local CH need an evidence-backed no-propagation P (`unchanged` or
 `out-of-scope` citing F-n). Changed/test-only P paths must exist or match a planned
 CH path. Irreversible CH force high-risk, risks, and rollout. Bug-fix plans require
 one T that states fail-before and after-the-fix pass expectations. Public-contract,

@@ -25,14 +25,33 @@
     "deviations", "final_workspace", "residual_risks", "report"
   ],
   "schemas": {
-    "plan": {"required": {"sha256": "string", "normalized": "object"}},
+    "plan": {
+      "required": {
+        "sha256": "string",
+        "normalized": "object",
+        "contract_version": "integer",
+        "change_order": "string-array"
+      }
+    },
     "workspace": {
       "required": {
         "repository_id": "string", "git_head": "string-or-null", "branch": "string-or-null",
-        "targets": "array", "initial_dirty": "object"
+        "targets": "array", "change_order": "string-array", "initial_dirty": "object"
       }
     },
-    "target": {"required": {"path": "string", "status": "string", "before_sha256": "string"}},
+    "target": {
+      "required": {
+        "path": "string",
+        "status": "string",
+        "before_sha256": "string",
+        "ch_id": "string",
+        "depends_on": "string"
+      },
+      "optional": {
+        "locality": "string",
+        "reversibility": "string"
+      }
+    },
     "baseline": {
       "required": {
         "targets": "array", "dirty": "object", "verification": "array", "quality_checks": "array"

@@ -119,7 +119,7 @@ F-1: kind: directory-ownership | path: src/__init__.py | lines: 1-1 | anchor: pa
 CH-1: path: src/names_facade.py | anchor: src package facade owner | status: new | owner: F-1 | change: add a facade that delegates name normalization to the existing package implementation | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: consumer | disposition: changed | path: src/names_facade.py | owner: CH-1 | reason: F-1 new facade path is the planned consumer surface
+P-1: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-1 | reason: F-1 facade consumers need distinct import coverage
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: direct and facade imports | when: targeted facade tests execute | then: both imports produce identical normalized values | command: python -m pytest tests/test_names.py -q
@@ -171,7 +171,7 @@ F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | c
 CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: expose an idempotent transformation for the durable-state migration | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: schema | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 durable transformation owns the migration surface
+P-1: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-1 | reason: F-1 durable transformation needs distinct migration coverage
 
 ## Boundaries and Risks
 B-1: class: durable schema boundary | evidence: F-1 | flow: stored legacy value -> idempotent normalization -> migrated value

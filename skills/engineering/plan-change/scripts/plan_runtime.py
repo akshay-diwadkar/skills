@@ -37,6 +37,33 @@ ROLLOUT_DOMAINS = {
 LOCALITIES = {"local", "shared", "test-only"}
 REVERSIBILITIES = {"reversible", "conditional", "irreversible"}
 RQ_SOURCES = {"request", "audit", "design", "optimization", "issue"}
+RQ_CATEGORIES = {
+    "decision",
+    "constraint",
+    "candidate",
+    "workflow",
+    "measure",
+    "outcome",
+    "protected-behavior",
+    "obligation",
+}
+RQ_REQUIRED_CATEGORIES = {
+    "design": frozenset({"decision", "constraint"}),
+    "optimization": frozenset({"candidate", "workflow", "measure"}),
+    "issue": frozenset({"outcome", "protected-behavior", "constraint"}),
+}
+PROPAGATION_SURFACES = {
+    "caller",
+    "consumer",
+    "test",
+    "fixture",
+    "contract",
+    "config",
+    "schema",
+    "generated",
+    "deployment",
+    "documentation",
+}
 HANDOFF_RECEIPT_RE = re.compile(
     r"^<!-- (?P<kind>audit|design|optimization|issue)-handoff: (?P<version>\d+); sha256: (?P<digest>[0-9a-f]{64}) -->$"
 )
@@ -91,6 +118,7 @@ REQUIRED_FIELDS = {
 }
 OPTIONAL_FIELDS = {
     "F": set().union(*FACT_FIELDS.values()),
+    "RQ": {"category"},
     "CH": {"evidence", "owner"},
     "P": {"owner"},
 }
@@ -853,6 +881,27 @@ def _obligation_diagnostics(
                     line=record.line,
                 )
             )
+        category = record.fields.get("category", "")
+        if "category" in record.fields and category not in RQ_CATEGORIES:
+            diagnostics.append(
+                Diagnostic(
+                    "record.invalid",
+                    "Obligation category is unsupported.",
+                    f"Correct {record.id}.category.",
+                    record.id,
+                    line=record.line,
+                )
+            )
+        if source in RQ_REQUIRED_CATEGORIES and not category:
+            diagnostics.append(
+                Diagnostic(
+                    "record.invalid",
+                    f"Typed {source} obligations require category.",
+                    f"Set {record.id}.category to a required {source} category.",
+                    record.id,
+                    line=record.line,
+                )
+            )
     kind = request_source.get("kind") if isinstance(request_source, dict) else None
     if kind in RQ_SOURCES:
         matching = [record for record in obligations if record.fields.get("source") == kind]
@@ -864,6 +913,18 @@ def _obligation_diagnostics(
                     f"Add an RQ record with source: {kind}.",
                 )
             )
+        required_categories = RQ_REQUIRED_CATEGORIES.get(kind)
+        if required_categories is not None and matching:
+            present = {record.fields.get("category", "") for record in matching}
+            missing = sorted(required_categories - present)
+            if missing:
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.coverage",
+                        f"Typed {kind} handoffs require RQ categories: {', '.join(sorted(required_categories))}.",
+                        f"Add RQ records for missing categories: {', '.join(missing)}.",
+                    )
+                )
         if kind in {"audit", "design", "optimization", "issue"} and request_text and matching:
             selected_body = _selected_handoff_material(kind, request_text, request_source)
             if not selected_body.strip():
@@ -944,7 +1005,18 @@ def _propagation_diagnostics(plan: Plan, repository: RepositoryView | None = Non
         disposition = record.fields.get("disposition", "")
         path = record.fields.get("path", "").replace("\\", "/")
         reason = record.fields.get("reason", "")
+        surface = record.fields.get("surface", "")
         reason_facts = {ref for ref in _refs(reason) if ref.split("-", 1)[0] == "F"}
+        if surface not in PROPAGATION_SURFACES:
+            diagnostics.append(
+                Diagnostic(
+                    "record.invalid",
+                    "Propagation surface is unsupported.",
+                    f"Correct {record.id}.surface to a documented surface token.",
+                    record.id,
+                    line=record.line,
+                )
+            )
         if disposition in {"unchanged", "out-of-scope"}:
             if not reason_facts or not reason_facts <= fact_ids or not _substantive(reason, 3):
                 diagnostics.append(
@@ -988,14 +1060,26 @@ def _propagation_diagnostics(plan: Plan, repository: RepositoryView | None = Non
     owned_by_disposition: dict[str, set[str]] = {
         "local_declaration": set(),
         "any": set(),
+        "distinct_or_no_impact": set(),
+    }
+    change_paths = {
+        change.id: change.fields.get("path", "").replace("\\", "/")
+        for change in plan.records.get("CH", ())
     }
     for record in plan.records.get("P", ()):
         owners = _refs(record.fields.get("owner", ""))
         owned_by_disposition["any"].update(owners)
-        if record.fields.get("disposition") in {"unchanged", "out-of-scope"} and {
+        path = record.fields.get("path", "").replace("\\", "/")
+        disposition = record.fields.get("disposition", "")
+        if disposition in {"unchanged", "out-of-scope"} and {
             ref for ref in _refs(record.fields.get("reason", "")) if ref.split("-", 1)[0] == "F"
         } <= fact_ids and _substantive(record.fields.get("reason", ""), 3):
             owned_by_disposition["local_declaration"].update(owners)
+            owned_by_disposition["distinct_or_no_impact"].update(owners)
+        if disposition in {"changed", "test-only"}:
+            for owner in owners:
+                if path and path != change_paths.get(owner, ""):
+                    owned_by_disposition["distinct_or_no_impact"].add(owner)
     for change in plan.records.get("CH", ()):
         locality = change.fields.get("locality")
         if locality == "shared" and change.id not in owned_by_disposition["any"]:
@@ -1004,6 +1088,16 @@ def _propagation_diagnostics(plan: Plan, repository: RepositoryView | None = Non
                     "propagation.required",
                     "Shared changes require at least one matching Propagation record.",
                     f"Add a P-n owned by {change.id} or set locality to local/test-only.",
+                    change.id,
+                    line=change.line,
+                )
+            )
+        if locality == "shared" and change.id not in owned_by_disposition["distinct_or_no_impact"]:
+            diagnostics.append(
+                Diagnostic(
+                    "propagation.required",
+                    "Shared changes require a distinct affected surface or evidence-backed no-impact declaration.",
+                    f"Add a P-n owned by {change.id} with a path other than the CH path, or unchanged/out-of-scope citing F-n.",
                     change.id,
                     line=change.line,
                 )
@@ -1690,6 +1784,8 @@ def build_proof_bundle(
     }
     if request_source is not None:
         proof["request"] = request_source
+    else:
+        proof["request"] = {"kind": "generic", "contract_version": None, "item": None}
     return proof
 
 
@@ -1771,11 +1867,9 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
     diagnostics.extend(validation.diagnostics)
     binding = proof.get("binding")
     binding_fields = binding if isinstance(binding, dict) else {}
-    legacy_shape = set(proof) == {"version", "facts", "obligations", "change_order", "binding"}
     enriched_shape = set(proof) == {"version", "facts", "obligations", "change_order", "binding", "request"}
     request_shape_valid = (
-        legacy_shape
-        or enriched_shape
+        enriched_shape
         and isinstance(request_source, dict)
         and set(request_source) == {"kind", "contract_version", "item"}
         and request_source.get("kind") in {"generic", "audit", "design", "optimization", "issue"}
@@ -1803,7 +1897,13 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
         and isinstance(binding.get("files"), list)
     )
     if validation.valid and validation.plan is not None:
-        expected = build_proof_bundle(validation.plan, view, request_bytes or b"", validation.fact_proofs)
+        expected = build_proof_bundle(
+            validation.plan,
+            view,
+            request_bytes or b"",
+            validation.fact_proofs,
+            request_source if isinstance(request_source, dict) else None,
+        )
         expected_binding = expected["binding"]
         proof_matches_body = (
             proof_shape_valid
@@ -1825,7 +1925,7 @@ def verify_sealed_plan(text: str, repo_root: Path, *, request_bytes: bytes | Non
             )
         if proof_shape_valid and request_bytes is not None and binding_fields.get("request_sha256") != _sha256(request_bytes):
             diagnostics.append(Diagnostic("proof.stale", "Request digest changed.", "Use the request sealed with the plan.", category="stale_evidence"))
-        if proof_shape_valid and request_bytes is not None and enriched_shape:
+        if proof_shape_valid and request_bytes is not None:
             try:
                 selected_item = request_source.get("item") if isinstance(request_source, dict) else None
                 detected = detect_request_source(request_bytes, selected_item)

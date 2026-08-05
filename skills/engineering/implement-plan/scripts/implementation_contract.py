@@ -205,6 +205,99 @@ def change_order_for_plan(plan: Plan, version: int | None) -> list[str]:
     return [record.id for record in plan.records.get("CH", ())]
 
 
+def _depends_on_raw(plan: Plan, ch_id: str, version: int | None) -> str:
+    if version != 7:
+        return "none"
+    for record in plan.records.get("CH", ()):
+        if record.id == ch_id:
+            return record.fields.get("depends_on", "none")
+    return "none"
+
+
+def _depends_on_ids(raw: str) -> set[str]:
+    text = (raw or "").strip()
+    if not text or text == "none":
+        return set()
+    return {part.strip() for part in text.split(",") if part.strip()}
+
+
+def validate_bundle_against_plan(
+    bundle: dict[str, Any],
+    plan: Plan,
+    plan_text: str,
+    version: int | None,
+) -> list[str]:
+    """Return human-readable errors when order or completion sequencing is invalid."""
+    errors: list[str] = []
+    expected_order = change_order_for_plan(plan, version)
+    plan_block = bundle.get("plan")
+    workspace = bundle.get("workspace")
+    if not isinstance(plan_block, dict):
+        errors.append("bundle.plan must be an object with contract_version and change_order")
+        return errors
+    if not isinstance(workspace, dict):
+        errors.append("bundle.workspace must be an object with change_order and targets")
+        return errors
+    if plan_block.get("contract_version") != version:
+        errors.append(
+            f"bundle.plan.contract_version must equal sealed plan version {version!r}"
+        )
+    plan_order = plan_block.get("change_order")
+    workspace_order = workspace.get("change_order")
+    if plan_order != expected_order:
+        errors.append("bundle.plan.change_order must equal sealed plan dependency order")
+    if workspace_order != expected_order:
+        errors.append("bundle.workspace.change_order must equal sealed plan dependency order")
+    if plan_order != workspace_order:
+        errors.append("bundle.plan.change_order must equal bundle.workspace.change_order")
+    expected_sha = hashlib.sha256(plan_text.encode()).hexdigest()
+    if plan_block.get("sha256") != expected_sha:
+        errors.append("bundle.plan.sha256 must match the sealed plan bytes")
+    targets = workspace.get("targets")
+    if not isinstance(targets, list):
+        errors.append("bundle.workspace.targets must be an array")
+        return errors
+    if [target.get("ch_id") for target in targets if isinstance(target, dict)] != expected_order:
+        errors.append("bundle.workspace.targets must follow change_order exactly")
+    changes_by_id = {record.id: record for record in plan.records.get("CH", ())}
+    for index, target in enumerate(targets):
+        if not isinstance(target, dict):
+            errors.append(f"workspace.targets[{index}] must be an object")
+            continue
+        ch_id = target.get("ch_id")
+        if not isinstance(ch_id, str) or ch_id not in changes_by_id:
+            errors.append(f"workspace.targets[{index}].ch_id is not a planned CH")
+            continue
+        change = changes_by_id[ch_id]
+        expected_depends = _depends_on_raw(plan, ch_id, version)
+        if target.get("depends_on") != expected_depends:
+            errors.append(f"workspace.targets[{index}].depends_on must match {ch_id}")
+        if target.get("path") != change.fields.get("path", ""):
+            errors.append(f"workspace.targets[{index}].path must match {ch_id}")
+        for field in ("locality", "reversibility"):
+            expected = change.fields.get(field, "") if version == 7 else change.fields.get(field, "")
+            if version == 7 and target.get(field) != expected:
+                errors.append(f"workspace.targets[{index}].{field} must match {ch_id}")
+    completed: set[str] = set()
+    for index, change_row in enumerate(bundle.get("changes", [])):
+        if not isinstance(change_row, dict):
+            errors.append(f"changes[{index}] must be an object")
+            continue
+        ch_ids = change_row.get("ch_ids")
+        if not isinstance(ch_ids, list) or not all(isinstance(item, str) for item in ch_ids):
+            errors.append(f"changes[{index}].ch_ids must be a string array")
+            continue
+        for ch_id in ch_ids:
+            deps = _depends_on_ids(_depends_on_raw(plan, ch_id, version))
+            missing = sorted(deps - completed)
+            if missing:
+                errors.append(
+                    f"changes[{index}] completes {ch_id} before prerequisites {', '.join(missing)}"
+                )
+            completed.add(ch_id)
+    return errors
+
+
 def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
     version = plan_contract_version(text)
     runtime = _runtime_for_version(version)

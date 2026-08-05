@@ -63,7 +63,13 @@ def test_weak_plans_fail_for_intended_reason(case, weak, tmp_path: Path) -> None
         handoff_item=case.handoff_item,
     )
     assert report.complete is False
-    blob = "\n".join(report.diagnostics) + "\n" + ",".join(report.missing_obligations)
+    blob = (
+        "\n".join(report.diagnostics)
+        + "\n"
+        + ",".join(report.missing_obligations)
+        + "\n"
+        + ",".join(name for name, ok in report.dimensions.items() if not ok)
+    )
     assert weak.expected_reason in blob
 
 
@@ -100,7 +106,11 @@ def test_quality_report_artifact_contract(tmp_path: Path) -> None:
                     "expected_reason": weak.expected_reason,
                     "complete": weak_score.complete,
                     "matched_reason": weak.expected_reason
-                    in "\n".join(weak_score.diagnostics) + "\n" + ",".join(weak_score.missing_obligations),
+                    in "\n".join(weak_score.diagnostics)
+                    + "\n"
+                    + ",".join(weak_score.missing_obligations)
+                    + "\n"
+                    + ",".join(name for name, ok in weak_score.dimensions.items() if not ok),
                 }
             )
         rows.append(

@@ -55,15 +55,15 @@
       "weak": [
         {
           "complete": false,
-          "expected_reason": "propagation.required",
+          "expected_reason": "propagation_surfaces",
           "matched_reason": true,
-          "name": "missing-propagation"
+          "name": "missing-caller-propagation"
         },
         {
           "complete": false,
-          "expected_reason": "propagation.path",
+          "expected_reason": "propagation.required",
           "matched_reason": true,
-          "name": "bogus-propagation-path"
+          "name": "missing-reexport-propagation"
         },
         {
           "complete": false,
@@ -130,6 +130,12 @@
           "expected_reason": "propagation.required",
           "matched_reason": true,
           "name": "missing-propagation"
+        },
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "owner-path-only"
         }
       ]
     },
@@ -187,9 +193,21 @@
         },
         {
           "complete": false,
-          "expected_reason": "record.invalid",
+          "expected_reason": "dependency.missing",
           "matched_reason": true,
-          "name": "missing-risk"
+          "name": "wrong-dependency"
+        },
+        {
+          "complete": false,
+          "expected_reason": "dependency.missing",
+          "matched_reason": true,
+          "name": "missing-reader-change"
+        },
+        {
+          "complete": false,
+          "expected_reason": "rollout.invalid",
+          "matched_reason": true,
+          "name": "rollout-without-recovery"
         }
       ]
     },
@@ -220,6 +238,12 @@
           "expected_reason": "verification.regression",
           "matched_reason": true,
           "name": "missing-fail-before"
+        },
+        {
+          "complete": false,
+          "expected_reason": "owner_root_cause_evidence",
+          "matched_reason": true,
+          "name": "wrong-owner"
         }
       ]
     },
@@ -280,6 +304,12 @@
           "expected_reason": "propagation.required",
           "matched_reason": true,
           "name": "missing-propagation"
+        },
+        {
+          "complete": false,
+          "expected_reason": "obligation.coverage",
+          "matched_reason": true,
+          "name": "missing-constraint-category"
         }
       ]
     },
@@ -304,6 +334,12 @@
           "expected_reason": "obligation.anchor",
           "matched_reason": true,
           "name": "wrong-candidate-anchor"
+        },
+        {
+          "complete": false,
+          "expected_reason": "verification_coverage",
+          "matched_reason": true,
+          "name": "unit-test-only-verification"
         },
         {
           "complete": false,

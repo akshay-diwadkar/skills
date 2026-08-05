@@ -12,10 +12,13 @@ ambiguous, unsupported, unfinalized, receipt-mismatched, or materially
 contradicted plans; route semantic gaps back to `plan-change`. The plan limits
 behavior changes, while current repository evidence determines local form.
 
-For v7 plans, prepare/intake surfaces a deterministic `change_order` from
-`CH.depends_on` (tie-break by numeric CH id). Apply records in that order. For
-historical v6 plans, preserve record declaration order and do not invent
-obligation or dependency fields.
+For v7 plans, prepare/intake and finalization require a deterministic
+`change_order` from `CH.depends_on` (tie-break by numeric CH id). Apply and
+complete records in that order; the bundle schema requires matching
+`plan.change_order`, `workspace.change_order`, and per-target `ch_id` /
+`depends_on`. Completing a dependent before its prerequisites fails sealing.
+For historical v6 plans, preserve record declaration order as `change_order`
+and do not invent obligation fields.
 
 The primary agent owns edits, scope reconciliation, and completion. Preserve
 unrelated dirty work byte-for-byte. Do not edit a dirty target without explicit

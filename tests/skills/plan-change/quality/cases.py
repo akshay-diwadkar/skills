@@ -20,7 +20,7 @@ def _write_file(root: Path, relative: str, text: str) -> None:
 
 
 def _names_base(root: Path) -> None:
-    _write_file(root, "src/__init__.py", "# package\n")
+    _write_file(root, "src/__init__.py", "from src.names import normalize_name\n\n__all__ = ['normalize_name']\n")
     _write_file(
         root,
         "src/names.py",
@@ -159,6 +159,7 @@ def _manifest(
     propagation: list[dict[str, str]] | None = None,
     risk_rollout: list[dict[str, str]] | None = None,
     dependencies: list[dict[str, Any]] | None = None,
+    owner_path: str | None = None,
 ) -> list[dict[str, Any]]:
     return [
         {
@@ -168,7 +169,8 @@ def _manifest(
             "planned_paths": [{"path": path}],
             "owner_evidence": [
                 {
-                    "path": path if path.endswith((".py", ".toml", ".json")) else "src/names.py",
+                    "path": owner_path
+                    or (path if path.endswith((".py", ".toml", ".json")) else "src/names.py"),
                     "claim": claim,
                 }
             ],
@@ -238,7 +240,10 @@ CASES: tuple[QualityCase, ...] = (
             claim="normalize_name owns shared strip behavior",
             protected="strip behavior remains identical",
             verification=["caller and re-export tests pass"],
-            propagation=[{"disposition": "changed", "path": "src/caller.py", "owner": "CH-1"}],
+            propagation=[
+                {"disposition": "changed", "path": "src/caller.py", "owner": "CH-1"},
+                {"disposition": "changed", "path": "src/__init__.py", "owner": "CH-1"},
+            ],
         ),
         build_repo=_names_base,
         golden=_base_plan(
@@ -254,21 +259,28 @@ CASES: tuple[QualityCase, ...] = (
             mid_sections="""
 ## Propagation
 P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 caller imports the shared normalize seam
+P-2: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-1 | reason: F-1 package re-export must keep normalize_name public
 """,
         ),
         weak=(
             WeakPlan(
-                "missing-propagation",
-                "propagation.required",
+                "missing-caller-propagation",
+                "propagation_surfaces",
                 lambda text: text.replace(
-                    "\n## Propagation\nP-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 caller imports the shared normalize seam\n",
-                    "\n",
+                    "P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 caller imports the shared normalize seam\n",
+                    "",
                 ),
             ),
             WeakPlan(
-                "bogus-propagation-path",
-                "propagation.path",
-                lambda text: text.replace("path: src/caller.py", "path: missing/nope.py"),
+                "missing-reexport-propagation",
+                "propagation.required",
+                lambda text: text.replace(
+                    "P-2: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-1 | reason: F-1 package re-export must keep normalize_name public\n",
+                    "",
+                ).replace(
+                    "P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 caller imports the shared normalize seam\n",
+                    "P-1: surface: caller | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 restates the owner path only\n",
+                ),
             ),
             WeakPlan(
                 "token-out-of-scope",
@@ -342,7 +354,7 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
             claim="settings.toml owns retry_limit",
             protected="existing successful syncs remain valid",
             verification=["retry_limit consumers pass"],
-            propagation=[{"disposition": "changed", "path": "config/settings.toml", "owner": "CH-1"}],
+            propagation=[{"disposition": "changed", "path": "src/names.py", "owner": "CH-1"}],
         ),
         build_repo=_config_repo,
         golden=_base_plan(
@@ -363,7 +375,7 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
             verification_then="retry_limit consumers pass",
             mid_sections="""
 ## Propagation
-P-1: surface: config | disposition: changed | path: config/settings.toml | owner: CH-1 | reason: F-1 config key owns the retry surface
+P-1: surface: caller | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 name sync consumers read the updated retry_limit
 """,
         ),
         weak=(
@@ -372,8 +384,16 @@ P-1: surface: config | disposition: changed | path: config/settings.toml | owner
                 "missing-propagation",
                 "propagation.required",
                 lambda text: text.replace(
-                    "\n## Propagation\nP-1: surface: config | disposition: changed | path: config/settings.toml | owner: CH-1 | reason: F-1 config key owns the retry surface\n",
+                    "\n## Propagation\nP-1: surface: caller | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 name sync consumers read the updated retry_limit\n",
                     "\n",
+                ),
+            ),
+            WeakPlan(
+                "owner-path-only",
+                "propagation.required",
+                lambda text: text.replace(
+                    "disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 name sync consumers read the updated retry_limit",
+                    "disposition: changed | path: config/settings.toml | owner: CH-1 | reason: F-1 restates the owning config path",
                 ),
             ),
         ),
@@ -388,6 +408,7 @@ P-1: surface: config | disposition: changed | path: config/settings.toml | owner
             claim="generator owns declared output",
             protected="handwritten names remain authoritative",
             verification=["regeneration is stable"],
+            owner_path="tools/gen_model.py",
             propagation=[
                 {
                     "disposition": "out-of-scope",
@@ -438,66 +459,108 @@ P-1: surface: generated | disposition: out-of-scope | path: src/names.py | owner
     QualityCase(
         id="public-contract-migration",
         request="Migrate public name schema with compatibility window.\n",
-        obligations=_manifest(
-            obligation="migrate public name schema with compatibility",
-            anchor="Migrate public name schema",
-            path="src/schema.py",
-            claim="SCHEMA owns the public contract shape",
-            protected="old readers keep working through the window",
-            verification=["compatibility checks pass"],
-            propagation=[{"disposition": "changed", "path": "src/schema.py", "owner": "CH-1"}],
-            risk_rollout=[
-                {"risk": "mixed-version readers could reject the new field", "rollout": "compatibility window"},
-            ],
-        ),
+        obligations=[
+            {
+                "id": "O1",
+                "obligation": "migrate public name schema with compatibility",
+                "anchor": "Migrate public name schema",
+                "planned_paths": [
+                    {"path": "src/old_reader.py"},
+                    {"path": "src/new_writer.py"},
+                    {"path": "src/schema.py"},
+                ],
+                "owner_evidence": [
+                    {"path": "src/schema.py", "claim": "SCHEMA owns the public contract shape"},
+                    {"path": "src/old_reader.py", "claim": "old_reader accepts compatibility shape"},
+                    {"path": "src/new_writer.py", "claim": "new_writer emits the migrated shape"},
+                ],
+                "dependencies": [
+                    {"ch": "CH-1", "depends_on": []},
+                    {"ch": "CH-2", "depends_on": ["CH-1"]},
+                    {"ch": "CH-3", "depends_on": ["CH-2"]},
+                ],
+                "propagation": [
+                    {"disposition": "changed", "path": "src/old_reader.py", "owner": "CH-1"},
+                    {"disposition": "changed", "path": "src/new_writer.py", "owner": "CH-2"},
+                    {"disposition": "changed", "path": "src/schema.py", "owner": "CH-3"},
+                ],
+                "protected_behavior": [{"text": "old readers keep working through the window"}],
+                "risk_rollout": [
+                    {"risk": "mixed-version readers could reject the new field", "rollout": "compatibility window"},
+                ],
+                "verification": [{"must_include": ["compatibility checks pass"]}],
+            }
+        ],
         build_repo=_migration_repo,
-        golden=_base_plan(
-            title="Migrate public name schema",
-            metadata='{"intent":"migration","tier":"high-risk","risk_domains":["public-contract","migration"]}',
-            request_anchor="Migrate public name schema",
-            obligation="migrate public name schema with compatibility",
-            change="add the new schema field while retaining the previous name field through one compatibility window",
-            path="src/schema.py",
-            anchor="SCHEMA",
-            fact_path="src/schema.py",
-            fact_lines="1-1",
-            fact_claim="SCHEMA owns the public contract shape",
-            locality="shared",
-            sc_unchanged="old readers keep working through the window",
-            verification_then="compatibility checks pass",
-            mid_sections="""
+        golden="""# Migrate public name schema
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"migration","tier":"high-risk","risk_domains":["public-contract","migration"]} -->
+
+## Obligations
+RQ-1: source: request | anchor: Migrate public name schema | obligation: migrate public name schema with compatibility | covered_by: SC-1, CH-1, CH-2, CH-3, T-1
+
+## Outcome
+SC-1: given: mixed-version schema traffic | when: migration runs | then: readers and writers converge on the new shape | unchanged: old readers keep working through the window
+
+## Evidence
+F-1: kind: source | path: src/schema.py | lines: 1-1 | anchor: SCHEMA | claim: SCHEMA owns the public contract shape
+F-2: kind: source | path: src/old_reader.py | lines: 1-2 | anchor: read_old | claim: old_reader accepts compatibility shape
+F-3: kind: source | path: src/new_writer.py | lines: 1-2 | anchor: write_new | claim: new_writer emits the migrated shape
+
+## Implementation
+CH-1: path: src/old_reader.py | anchor: read_old | status: existing | evidence: F-2 | change: accept both old and new schema shapes during the compatibility window | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/new_writer.py | anchor: write_new | status: existing | evidence: F-3 | change: emit the new schema shape after readers accept it | depends_on: CH-1 | locality: shared | reversibility: reversible
+CH-3: path: src/schema.py | anchor: SCHEMA | status: existing | evidence: F-1 | change: remove the compatibility field after writers and readers converge | depends_on: CH-2 | locality: shared | reversibility: reversible
+
 ## Propagation
-P-1: surface: contract | disposition: changed | path: src/schema.py | owner: CH-1 | reason: F-1 public schema owns mixed-version readers
+P-1: surface: caller | disposition: changed | path: src/old_reader.py | owner: CH-1 | reason: F-2 readers must accept mixed shapes first
+P-2: surface: caller | disposition: changed | path: src/new_writer.py | owner: CH-2 | reason: F-3 writers emit only after readers accept
+P-3: surface: contract | disposition: changed | path: src/schema.py | owner: CH-3 | reason: F-1 schema cleanup follows writer convergence
+P-4: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-1 | reason: F-2 compatibility checks cover reader acceptance
+P-5: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-2 | reason: F-3 writer emission is covered by compatibility checks
+P-6: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-3 | reason: F-1 schema cleanup is covered by compatibility checks
 
 ## Boundaries and Risks
 B-1: class: public schema boundary | evidence: F-1 | flow: old schema readers -> compatibility window -> new schema writers
 R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: mixed-version readers could reject the new field
-""",
-            rollout="""
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2, CH-3 | given: mixed reader and writer fixtures | when: migration verification executes | then: compatibility checks pass | command: python -m pytest tests/test_names.py -q
+
 ## Rollout and Rollback
 Deploy schema writers after readers in one compatibility window. If validation divergence appears, roll back writers and restore the previous schema snapshot.
 """,
-        ),
         weak=(
             WeakPlan("missing-rollout", "section.order", lambda text: text.split("\n## Rollout and Rollback", 1)[0] + "\n"),
             WeakPlan(
-                "missing-risk",
-                "record.invalid",
+                "wrong-dependency",
+                "dependency.missing",
+                lambda text: text.replace("depends_on: CH-1 | locality: shared | reversibility: reversible\nCH-3:", "depends_on: CH-9 | locality: shared | reversibility: reversible\nCH-3:"),
+            ),
+            WeakPlan(
+                "missing-reader-change",
+                "dependency.missing",
+                lambda text: text.replace("CH-1: path: src/old_reader.py | anchor: read_old | status: existing | evidence: F-2 | change: accept both old and new schema shapes during the compatibility window | depends_on: none | locality: shared | reversibility: reversible\n", ""),
+            ),
+            WeakPlan(
+                "rollout-without-recovery",
+                "rollout.invalid",
                 lambda text: text.replace(
-                    "\n## Boundaries and Risks\nB-1: class: public schema boundary | evidence: F-1 | flow: old schema readers -> compatibility window -> new schema writers\nR-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: mixed-version readers could reject the new field\n",
-                    "\n",
+                    "Deploy schema writers after readers in one compatibility window. If validation divergence appears, roll back writers and restore the previous schema snapshot.",
+                    "Deploy schema writers after readers in one compatibility window.",
                 ),
             ),
         ),
     ),
     QualityCase(
         id="concurrency-idempotency",
-        request="Make normalize_name idempotent under concurrent retries.\n",
+        request="Make retry state idempotent under concurrent retries.\n",
         obligations=_manifest(
-            obligation="idempotent normalization under concurrent retries",
+            obligation="idempotent retry state under concurrent retries",
             anchor="idempotent",
-            path="src/names.py",
-            claim="normalize_name owns concurrent retry mutation",
+            path="src/retry_state.py",
+            claim="retry_state owns concurrent retry mutation",
             protected="stripped values stay stable under retry",
             verification=["fails before the fix", "passes after the fix", "idempotent"],
             propagation=[{"disposition": "unchanged", "path": "src/caller.py", "owner": "CH-1"}],
@@ -505,13 +568,17 @@ Deploy schema writers after readers in one compatibility window. If validation d
         ),
         build_repo=_concurrency_repo,
         golden=_base_plan(
-            title="Make normalization idempotent",
+            title="Make retry state idempotent",
             metadata='{"intent":"bug-fix","tier":"high-risk","risk_domains":["concurrency"]}',
             request_anchor="idempotent",
-            obligation="idempotent normalization under concurrent retries",
-            change="make normalize_name idempotent so concurrent retries return the same stripped value without double mutation",
+            obligation="idempotent retry state under concurrent retries",
+            change="make apply idempotent so concurrent retries return the same stored value without double mutation",
+            path="src/retry_state.py",
+            anchor="apply",
+            fact_path="src/retry_state.py",
+            fact_lines="1-5",
+            fact_claim="retry_state owns concurrent retry mutation",
             locality="shared",
-            fact_claim="normalize_name owns concurrent retry mutation",
             sc_unchanged="stripped values stay stable under retry",
             verification_then="the case fails before the fix and passes after the fix while concurrent retries stay idempotent",
             mid_sections="""
@@ -537,6 +604,14 @@ R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: overlapping retries could m
                 "verification.regression",
                 lambda text: text.replace("fails before the fix and passes after the fix", "passes after the fix"),
             ),
+            WeakPlan(
+                "wrong-owner",
+                "owner_root_cause_evidence",
+                lambda text: text.replace(
+                    "claim: retry_state owns concurrent retry mutation",
+                    "claim: normalize_name owns concurrent retry mutation",
+                ),
+            ),
         ),
     ),
     QualityCase(
@@ -549,7 +624,7 @@ R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: overlapping retries could m
             claim="external client owns ambiguous ack handling",
             protected="successful sync tokens remain durable",
             verification=["idempotent confirmation"],
-            propagation=[{"disposition": "changed", "path": "src/external_client.py", "owner": "CH-1"}],
+            propagation=[{"disposition": "changed", "path": "src/caller.py", "owner": "CH-1"}],
             risk_rollout=[
                 {"risk": "ambiguous acknowledgements could double-apply sync", "rollout": "canary"},
             ],
@@ -571,7 +646,7 @@ R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: overlapping retries could m
             verification_then="idempotent confirmation",
             mid_sections="""
 ## Propagation
-P-1: surface: deployment | disposition: changed | path: src/external_client.py | owner: CH-1 | reason: F-1 external ack path owns the sync side effect
+P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 callers must tolerate retryable ambiguous acknowledgements
 
 ## Boundaries and Risks
 B-1: class: external acknowledgement boundary | evidence: F-1 | flow: request sent -> ambiguous ack -> idempotent confirmation
@@ -588,7 +663,7 @@ Deploy behind a canary flag in order. If duplicate sync tokens appear, disable t
                 "token-propagation",
                 "propagation.evidence",
                 lambda text: text.replace(
-                    "disposition: changed | path: src/external_client.py | owner: CH-1 | reason: F-1 external ack path owns the sync side effect",
+                    "disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 callers must tolerate retryable ambiguous acknowledgements",
                     "disposition: out-of-scope | path: docs/none.md | owner: CH-1 | reason: not needed",
                 ),
             ),
@@ -600,6 +675,7 @@ Deploy behind a canary flag in order. If duplicate sync tokens appear, disable t
             "design",
             "## Chosen Design & Depth Rationale\n"
             "- Boundary: NameGateway.normalize owns absent-name handling\n"
+            "- Constraint: preserve present-name strip contract\n"
             "## Alternatives Considered\n"
             "### Alternative: RejectedStripOnly\n"
             "- Boundary: strip-only helper without gateway\n",
@@ -614,22 +690,30 @@ Deploy behind a canary flag in order. If duplicate sync tokens appear, disable t
             propagation=[{"disposition": "changed", "path": "src/caller.py", "owner": "CH-1"}],
         ),
         build_repo=_names_base,
-        golden=_base_plan(
-            title="Implement selected name gateway",
-            metadata='{"intent":"refactor","tier":"standard","risk_domains":[]}',
-            request_anchor="NameGateway.normalize owns absent-name handling",
-            obligation="implement selected NameGateway.normalize boundary",
-            source="design",
-            change="introduce the selected NameGateway.normalize boundary while preserving current strip behavior",
-            locality="shared",
-            fact_claim="normalize_name is the chosen boundary owner",
-            sc_unchanged="strip behavior remains",
-            verification_then="selected boundary holds",
-            mid_sections="""
+        golden="""# Implement selected name gateway
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"refactor","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: design | category: decision | anchor: NameGateway.normalize owns absent-name handling | obligation: implement selected NameGateway.normalize boundary | covered_by: SC-1, CH-1, T-1
+RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1
+
+## Outcome
+SC-1: given: an observable setup | when: the planned action runs | then: the observable result occurs | unchanged: strip behavior remains
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: normalize_name is the chosen boundary owner
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: introduce the selected NameGateway.normalize boundary while preserving current strip behavior | depends_on: none | locality: shared | reversibility: reversible
+
 ## Propagation
 P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-1 callers must adopt the selected boundary
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: targeted cases | when: tests execute | then: selected boundary holds | command: python -m pytest tests/test_names.py -q
 """,
-        ),
         weak=(
             WeakPlan(
                 "wrong-design-anchor",
@@ -647,6 +731,14 @@ P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 
                     "\n",
                 ),
             ),
+            WeakPlan(
+                "missing-constraint-category",
+                "obligation.coverage",
+                lambda text: text.replace(
+                    "RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1\n",
+                    "",
+                ),
+            ),
         ),
     ),
     QualityCase(
@@ -654,41 +746,55 @@ P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 
         request=_sealed_handoff(
             "optimization",
             "- Selected candidate: C-1\n"
-            "- H-1: next: plan-ready | candidate: C-1 | measure: p95 latency\n"
+            "- H-1: next: plan-ready | candidate: C-1 | measure: p95 latency | workflow: normalize_name hot path\n"
             "- C-1: cache normalize_name for repeated inputs\n"
             "- C-9: rejected speculative rewrite\n",
         ),
-        obligations=_manifest(
-            obligation="cache normalize_name for the selected workflow measure",
-            anchor="cache normalize_name for repeated inputs",
-            path="src/names.py",
-            claim="normalize_name owns the measured hot path",
-            protected="empty-string behavior remains",
-            verification=["p95 measure improves"],
-            propagation=[
-                {
-                    "disposition": "out-of-scope",
-                    "path": "src/caller.py",
-                    "owner": "CH-1",
-                }
-            ],
-        ),
+        obligations=[
+            {
+                "id": "O1",
+                "obligation": "cache normalize_name for the selected workflow measure",
+                "anchor": "cache normalize_name for repeated inputs",
+                "planned_paths": [{"path": "src/names.py"}],
+                "owner_evidence": [{"path": "src/names.py", "claim": "normalize_name owns the measured hot path"}],
+                "dependencies": [{"ch": "CH-1", "depends_on": []}],
+                "propagation": [{"disposition": "out-of-scope", "path": "src/caller.py", "owner": "CH-1"}],
+                "protected_behavior": [{"text": "empty-string behavior remains"}],
+                "risk_rollout": [],
+                "verification": [
+                    {
+                        "must_include": ["p95 measure improves", "baseline", "threshold"],
+                        "must_command": ["bench/measure_normalize.py"],
+                    }
+                ],
+            }
+        ],
         build_repo=_optimization_repo,
-        golden=_base_plan(
-            title="Cache normalize_name path",
-            metadata='{"intent":"feature","tier":"standard","risk_domains":[]}',
-            request_anchor="cache normalize_name for repeated inputs",
-            obligation="cache normalize_name for the selected workflow measure",
-            source="optimization",
-            change="cache normalize_name results for repeated identical inputs while preserving empty-string behavior",
-            fact_claim="normalize_name owns the measured hot path",
-            sc_unchanged="empty-string behavior remains",
-            verification_then="p95 measure improves",
-            mid_sections="""
+        golden="""# Cache normalize_name path
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"feature","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: optimization | category: candidate | anchor: cache normalize_name for repeated inputs | obligation: cache normalize_name for the selected workflow measure | covered_by: SC-1, CH-1, T-1
+RQ-2: source: optimization | category: workflow | anchor: normalize_name hot path | obligation: target the normalize_name hot path workflow | covered_by: SC-1, CH-1, T-1
+RQ-3: source: optimization | category: measure | anchor: p95 latency | obligation: improve the p95 latency measure against baseline | covered_by: SC-1, CH-1, T-1
+
+## Outcome
+SC-1: given: an observable setup | when: the planned action runs | then: the observable result occurs | unchanged: empty-string behavior remains
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: normalize_name owns the measured hot path
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: cache normalize_name results for repeated identical inputs while preserving empty-string behavior | depends_on: none | locality: local | reversibility: reversible
+
 ## Propagation
 P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: CH-1 | reason: F-1 bounded sweep found no extra measure owners beyond the hot path
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: repeated normalize inputs with recorded baseline | when: the measure harness executes | then: p95 measure improves above the recorded baseline threshold | command: python bench/measure_normalize.py
 """,
-        ),
         weak=(
             WeakPlan(
                 "wrong-candidate-anchor",
@@ -696,6 +802,14 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
                 lambda text: text.replace(
                     "cache normalize_name for repeated inputs",
                     "rejected speculative rewrite",
+                ),
+            ),
+            WeakPlan(
+                "unit-test-only-verification",
+                "verification_coverage",
+                lambda text: text.replace(
+                    "command: python bench/measure_normalize.py",
+                    "command: python -m pytest tests/test_names.py -q",
                 ),
             ),
             WeakPlan(
@@ -714,6 +828,7 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
             "Return empty string for absent names.\n"
             "## Constraints and Protected Behavior\n"
             "Protect current strip behavior for present names.\n"
+            "Constraint: keep the public normalize_name signature stable.\n"
             "## Risks and Open Questions\n"
             "Incidental prose must not be used as an obligation anchor.\n",
         ),
@@ -726,17 +841,28 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
             verification=["fails before the fix", "passes after the fix"],
         ),
         build_repo=_names_base,
-        golden=_base_plan(
-            title="Fix absent names with protected strip behavior",
-            metadata='{"intent":"bug-fix","tier":"tiny","risk_domains":[]}',
-            request_anchor="Protect current strip behavior",
-            obligation="fix absent names while protecting strip behavior",
-            source="issue",
-            change="return empty string for absent values before stripping present names",
-            fact_claim="root cause is absent-value handling before strip",
-            sc_unchanged="present names remain stripped exactly as today",
-            verification_then="the case fails before the fix and passes after the fix with protected strip behavior",
-        ),
+        golden="""# Fix absent names with protected strip behavior
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"bug-fix","tier":"tiny","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: issue | category: outcome | anchor: Return empty string for absent names | obligation: return empty string for absent names | covered_by: SC-1, CH-1, T-1
+RQ-2: source: issue | category: protected-behavior | anchor: Protect current strip behavior | obligation: fix absent names while protecting strip behavior | covered_by: SC-1, CH-1, T-1
+RQ-3: source: issue | category: constraint | anchor: keep the public normalize_name signature stable | obligation: keep the public normalize_name signature stable | covered_by: SC-1, CH-1, T-1
+
+## Outcome
+SC-1: given: an observable setup | when: the planned action runs | then: the observable result occurs | unchanged: present names remain stripped exactly as today
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: root cause is absent-value handling before strip
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return empty string for absent values before stripping present names | depends_on: none | locality: local | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: targeted cases | when: tests execute | then: the case fails before the fix and passes after the fix with protected strip behavior | command: python -m pytest tests/test_names.py -q
+""",
         weak=(
             WeakPlan(
                 "lost-protected-behavior",

@@ -223,7 +223,8 @@ def test_handoff_is_a_valid_plan_change_v7_request_file(tmp_path: Path) -> None:
 <!-- plan-metadata: {"intent":"refactor","tier":"standard","risk_domains":[]} -->
 
 ## Obligations
-RQ-1: source: design | anchor: PaymentGateway.charge | obligation: introduce the selected payment gateway charge boundary for checkout and renewal callers | covered_by: SC-1, CH-1, T-1
+RQ-1: source: design | category: decision | anchor: PaymentGateway.charge | obligation: introduce the selected payment gateway charge boundary for checkout and renewal callers | covered_by: SC-1, CH-1, T-1
+RQ-2: source: design | category: constraint | anchor: Locality: The chosen seam keeps provider translation | obligation: keep provider translation constrained within the payments integration owner | covered_by: SC-1, CH-1, T-1
 
 ## Outcome
 SC-1: given: checkout and renewal payment callers | when: charging moves behind a gateway | then: callers use the shared gateway contract | unchanged: provider decline behavior remains stable

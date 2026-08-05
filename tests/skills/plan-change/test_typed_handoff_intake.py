@@ -273,6 +273,7 @@ def test_design_optimization_issue_anchors_must_use_selected_material(tmp_path: 
     design_body = (
         "## Chosen Design & Depth Rationale\n"
         "- Boundary: NameGateway.normalize owns absent-name handling\n"
+        "- Constraint: preserve present-name strip contract\n"
         "## Alternatives Considered\n"
         "### Alternative: RejectedStripOnly\n"
         "- Boundary: strip-only helper without gateway\n"
@@ -282,10 +283,25 @@ def test_design_optimization_issue_anchors_must_use_selected_material(tmp_path: 
         helpers.tiny_plan(request_anchor="NameGateway.normalize owns absent-name handling")
         .replace("source: request", "source: design")
         .replace(
+            "RQ-1: source: design | anchor: NameGateway.normalize owns absent-name handling | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+            "RQ-1: source: design | category: decision | anchor: NameGateway.normalize owns absent-name handling | obligation: implement the selected NameGateway.normalize boundary | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1",
+        )
+        .replace(
             "obligation: absent input names must normalize to an empty string",
             "obligation: implement the selected NameGateway.normalize boundary",
         )
     )
+    # Fix if first replace already changed obligation text
+    if "RQ-2:" not in good:
+        good = (
+            helpers.tiny_plan(request_anchor="NameGateway.normalize owns absent-name handling")
+            .replace(
+                "RQ-1: source: request | anchor: NameGateway.normalize owns absent-name handling | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+                "RQ-1: source: design | category: decision | anchor: NameGateway.normalize owns absent-name handling | obligation: implement the selected NameGateway.normalize boundary | covered_by: SC-1, CH-1, T-1\n"
+                "RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1",
+            )
+        )
     draft.write_text(good, encoding="utf-8")
     assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text
     bad = good.replace("NameGateway.normalize owns absent-name handling", "strip-only helper without gateway")
@@ -296,23 +312,22 @@ def test_design_optimization_issue_anchors_must_use_selected_material(tmp_path: 
 
     opt_body = (
         "- Selected candidate: C-1\n"
-        "- H-1: next: plan-ready | candidate: C-1 | measure: p95 latency\n"
+        "- H-1: next: plan-ready | candidate: C-1 | measure: p95 latency | workflow: normalize_name hot path\n"
         "- C-1: cache normalize_name for repeated inputs\n"
         "- C-9: rejected speculative rewrite\n"
     )
     request.write_bytes(sealed("optimization", opt_body))
-    good_opt = (
-        helpers.tiny_plan(request_anchor="cache normalize_name for repeated inputs")
-        .replace("source: request", "source: optimization")
-        .replace(
-            "obligation: absent input names must normalize to an empty string",
-            "obligation: apply selected candidate cache measure for the workflow",
-        )
-        .replace('{"intent":"bug-fix","tier":"tiny","risk_domains":[]}', '{"intent":"feature","tier":"tiny","risk_domains":[]}')
-        .replace(
-            "then: the case fails before the fix and passes after the fix with absent input empty and present input stripped",
-            "then: cached repeated inputs match the measured workflow expectation",
-        )
+    good_opt = helpers.tiny_plan(request_anchor="cache normalize_name for repeated inputs").replace(
+        "RQ-1: source: request | anchor: cache normalize_name for repeated inputs | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+        "RQ-1: source: optimization | category: candidate | anchor: cache normalize_name for repeated inputs | obligation: apply selected candidate cache for repeated inputs | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-2: source: optimization | category: workflow | anchor: normalize_name hot path | obligation: target the normalize_name hot path workflow | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-3: source: optimization | category: measure | anchor: p95 latency | obligation: improve the p95 latency measure for the workflow | covered_by: SC-1, CH-1, T-1",
+    ).replace(
+        '{"intent":"bug-fix","tier":"tiny","risk_domains":[]}',
+        '{"intent":"feature","tier":"tiny","risk_domains":[]}',
+    ).replace(
+        "then: the case fails before the fix and passes after the fix with absent input empty and present input stripped",
+        "then: cached repeated inputs match the measured workflow expectation",
     )
     draft.write_text(good_opt, encoding="utf-8")
     assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text
@@ -327,17 +342,16 @@ def test_design_optimization_issue_anchors_must_use_selected_material(tmp_path: 
         "Return empty string for absent names.\n"
         "## Constraints and Protected Behavior\n"
         "Protect current strip behavior for present names.\n"
+        "Constraint: keep the public normalize_name signature stable.\n"
         "## Risks and Open Questions\n"
         "Incidental prose must not be used as an obligation anchor.\n"
     )
     request.write_bytes(sealed("issue", '<!-- issue-handoff-metadata -->\n```json\n{"status":"plan-ready"}\n```\n' + issue_body))
-    good_issue = (
-        helpers.tiny_plan(request_anchor="Protect current strip behavior")
-        .replace("source: request", "source: issue")
-        .replace(
-            "obligation: absent input names must normalize to an empty string",
-            "obligation: fix absent names while protecting strip behavior",
-        )
+    good_issue = helpers.tiny_plan(request_anchor="Protect current strip behavior").replace(
+        "RQ-1: source: request | anchor: Protect current strip behavior | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+        "RQ-1: source: issue | category: outcome | anchor: Return empty string for absent names | obligation: return empty string for absent names | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-2: source: issue | category: protected-behavior | anchor: Protect current strip behavior | obligation: protect current strip behavior for present names | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-3: source: issue | category: constraint | anchor: keep the public normalize_name signature stable | obligation: keep the public normalize_name signature stable | covered_by: SC-1, CH-1, T-1",
     )
     draft.write_text(good_issue, encoding="utf-8")
     assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text

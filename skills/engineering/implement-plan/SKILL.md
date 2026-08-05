@@ -4,7 +4,7 @@ description: Execute an approved implementation plan as the smallest complete pa
 version: 3.3.0
 metadata:
   invocation: user-invoked
-  implementation-contract: "3"
+  implementation-contract: "4"
   finalizer: "scripts/seal_implementation.py"
   validation-required: "true"
 disable-model-invocation: true
@@ -16,16 +16,15 @@ user-invocable: true
 ## Purpose and authority
 
 Implement the exact approved plan as the smallest complete patch. The plan
-limits behavior changes; repository evidence determines local form; the v3
+limits behavior changes; repository evidence determines local form; the v4
 implementation contract proves the result.
 
-Accept finalized plan-contract v6 or v7 plans with either the legacy request binding
-or the enriched typed-handoff kind, version, and selected-item binding.
-Reject ambiguous, unfinalized, unsupported, receipt-mismatched, or materially
-contradicted plans. Route semantic gaps to `plan-change`; never reinterpret
-product intent during implementation. Preserve unrelated dirty work byte for
-byte, never edit a dirty target without explicit authorization, and stop on a
-concurrent target change.
+Accept finalized plan-contract v6 or v7 plans with the typed request binding
+(kind, version, and selected-item). Reject ambiguous, unfinalized, unsupported,
+receipt-mismatched, or materially contradicted plans. Route semantic gaps to
+`plan-change`; never reinterpret product intent during implementation. Preserve
+unrelated dirty work byte for byte, never edit a dirty target without explicit
+authorization, and stop on a concurrent target change.
 
 ## Start
 
@@ -53,14 +52,16 @@ Run each returned `next_command.argv` with its returned `cwd`. Read only
 Implement every planned branch, error, side effect, blueprint, and test. Allow
 unplanned edits only through the Mechanical Propagation Gate. Attribute a
 failure as pre-existing only when the identical check failed in the recorded
-baseline.
+baseline. Apply `CH` records in the sealed `change_order`; never complete a
+dependent change before its prerequisites.
 
 ## Completion and recovery
 
 Complete only when sealing returns a validator-passing
-`implementation.json` with status `complete` and a matching v3 SHA-256 receipt.
-Report the plan version, changes, propagation, exact checks, residual risks,
-and unresolved records.
+`implementation.json` with status `complete` and a matching v4 SHA-256 receipt
+that records the sealed plan-contract version. Report the plan version, change
+order, changes, propagation, exact checks, residual risks, and unresolved
+records.
 
 On failure, preserve the bundle and agent-owned snapshots, follow the hazard's
 recovery rule, and reverse only positively identified agent-owned hunks whose

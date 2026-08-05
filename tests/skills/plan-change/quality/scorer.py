@@ -103,12 +103,15 @@ def score_plan(
         for expected in obligation_manifest
         for item in expected.get("owner_evidence", [])
     ]
-    fact_blob = "\n".join(
-        f"{record.fields.get('path', '')}|{record.fields.get('claim', '')}"
+    fact_rows = [
+        (record.fields.get("path", ""), record.fields.get("claim", ""))
         for record in plan.records.get("F", ())
-    )
+    ]
     dimensions["owner_root_cause_evidence"] = bool(expected_facts) and all(
-        any(token in fact_blob for token in (item.get("path", ""), item.get("claim", "")) if token)
+        any(
+            item.get("path", "") == path and item.get("claim", "") in claim
+            for path, claim in fact_rows
+        )
         for item in expected_facts
     )
     if dimensions["owner_root_cause_evidence"]:
@@ -207,13 +210,15 @@ def score_plan(
         for expected in obligation_manifest
         for item in expected.get("verification", [])
     ]
-    verification_blob = "\n".join(
-        " ".join(record.fields.get(field, "") for field in ("covers", "given", "when", "then", "command"))
+    behavioral_blob = "\n".join(
+        " ".join(record.fields.get(field, "") for field in ("covers", "given", "when", "then"))
         for record in plan.records.get("T", ())
     )
+    command_blob = "\n".join(record.fields.get("command", "") for record in plan.records.get("T", ()))
     covered = set().union(*(_refs(record.fields.get("covers", "")) for record in plan.records.get("T", ())), set())
     dimensions["verification_coverage"] = not ((plan.ids("SC") | plan.ids("CH")) - covered) and all(
-        all(token in verification_blob for token in item.get("must_include", []) if token)
+        all(token in behavioral_blob for token in item.get("must_include", []) if token)
+        and all(token in command_blob for token in item.get("must_command", []) if token)
         for item in expected_verification
     )
     if dimensions["verification_coverage"]:

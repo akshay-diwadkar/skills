@@ -8,7 +8,13 @@ import hashlib
 import json
 from pathlib import Path
 
-from implementation_contract import plan_contract_version, sha256_file, validate_plan_text
+from implementation_contract import (
+    load_contract,
+    plan_contract_version,
+    sha256_file,
+    validate_bundle_against_plan,
+    validate_plan_text,
+)
 
 
 def main() -> int:
@@ -19,14 +25,25 @@ def main() -> int:
     args = parser.parse_args()
     root = args.repo_root.resolve()
     plan_text = args.plan.read_text(encoding="utf-8")
+    contract = load_contract()
+    version = plan_contract_version(plan_text)
+    supported = set(contract["supported_plan_contract_versions"])
+    if version not in supported:
+        print(f"contract.unsupported: plan-contract version {version!r} is not supported")
+        return 1
     plan, diagnostics = validate_plan_text(plan_text, root)
-    if diagnostics or plan is None or plan_contract_version(plan_text) != 6:
+    if diagnostics or plan is None:
         for diagnostic in diagnostics:
             print(diagnostic)
         return 1
     bundle = json.loads(args.bundle.read_text(encoding="utf-8"))
     if not isinstance(bundle, dict):
         print("bundle must be an object")
+        return 1
+    order_errors = validate_bundle_against_plan(bundle, plan, plan_text, version)
+    if order_errors:
+        for error in order_errors:
+            print(error)
         return 1
     planned = {record.fields.get("path") for record in plan.records.get("CH", ())}
     touched = {
@@ -45,8 +62,8 @@ def main() -> int:
     canonical = dict(bundle)
     canonical.pop("validation_receipt", None)
     bundle["validation_receipt"] = {
-        "implementation_contract": 4,
-        "plan_contract": 6,
+        "implementation_contract": int(contract["contract_version"]),
+        "plan_contract": version,
         "scope": "planned-and-agent-reported-paths-only",
         "sha256": hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
     }
