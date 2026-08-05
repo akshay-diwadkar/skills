@@ -386,7 +386,7 @@ def test_v7_empty_changes_fail_completion(tmp_path: Path) -> None:
         check=False,
     )
     assert finalized.returncode != 0
-    assert "exactly once in change_order" in finalized.stdout
+    assert "exactly once" in finalized.stdout
 
 
 def test_v7_duplicate_and_unknown_ch_fail(tmp_path: Path) -> None:
@@ -421,7 +421,7 @@ def test_v7_duplicate_and_unknown_ch_fail(tmp_path: Path) -> None:
         check=False,
     )
     assert duplicate.returncode != 0
-    assert "exactly once in change_order" in duplicate.stdout
+    assert "exactly once" in duplicate.stdout
     value["changes"][0]["ch_ids"] = ["CH-9"]
     bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     unknown = subprocess.run(
@@ -434,7 +434,7 @@ def test_v7_duplicate_and_unknown_ch_fail(tmp_path: Path) -> None:
     assert "unknown CH" in unknown.stdout
 
 
-def test_v7_independent_changes_out_of_order_fail(tmp_path: Path) -> None:
+def test_v7_independent_changes_any_valid_topo_order_seals(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
     (repo / "tests").mkdir()
@@ -524,8 +524,8 @@ T-1: covers: SC-1, CH-1, CH-2 | given: both modules | when: imports execute | th
         text=True,
         check=False,
     )
-    assert finalized.returncode != 0
-    assert "exactly once in change_order" in finalized.stdout
+    assert finalized.returncode == 0, finalized.stdout + finalized.stderr
+    assert json.loads(bundle.read_text(encoding="utf-8"))["status"] == "complete"
 
 
 def test_v7_missing_or_failed_verification_fails(tmp_path: Path) -> None:

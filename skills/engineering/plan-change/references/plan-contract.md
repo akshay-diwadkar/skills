@@ -2,6 +2,10 @@
 
 Required sections once in order; conditional sections only at shown positions.
 
+Do not add records merely to satisfy the contract. Every record must guide an
+implementation decision, preserve required behaviour, expose a real dependency
+or affected surface, or prove completion.
+
 ```markdown
 # <Action-oriented title>
 
@@ -24,7 +28,7 @@ D-1: selected: <approach> | evidence: F-1 | rejected: <alternative> | drawback: 
 CH-1: path: <path> | anchor: <seam> | status: existing|new | evidence: F-1 | change: <behavior> | depends_on: none|CH-n[,CH-n...] | locality: local|shared|test-only | reversibility: reversible|conditional|irreversible
 
 ## Propagation
-P-1: surface: <caller|consumer|test|fixture|contract|config|schema|generated|deployment|documentation> | disposition: changed|test-only|unchanged|out-of-scope | path: <path> | owner: CH-1 | reason: <F ref or scope reason>
+P-1: surface: <caller|consumer|test|fixture|contract|config|schema|generated|deployment|documentation> | disposition: changed|test-only|unchanged|out-of-scope | path: <path> | owner: CH-1[, CH-n...] | reason: <F ref or scope reason>
 
 ## Boundaries and Risks
 B-1: class: <boundary> | evidence: F-1 | flow: <a -> b -> c>
@@ -45,24 +49,30 @@ exact ` | ` separators. Existing CH need same-path evidence; new CH use
 Each RQ covers ≥1 SC and ≥1 CH or T. Typed handoffs require RQ categories for the
 handoff kind (design: decision+constraint; optimization: candidate+workflow+measure;
 issue: outcome+protected-behavior+constraint) with anchors from selected handoff
-material. Generic requests require every RQ.source: request. When the request has
-bullets, numbered items, checklists, acceptance-criteria lines, or constraint
-clauses (`must`, `do not`, `preserve`, `without`), each extracted item needs an RQ
-whose anchor is an exact contiguous substring of that item; trivial anchors such as
-`fix`/`and`/`the` are rejected. Unmarked free-form prose stays agent-owned. Every
-SC/CH appears in some T.covers. Every CH declares depends_on,
-locality, and reversibility. Shared CH need matching P on a distinct path or an
-evidence-backed unchanged/out-of-scope declaration; P.surface must use the documented
-enum. Non-tiny local CH need an evidence-backed no-propagation P (`unchanged` or
-`out-of-scope` citing F-n). Changed/test-only P paths must exist or match a planned
-CH path. Irreversible CH force high-risk, risks, and rollout. Bug-fix plans require
-one T that states fail-before and after-the-fix pass expectations. Public-contract,
-durable-state, migration, external-integration, and irreversible-effect domains
-also need rollout with order, recovery action, and trigger.
+material. Generic requests require every RQ.source: request. Blocking obligation
+extraction covers only clearly normative request content: Requirements,
+Acceptance Criteria, and Constraints sections; checkbox lists; and explicit
+`must` / `do not` / `preserve` / `without` clauses outside code fences. Ignore
+fenced examples, Alternatives/Notes/Background, and unlabeled Markdown bullets
+outside those normative sections. Each extracted item needs an RQ whose anchor is
+an exact contiguous substring of that item and materially identifies it; reject
+stopword and weak single-word anchors unless they are identifiers, paths, flags,
+or config keys; the same weak anchor must not cover multiple items. Unmarked
+free-form prose stays agent-owned. Every SC/CH appears in some T.covers. Every CH
+declares depends_on, locality, and reversibility. Shared CH need matching P on a
+distinct path or an evidence-backed unchanged/out-of-scope declaration; one P may
+list multiple related CH owners when the same sweep and conclusion apply.
+P.surface must use the documented enum. Non-tiny local CH need an evidence-backed
+no-propagation P (`unchanged` or `out-of-scope` citing F-n). Changed/test-only P
+paths must exist or match a planned CH path. Irreversible CH force high-risk,
+risks, and rollout. Bug-fix plans require one T that states fail-before and
+after-the-fix pass expectations. Public-contract, durable-state, migration,
+external-integration, and irreversible-effect domains also need rollout with
+order, recovery action, and trigger.
 
 The sealer verifies RQ anchors against loaded request/handoff bytes, validates
 the CH graph, and adds plan-proof/plan-validation; never write those markers.
 
 Tiny plans use Obligations plus the four core sections. Add Decisions/
 Propagation for real choices, shared surfaces, or non-tiny local no-propagation
-declarations.
+declarations. Use [Plan Examples](plan-examples.md) when calibrating depth.

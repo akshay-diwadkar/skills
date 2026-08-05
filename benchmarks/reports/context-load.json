@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 9021,
+    "pre_action": 9100,
     "repair_diagnostic": 3073,
     "tool_output": 2461,
-    "top_level": 6560,
-    "worst_context": 27914,
-    "worst_references": 18281
+    "top_level": 6639,
+    "worst_context": 28474,
+    "worst_references": 18762
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "b4a30763c2b6221d7a4a1fe5dbdbf4037eb2f286accae5647f36b80bfceb9c50",
+  "config_sha256": "0f0dba2c5669a61e9350a3a0d8645a81f9c67edf6d93286da61fbb13991bad36",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -125,8 +125,8 @@
         "repair_diagnostic": 231,
         "tool_output": 173,
         "top_level": 694,
-        "worst_context": 3279,
-        "worst_references": 2354
+        "worst_context": 3284,
+        "worst_references": 2359
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
       "phases": {
@@ -156,7 +156,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "0e643e180aae4918d67d093f2f97ff7c457baa461151b619258af7772e06595b",
+      "source_hash": "3377322b102f315bc35459b1e729d1d94a0bd8736b24449322499b3f8826a227",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/implementation-contract.json",
@@ -278,22 +278,23 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 783,
+        "pre_action": 862,
         "repair_diagnostic": 261,
         "tool_output": 198,
-        "top_level": 585,
-        "worst_context": 2312,
-        "worst_references": 1466
+        "top_level": 664,
+        "worst_context": 2867,
+        "worst_references": 1942
       },
       "path": "skills/engineering/plan-change/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "47645cc5b33f8c5de4d8c654e376e62d9493038d61bd15552b6876bb5e8795e5",
+      "source_hash": "85ace3e4e35fae9b2db92b564843201ef84dde377b37a7678e8e03ba8252704c",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",
+        "references/plan-examples.md",
         "references/task-guidance.md"
       ]
     },

@@ -142,13 +142,34 @@ VALIDATION_RE = re.compile(
     r"^<!-- plan-validation: 7; body-sha256: (?P<body>[0-9a-f]{64}); proof-sha256: (?P<proof>[0-9a-f]{64}) -->$",
     re.MULTILINE,
 )
-LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)]|\[\s*[xX ]?\s*\])\s+(.+?)\s*$")
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(?!\[[\sxX ]?\])(.+?)\s*$")
+CHECKLIST_ITEM_RE = re.compile(r"^\s*[-*+]\s+\[\s*[xX ]?\s*\]\s+(.+?)\s*$")
 AC_HEADER_RE = re.compile(r"^(?:#{1,6}\s*)?acceptance criteria\b\s*:?\s*$", re.I)
+NORMATIVE_HEADER_RE = re.compile(
+    r"^(?:#{1,6}\s*)?(?:requirements|acceptance criteria|constraints)\b\s*:?\s*$",
+    re.I,
+)
+SKIP_SECTION_HEADER_RE = re.compile(
+    r"^(?:#{1,6}\s*)?(?:examples?|alternatives|notes|background)\b\s*:?\s*$",
+    re.I,
+)
+FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 CONSTRAINT_CLAUSE_RE = re.compile(
     r"(?is)(?P<clause>(?:^|(?<=[\n.!?]))[^.!?\n]*\b(?:must|do not|don't|preserve|without)\b[^.!?\n]*)"
 )
 TRIVIAL_ANCHOR_WORDS = frozenset(
     {"fix", "and", "the", "a", "an", "or", "to", "of", "in", "on", "for", "is", "be", "as", "at", "by", "with"}
+)
+IDENTIFIER_LIKE_RE = re.compile(
+    r"^(?:"
+    r"[A-Za-z_][A-Za-z0-9_]*"
+    r"|[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+"
+    r"|--?[A-Za-z][A-Za-z0-9_-]*"
+    r"|[A-Z][A-Z0-9_]*"
+    r"|[a-z]+(?:_[a-z0-9]+)+"
+    r"|[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"
+    r"|[A-Za-z0-9_]+\.[A-Za-z0-9_.-]+"
+    r")$"
 )
 TREE_SITTER_GRAMMARS = {
     ".js": ("tree_sitter_javascript", "language"),
@@ -203,8 +224,40 @@ def _is_trivial_anchor(anchor: str) -> bool:
     return all(token in TRIVIAL_ANCHOR_WORDS for token in tokens)
 
 
+def _is_identifier_like(token: str) -> bool:
+    return bool(IDENTIFIER_LIKE_RE.fullmatch(token))
+
+
+def _is_weak_anchor(anchor: str) -> bool:
+    if _is_trivial_anchor(anchor):
+        return True
+    tokens = re.findall(r"[A-Za-z0-9_./-]+", anchor)
+    if len(tokens) == 1 and not _is_identifier_like(tokens[0]):
+        return True
+    return False
+
+
+def _request_text_without_fences(request_text: str) -> str:
+    return FENCE_RE.sub("\n", request_text)
+
+
+def _blank_skip_sections(request_text: str) -> str:
+    lines: list[str] = []
+    in_skip = False
+    for raw_line in request_text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
+        stripped = raw_line.strip()
+        if SKIP_SECTION_HEADER_RE.match(stripped):
+            in_skip = True
+            lines.append("")
+            continue
+        if stripped.startswith("#"):
+            in_skip = False
+        lines.append("" if in_skip else raw_line)
+    return "\n".join(lines)
+
+
 def extract_structured_request_items(request_text: str) -> list[str]:
-    """Deterministically extract bullets, checklists, AC lines, and constraint clauses."""
+    """Extract blocking normative items only (not examples, fences, or unlabeled prose lists)."""
     items: list[str] = []
     seen: set[str] = set()
 
@@ -215,22 +268,29 @@ def extract_structured_request_items(request_text: str) -> list[str]:
         seen.add(cleaned)
         items.append(cleaned)
 
-    in_acceptance = False
-    for raw_line in request_text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
+    scannable = _blank_skip_sections(_request_text_without_fences(request_text))
+    in_normative = False
+    for raw_line in scannable.splitlines():
         stripped = raw_line.strip()
-        if AC_HEADER_RE.match(stripped):
-            in_acceptance = True
+        if NORMATIVE_HEADER_RE.match(stripped) or AC_HEADER_RE.match(stripped):
+            in_normative = True
             continue
         if stripped.startswith("#"):
-            in_acceptance = False
-        list_match = LIST_ITEM_RE.match(raw_line)
-        if list_match:
-            _add(list_match.group(1))
+            in_normative = False
             continue
-        if in_acceptance and stripped and _substantive(stripped, 2):
-            _add(stripped)
+        checklist = CHECKLIST_ITEM_RE.match(raw_line)
+        if checklist:
+            _add(checklist.group(1))
+            continue
+        if in_normative:
+            list_match = LIST_ITEM_RE.match(raw_line)
+            if list_match:
+                _add(list_match.group(1))
+                continue
+            if stripped and _substantive(stripped, 2):
+                _add(stripped)
 
-    for match in CONSTRAINT_CLAUSE_RE.finditer(request_text):
+    for match in CONSTRAINT_CLAUSE_RE.finditer(scannable):
         clause = " ".join(match.group("clause").split()).strip(" :-")
         if not clause:
             continue
@@ -1034,31 +1094,45 @@ def _obligation_diagnostics(
                     )
                 )
             anchor = record.fields.get("anchor", "")
-            if _is_trivial_anchor(anchor):
+            if _is_weak_anchor(anchor):
                 diagnostics.append(
                     Diagnostic(
                         "obligation.anchor",
-                        "Obligation anchor is trivial.",
-                        f"Set {record.id}.anchor to material request text, not stopwords.",
+                        "Obligation anchor is weak or trivial.",
+                        f"Set {record.id}.anchor to material request text that identifies the obligation.",
                         record.id,
                         line=record.line,
                     )
                 )
         request_rqs = [record for record in obligations if record.fields.get("source") == "request"]
-        for item in extract_structured_request_items(request_text):
-            covered = any(
-                (anchor := record.fields.get("anchor", ""))
-                and not _is_trivial_anchor(anchor)
-                and anchor in item
+        items = extract_structured_request_items(request_text)
+        anchor_items: dict[str, set[str]] = defaultdict(set)
+        for item in items:
+            covering = [
+                record
                 for record in request_rqs
-            )
-            if not covered:
+                if (anchor := record.fields.get("anchor", ""))
+                and not _is_weak_anchor(anchor)
+                and anchor in item
+            ]
+            if not covering:
                 preview = item if len(item) <= 96 else item[:93] + "..."
                 diagnostics.append(
                     Diagnostic(
                         "obligation.coverage",
                         f"Structured request item is uncovered: {preview}",
                         "Add an RQ with source: request whose anchor is exact text from that item.",
+                    )
+                )
+            for record in covering:
+                anchor_items[record.fields.get("anchor", "")].add(item)
+        for anchor, covered_items in sorted(anchor_items.items()):
+            if len(covered_items) >= 2:
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.anchor",
+                        "The same obligation anchor cannot cover multiple structured request items.",
+                        "Use a distinct material anchor for each normative request item.",
                     )
                 )
     return diagnostics

@@ -1127,9 +1127,11 @@ T-1: covers: SC-1, CH-1, CH-2, CH-3 | given: gateway and package imports | when:
     QualityCase(
         id="generic-structured-request-gaps",
         request=(
-            "Normalize names with full coverage:\n"
+            "Normalize names with full coverage.\n\n"
+            "## Requirements\n"
             "- Fix absent names\n"
-            "- Update affected consumers\n"
+            "- Update affected consumers\n\n"
+            "## Constraints\n"
             "Must reject non-string inputs.\n"
             "Do not weaken caller contracts.\n"
             "Preserve present-name strip behavior.\n"

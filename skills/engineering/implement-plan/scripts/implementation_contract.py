@@ -306,10 +306,12 @@ def validate_bundle_against_plan(
             completed.add(ch_id)
             completed_ch_ids.append(ch_id)
     if require_completion:
-        if completed_ch_ids != expected_order:
-            errors.append(
-                "changes[].ch_ids must complete every planned CH exactly once in change_order"
-            )
+        planned_ids = set(expected_order)
+        completed_set = set(completed_ch_ids)
+        if len(completed_ch_ids) != len(completed_set):
+            errors.append("changes[].ch_ids must complete every planned CH exactly once")
+        elif completed_set != planned_ids:
+            errors.append("changes[].ch_ids must complete every planned CH exactly once")
         planned_tests = [record.id for record in plan.records.get("T", ())]
         planned_test_set = set(planned_tests)
         passed_tests: set[str] = set()

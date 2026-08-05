@@ -150,10 +150,10 @@
       "metric": "top_level",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 650,
-      "expires": "2027-08-03",
-      "rationale": "Plan intake now verifies four typed handoffs, enforces one audit finding, and records upstream provenance while preserving generic requests.",
-      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "max_tokens": 700,
+      "expires": "2027-08-05",
+      "rationale": "Plan intake verifies typed handoffs and now states anti-ceremony, repair/re-explore, and opt-in example calibration without weakening authority rules.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json", "references/plan-examples.md"],
       "protected_rule_ids": ["plan.read-only", "plan.agent-authority"]
     },
     {
@@ -174,10 +174,10 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 1500,
+      "max_tokens": 2000,
       "expires": "2027-08-05",
-      "rationale": "Plan-contract guidance documents structured generic-request obligation coverage, trivial-anchor rejection, and source:request requirements without weakening authority or sealing rules.",
-      "supporting_paths": ["references/plan-contract.md"],
+      "rationale": "Plan-contract and opt-in plan-examples document normative obligation extraction, material anchors, grouped multi-owner propagation, and anti-ceremony depth without weakening authority or sealing rules.",
+      "supporting_paths": ["references/plan-contract.md", "references/plan-examples.md"],
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {

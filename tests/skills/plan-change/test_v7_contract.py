@@ -163,9 +163,11 @@ def test_incomplete_consumer_plan_can_seal_for_quality_judging(tmp_path: Path) -
 
 def _structured_generic_request() -> str:
     return (
-        "Normalize names with full coverage:\n"
+        "Normalize names with full coverage.\n\n"
+        "## Requirements\n"
         "- Fix absent names\n"
-        "- Update affected consumers\n"
+        "- Update affected consumers\n\n"
+        "## Constraints\n"
         "Must reject non-string inputs.\n"
         "Do not weaken caller contracts.\n"
         "Preserve present-name strip behavior.\n"
@@ -260,7 +262,7 @@ def test_structured_generic_request_trivial_anchor_is_rejected(tmp_path: Path) -
         encoding="utf-8",
     )
     result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
-    assert any(item.code == "obligation.anchor" and "trivial" in item.message for item in result.diagnostics)
+    assert any(item.code == "obligation.anchor" and "weak" in item.message.lower() for item in result.diagnostics)
 
 
 def test_structured_generic_request_wrong_source_is_rejected(tmp_path: Path) -> None:
@@ -289,6 +291,111 @@ def test_structured_generic_request_full_coverage_seals(tmp_path: Path) -> None:
     request.write_text(_structured_generic_request(), encoding="utf-8")
     draft.write_text(_structured_generic_plan(), encoding="utf-8")
     assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
+
+
+def test_fenced_bullets_are_not_blocking_obligations(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(
+        "Fix absent names.\n\n"
+        "```text\n"
+        "- Update affected consumers\n"
+        "- Rewrite unrelated modules\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    draft.write_text(tiny_plan(), encoding="utf-8")
+    assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
+
+
+def test_examples_and_alternatives_are_not_blocking_obligations(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(
+        "Fix absent names.\n\n"
+        "## Examples\n"
+        "- Show a sample caller update\n\n"
+        "## Alternatives\n"
+        "- Rewrite the package layout\n",
+        encoding="utf-8",
+    )
+    draft.write_text(tiny_plan(), encoding="utf-8")
+    assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
+
+
+def test_weak_shared_anchor_covering_two_items_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(
+        "## Requirements\n"
+        "- Fix absent names in normalize_name\n"
+        "- Fix absent names in caller paths\n",
+        encoding="utf-8",
+    )
+    draft.write_text(
+        tiny_plan()
+        .replace('"tier":"tiny"', '"tier":"standard"')
+        .replace(
+            "RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+            "RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-2: source: request | anchor: Fix absent names | obligation: update callers for absent names | covered_by: SC-1, CH-1, T-1",
+        )
+        .replace(
+            "## Verification\n",
+            "## Propagation\n"
+            "P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: CH-1 | "
+            "reason: F-1 bounded sweep found no additional callers beyond the owner\n\n## Verification\n",
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any(
+        item.code == "obligation.anchor" and "multiple structured request items" in item.message
+        for item in result.diagnostics
+    )
+
+
+def test_multi_owner_propagation_covers_related_shared_changes(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "left.py").write_text("LEFT = 1\n", encoding="utf-8")
+    (repo / "src" / "right.py").write_text("RIGHT = 1\n", encoding="utf-8")
+    (repo / "tests" / "test_order.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text("Add left and right constants together.\n", encoding="utf-8")
+    draft.write_text(
+        """# Add left and right constants
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"feature","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: left and right constants | obligation: add left and right constants together | covered_by: SC-1, CH-1, CH-2, T-1
+
+## Outcome
+SC-1: given: both modules | when: imports resolve | then: both constants resolve | unchanged: unrelated packages remain untouched
+
+## Evidence
+F-1: kind: source | path: src/left.py | lines: 1-1 | anchor: LEFT | claim: left module owns LEFT
+F-2: kind: source | path: src/right.py | lines: 1-1 | anchor: RIGHT | claim: right module owns RIGHT
+
+## Implementation
+CH-1: path: src/left.py | anchor: LEFT | status: existing | evidence: F-1 | change: keep LEFT as the left seam | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/right.py | anchor: RIGHT | status: existing | evidence: F-2 | change: keep RIGHT as the right seam | depends_on: none | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: test | disposition: test-only | path: tests/test_order.py | owner: CH-1, CH-2 | reason: F-1 F-2 one bounded sweep covers both shared owners in package tests
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2 | given: both modules | when: imports execute | then: both constants resolve | command: python -c "import src.left, src.right"
+""",
+        encoding="utf-8",
+    )
+    assert seal_plan(repo, request, draft).text.startswith("# Add left and right constants")
 
 
 def test_duplicate_and_undefined_references_are_rejected(tmp_path: Path) -> None:
