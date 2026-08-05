@@ -142,6 +142,7 @@ def test_high_risk_migration_requires_and_accepts_rollout(tmp_path: Path) -> Non
 
 
 def test_incomplete_consumer_plan_can_seal_for_quality_judging(tmp_path: Path) -> None:
+    """Free-form unmarked prose stays agent-owned; structured markers are required for coverage."""
     repo = make_repo(tmp_path / "repo")
     request = tmp_path / "request.md"
     draft = tmp_path / "draft.md"
@@ -157,6 +158,136 @@ def test_incomplete_consumer_plan_can_seal_for_quality_judging(tmp_path: Path) -
         ),
         encoding="utf-8",
     )
+    assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
+
+
+def _structured_generic_request() -> str:
+    return (
+        "Normalize names with full coverage:\n"
+        "- Fix absent names\n"
+        "- Update affected consumers\n"
+        "Must reject non-string inputs.\n"
+        "Do not weaken caller contracts.\n"
+        "Preserve present-name strip behavior.\n"
+    )
+
+
+def _structured_generic_plan() -> str:
+    return (
+        tiny_plan()
+        .replace('"tier":"tiny"', '"tier":"standard"')
+        .replace(
+            "RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+            "RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-2: source: request | anchor: Update affected consumers | obligation: update callers that consume normalize_name | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-3: source: request | anchor: Must reject non-string inputs | obligation: reject non-string inputs explicitly | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-4: source: request | anchor: Do not weaken caller contracts | obligation: keep caller contracts intact | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-5: source: request | anchor: Preserve present-name strip behavior | obligation: preserve present-name strip behavior | covered_by: SC-1, CH-1, T-1",
+        )
+        .replace(
+            "## Verification\n",
+            "## Propagation\n"
+            "P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: CH-1 | "
+            "reason: F-1 bounded sweep found no additional callers beyond the owner\n\n## Verification\n",
+        )
+    )
+
+
+def test_structured_generic_request_omitted_second_bullet_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "RQ-2: source: request | anchor: Update affected consumers | obligation: update callers that consume normalize_name | covered_by: SC-1, CH-1, T-1\n",
+            "",
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert "obligation.coverage" in codes(result)
+    assert any("Update affected consumers" in item.message for item in result.diagnostics)
+
+
+def test_structured_generic_request_omitted_negative_constraint_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "RQ-4: source: request | anchor: Do not weaken caller contracts | obligation: keep caller contracts intact | covered_by: SC-1, CH-1, T-1\n",
+            "",
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any("Do not weaken caller contracts" in item.message for item in result.diagnostics)
+
+
+def test_structured_generic_request_omitted_preserve_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "RQ-5: source: request | anchor: Preserve present-name strip behavior | obligation: preserve present-name strip behavior | covered_by: SC-1, CH-1, T-1",
+            "",
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any("Preserve present-name strip behavior" in item.message for item in result.diagnostics)
+
+
+def test_structured_generic_request_trivial_anchor_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "anchor: Fix absent names",
+            "anchor: fix",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any(item.code == "obligation.anchor" and "trivial" in item.message for item in result.diagnostics)
+
+
+def test_structured_generic_request_wrong_source_is_rejected(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "RQ-1: source: request | anchor: Fix absent names",
+            "RQ-1: source: design | category: decision | anchor: Fix absent names",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any(item.code == "obligation.source" for item in result.diagnostics)
+
+
+def test_structured_generic_request_full_coverage_seals(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(_structured_generic_request(), encoding="utf-8")
+    draft.write_text(_structured_generic_plan(), encoding="utf-8")
     assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
 
 

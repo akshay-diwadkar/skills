@@ -20,6 +20,43 @@ def _git_repo(root: Path) -> None:
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
 
 
+def _passed_verification(*t_ids: str, command: str = "python -m pytest -q") -> dict:
+    return {
+        "t_ids": list(t_ids),
+        "command": command,
+        "expected": "pass",
+        "exit_code": 0,
+        "status": "passed",
+        "evidence": "targeted verification passed",
+    }
+
+
+def _mark_complete(value: dict, *, ch_ids: list[str], paths: list[str], anchors: list[str], t_ids: list[str]) -> None:
+    before = {
+        path: next(
+            target["before_sha256"]
+            for target in value["workspace"]["targets"]
+            if target["path"] == path
+        )
+        for path in paths
+    }
+    value["changes"] = [
+        {
+            "kind": "planned",
+            "ch_ids": ch_ids,
+            "paths": paths,
+            "anchors": anchors,
+            "before_sha256": before,
+            "after_sha256": before,
+            "evidence": [f"F-{index}" for index in range(1, len(ch_ids) + 1)],
+            "verification": t_ids,
+        }
+    ]
+    value["verification"] = [_passed_verification(*t_ids)]
+    value["unresolved_changes"] = []
+    value["unresolved_tests"] = []
+
+
 def _seal_v7(tmp_path: Path) -> tuple[Path, Path, Path]:
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
@@ -77,18 +114,13 @@ def test_v7_plan_scaffolds_and_seals_end_to_end(tmp_path: Path) -> None:
     value = json.loads(bundle.read_text(encoding="utf-8"))
     assert value["plan"]["contract_version"] == 7
     assert value["plan"]["change_order"] == ["CH-1"]
-    value["changes"] = [
-        {
-            "kind": "planned",
-            "ch_ids": ["CH-1"],
-            "paths": ["src/target.py"],
-            "anchors": ["target"],
-            "before_sha256": {"src/target.py": value["workspace"]["targets"][0]["before_sha256"]},
-            "after_sha256": {"src/target.py": value["workspace"]["targets"][0]["before_sha256"]},
-            "evidence": ["F-1"],
-            "verification": ["T-1"],
-        }
-    ]
+    _mark_complete(
+        value,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+    )
     bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     finalized = subprocess.run(
         [
@@ -295,18 +327,13 @@ T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted tes
     assert value["plan"]["contract_version"] == 6
     assert value["plan"]["change_order"] == ["CH-1"]
     assert value["workspace"]["targets"][0]["depends_on"] == "none"
-    value["changes"] = [
-        {
-            "kind": "planned",
-            "ch_ids": ["CH-1"],
-            "paths": ["src/target.py"],
-            "anchors": ["target"],
-            "before_sha256": {"src/target.py": value["workspace"]["targets"][0]["before_sha256"]},
-            "after_sha256": {"src/target.py": value["workspace"]["targets"][0]["before_sha256"]},
-            "evidence": ["F-1"],
-            "verification": ["T-1"],
-        }
-    ]
+    _mark_complete(
+        value,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+    )
     bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     finalized = subprocess.run(
         [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
@@ -341,3 +368,249 @@ def test_v7_change_order_tamper_fails(tmp_path: Path) -> None:
     )
     assert finalized.returncode != 0
     assert "change_order" in finalized.stdout
+
+
+def test_v7_empty_changes_fail_completion(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode != 0
+    assert "exactly once in change_order" in finalized.stdout
+
+
+def test_v7_duplicate_and_unknown_ch_fail(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    sha = value["workspace"]["targets"][0]["before_sha256"]
+    value["changes"] = [
+        {
+            "kind": "planned",
+            "ch_ids": ["CH-1", "CH-1"],
+            "paths": ["src/target.py"],
+            "anchors": ["target"],
+            "before_sha256": {"src/target.py": sha},
+            "after_sha256": {"src/target.py": sha},
+            "evidence": ["F-1"],
+            "verification": ["T-1"],
+        }
+    ]
+    value["verification"] = [_passed_verification("T-1")]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    duplicate = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert duplicate.returncode != 0
+    assert "exactly once in change_order" in duplicate.stdout
+    value["changes"][0]["ch_ids"] = ["CH-9"]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    unknown = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert unknown.returncode != 0
+    assert "unknown CH" in unknown.stdout
+
+
+def test_v7_independent_changes_out_of_order_fail(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "tests").mkdir()
+    (repo / "src" / "a.py").write_text("A = 1\n", encoding="utf-8")
+    (repo / "src" / "b.py").write_text("B = 1\n", encoding="utf-8")
+    (repo / "tests" / "test_order.py").write_text("def test_ok():\n    assert True\n", encoding="utf-8")
+    _git_repo(repo)
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    plan = tmp_path / "plan.md"
+    bundle = tmp_path / "bundle.json"
+    request.write_text("Add independent modules a and b.\n", encoding="utf-8")
+    draft.write_text(
+        """# Add independent modules
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"feature","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: independent modules | obligation: add modules a and b independently | covered_by: SC-1, CH-1, CH-2, T-1
+
+## Outcome
+SC-1: given: both modules | when: imports resolve | then: both expose constants | unchanged: unrelated packages remain untouched
+
+## Evidence
+F-1: kind: source | path: src/a.py | lines: 1-1 | anchor: A | claim: a module owns the first constant
+F-2: kind: source | path: src/b.py | lines: 1-1 | anchor: B | claim: b module owns the second constant
+
+## Implementation
+CH-1: path: src/a.py | anchor: A | status: existing | evidence: F-1 | change: keep module a constant definition | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/b.py | anchor: B | status: existing | evidence: F-2 | change: keep module b constant definition | depends_on: none | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: test | disposition: test-only | path: tests/test_order.py | owner: CH-1 | reason: F-1 module a needs distinct test coverage surface
+P-2: surface: test | disposition: out-of-scope | path: src/a.py | owner: CH-2 | reason: F-2 bounded sweep found no extra consumers beyond module b
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2 | given: both modules | when: imports execute | then: both constants resolve | command: python -c "import src.a, src.b"
+""",
+        encoding="utf-8",
+    )
+    sealed = subprocess.run(
+        [sys.executable, str(SEALER), "--repo-root", str(repo), "--request-file", str(request), "--draft", str(draft)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert sealed.returncode == 0, sealed.stdout + sealed.stderr
+    plan.write_text(sealed.stdout, encoding="utf-8")
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    assert value["plan"]["change_order"] == ["CH-1", "CH-2"]
+    sha_a = next(t["before_sha256"] for t in value["workspace"]["targets"] if t["ch_id"] == "CH-1")
+    sha_b = next(t["before_sha256"] for t in value["workspace"]["targets"] if t["ch_id"] == "CH-2")
+    value["changes"] = [
+        {
+            "kind": "planned",
+            "ch_ids": ["CH-2"],
+            "paths": ["src/b.py"],
+            "anchors": ["B"],
+            "before_sha256": {"src/b.py": sha_b},
+            "after_sha256": {"src/b.py": sha_b},
+            "evidence": ["F-2"],
+            "verification": ["T-1"],
+        },
+        {
+            "kind": "planned",
+            "ch_ids": ["CH-1"],
+            "paths": ["src/a.py"],
+            "anchors": ["A"],
+            "before_sha256": {"src/a.py": sha_a},
+            "after_sha256": {"src/a.py": sha_a},
+            "evidence": ["F-1"],
+            "verification": ["T-1"],
+        },
+    ]
+    value["verification"] = [_passed_verification("T-1")]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode != 0
+    assert "exactly once in change_order" in finalized.stdout
+
+
+def test_v7_missing_or_failed_verification_fails(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    _mark_complete(
+        value,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+    )
+    value["verification"] = []
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    missing = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode != 0
+    assert "planned T must appear in a passed verification row" in missing.stdout
+    value["verification"] = [
+        {
+            "t_ids": ["T-1"],
+            "command": "python -m pytest -q",
+            "expected": "pass",
+            "exit_code": 1,
+            "status": "failed",
+            "evidence": "failed",
+        }
+    ]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    failed = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert failed.returncode != 0
+    assert "planned T must appear in a passed verification row" in failed.stdout
+
+
+def test_v7_unresolved_work_fails(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    _mark_complete(
+        value,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+    )
+    value["unresolved_changes"] = ["CH-1"]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    changes = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert changes.returncode != 0
+    assert "unresolved_changes must be empty" in changes.stdout
+    value["unresolved_changes"] = []
+    value["unresolved_tests"] = ["T-1"]
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    tests = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert tests.returncode != 0
+    assert "unresolved_tests must be empty" in tests.stdout

@@ -45,7 +45,12 @@ exact ` | ` separators. Existing CH need same-path evidence; new CH use
 Each RQ covers ≥1 SC and ≥1 CH or T. Typed handoffs require RQ categories for the
 handoff kind (design: decision+constraint; optimization: candidate+workflow+measure;
 issue: outcome+protected-behavior+constraint) with anchors from selected handoff
-material. Every SC/CH appears in some T.covers. Every CH declares depends_on,
+material. Generic requests require every RQ.source: request. When the request has
+bullets, numbered items, checklists, acceptance-criteria lines, or constraint
+clauses (`must`, `do not`, `preserve`, `without`), each extracted item needs an RQ
+whose anchor is an exact contiguous substring of that item; trivial anchors such as
+`fix`/`and`/`the` are rejected. Unmarked free-form prose stays agent-owned. Every
+SC/CH appears in some T.covers. Every CH declares depends_on,
 locality, and reversibility. Shared CH need matching P on a distinct path or an
 evidence-backed unchanged/out-of-scope declaration; P.surface must use the documented
 enum. Non-tiny local CH need an evidence-backed no-propagation P (`unchanged` or

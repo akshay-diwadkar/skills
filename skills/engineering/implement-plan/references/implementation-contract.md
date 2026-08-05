@@ -17,6 +17,9 @@ For v7 plans, prepare/intake and finalization require a deterministic
 complete records in that order; the bundle schema requires matching
 `plan.change_order`, `workspace.change_order`, and per-target `ch_id` /
 `depends_on`. Completing a dependent before its prerequisites fails sealing.
+Seal requires `changes[].ch_ids` flattened in report order to equal
+`change_order` exactly (every CH once, no unknowns), every planned `T` in a
+passed verification row, and empty `unresolved_changes` / `unresolved_tests`.
 For historical v6 plans, preserve record declaration order as `change_order`
 and do not invent obligation fields.
 

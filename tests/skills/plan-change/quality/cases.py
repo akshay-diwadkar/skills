@@ -39,6 +39,27 @@ def _names_base(root: Path) -> None:
     )
 
 
+def _branching_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(root, "src/left.py", "LEFT = 1\n")
+    _write_file(root, "src/right.py", "RIGHT = 1\n")
+    _write_file(root, "src/merge.py", "MERGE = LEFT + RIGHT if False else 0\n")
+
+
+def _multi_owner_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(
+        root,
+        "src/gateway.py",
+        "from src.names import normalize_name\n\ndef gateway(value):\n    return normalize_name(value)\n",
+    )
+    _write_file(
+        root,
+        "src/__init__.py",
+        "from src.names import normalize_name\nfrom src.gateway import gateway\n\n__all__ = ['normalize_name', 'gateway']\n",
+    )
+
+
 def _config_repo(root: Path) -> None:
     _names_base(root)
     _write_file(root, "config/settings.toml", "retry_limit = 3\n")
@@ -921,5 +942,289 @@ T-1: covers: SC-1, CH-1 | given: targeted cases | when: tests execute | then: th
             ),
         ),
         handoff_item="FND-2",
+    ),
+    QualityCase(
+        id="branching-deps-incomplete",
+        request="Add branching left and right owners before merge.\n",
+        obligations=[
+            {
+                "id": "O1",
+                "obligation": "add branching left and right owners before merge",
+                "anchor": "branching left and right",
+                "planned_paths": [
+                    {"path": "src/names.py"},
+                    {"path": "src/left.py"},
+                    {"path": "src/right.py"},
+                    {"path": "src/merge.py"},
+                ],
+                "owner_evidence": [
+                    {"path": "src/names.py", "claim": "normalize_name owns the root seam"},
+                    {"path": "src/left.py", "claim": "left branch owns LEFT"},
+                    {"path": "src/right.py", "claim": "right branch owns RIGHT"},
+                    {"path": "src/merge.py", "claim": "merge consumes both branches"},
+                ],
+                "dependencies": [
+                    {"ch": "CH-1", "depends_on": []},
+                    {"ch": "CH-2", "depends_on": ["CH-1"]},
+                    {"ch": "CH-3", "depends_on": ["CH-1"]},
+                    {"ch": "CH-4", "depends_on": ["CH-2", "CH-3"]},
+                ],
+                "propagation": [
+                    {"disposition": "changed", "path": "src/left.py", "owner": "CH-1"},
+                    {"disposition": "changed", "path": "src/right.py", "owner": "CH-1"},
+                    {"disposition": "changed", "path": "src/merge.py", "owner": "CH-2"},
+                ],
+                "protected_behavior": [{"text": "unrelated callers remain untouched"}],
+                "risk_rollout": [],
+                "verification": [{"must_include": ["both branches and merge resolve"]}],
+            }
+        ],
+        build_repo=_branching_repo,
+        golden="""# Add branching owners before merge
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"feature","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: branching left and right | obligation: add branching left and right owners before merge | covered_by: SC-1, CH-1, CH-2, CH-3, CH-4, T-1
+
+## Outcome
+SC-1: given: left and right branch modules | when: merge imports resolve | then: both branches and merge resolve | unchanged: unrelated callers remain untouched
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: normalize_name owns the root seam
+F-2: kind: source | path: src/left.py | lines: 1-1 | anchor: LEFT | claim: left branch owns LEFT
+F-3: kind: source | path: src/right.py | lines: 1-1 | anchor: RIGHT | claim: right branch owns RIGHT
+F-4: kind: source | path: src/merge.py | lines: 1-1 | anchor: MERGE | claim: merge consumes both branches
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: keep normalize_name as the shared root seam for branching work | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/left.py | anchor: LEFT | status: existing | evidence: F-2 | change: expose the left branch constant for merge | depends_on: CH-1 | locality: shared | reversibility: reversible
+CH-3: path: src/right.py | anchor: RIGHT | status: existing | evidence: F-3 | change: expose the right branch constant for merge | depends_on: CH-1 | locality: shared | reversibility: reversible
+CH-4: path: src/merge.py | anchor: MERGE | status: existing | evidence: F-4 | change: combine left and right branch constants after both land | depends_on: CH-2, CH-3 | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: consumer | disposition: changed | path: src/left.py | owner: CH-1 | reason: F-2 left branch is a distinct owned surface from the root seam
+P-2: surface: consumer | disposition: changed | path: src/right.py | owner: CH-1 | reason: F-3 right branch is a distinct owned surface from the root seam
+P-3: surface: consumer | disposition: changed | path: src/merge.py | owner: CH-2 | reason: F-4 merge consumes the left branch after it exists
+P-4: surface: consumer | disposition: changed | path: src/merge.py | owner: CH-3 | reason: F-4 merge consumes the right branch after it exists
+P-5: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-4 | reason: F-4 merge verification covers both branches
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2, CH-3, CH-4 | given: left right and merge modules | when: imports execute | then: both branches and merge resolve | command: python -m pytest tests/test_names.py -q
+""",
+        weak=(
+            WeakPlan(
+                "missing-right-branch",
+                "planned_paths",
+                lambda text: text.replace(
+                    "CH-3: path: src/right.py | anchor: RIGHT | status: existing | evidence: F-3 | change: expose the right branch constant for merge | depends_on: CH-1 | locality: shared | reversibility: reversible\n",
+                    "",
+                )
+                .replace(", CH-3", "")
+                .replace("CH-2, CH-3", "CH-2")
+                .replace(
+                    "P-4: surface: consumer | disposition: changed | path: src/merge.py | owner: CH-3 | reason: F-4 merge consumes the right branch after it exists\n",
+                    "",
+                )
+                .replace(
+                    "P-2: surface: consumer | disposition: changed | path: src/right.py | owner: CH-1 | reason: F-3 right branch is a distinct owned surface from the root seam\n",
+                    "",
+                ),
+            ),
+            WeakPlan(
+                "wrong-merge-dependency",
+                "dependency_ordering",
+                lambda text: text.replace(
+                    "depends_on: CH-2, CH-3 | locality: shared | reversibility: reversible",
+                    "depends_on: CH-1 | locality: shared | reversibility: reversible",
+                ),
+            ),
+        ),
+    ),
+    QualityCase(
+        id="multi-owner-shared-surface",
+        request="Own normalize_name and gateway with shared re-export.\n",
+        obligations=[
+            {
+                "id": "O1",
+                "obligation": "own normalize_name and gateway with shared re-export",
+                "anchor": "normalize_name and gateway",
+                "planned_paths": [
+                    {"path": "src/names.py"},
+                    {"path": "src/gateway.py"},
+                    {"path": "src/__init__.py"},
+                ],
+                "owner_evidence": [
+                    {"path": "src/names.py", "claim": "normalize_name owns strip behavior"},
+                    {"path": "src/gateway.py", "claim": "gateway owns the facade entry"},
+                ],
+                "dependencies": [
+                    {"ch": "CH-1", "depends_on": []},
+                    {"ch": "CH-2", "depends_on": ["CH-1"]},
+                    {"ch": "CH-3", "depends_on": ["CH-1", "CH-2"]},
+                ],
+                "propagation": [
+                    {"disposition": "changed", "path": "src/__init__.py", "owner": "CH-1"},
+                    {"disposition": "changed", "path": "src/__init__.py", "owner": "CH-2"},
+                ],
+                "protected_behavior": [{"text": "strip behavior remains identical"}],
+                "risk_rollout": [],
+                "verification": [{"must_include": ["gateway and re-export tests pass"]}],
+            }
+        ],
+        build_repo=_multi_owner_repo,
+        golden="""# Own normalize_name and gateway re-export
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"refactor","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: normalize_name and gateway | obligation: own normalize_name and gateway with shared re-export | covered_by: SC-1, CH-1, CH-2, CH-3, T-1
+
+## Outcome
+SC-1: given: gateway and package imports | when: callers import public names | then: gateway and re-export tests pass | unchanged: strip behavior remains identical
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: normalize_name owns strip behavior
+F-2: kind: source | path: src/gateway.py | lines: 1-4 | anchor: gateway | claim: gateway owns the facade entry
+F-3: kind: source | path: src/__init__.py | lines: 1-4 | anchor: __all__ | claim: package re-export publishes both owners
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: keep normalize_name as the strip owner for the shared package | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/gateway.py | anchor: gateway | status: existing | evidence: F-2 | change: keep gateway as the facade owner over normalize_name | depends_on: CH-1 | locality: shared | reversibility: reversible
+CH-3: path: src/__init__.py | anchor: __all__ | status: existing | evidence: F-3 | change: re-export normalize_name and gateway together | depends_on: CH-1, CH-2 | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-1 | reason: F-3 package re-export must publish normalize_name
+P-2: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-2 | reason: F-3 package re-export must publish gateway
+P-3: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-3 | reason: F-3 re-export coverage stays in package tests
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2, CH-3 | given: gateway and package imports | when: tests execute | then: gateway and re-export tests pass | command: python -m pytest tests/test_names.py -q
+""",
+        weak=(
+            WeakPlan(
+                "owner-path-only-propagation",
+                "propagation.required",
+                lambda text: text.replace(
+                    "P-1: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-1 | reason: F-3 package re-export must publish normalize_name\n"
+                    "P-2: surface: consumer | disposition: changed | path: src/__init__.py | owner: CH-2 | reason: F-3 package re-export must publish gateway\n",
+                    "P-1: surface: consumer | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 same-path only declaration\n"
+                    "P-2: surface: consumer | disposition: changed | path: src/gateway.py | owner: CH-2 | reason: F-2 same-path only declaration\n",
+                ),
+            ),
+            WeakPlan(
+                "missing-reexport-change",
+                "planned_paths",
+                lambda text: text.replace(
+                    "CH-3: path: src/__init__.py | anchor: __all__ | status: existing | evidence: F-3 | change: re-export normalize_name and gateway together | depends_on: CH-1, CH-2 | locality: shared | reversibility: reversible\n",
+                    "",
+                ).replace(", CH-3", "").replace("CH-1, CH-2, CH-3", "CH-1, CH-2"),
+            ),
+        ),
+    ),
+    QualityCase(
+        id="generic-structured-request-gaps",
+        request=(
+            "Normalize names with full coverage:\n"
+            "- Fix absent names\n"
+            "- Update affected consumers\n"
+            "Must reject non-string inputs.\n"
+            "Do not weaken caller contracts.\n"
+            "Preserve present-name strip behavior.\n"
+        ),
+        obligations=[
+            {
+                "id": "O1",
+                "obligation": "absent input names must normalize to an empty string",
+                "anchor": "Fix absent names",
+                "planned_paths": [{"path": "src/names.py"}, {"path": "src/caller.py"}],
+                "owner_evidence": [
+                    {"path": "src/names.py", "claim": "normalize_name owns absent-value handling"},
+                ],
+                "dependencies": [
+                    {"ch": "CH-1", "depends_on": []},
+                    {"ch": "CH-2", "depends_on": ["CH-1"]},
+                ],
+                "propagation": [
+                    {"disposition": "changed", "path": "src/caller.py", "owner": "CH-1"},
+                ],
+                "protected_behavior": [{"text": "present-name strip behavior"}],
+                "risk_rollout": [],
+                "verification": [{"must_include": ["fails before the fix", "passes after the fix"]}],
+            }
+        ],
+        build_repo=_names_base,
+        golden="""# Normalize names with structured request coverage
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"bug-fix","tier":"standard","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, CH-2, T-1
+RQ-2: source: request | anchor: Update affected consumers | obligation: update callers that consume normalize_name | covered_by: SC-1, CH-2, T-1
+RQ-3: source: request | anchor: Must reject non-string inputs | obligation: reject non-string inputs explicitly | covered_by: SC-1, CH-1, T-1
+RQ-4: source: request | anchor: Do not weaken caller contracts | obligation: keep caller contracts intact | covered_by: SC-1, CH-2, T-1
+RQ-5: source: request | anchor: Preserve present-name strip behavior | obligation: preserve present-name strip behavior | covered_by: SC-1, CH-1, T-1
+
+## Outcome
+SC-1: given: absent and present names | when: normalize_name runs | then: absent values are empty and callers stay valid | unchanged: present-name strip behavior
+
+## Evidence
+F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | claim: normalize_name owns absent-value handling
+F-2: kind: source | path: src/caller.py | lines: 1-4 | anchor: run | claim: caller consumes normalize_name
+
+## Implementation
+CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return empty for absent values and reject non-string inputs before stripping | depends_on: none | locality: shared | reversibility: reversible
+CH-2: path: src/caller.py | anchor: run | status: existing | evidence: F-2 | change: keep caller contracts while adopting empty absent-name results | depends_on: CH-1 | locality: shared | reversibility: reversible
+
+## Propagation
+P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 | reason: F-2 callers must adopt empty absent-name results
+P-2: surface: test | disposition: test-only | path: tests/test_names.py | owner: CH-2 | reason: F-2 caller contracts stay covered by tests
+
+## Verification
+T-1: covers: SC-1, CH-1, CH-2 | given: absent present and non-string inputs | when: targeted tests execute | then: the case fails before the fix and passes after the fix | command: python -m pytest tests/test_names.py -q
+""",
+        weak=(
+            WeakPlan(
+                "omitted-second-bullet",
+                "obligation.coverage",
+                lambda text: text.replace(
+                    "RQ-2: source: request | anchor: Update affected consumers | obligation: update callers that consume normalize_name | covered_by: SC-1, CH-2, T-1\n",
+                    "",
+                ),
+            ),
+            WeakPlan(
+                "omitted-negative-constraint",
+                "obligation.coverage",
+                lambda text: text.replace(
+                    "RQ-4: source: request | anchor: Do not weaken caller contracts | obligation: keep caller contracts intact | covered_by: SC-1, CH-2, T-1\n",
+                    "",
+                ),
+            ),
+            WeakPlan(
+                "omitted-preserve",
+                "obligation.coverage",
+                lambda text: text.replace(
+                    "RQ-5: source: request | anchor: Preserve present-name strip behavior | obligation: preserve present-name strip behavior | covered_by: SC-1, CH-1, T-1\n",
+                    "",
+                ),
+            ),
+            WeakPlan(
+                "trivial-anchor",
+                "obligation.anchor",
+                lambda text: text.replace("anchor: Fix absent names", "anchor: fix", 1),
+            ),
+            WeakPlan(
+                "wrong-rq-source",
+                "obligation.source",
+                lambda text: text.replace(
+                    "RQ-1: source: request | anchor: Fix absent names",
+                    "RQ-1: source: design | category: decision | anchor: Fix absent names",
+                    1,
+                ),
+            ),
+        ),
     ),
 )

@@ -40,7 +40,9 @@ def main() -> int:
     if not isinstance(bundle, dict):
         print("bundle must be an object")
         return 1
-    order_errors = validate_bundle_against_plan(bundle, plan, plan_text, version)
+    order_errors = validate_bundle_against_plan(
+        bundle, plan, plan_text, version, require_completion=True
+    )
     if order_errors:
         for error in order_errors:
             print(error)

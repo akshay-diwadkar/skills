@@ -226,6 +226,8 @@ def validate_bundle_against_plan(
     plan: Plan,
     plan_text: str,
     version: int | None,
+    *,
+    require_completion: bool = True,
 ) -> list[str]:
     """Return human-readable errors when order or completion sequencing is invalid."""
     errors: list[str] = []
@@ -279,7 +281,12 @@ def validate_bundle_against_plan(
             if version == 7 and target.get(field) != expected:
                 errors.append(f"workspace.targets[{index}].{field} must match {ch_id}")
     completed: set[str] = set()
-    for index, change_row in enumerate(bundle.get("changes", [])):
+    completed_ch_ids: list[str] = []
+    changes = bundle.get("changes", [])
+    if not isinstance(changes, list):
+        errors.append("bundle.changes must be an array")
+        changes = []
+    for index, change_row in enumerate(changes):
         if not isinstance(change_row, dict):
             errors.append(f"changes[{index}] must be an object")
             continue
@@ -288,6 +295,8 @@ def validate_bundle_against_plan(
             errors.append(f"changes[{index}].ch_ids must be a string array")
             continue
         for ch_id in ch_ids:
+            if ch_id not in changes_by_id:
+                errors.append(f"changes[{index}] references unknown CH {ch_id}")
             deps = _depends_on_ids(_depends_on_raw(plan, ch_id, version))
             missing = sorted(deps - completed)
             if missing:
@@ -295,6 +304,43 @@ def validate_bundle_against_plan(
                     f"changes[{index}] completes {ch_id} before prerequisites {', '.join(missing)}"
                 )
             completed.add(ch_id)
+            completed_ch_ids.append(ch_id)
+    if require_completion:
+        if completed_ch_ids != expected_order:
+            errors.append(
+                "changes[].ch_ids must complete every planned CH exactly once in change_order"
+            )
+        planned_tests = [record.id for record in plan.records.get("T", ())]
+        planned_test_set = set(planned_tests)
+        passed_tests: set[str] = set()
+        verification = bundle.get("verification", [])
+        if not isinstance(verification, list):
+            errors.append("bundle.verification must be an array")
+            verification = []
+        for index, row in enumerate(verification):
+            if not isinstance(row, dict):
+                errors.append(f"verification[{index}] must be an object")
+                continue
+            t_ids = row.get("t_ids")
+            if not isinstance(t_ids, list) or not all(isinstance(item, str) for item in t_ids):
+                errors.append(f"verification[{index}].t_ids must be a string array")
+                continue
+            status = row.get("status")
+            for t_id in t_ids:
+                if t_id not in planned_test_set:
+                    errors.append(f"verification[{index}] references unknown T {t_id}")
+                elif status == "passed":
+                    passed_tests.add(t_id)
+        missing_tests = sorted(planned_test_set - passed_tests)
+        if missing_tests:
+            errors.append(
+                "every planned T must appear in a passed verification row: "
+                + ", ".join(missing_tests)
+            )
+        if bundle.get("unresolved_changes") != []:
+            errors.append("unresolved_changes must be empty to seal complete")
+        if bundle.get("unresolved_tests") != []:
+            errors.append("unresolved_tests must be empty to seal complete")
     return errors
 
 

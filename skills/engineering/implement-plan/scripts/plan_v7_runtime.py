@@ -142,6 +142,14 @@ VALIDATION_RE = re.compile(
     r"^<!-- plan-validation: 7; body-sha256: (?P<body>[0-9a-f]{64}); proof-sha256: (?P<proof>[0-9a-f]{64}) -->$",
     re.MULTILINE,
 )
+LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)]|\[\s*[xX ]?\s*\])\s+(.+?)\s*$")
+AC_HEADER_RE = re.compile(r"^(?:#{1,6}\s*)?acceptance criteria\b\s*:?\s*$", re.I)
+CONSTRAINT_CLAUSE_RE = re.compile(
+    r"(?is)(?P<clause>(?:^|(?<=[\n.!?]))[^.!?\n]*\b(?:must|do not|don't|preserve|without)\b[^.!?\n]*)"
+)
+TRIVIAL_ANCHOR_WORDS = frozenset(
+    {"fix", "and", "the", "a", "an", "or", "to", "of", "in", "on", "for", "is", "be", "as", "at", "by", "with"}
+)
 TREE_SITTER_GRAMMARS = {
     ".js": ("tree_sitter_javascript", "language"),
     ".jsx": ("tree_sitter_javascript", "language"),
@@ -186,6 +194,51 @@ def _substantive(value: str, minimum_words: int = 2) -> bool:
     if re.search(r"\b(?:TBD|TODO|FIXME|later|as needed|if necessary|decide later)\b", value, re.I):
         return False
     return len(re.findall(r"[A-Za-z0-9_./-]+", value)) >= minimum_words
+
+
+def _is_trivial_anchor(anchor: str) -> bool:
+    tokens = re.findall(r"[A-Za-z0-9_./-]+", anchor.lower())
+    if not tokens:
+        return True
+    return all(token in TRIVIAL_ANCHOR_WORDS for token in tokens)
+
+
+def extract_structured_request_items(request_text: str) -> list[str]:
+    """Deterministically extract bullets, checklists, AC lines, and constraint clauses."""
+    items: list[str] = []
+    seen: set[str] = set()
+
+    def _add(item: str) -> None:
+        cleaned = " ".join(item.split()).strip(" :-")
+        if not cleaned or cleaned in seen:
+            return
+        seen.add(cleaned)
+        items.append(cleaned)
+
+    in_acceptance = False
+    for raw_line in request_text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
+        stripped = raw_line.strip()
+        if AC_HEADER_RE.match(stripped):
+            in_acceptance = True
+            continue
+        if stripped.startswith("#"):
+            in_acceptance = False
+        list_match = LIST_ITEM_RE.match(raw_line)
+        if list_match:
+            _add(list_match.group(1))
+            continue
+        if in_acceptance and stripped and _substantive(stripped, 2):
+            _add(stripped)
+
+    for match in CONSTRAINT_CLAUSE_RE.finditer(request_text):
+        clause = " ".join(match.group("clause").split()).strip(" :-")
+        if not clause:
+            continue
+        if any(clause in item for item in items):
+            continue
+        if _substantive(clause, 2):
+            _add(clause)
+    return items
 
 
 @dataclasses.dataclass(frozen=True)
@@ -967,6 +1020,47 @@ def _obligation_diagnostics(
                     line=matching[0].line,
                 )
             )
+    if kind == "generic" and request_bytes is not None and request_text:
+        for record in obligations:
+            source = record.fields.get("source", "")
+            if source != "request":
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.source",
+                        "Generic requests require RQ.source: request.",
+                        f"Set {record.id}.source to request.",
+                        record.id,
+                        line=record.line,
+                    )
+                )
+            anchor = record.fields.get("anchor", "")
+            if _is_trivial_anchor(anchor):
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.anchor",
+                        "Obligation anchor is trivial.",
+                        f"Set {record.id}.anchor to material request text, not stopwords.",
+                        record.id,
+                        line=record.line,
+                    )
+                )
+        request_rqs = [record for record in obligations if record.fields.get("source") == "request"]
+        for item in extract_structured_request_items(request_text):
+            covered = any(
+                (anchor := record.fields.get("anchor", ""))
+                and not _is_trivial_anchor(anchor)
+                and anchor in item
+                for record in request_rqs
+            )
+            if not covered:
+                preview = item if len(item) <= 96 else item[:93] + "..."
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.coverage",
+                        f"Structured request item is uncovered: {preview}",
+                        "Add an RQ with source: request whose anchor is exact text from that item.",
+                    )
+                )
     return diagnostics
 
 
