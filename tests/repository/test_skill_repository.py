@@ -271,6 +271,22 @@ def test_agent_instruction_versioning_policies_match() -> None:
     assert validator.validate_versioning_instructions() == []
 
 
+def test_versioning_authority_must_include_required_terms(tmp_path: Path) -> None:
+  authority = REPO_ROOT / "REPO_VERSIONING.md"
+  broken = tmp_path / "REPO_VERSIONING.md"
+  broken.write_text(
+      authority.read_text(encoding="utf-8").replace("highest-impact", "highest priority", 1),
+      encoding="utf-8",
+  )
+  original = validator.VERSIONING_AUTHORITY_PATH
+  validator.VERSIONING_AUTHORITY_PATH = broken
+  try:
+      errors = validator.validate_versioning_instructions()
+  finally:
+      validator.VERSIONING_AUTHORITY_PATH = original
+  assert any("REPO_VERSIONING.md must mention highest-impact" in error for error in errors)
+
+
 def test_publish_release_workflow_uses_version_description() -> None:
     workflow = (REPO_ROOT / ".github" / "workflows" / "publish-release.yml").read_text(
         encoding="utf-8"

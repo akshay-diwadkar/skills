@@ -6,8 +6,9 @@ Read this file before changing skills, packaging, validators, dependencies, runt
 
 * Before implementation, create or switch to a dedicated branch.
 * Never merge a pull request.
-* Bump each affected skill once per branch.
+* Bump only the affected skills once per branch.
 * No rebump for CI fixes, review rework, or later pre-merge commits.
+* Use the highest-impact change when choosing the bump level.
 
 ## Skill Versions
 
@@ -17,12 +18,12 @@ Changes under `skills/<domain>/<skill>/` use Semantic Versioning:
 * **Minor:** backward-compatible capability.
 * **Patch:** fixes or distribution corrections.
 
-Update affected skills only:
+Update only the affected skills:
 
 * skill `version` in `SKILL.md`;
 * matching entry in `VERSION`.
 
-Unmodified skills keep their versions.
+Unmodified skills retain their versions.
 
 Repo-only tests, docs, benchmarks, and CI need no bump unless installation or distributed behavior changes.
 
