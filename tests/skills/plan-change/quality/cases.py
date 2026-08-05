@@ -579,7 +579,7 @@ Deploy schema writers after readers in one compatibility window. If validation d
         request="Make retry state idempotent under concurrent retries.\n",
         obligations=_manifest(
             obligation="idempotent retry state under concurrent retries",
-            anchor="idempotent",
+            anchor="idempotent under concurrent retries",
             path="src/retry_state.py",
             claim="retry_state owns concurrent retry mutation",
             protected="stripped values stay stable under retry",
@@ -591,7 +591,7 @@ Deploy schema writers after readers in one compatibility window. If validation d
         golden=_base_plan(
             title="Make retry state idempotent",
             metadata='{"intent":"bug-fix","tier":"high-risk","risk_domains":["concurrency"]}',
-            request_anchor="idempotent",
+            request_anchor="idempotent under concurrent retries",
             obligation="idempotent retry state under concurrent retries",
             change="make apply idempotent so concurrent retries return the same stored value without double mutation",
             path="src/retry_state.py",
