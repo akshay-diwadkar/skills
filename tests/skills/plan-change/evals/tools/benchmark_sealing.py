@@ -53,7 +53,7 @@ def _v7_draft(tier: str) -> str:
     if locality == "shared":
         propagation = """
 ## Propagation
-P-1: surface: test | disposition: test-only | path: tests/test_target.py | owner: CH-1 | reason: F-1
+P-1: surface: test | disposition: test-only | path: tests/test_target.py | owner: CH-1 | reason: F-1 owns the targeted regression surface
 """
     boundaries = ""
     if tier == "high-risk":
@@ -62,6 +62,11 @@ P-1: surface: test | disposition: test-only | path: tests/test_target.py | owner
 B-1: class: trusted input boundary | evidence: F-1 | flow: caller input -> authorization decision -> target normalization
 R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: unauthorized input could cross the normalization boundary
 """
+    verification_then = (
+        "the case fails before the fix and passes after the fix while both values retain the exact normalized result"
+        if tier in {"tiny", "high-risk"}
+        else "both values retain the exact normalized result"
+    )
     return f"""# Update the target behavior
 
 <!-- plan-contract: 7 -->
@@ -79,7 +84,7 @@ F-1: kind: source | path: src/target.py | lines: 1-2 | anchor: target | claim: t
 ## Implementation
 CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: preserve exact string normalization while applying the requested tier-specific implementation update | depends_on: none | locality: {locality} | reversibility: reversible
 {propagation}{boundaries}## Verification
-T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted tests execute | then: the regression fails before the fix when required and both values retain the exact normalized result | command: python -m pytest tests/test_target.py -q
+T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted tests execute | then: {verification_then} | command: python -m pytest tests/test_target.py -q
 """
 
 

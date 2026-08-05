@@ -39,6 +39,50 @@ def _names_base(root: Path) -> None:
     )
 
 
+def _config_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(root, "config/settings.toml", "retry_limit = 3\n")
+
+
+def _generated_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(
+        root,
+        "tools/gen_model.py",
+        "OUTPUT = 'src/generated_model.py'\n\ndef generate():\n    Path = __import__('pathlib').Path\n    Path(OUTPUT).write_text('VALUE = 1\\n')\n",
+    )
+
+
+def _migration_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(root, "src/schema.py", "SCHEMA = {'name': 'string'}\n")
+    _write_file(root, "src/old_reader.py", "def read_old(event):\n    return event['name']\n")
+    _write_file(root, "src/new_writer.py", "def write_new(name):\n    return {'name': name}\n")
+
+
+def _concurrency_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(
+        root,
+        "src/retry_state.py",
+        "STATE = {'value': None}\n\ndef apply(value):\n    STATE['value'] = value\n    return STATE['value']\n",
+    )
+
+
+def _external_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(
+        root,
+        "src/external_client.py",
+        "def sync_name(name):\n    return {'ack': 'maybe', 'token': None}\n",
+    )
+
+
+def _optimization_repo(root: Path) -> None:
+    _names_base(root)
+    _write_file(root, "bench/measure_normalize.py", "def p95(samples):\n    return sorted(samples)[int(0.95 * len(samples))]\n")
+
+
 def _base_plan(
     *,
     title: str,
@@ -300,10 +344,7 @@ P-1: surface: caller | disposition: out-of-scope | path: src/caller.py | owner: 
             verification=["retry_limit consumers pass"],
             propagation=[{"disposition": "changed", "path": "config/settings.toml", "owner": "CH-1"}],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(root, "config/settings.toml", "retry_limit = 3\n"),
-        ),
+        build_repo=_config_repo,
         golden=_base_plan(
             title="Raise retry_limit setting",
             metadata='{"intent":"operational","tier":"standard","risk_domains":[]}',
@@ -355,14 +396,7 @@ P-1: surface: config | disposition: changed | path: config/settings.toml | owner
                 }
             ],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(
-                root,
-                "tools/gen_model.py",
-                "OUTPUT = 'src/generated_model.py'\n\ndef generate():\n    Path = __import__('pathlib').Path\n    Path(OUTPUT).write_text('VALUE = 1\\n')\n",
-            ),
-        ),
+        build_repo=_generated_repo,
         golden=_base_plan(
             title="Generate owned model output",
             metadata='{"intent":"feature","tier":"standard","risk_domains":[]}',
@@ -416,12 +450,7 @@ P-1: surface: generated | disposition: out-of-scope | path: src/names.py | owner
                 {"risk": "mixed-version readers could reject the new field", "rollout": "compatibility window"},
             ],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(root, "src/schema.py", "SCHEMA = {'name': 'string'}\n"),
-            _write_file(root, "src/old_reader.py", "def read_old(event):\n    return event['name']\n"),
-            _write_file(root, "src/new_writer.py", "def write_new(name):\n    return {'name': name}\n"),
-        ),
+        build_repo=_migration_repo,
         golden=_base_plan(
             title="Migrate public name schema",
             metadata='{"intent":"migration","tier":"high-risk","risk_domains":["public-contract","migration"]}',
@@ -474,14 +503,7 @@ Deploy schema writers after readers in one compatibility window. If validation d
             propagation=[{"disposition": "unchanged", "path": "src/caller.py", "owner": "CH-1"}],
             risk_rollout=[{"risk": "overlapping retries could mutate a value twice"}],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(
-                root,
-                "src/retry_state.py",
-                "STATE = {'value': None}\n\ndef apply(value):\n    STATE['value'] = value\n    return STATE['value']\n",
-            ),
-        ),
+        build_repo=_concurrency_repo,
         golden=_base_plan(
             title="Make normalization idempotent",
             metadata='{"intent":"bug-fix","tier":"high-risk","risk_domains":["concurrency"]}',
@@ -532,14 +554,7 @@ R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: overlapping retries could m
                 {"risk": "ambiguous acknowledgements could double-apply sync", "rollout": "canary"},
             ],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(
-                root,
-                "src/external_client.py",
-                "def sync_name(name):\n    return {'ack': 'maybe', 'token': None}\n",
-            ),
-        ),
+        build_repo=_external_repo,
         golden=_base_plan(
             title="Handle ambiguous external sync",
             metadata='{"intent":"feature","tier":"high-risk","risk_domains":["external-integration"]}',
@@ -658,10 +673,7 @@ P-1: surface: caller | disposition: changed | path: src/caller.py | owner: CH-1 
                 }
             ],
         ),
-        build_repo=lambda root: (
-            _names_base(root),
-            _write_file(root, "bench/measure_normalize.py", "def p95(samples):\n    return sorted(samples)[int(0.95 * len(samples))]\n"),
-        ),
+        build_repo=_optimization_repo,
         golden=_base_plan(
             title="Cache normalize_name path",
             metadata='{"intent":"feature","tier":"standard","risk_domains":[]}',
