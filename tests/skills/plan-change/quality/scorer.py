@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-import importlib.util
-import sys
 
 SCRIPTS = Path(__file__).resolve().parents[4] / "skills" / "engineering" / "plan-change" / "scripts"
 if str(SCRIPTS) not in sys.path:
