@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from .v6_helpers import RUNTIME, make_repo, tiny_plan  # type: ignore[import-not-found]
+from .v7_helpers import RUNTIME, make_repo, tiny_plan  # type: ignore[import-not-found]
 
 seal_plan = RUNTIME.seal_plan
 

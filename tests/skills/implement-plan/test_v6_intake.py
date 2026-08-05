@@ -44,7 +44,7 @@ F-1: kind: source | path: src/target.py | lines: 1-2 | anchor: target | claim: t
 CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: return an empty string explicitly before stripping non-empty input values | depends_on: none | locality: local | reversibility: reversible
 
 ## Verification
-T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted target tests execute | then: the regression fails before the fix and empty input is empty while non-empty input is stripped | command: python -m pytest tests/test_target.py -q
+T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted target tests execute | then: the case fails before the fix and passes after the fix with empty input empty while non-empty input is stripped | command: python -m pytest tests/test_target.py -q
 """,
         encoding="utf-8",
     )

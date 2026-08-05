@@ -17,6 +17,7 @@ REPORT_PATH = Path(__file__).resolve().parents[4] / "benchmarks" / "reports" / "
 def test_quality_suite_has_at_least_twelve_cases() -> None:
     assert len(CASES) >= 12
     assert len({case.id for case in CASES}) == len(CASES)
+    assert all(len(case.weak) >= 2 for case in CASES)
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.id)
@@ -39,7 +40,9 @@ def test_golden_plans_seal_and_score_complete(case, tmp_path: Path) -> None:
     assert report.diagnostics == (), report.diagnostics
     assert report.missing_obligations == ()
     assert report.complete is True
+    assert report.structural_ok is True
     assert all(report.dimensions.values())
+    assert set(report.manifest_validated) == set(report.dimensions)
 
 
 @pytest.mark.parametrize(
@@ -105,17 +108,22 @@ def test_quality_report_artifact_contract(tmp_path: Path) -> None:
                 "id": case.id,
                 "golden_complete": golden.complete,
                 "golden_sealed": True,
+                "structural_ok": golden.structural_ok,
+                "manifest_validated_dimensions": list(golden.manifest_validated),
                 "weak": weak_rows,
             }
         )
     report: dict[str, Any] = {
-        "schema_version": 1,
-        "label": "deterministic plan-quality fixtures; excludes live agents and sealing microbenchmark",
+        "schema_version": 2,
+        "label": (
+            "deterministic plan-quality fixtures; structural sealing is separate from "
+            "manifest-validated dimensions; excludes live agents and sealing microbenchmark"
+        ),
         "case_count": len(rows),
         "cases": rows,
     }
     assert report["case_count"] >= 12
-    assert all(case["golden_complete"] and case["golden_sealed"] for case in rows)
+    assert all(case["golden_complete"] and case["golden_sealed"] and case["structural_ok"] for case in rows)
     assert all((not item["complete"]) and item["matched_reason"] for case in rows for item in case["weak"])
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

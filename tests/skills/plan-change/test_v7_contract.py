@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from .v6_helpers import (  # type: ignore[import-not-found]
+from .v7_helpers import (  # type: ignore[import-not-found]
     RUNTIME,
     SCRIPTS,
     generated_file_plan,
@@ -146,7 +146,17 @@ def test_incomplete_consumer_plan_can_seal_for_quality_judging(tmp_path: Path) -
     request = tmp_path / "request.md"
     draft = tmp_path / "draft.md"
     request.write_text("Fix absent names and affected consumers.\n", encoding="utf-8")
-    draft.write_text(tiny_plan().replace('"tier":"tiny"', '"tier":"standard"'), encoding="utf-8")
+    draft.write_text(
+        tiny_plan()
+        .replace('"tier":"tiny"', '"tier":"standard"')
+        .replace(
+            "## Verification\n",
+            "## Propagation\n"
+            "P-1: surface: caller | disposition: out-of-scope | path: src/names.py | owner: CH-1 | "
+            "reason: F-1 bounded sweep found no additional callers beyond the owner\n\n## Verification\n",
+        ),
+        encoding="utf-8",
+    )
     assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
 
 
@@ -186,7 +196,7 @@ def test_record_like_lines_with_invalid_headers_are_rejected_without_reads(
     assert result.view.hash_count == 0
 
 
-@pytest.mark.parametrize("prefix", ["SC", "F", "D", "CH", "P", "B", "R", "T"])
+@pytest.mark.parametrize("prefix", ["RQ", "SC", "F", "D", "CH", "P", "B", "R", "T"])
 def test_every_reserved_record_prefix_fails_closed(prefix: str, tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     lines = tiny_plan().splitlines()

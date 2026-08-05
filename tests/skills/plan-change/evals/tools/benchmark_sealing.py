@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[5]
 import sys
 
 sys.path.insert(0, str(ROOT / "tests" / "skills" / "plan-change"))
-import v6_helpers as HELPERS  # noqa: E402
+import v7_helpers as HELPERS  # noqa: E402
 
 
 def _percentile95(values: list[float]) -> float:

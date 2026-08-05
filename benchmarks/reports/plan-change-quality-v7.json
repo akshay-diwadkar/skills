@@ -5,6 +5,17 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "tiny-local-bug",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
@@ -14,9 +25,15 @@
         },
         {
           "complete": false,
-          "expected_reason": "verification.coverage",
+          "expected_reason": "verification.regression",
           "matched_reason": true,
-          "name": "missing-verification-cover"
+          "name": "missing-fail-before"
+        },
+        {
+          "complete": false,
+          "expected_reason": "record.invalid",
+          "matched_reason": true,
+          "name": "weak-protected-behavior"
         }
       ]
     },
@@ -24,7 +41,90 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "shared-refactor-callers",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "missing-propagation"
+        },
+        {
+          "complete": false,
+          "expected_reason": "propagation.path",
+          "matched_reason": true,
+          "name": "bogus-propagation-path"
+        },
+        {
+          "complete": false,
+          "expected_reason": "propagation.evidence",
+          "matched_reason": true,
+          "name": "token-out-of-scope"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "feature-defaults-errors",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "missing-local-declaration"
+        },
+        {
+          "complete": false,
+          "expected_reason": "change.specificity",
+          "matched_reason": true,
+          "name": "missing-error-behavior"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "config-dependency-change",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "record.invalid",
+          "matched_reason": true,
+          "name": "missing-config-evidence"
+        },
         {
           "complete": false,
           "expected_reason": "propagation.required",
@@ -36,39 +136,30 @@
     {
       "golden_complete": true,
       "golden_sealed": true,
-      "id": "feature-defaults-errors",
-      "weak": [
-        {
-          "complete": false,
-          "expected_reason": "change.specificity",
-          "matched_reason": true,
-          "name": "vague-change"
-        }
-      ]
-    },
-    {
-      "golden_complete": true,
-      "golden_sealed": true,
-      "id": "config-dependency-change",
-      "weak": [
-        {
-          "complete": false,
-          "expected_reason": "fact.structured",
-          "matched_reason": true,
-          "name": "missing-config-evidence"
-        }
-      ]
-    },
-    {
-      "golden_complete": true,
-      "golden_sealed": true,
       "id": "generated-output-ownership",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
           "expected_reason": "change.target",
           "matched_reason": true,
           "name": "missing-owner"
+        },
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "missing-local-declaration"
         }
       ]
     },
@@ -76,20 +167,24 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "public-contract-migration",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
           "expected_reason": "section.order",
           "matched_reason": true,
           "name": "missing-rollout"
-        }
-      ]
-    },
-    {
-      "golden_complete": true,
-      "golden_sealed": true,
-      "id": "concurrency-idempotency",
-      "weak": [
+        },
         {
           "complete": false,
           "expected_reason": "record.invalid",
@@ -101,13 +196,60 @@
     {
       "golden_complete": true,
       "golden_sealed": true,
+      "id": "concurrency-idempotency",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "record.invalid",
+          "matched_reason": true,
+          "name": "missing-risk"
+        },
+        {
+          "complete": false,
+          "expected_reason": "verification.regression",
+          "matched_reason": true,
+          "name": "missing-fail-before"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
       "id": "external-ambiguous-success",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
           "expected_reason": "section.order",
           "matched_reason": true,
           "name": "missing-rollout"
+        },
+        {
+          "complete": false,
+          "expected_reason": "propagation.evidence",
+          "matched_reason": true,
+          "name": "token-propagation"
         }
       ]
     },
@@ -115,7 +257,24 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "design-handoff-inheritance",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
+        {
+          "complete": false,
+          "expected_reason": "obligation.anchor",
+          "matched_reason": true,
+          "name": "wrong-design-anchor"
+        },
         {
           "complete": false,
           "expected_reason": "propagation.required",
@@ -128,7 +287,24 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "optimization-handoff-inheritance",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
+        {
+          "complete": false,
+          "expected_reason": "obligation.anchor",
+          "matched_reason": true,
+          "name": "wrong-candidate-anchor"
+        },
         {
           "complete": false,
           "expected_reason": "obligation.coverage",
@@ -141,12 +317,29 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "issue-handoff-protected-behavior",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
           "expected_reason": "record.invalid",
           "matched_reason": true,
           "name": "lost-protected-behavior"
+        },
+        {
+          "complete": false,
+          "expected_reason": "obligation.anchor",
+          "matched_reason": true,
+          "name": "incidental-anchor"
         }
       ]
     },
@@ -154,16 +347,33 @@
       "golden_complete": true,
       "golden_sealed": true,
       "id": "multi-finding-audit-selection",
+      "manifest_validated_dimensions": [
+        "request_obligations",
+        "planned_paths",
+        "owner_root_cause_evidence",
+        "dependency_ordering",
+        "propagation_surfaces",
+        "protected_behavior",
+        "risk_and_rollout",
+        "verification_coverage"
+      ],
+      "structural_ok": true,
       "weak": [
         {
           "complete": false,
           "expected_reason": "obligation.anchor",
           "matched_reason": true,
           "name": "wrong-finding-anchor"
+        },
+        {
+          "complete": false,
+          "expected_reason": "verification.regression",
+          "matched_reason": true,
+          "name": "missing-fail-before"
         }
       ]
     }
   ],
-  "label": "deterministic plan-quality fixtures; excludes live agents and sealing microbenchmark",
-  "schema_version": 1
+  "label": "deterministic plan-quality fixtures; structural sealing is separate from manifest-validated dimensions; excludes live agents and sealing microbenchmark",
+  "schema_version": 2
 }

@@ -43,11 +43,14 @@ exact ` | ` separators. Existing CH need same-path evidence; new CH use
 `owner: F-n|CH-n` resolving to `directory-ownership` or `generated-from`.
 
 Each RQ covers ≥1 SC and ≥1 CH or T. Typed handoffs require at least one RQ whose
-`source` matches the handoff kind; audit anchors must come from the selected
-finding section. Every SC/CH appears in some T.covers. Every CH declares
-depends_on, locality, and reversibility. Shared CH need matching P. Irreversible
-CH force high-risk, risks, and rollout. Bug-fix plans require verification that
-fails before the fix or states a regression expectation. Public-contract,
+`source` matches the handoff kind; anchors must come from selected handoff material
+(audit finding, Chosen Design & Depth Rationale, plan-ready optimization candidate,
+or issue Outcome/Constraints sections). Every SC/CH appears in some T.covers. Every
+CH declares depends_on, locality, and reversibility. Shared CH need matching P.
+Non-tiny local CH need an evidence-backed no-propagation P (`unchanged` or
+`out-of-scope` citing F-n). Changed/test-only P paths must exist or match a planned
+CH path. Irreversible CH force high-risk, risks, and rollout. Bug-fix plans require
+one T that states fail-before and after-the-fix pass expectations. Public-contract,
 durable-state, migration, external-integration, and irreversible-effect domains
 also need rollout with order, recovery action, and trigger.
 
@@ -55,4 +58,5 @@ The sealer verifies RQ anchors against loaded request/handoff bytes, validates
 the CH graph, and adds plan-proof/plan-validation; never write those markers.
 
 Tiny plans use Obligations plus the four core sections. Add Decisions/
-Propagation only for real choices or shared surfaces.
+Propagation for real choices, shared surfaces, or non-tiny local no-propagation
+declarations.

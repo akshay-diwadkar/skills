@@ -187,15 +187,15 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "2.4.2"
-    assert versions["audit-codebase"] == "4.1.1"
+    assert versions["audit-codebase"] == "4.1.2"
     assert versions["raise-issue"] == "1.0.1"
     assert versions["plan-change"] == "5.0.0"
-    assert versions["design-codebase"] == "3.0.1"
+    assert versions["design-codebase"] == "3.0.2"
     assert versions["implement-plan"] == "3.3.0"
-    assert versions["scope-issue"] == "4.0.1"
-    assert versions["optimize-codebase"] == "4.0.1"
+    assert versions["scope-issue"] == "4.0.2"
+    assert versions["optimize-codebase"] == "4.0.2"
     assert versions["ideate"] == "2.0.0"
-    assert "3.0.1" in set(versions.values())
+    assert "3.0.2" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")

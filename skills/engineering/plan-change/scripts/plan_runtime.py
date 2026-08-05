@@ -701,6 +701,70 @@ def _audit_finding_section(request_text: str, finding_id: str) -> str:
     return request_text[match.start() : end]
 
 
+def _markdown_section(request_text: str, heading: str) -> str:
+    match = re.search(rf"^## {re.escape(heading)}\s*$", request_text, re.MULTILINE)
+    if match is None:
+        return ""
+    next_heading = re.search(r"^## .+$", request_text[match.end() :], re.MULTILINE)
+    end = match.end() + next_heading.start() if next_heading else len(request_text)
+    return request_text[match.start() : end]
+
+
+def _selected_handoff_material(kind: str, request_text: str, request_source: dict[str, Any] | None) -> str:
+    if kind == "audit":
+        selected = request_source.get("item") if isinstance(request_source, dict) else None
+        if isinstance(selected, str) and selected:
+            return _audit_finding_section(request_text, selected)
+        return ""
+    if kind == "design":
+        return _markdown_section(request_text, "Chosen Design & Depth Rationale")
+    if kind == "optimization":
+        handoff_match = re.search(
+            r"^- H-\d+:[^\n]*\bnext:\s*plan-ready\b[^\n]*$",
+            request_text,
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if handoff_match is None:
+            return ""
+        line = handoff_match.group(0)
+        candidate_match = re.search(r"\bcandidate:\s*([A-Za-z0-9_-]+)", line, re.IGNORECASE)
+        chunks = [line]
+        selected_line = re.search(r"^- Selected candidate:\s*.+$", request_text, re.MULTILINE | re.IGNORECASE)
+        if selected_line is not None:
+            chunks.append(selected_line.group(0))
+        if candidate_match is not None:
+            candidate_id = candidate_match.group(1)
+            candidate_heading = re.search(
+                rf"^##+\s+.*\b{re.escape(candidate_id)}\b.*$",
+                request_text,
+                re.MULTILINE | re.IGNORECASE,
+            )
+            if candidate_heading is not None:
+                next_heading = re.search(r"^##+.+$", request_text[candidate_heading.end() :], re.MULTILINE)
+                end = (
+                    candidate_heading.end() + next_heading.start()
+                    if next_heading
+                    else len(request_text)
+                )
+                chunks.append(request_text[candidate_heading.start() : end])
+            else:
+                candidate_line = re.search(
+                    rf"^- {re.escape(candidate_id)}:[^\n]*$",
+                    request_text,
+                    re.MULTILINE,
+                )
+                if candidate_line is not None:
+                    chunks.append(candidate_line.group(0))
+        return "\n".join(chunks)
+    if kind == "issue":
+        return "\n".join(
+            section
+            for heading in ("Outcome and Scope", "Constraints and Protected Behavior")
+            if (section := _markdown_section(request_text, heading))
+        )
+    return ""
+
+
 def _obligation_diagnostics(
     plan: Plan,
     request_bytes: bytes | None,
@@ -800,31 +864,29 @@ def _obligation_diagnostics(
                     f"Add an RQ record with source: {kind}.",
                 )
             )
-        if kind == "audit":
-            selected = request_source.get("item") if isinstance(request_source, dict) else None
-            if isinstance(selected, str) and selected and request_text:
-                finding_body = _audit_finding_section(request_text, selected)
-                if not finding_body:
-                    diagnostics.append(
-                        Diagnostic(
-                            "obligation.anchor",
-                            f"Selected audit finding {selected!r} is absent from the handoff body.",
-                            "Pass a valid handoff_item for an accepted finding.",
-                        )
+        if kind in {"audit", "design", "optimization", "issue"} and request_text and matching:
+            selected_body = _selected_handoff_material(kind, request_text, request_source)
+            if not selected_body.strip():
+                diagnostics.append(
+                    Diagnostic(
+                        "obligation.anchor",
+                        f"Selected {kind} handoff material is absent from the request body.",
+                        f"Use a plan-ready {kind} handoff with stable selected sections.",
                     )
-                else:
-                    for record in matching:
-                        anchor = record.fields.get("anchor", "")
-                        if anchor and anchor not in finding_body:
-                            diagnostics.append(
-                                Diagnostic(
-                                    "obligation.anchor",
-                                    f"Obligation anchor is outside selected audit finding {selected}.",
-                                    f"Copy exact text from finding {selected} into {record.id}.anchor.",
-                                    record.id,
-                                    line=record.line,
-                                )
+                )
+            else:
+                for record in matching:
+                    anchor = record.fields.get("anchor", "")
+                    if anchor and anchor not in selected_body:
+                        diagnostics.append(
+                            Diagnostic(
+                                "obligation.anchor",
+                                f"Obligation anchor is outside selected {kind} handoff material.",
+                                f"Copy exact selected {kind} text into {record.id}.anchor.",
+                                record.id,
+                                line=record.line,
                             )
+                        )
         shape_patterns = {
             "design": re.compile(r"\b(?:boundary|interface|decision|contract|seam)\b", re.I),
             "optimization": re.compile(
@@ -850,19 +912,117 @@ def _obligation_diagnostics(
 def _bug_fix_regression_diagnostics(plan: Plan) -> list[Diagnostic]:
     if plan.metadata.get("intent") != "bug-fix":
         return []
-    verification = " ".join(
-        " ".join(record.fields.get(field, "") for field in ("given", "when", "then"))
-        for record in plan.records.get("T", ())
-    )
-    if re.search(r"\b(?:fail(?:s|ed|ing)?\s+before|before\s+the\s+fix|regress(?:ion)?)\b", verification, re.I):
-        return []
+    fail_before = re.compile(r"\b(?:fail(?:s|ed|ing)?\s+before|before\s+the\s+fix)\b", re.I)
+    after_fix = re.compile(r"\b(?:pass(?:es|ed)?\s+after|after\s+the\s+fix)\b", re.I)
+    for record in plan.records.get("T", ()):
+        verification = " ".join(record.fields.get(field, "") for field in ("given", "when", "then"))
+        if fail_before.search(verification) and after_fix.search(verification):
+            return []
     return [
         Diagnostic(
             "verification.regression",
-            "Bug-fix plans require verification that fails before the fix or states a regression expectation.",
-            "Update a T-n given/when/then to require fail-before or regression coverage.",
+            "Bug-fix plans require one T record stating fail-before and after-fix pass expectations.",
+            "Update a T-n given/when/then to require fail-before and after-the-fix coverage.",
         )
     ]
+
+
+def _propagation_diagnostics(plan: Plan, repository: RepositoryView | None = None) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    fact_ids = plan.ids("F")
+    planned_paths = {
+        change.fields.get("path", "").replace("\\", "/")
+        for change in plan.records.get("CH", ())
+        if change.fields.get("path")
+    }
+    new_paths = {
+        change.fields.get("path", "").replace("\\", "/")
+        for change in plan.records.get("CH", ())
+        if change.fields.get("status") == "new" and change.fields.get("path")
+    }
+    for record in plan.records.get("P", ()):
+        disposition = record.fields.get("disposition", "")
+        path = record.fields.get("path", "").replace("\\", "/")
+        reason = record.fields.get("reason", "")
+        reason_facts = {ref for ref in _refs(reason) if ref.split("-", 1)[0] == "F"}
+        if disposition in {"unchanged", "out-of-scope"}:
+            if not reason_facts or not reason_facts <= fact_ids or not _substantive(reason, 3):
+                diagnostics.append(
+                    Diagnostic(
+                        "propagation.evidence",
+                        "Unchanged/out-of-scope propagation must cite evidence and a concrete sweep conclusion.",
+                        f"Update {record.id}.reason to cite F-n and describe the bounded sweep.",
+                        record.id,
+                        line=record.line,
+                    )
+                )
+        elif disposition in {"changed", "test-only"}:
+            exists = False
+            if repository is not None and path:
+                try:
+                    repository.get(path)
+                    exists = True
+                except (FileNotFoundError, ValueError):
+                    exists = False
+            if path and not exists and path not in planned_paths and path not in new_paths:
+                diagnostics.append(
+                    Diagnostic(
+                        "propagation.path",
+                        "Changed/test-only propagation paths must exist or match a planned CH path.",
+                        f"Correct {record.id}.path to a current or planned repository surface.",
+                        record.id,
+                        path,
+                        line=record.line,
+                    )
+                )
+            if not _substantive(reason, 2):
+                diagnostics.append(
+                    Diagnostic(
+                        "propagation.evidence",
+                        "Changed/test-only propagation needs a concrete reason.",
+                        f"Update {record.id}.reason.",
+                        record.id,
+                        line=record.line,
+                    )
+                )
+    owned_by_disposition: dict[str, set[str]] = {
+        "local_declaration": set(),
+        "any": set(),
+    }
+    for record in plan.records.get("P", ()):
+        owners = _refs(record.fields.get("owner", ""))
+        owned_by_disposition["any"].update(owners)
+        if record.fields.get("disposition") in {"unchanged", "out-of-scope"} and {
+            ref for ref in _refs(record.fields.get("reason", "")) if ref.split("-", 1)[0] == "F"
+        } <= fact_ids and _substantive(record.fields.get("reason", ""), 3):
+            owned_by_disposition["local_declaration"].update(owners)
+    for change in plan.records.get("CH", ()):
+        locality = change.fields.get("locality")
+        if locality == "shared" and change.id not in owned_by_disposition["any"]:
+            diagnostics.append(
+                Diagnostic(
+                    "propagation.required",
+                    "Shared changes require at least one matching Propagation record.",
+                    f"Add a P-n owned by {change.id} or set locality to local/test-only.",
+                    change.id,
+                    line=change.line,
+                )
+            )
+        if (
+            plan.tier != "tiny"
+            and locality == "local"
+            and change.id not in owned_by_disposition["local_declaration"]
+        ):
+            diagnostics.append(
+                Diagnostic(
+                    "propagation.required",
+                    "Non-tiny local changes require an evidence-backed no-propagation declaration.",
+                    f"Add a P-n owned by {change.id} with disposition unchanged or out-of-scope citing F-n.",
+                    change.id,
+                    line=change.line,
+                )
+            )
+    return diagnostics
 
 
 def _record_diagnostics(
@@ -921,22 +1081,7 @@ def _record_diagnostics(
     ordered, dependency_diagnostics = topological_change_order(plan)
     diagnostics.extend(dependency_diagnostics)
     _ = ordered
-    owned_propagation = {
-        owner
-        for record in plan.records.get("P", ())
-        for owner in _refs(record.fields.get("owner", ""))
-    }
     for change in plan.records.get("CH", ()):
-        if change.fields.get("locality") == "shared" and change.id not in owned_propagation:
-            diagnostics.append(
-                Diagnostic(
-                    "propagation.required",
-                    "Shared changes require at least one matching Propagation record.",
-                    f"Add a P-n owned by {change.id} or set locality to local/test-only.",
-                    change.id,
-                    line=change.line,
-                )
-            )
         if change.fields.get("reversibility") == "irreversible":
             if plan.tier != "high-risk":
                 diagnostics.append(
@@ -1422,6 +1567,7 @@ def validate_draft(
         diagnostics.extend(fact_diagnostics)
         if not fact_diagnostics:
             diagnostics.extend(_change_diagnostics(plan, repository))
+    diagnostics.extend(_propagation_diagnostics(plan, repository))
     diagnostics.sort(key=lambda item: (item.line is None, item.line or 0, item.code, item.record or ""))
     return ValidationResult(plan, tuple(diagnostics), tuple(sorted(proofs, key=lambda item: item["fact_id"])), repository)
 

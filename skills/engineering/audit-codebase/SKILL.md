@@ -1,7 +1,7 @@
 ---
 name: audit-codebase
 description: Audit a repository for bugs, security and performance risks, test gaps, and architectural or maintainability friction, then seal accepted findings into an audit handoff. Use when asked to inspect a codebase for problems, review overall code quality, hunt for unknown risks, or verify whether prior audit findings were resolved.
-version: 4.1.1
+version: 4.1.2
 metadata:
   invocation: user-invoked
   audit-contract: "1"
@@ -45,7 +45,7 @@ read only `required_reads`, write only `allowed_writes`, and stop on every
 4. Disconfirm candidates, validate, and review every accepted, rejected, and deferred outcome.
 5. Stop after `audit-handoff.md` is sealed. Pass one accepted finding at a
    time to `plan-change`; for multiple findings, use the explicit finding ID.
-   `plan-change` v7 copies exact finding text into `RQ` obligation anchors.
+   `plan-change` v7 binds `RQ` anchors to the selected finding body text.
    When the user delegates selection, rank severity first and stable finding
    ID second. Use `raise-issue` only when publication is separately requested.
 

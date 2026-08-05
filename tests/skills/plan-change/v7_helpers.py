@@ -66,7 +66,7 @@ F-1: kind: {fact_kind} | path: src/names.py | lines: 1-2 | anchor: normalize_nam
 CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: return the empty string for absent values before stripping present names | depends_on: none | locality: local | reversibility: reversible
 
 ## Verification
-T-1: covers: SC-1, CH-1 | given: absent and present input cases | when: the targeted names tests execute | then: the regression fails before the fix and passes after absent input is empty and present input is stripped | command: python -m pytest tests/test_names.py -q
+T-1: covers: SC-1, CH-1 | given: absent and present input cases | when: the targeted names tests execute | then: the case fails before the fix and passes after the fix with absent input empty and present input stripped | command: python -m pytest tests/test_names.py -q
 """
 
 
@@ -89,14 +89,14 @@ F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | c
 CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: enforce tenant authorization before normalizing any supplied name value | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: caller | disposition: changed | path: tests/test_names.py | owner: CH-1 | reason: F-1
+P-1: surface: caller | disposition: changed | path: tests/test_names.py | owner: CH-1 | reason: F-1 authorization denial must be covered by caller tests
 
 ## Boundaries and Risks
 B-1: class: tenant authorization | evidence: F-1 | flow: request principal -> authorization decision -> name normalization
 R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: unauthorized tenant names could cross the trust boundary
 
 ## Verification
-T-1: covers: SC-1, CH-1 | given: authorized and unauthorized tenant principals | when: targeted authorization tests execute | then: the regression fails before the fix and unauthorized input is denied while authorized normalization succeeds | command: python -m pytest tests/test_names.py -q
+T-1: covers: SC-1, CH-1 | given: authorized and unauthorized tenant principals | when: targeted authorization tests execute | then: the case fails before the fix and passes after the fix with unauthorized input denied | command: python -m pytest tests/test_names.py -q
 """
 
 
@@ -119,7 +119,7 @@ F-1: kind: directory-ownership | path: src/__init__.py | lines: 1-1 | anchor: pa
 CH-1: path: src/names_facade.py | anchor: src package facade owner | status: new | owner: F-1 | change: add a facade that delegates name normalization to the existing package implementation | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: consumer | disposition: changed | path: src/names_facade.py | owner: CH-1 | reason: F-1
+P-1: surface: consumer | disposition: changed | path: src/names_facade.py | owner: CH-1 | reason: F-1 new facade path is the planned consumer surface
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: direct and facade imports | when: targeted facade tests execute | then: both imports produce identical normalized values | command: python -m pytest tests/test_names.py -q
@@ -143,6 +143,9 @@ F-1: kind: generated-from | path: tools/gen_names.py | lines: 1-2 | anchor: gene
 
 ## Implementation
 CH-1: path: src/generated_names.py | anchor: generated names output | status: new | owner: F-1 | change: generate an adapter that delegates to the handwritten name normalizer | depends_on: none | locality: local | reversibility: reversible
+
+## Propagation
+P-1: surface: generated | disposition: out-of-scope | path: src/names.py | owner: CH-1 | reason: F-1 bounded sweep found no additional callers beyond the generator output
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: a clean generated output | when: the generator and targeted tests execute | then: regeneration is stable and delegation passes | command: python tools/gen_names.py && python -m pytest tests/test_names.py -q
@@ -168,7 +171,7 @@ F-1: kind: source | path: src/names.py | lines: 1-2 | anchor: normalize_name | c
 CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | change: expose an idempotent transformation for the durable-state migration | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: schema | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1
+P-1: surface: schema | disposition: changed | path: src/names.py | owner: CH-1 | reason: F-1 durable transformation owns the migration surface
 
 ## Boundaries and Risks
 B-1: class: durable schema boundary | evidence: F-1 | flow: stored legacy value -> idempotent normalization -> migrated value

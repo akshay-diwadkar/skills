@@ -3,9 +3,9 @@
 Read only the matching branch.
 
 - Feature: entry → ownership → tests; name defaults, errors, ordering, preserved
-  behavior.
-- Bug fix: root-cause branch, smallest correction, regression that fails before
-  the fix.
+  behavior. Non-tiny local changes need an evidence-backed no-propagation P.
+- Bug fix: root-cause branch, smallest correction, verification that fails before
+  the fix and passes after.
 - Refactor: preserve behavior; enumerate callers, re-exports, fixtures, contracts.
 - Migration: old/new shapes, mixed-version behavior, deploy order, interrupted
   state, rollback/roll-forward.
