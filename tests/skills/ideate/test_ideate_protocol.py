@@ -10,7 +10,7 @@ SKILL = ROOT / "skills" / "research" / "ideate"
 IDEATE_TEST_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(IDEATE_TEST_DIR))
 
-from test_ideas_sealer import _valid_draft as _valid_draft_text  # noqa: E402, I001
+from test_ideas_sealer import _valid_draft as _valid_draft_text  # type: ignore[import-not-found]  # noqa: E402, I001
 
 
 def test_doctor_succeeds(tmp_path: Path) -> None:
