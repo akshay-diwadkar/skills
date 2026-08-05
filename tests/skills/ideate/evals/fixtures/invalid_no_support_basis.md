@@ -33,7 +33,7 @@ External research status: completed
 - Mechanism: do X
 - Mechanism category: caching
 - Why it applies: because Y
-- Support basis: evidence-backed: E1
+- Support basis: intuition
 - Decision-criteria fit: best latency-effort trade-off
 - Expected impact: high
 - Assumptions and dependencies: none

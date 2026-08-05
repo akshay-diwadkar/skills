@@ -83,7 +83,7 @@ External research status: completed
 - Provisional lead: I1 — Alpha
 - Why it leads: best ratio
 - Why it beats rank 2: lower effort
-- How decision criteria were applied: rank 1 minimizes latency with lowest effort
+- How decision criteria were applied: 
 - Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 - What could change the ranking: new evidence
 - Conditions that would change the ranking: hit rate < 20%

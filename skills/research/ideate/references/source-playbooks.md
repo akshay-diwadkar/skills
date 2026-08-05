@@ -56,4 +56,4 @@ In `## 1. Handoff` record:
 
 - `Selected source playbooks:` — domains and source classes actually selected.
 - `Research coverage:` — what was successfully searched.
-- `Research limitations:` — what was unavailable, skipped, or user-excluded.
+- `Research limitations:` — what was unavailable, skipped, or user-excluded. User/contextual facts use Section 2 `C*` rows.

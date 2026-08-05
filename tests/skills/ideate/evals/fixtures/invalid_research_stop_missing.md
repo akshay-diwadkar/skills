@@ -14,7 +14,6 @@
 - Selected source playbooks: software/engineering
 - Research coverage: docs, benchmarks
 - Research limitations: none
-- Research stop condition: sufficient benchmark evidence gathered
 - Research stop reason: condition met — E1 answers primary question
 
 ## 2. Evidence

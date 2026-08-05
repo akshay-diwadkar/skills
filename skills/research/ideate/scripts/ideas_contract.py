@@ -19,7 +19,8 @@ from _diagnostic_contract import normalize_diagnostic
 # Structural constants
 # ---------------------------------------------------------------------------
 
-RECEIPT_PREFIX = "<!-- ideas-handoff: 1;"
+RECEIPT_PREFIX = "<!-- ideas-handoff: 2;"
+RECEIPT_VERSION = 2
 
 REQUIRED_HEADINGS = (
     "## 1. Handoff",
@@ -35,16 +36,24 @@ OPTIONAL_HEADINGS = (
 
 HANDOFF_STATES = {"decision-ready", "experiment-first", "research-limited"}
 EXTERNAL_STATUSES = {"completed", "limited", "unavailable", "user-disabled", "local-only"}
+RESEARCH_STOP_REASON_PREFIXES = (
+    "condition met",
+    "diminishing returns",
+    "unavailable sources",
+    "user limit",
+)
 
 CANDIDATE_ID_RE = re.compile(r"^### (I[1-7])\. (.*)$", re.MULTILINE)
 CANDIDATE_HEADING_RE = re.compile(r"^###+.*$", re.MULTILINE)
 LOCAL_EVIDENCE_ID_RE = re.compile(r"^\| (L\d+) \|", re.MULTILINE)
 EXTERNAL_EVIDENCE_ID_RE = re.compile(r"^\| (E\d+) \|", re.MULTILINE)
+CONTEXTUAL_EVIDENCE_ID_RE = re.compile(r"^\| (C\d+) \|", re.MULTILINE)
 COMPARISON_RANK_RE = re.compile(r"^\| (\d+) \| (I[1-7]) \|", re.MULTILINE)
-RECOMMENDATION_LEAD_RE = re.compile(r"^- Provisional lead:[ \t]*(.+)$", re.MULTILINE)
+RECOMMENDATION_LEAD_RE = re.compile(r"^- Provisional lead:[ \t]*(I[1-7])\b", re.MULTILINE)
 EXTERNAL_STATUS_LINE_RE = re.compile(r"^External research status:[ \t]*(.+)$", re.MULTILINE)
 TITLE_RE = re.compile(r"^# Ideas:[ \t]*(.+)$")
 HANDOFF_STATE_RE = re.compile(r"^- State:[ \t]*(.+)$", re.MULTILINE)
+RESEARCH_STOP_REASON_RE = re.compile(r"^- Research stop reason:[ \t]*(.+)$", re.MULTILINE)
 
 HANDOFF_REQUIRED_FIELDS = (
     "- State:",
@@ -60,13 +69,16 @@ HANDOFF_REQUIRED_FIELDS = (
     "- Selected source playbooks:",
     "- Research coverage:",
     "- Research limitations:",
+    "- Research stop condition:",
+    "- Research stop reason:",
 )
 
 REQUIRED_CANDIDATE_FIELDS = (
     "Mechanism:",
     "Mechanism category:",
     "Why it applies:",
-    "Evidence:",
+    "Support basis:",
+    "Decision-criteria fit:",
     "Expected impact:",
     "Assumptions and dependencies:",
     "Effort:",
@@ -80,9 +92,23 @@ RECOMMENDATION_REQUIRED_FIELDS = (
     "- Provisional lead:",
     "- Why it leads:",
     "- Why it beats rank 2:",
+    "- How decision criteria were applied:",
     "- Cheapest decisive experiment:",
     "- What could change the ranking:",
     "- Conditions that would change the ranking:",
+)
+
+ADVERSARIAL_REQUIRED_FIELDS = (
+    "- Strongest challenge to rank 1:",
+    "- Baseline comparison:",
+    "- Alternate winner condition:",
+    "- Remaining uncertainty:",
+)
+
+SUPPORT_BASIS_PREFIXES = (
+    "evidence-backed:",
+    "assumption-backed:",
+    "hypothesis:",
 )
 
 PROHIBITED_RE = re.compile(
@@ -94,12 +120,13 @@ STRONG_VERIFICATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-EVIDENCE_REF_RE = re.compile(r"\b([EL]\d+)\b")
+EVIDENCE_REF_RE = re.compile(r"\b([CEL]\d+)\b")
 DIGEST_RE = re.compile(r"\b[0-9a-f]{64}\b", re.IGNORECASE)
 
 LOCAL_HEADER = "| ID | Claim | Source path | Locator | Verification |"
 EXTERNAL_HEADER = "| ID | Finding | Source | Locator | Date/freshness | Relevance |"
-COMPARISON_HEADER = "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |"
+CONTEXTUAL_HEADER = "| ID | Claim | Source description | Locator | Verification |"
+COMPARISON_HEADER = "| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |"
 
 # ---------------------------------------------------------------------------
 # Diagnostic dataclass
@@ -170,6 +197,42 @@ def _validate_id_sequence(
     return errors
 
 
+def _parse_support_basis(value: str) -> tuple[str | None, str, set[str]]:
+    """Return (kind, remainder, evidence_ids) for a Support basis field value."""
+    trimmed = value.strip()
+    lowered = trimmed.casefold()
+    for prefix in SUPPORT_BASIS_PREFIXES:
+        if lowered.startswith(prefix):
+            remainder = trimmed[len(prefix):].strip()
+            if prefix == "evidence-backed:":
+                return ("evidence-backed", remainder, set(EVIDENCE_REF_RE.findall(remainder)))
+            kind = prefix[:-1]
+            return (kind, remainder, set())
+    return (None, trimmed, set())
+
+
+def _validate_research_stop_reason(reason: str) -> list[Diagnostic]:
+    errors: list[Diagnostic] = []
+    normalized = reason.strip()
+    message = (
+        "research stop reason must begin with one of: "
+        + ", ".join(RESEARCH_STOP_REASON_PREFIXES)
+    )
+    if not normalized:
+        errors.append(Diagnostic("ideas.invalid_research_stop_reason", message))
+        return errors
+    lowered = normalized.casefold()
+    for prefix in RESEARCH_STOP_REASON_PREFIXES:
+        if lowered == prefix:
+            return errors
+        if lowered.startswith(prefix + " ") or lowered.startswith(prefix + "\t"):
+            return errors
+        if lowered.startswith(prefix + " —") or lowered.startswith(prefix + " -"):
+            return errors
+    errors.append(Diagnostic("ideas.invalid_research_stop_reason", message))
+    return errors
+
+
 EXPERIMENT_COMPONENT_RE = re.compile(
     r"(metric|pass/fail|duration|cost/effort|cost|effort)\s*:\s*([^;]*)",
     re.IGNORECASE,
@@ -188,11 +251,7 @@ def _parse_experiment_components(value: str) -> dict[str, str]:
 
 
 def _validate_decisive_experiment(owner: str, value: str) -> list[Diagnostic]:
-    """Require a metric, pass/fail rule, duration bound, and cost/effort bound.
-
-    Each component must be present with a non-empty value; a bare label such
-    as 'metric:' does not satisfy the contract.
-    """
+    """Require a metric, pass/fail rule, duration bound, and cost/effort bound."""
     errors: list[Diagnostic] = []
     components = _parse_experiment_components(value)
     for name in REQUIRED_EXPERIMENT_COMPONENTS:
@@ -242,12 +301,10 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         else:
             heading_positions.append(text.find(heading))
 
-    # Check order of present headings
     valid_positions = [p for p in heading_positions if p != -1]
     if valid_positions != sorted(valid_positions):
         errors.append(Diagnostic("ideas.heading_order", "required headings must appear in canonical order"))
 
-    # Optional section 7 ordering
     sec7_idx = text.find("## 7. Optional downstream action")
     if sec7_idx != -1:
         if text.count("## 7. Optional downstream action") > 1:
@@ -263,6 +320,10 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         m = line_re.search(handoff_body)
         if not m or not m.group(1).strip():
             errors.append(Diagnostic("ideas.handoff_field_empty", f"required handoff field is missing or empty: {field!r}"))
+
+    reason_m = RESEARCH_STOP_REASON_RE.search(handoff_body)
+    if reason_m:
+        errors.extend(_validate_research_stop_reason(reason_m.group(1)))
 
     # 4. Handoff state
     state_m = HANDOFF_STATE_RE.search(handoff_body)
@@ -298,16 +359,19 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
     # 6. Collect declared evidence IDs and verify location
     declared_local: list[str] = LOCAL_EVIDENCE_ID_RE.findall(evidence_section)
     declared_external: list[str] = EXTERNAL_EVIDENCE_ID_RE.findall(evidence_section)
+    declared_contextual: list[str] = CONTEXTUAL_EVIDENCE_ID_RE.findall(evidence_section)
 
     all_doc_local = LOCAL_EVIDENCE_ID_RE.findall(text)
     all_doc_external = EXTERNAL_EVIDENCE_ID_RE.findall(text)
+    all_doc_contextual = CONTEXTUAL_EVIDENCE_ID_RE.findall(text)
 
     if len(all_doc_local) > len(declared_local):
         errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "local evidence IDs must be declared only inside Section 2"))
     if len(all_doc_external) > len(declared_external):
         errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "external evidence IDs must be declared only inside Section 2"))
+    if len(all_doc_contextual) > len(declared_contextual):
+        errors.append(Diagnostic("ideas.misplaced_evidence_declaration", "contextual evidence IDs must be declared only inside Section 2"))
 
-    # Check contiguity and uniqueness for local & external evidence
     errors.extend(
         _validate_id_sequence(
             declared_local,
@@ -326,8 +390,16 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             "ideas.noncontiguous_external_evidence",
         )
     )
+    errors.extend(
+        _validate_id_sequence(
+            declared_contextual,
+            "C",
+            "contextual evidence",
+            "ideas.duplicate_contextual_evidence",
+            "ideas.noncontiguous_contextual_evidence",
+        )
+    )
 
-    # Evidence table headers and row widths
     if "### Local evidence" in evidence_section:
         if LOCAL_HEADER not in evidence_section:
             errors.append(Diagnostic("ideas.invalid_local_table_header", f"Local evidence table header must exactly match {LOCAL_HEADER!r}"))
@@ -348,7 +420,26 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             if len(parts) != 6:
                 errors.append(Diagnostic("ideas.invalid_external_table_row_width", f"External evidence row width must have 6 columns, found {len(parts)}"))
 
-    # Validate local evidence rows: non-empty locator, verification, existence, hash-digest check
+    if "### Contextual evidence" in evidence_section:
+        if CONTEXTUAL_HEADER not in evidence_section:
+            errors.append(
+                Diagnostic(
+                    "ideas.invalid_contextual_table_header",
+                    f"Contextual evidence table header must exactly match {CONTEXTUAL_HEADER!r}",
+                )
+            )
+    for line in evidence_section.splitlines():
+        line_s = line.strip()
+        if line_s.startswith("| C") and line_s.endswith("|"):
+            parts = [p.strip() for p in line_s.split("|")[1:-1]]
+            if len(parts) != 5:
+                errors.append(
+                    Diagnostic(
+                        "ideas.invalid_contextual_table_row_width",
+                        f"Contextual evidence row width must have 5 columns, found {len(parts)}",
+                    )
+                )
+
     for row_m in re.finditer(
         r"^\| (L\d+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$",
         evidence_section,
@@ -366,7 +457,6 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         if not verification or verification in ("-", "—"):
             errors.append(Diagnostic("ideas.empty_local_verification", f"{lid}: verification must be non-empty"))
 
-        # Path escape and file existence check
         resolved = None
         if repo_root is not None and local_path and local_path not in ("-", "—"):
             try:
@@ -381,7 +471,6 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 resolved = None
                 errors.append(Diagnostic("ideas.local_path_escape", f"{lid}: path {local_path!r} escapes the workspace root"))
 
-        # hash-verified: digest must be present and match the referenced file
         if "hash-verified" in verification.lower():
             digest_m = DIGEST_RE.search(verification)
             if not digest_m:
@@ -398,13 +487,29 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                         )
                     )
 
+    for row_m in re.finditer(
+        r"^\| (C\d+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$",
+        evidence_section,
+        re.MULTILINE,
+    ):
+        cid, _claim, _source_desc, locator, verification = (
+            row_m.group(1),
+            row_m.group(2).strip(),
+            row_m.group(3).strip(),
+            row_m.group(4).strip(),
+            row_m.group(5).strip(),
+        )
+        if not locator or locator in ("-", "—"):
+            errors.append(Diagnostic("ideas.empty_contextual_locator", f"{cid}: locator must be non-empty"))
+        if not verification or verification in ("-", "—"):
+            errors.append(Diagnostic("ideas.empty_contextual_verification", f"{cid}: verification must be non-empty"))
+
     # 7. Candidate ideas
     candidate_section = _section_body(text, "## 3. Candidate ideas")
     candidate_matches = CANDIDATE_ID_RE.findall(candidate_section)
     candidate_ids = [cid for cid, _ in candidate_matches]
     total_count = len(candidate_ids)
 
-    # Reject headings in Section 3 that are not canonical '### I1..I7. <name>'
     for heading_line in CANDIDATE_HEADING_RE.findall(candidate_section):
         if not CANDIDATE_ID_RE.match(heading_line):
             errors.append(
@@ -434,10 +539,10 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             )
         )
 
-    # Validate candidate names and fields
-    declared_all = set(declared_local) | set(declared_external)
+    declared_all = set(declared_local) | set(declared_external) | set(declared_contextual)
     all_cited_evidence: set[str] = set()
     mechanism_categories: list[str] = []
+    candidate_support_kinds: dict[str, str | None] = {}
 
     cand_blocks = re.split(r"(?=^### I[1-7]\. )", candidate_section, flags=re.MULTILINE)
     for block in cand_blocks:
@@ -451,54 +556,64 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
         if not cname:
             errors.append(Diagnostic("ideas.empty_candidate_name", f"{cid}: candidate title/name must be non-empty"))
 
-        # Check required candidate fields
         for field in REQUIRED_CANDIDATE_FIELDS:
             field_pattern = re.compile(rf"^- {re.escape(field)}[ \t]*(.*)$", re.MULTILINE)
             m = field_pattern.search(block)
             if not m or not m.group(1).strip():
-                errors.append(Diagnostic("ideas.empty_candidate_field", f"{cid}: required field '- {field}' is empty"))
+                if field == "Decision-criteria fit:":
+                    errors.append(Diagnostic("ideas.missing_criteria_fit", f"{cid}: required field '- {field}' is empty"))
+                else:
+                    errors.append(Diagnostic("ideas.empty_candidate_field", f"{cid}: required field '- {field}' is empty"))
 
-        # Check decisive experiment subfields
         exp_m = re.search(r"^- Cheapest decisive experiment:[ \t]*(.+)$", block, re.MULTILINE)
         if exp_m:
             errors.extend(_validate_decisive_experiment(cid, exp_m.group(1)))
 
-        # Collect Mechanism category for distinctness check
         cat_m = re.search(r"^- Mechanism category:[ \t]*(.+)$", block, re.MULTILINE)
         if cat_m and cat_m.group(1).strip():
             mechanism_categories.append(cat_m.group(1).strip().casefold())
 
-        # Check evidence references strictly from candidate's '- Evidence:' field
-        ev_field_m = re.search(r"^- Evidence:[ \t]*(.+)$", block, re.MULTILINE)
-        if ev_field_m:
-            ev_line_val = ev_field_m.group(1).strip()
-            refs = set(EVIDENCE_REF_RE.findall(ev_line_val))
-            if declared_all and not refs:
+        support_m = re.search(r"^- Support basis:[ \t]*(.+)$", block, re.MULTILINE)
+        if support_m:
+            kind, remainder, refs = _parse_support_basis(support_m.group(1))
+            candidate_support_kinds[cid] = kind
+            if kind is None:
                 errors.append(
                     Diagnostic(
-                        "ideas.candidate_missing_evidence",
-                        f"{cid}: candidate must reference at least one declared evidence ID in '- Evidence:' field",
+                        "ideas.invalid_support_basis",
+                        f"{cid}: support basis must begin with one of: "
+                        + ", ".join(prefix.rstrip(":") for prefix in SUPPORT_BASIS_PREFIXES),
                     )
                 )
-            unknown = refs - declared_all
-            for ref in sorted(unknown):
-                errors.append(Diagnostic("ideas.unknown_evidence_reference", f"{cid}: references undeclared evidence {ref!r}"))
-            all_cited_evidence.update(refs & declared_all)
-        elif declared_all:
-            errors.append(
-                Diagnostic(
-                    "ideas.candidate_missing_evidence",
-                    f"{cid}: candidate must reference at least one declared evidence ID",
+            elif kind == "evidence-backed":
+                if not refs:
+                    errors.append(
+                        Diagnostic(
+                            "ideas.invalid_support_basis",
+                            f"{cid}: evidence-backed support basis must reference at least one declared evidence ID",
+                        )
+                    )
+                unknown = refs - declared_all
+                for ref in sorted(unknown):
+                    errors.append(
+                        Diagnostic("ideas.unknown_support_reference", f"{cid}: references undeclared evidence {ref!r}")
+                    )
+                all_cited_evidence.update(refs & declared_all)
+            elif not remainder:
+                errors.append(
+                    Diagnostic(
+                        "ideas.invalid_support_basis",
+                        f"{cid}: {kind} support basis requires non-empty text after the prefix",
+                    )
                 )
-            )
+        else:
+            candidate_support_kinds[cid] = None
 
-    # Mechanism distinctness check
     if mechanism_categories and len(mechanism_categories) != len(set(mechanism_categories)):
         errors.append(
             Diagnostic("ideas.duplicate_mechanism_category", "candidates must be mechanism-distinct by Mechanism category")
         )
 
-    # Uncited evidence check
     uncited = declared_all - all_cited_evidence
     for uncited_id in sorted(uncited):
         errors.append(
@@ -540,23 +655,47 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             if len(parts) != 7:
                 errors.append(Diagnostic("ideas.invalid_comparison_table_row_width", f"Comparison row width must have 7 columns, found {len(parts)}"))
 
+    rank1 = next((c for r, c in comparison_rows if int(r) == 1), None)
+    if state == "decision-ready" and rank1:
+        rank1_kind = candidate_support_kinds.get(rank1)
+        if rank1_kind == "hypothesis":
+            errors.append(
+                Diagnostic(
+                    "ideas.decision_ready_hypothesis_lead",
+                    f"state 'decision-ready' cannot rank a hypothesis-backed candidate first ({rank1})",
+                )
+            )
+
     # 9. Recommendation
     rec_body = _section_body(text, "## 5. Recommendation")
     for field in RECOMMENDATION_REQUIRED_FIELDS:
         field_pattern = re.compile(rf"^{re.escape(field)}[ \t]*(.*)$", re.MULTILINE)
         m = field_pattern.search(rec_body)
         if not m or not m.group(1).strip():
-            errors.append(Diagnostic("ideas.missing_recommendation_field", f"required recommendation field is missing or empty: {field!r}"))
+            if field == "- How decision criteria were applied:":
+                errors.append(
+                    Diagnostic(
+                        "ideas.missing_criteria_application",
+                        "required recommendation field is missing or empty: '- How decision criteria were applied:'",
+                    )
+                )
+            else:
+                errors.append(Diagnostic("ideas.missing_recommendation_field", f"required recommendation field is missing or empty: {field!r}"))
 
     lead_m = RECOMMENDATION_LEAD_RE.search(rec_body)
-    if lead_m and comparison_rows:
-        rank1 = next((c for r, c in comparison_rows if int(r) == 1), None)
-        lead_text = lead_m.group(1).strip()
-        if rank1 and rank1 not in lead_text:
+    if comparison_rows and rank1:
+        if not lead_m:
             errors.append(
                 Diagnostic(
                     "ideas.recommendation_mismatch",
-                    f"provisional lead mentions {lead_text!r} but rank 1 is {rank1!r}",
+                    f"provisional lead must begin with exact rank-1 candidate ID {rank1!r}",
+                )
+            )
+        elif lead_m.group(1) != rank1:
+            errors.append(
+                Diagnostic(
+                    "ideas.recommendation_mismatch",
+                    f"provisional lead candidate {lead_m.group(1)!r} does not match rank 1 candidate {rank1!r}",
                 )
             )
 
@@ -578,7 +717,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             Diagnostic("ideas.incoherent_state_status", "handoff state 'research-limited' is incoherent with external status 'completed'")
         )
 
-    # 11. research-limited restriction (applies to external evidence / findings, not local facts)
+    # 11. research-limited restriction
     if state == "research-limited":
         ext_evidence_text = ""
         ext_m = re.search(r"### External evidence.*?(?=### |\Z)", evidence_section, re.DOTALL)
@@ -611,7 +750,7 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
             )
         )
 
-    # 14. Section 6 non-emptiness
+    # 14. Section 6 adversarial fields
     sec6_body = _section_body(text, "## 6. Contradictions and open questions")
     if not sec6_body.strip():
         errors.append(
@@ -620,6 +759,17 @@ def validate_ideas(text: str, repo_root: Path | None = None) -> list[Diagnostic]
                 "Section 6 (Contradictions and open questions) must be non-empty",
             )
         )
+    else:
+        for field in ADVERSARIAL_REQUIRED_FIELDS:
+            field_pattern = re.compile(rf"^{re.escape(field)}[ \t]*(.*)$", re.MULTILINE)
+            m = field_pattern.search(sec6_body)
+            if not m or not m.group(1).strip():
+                errors.append(
+                    Diagnostic(
+                        "ideas.missing_adversarial_field",
+                        f"required adversarial field is missing or empty: {field!r}",
+                    )
+                )
 
     return errors
 

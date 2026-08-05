@@ -1,11 +1,11 @@
-# Ideas: reduce API response latency
+# Ideas: reduce latency
 
 ## 1. Handoff
-- State: decision-ready
-- Goal: reduce API response latency
+- State: experiment-first
+- Goal: reduce latency
 - Success measure: p99 < 200ms
 - Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- Scope: API layer
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
@@ -19,6 +19,7 @@
 
 ## 2. Evidence
 
+
 ### External evidence
 
 External research status: completed
@@ -26,6 +27,7 @@ External research status: completed
 | ID | Finding | Source | Locator | Date/freshness | Relevance |
 | --- | --- | --- | --- | --- | --- |
 | E1 | Found X | https://example.com | § 2 | 2026-07 | high |
+
 
 ## 3. Candidate ideas
 
@@ -47,7 +49,7 @@ External research status: completed
 - Mechanism: do Y
 - Mechanism category: compression
 - Why it applies: because Z
-- Support basis: evidence-backed: E1
+- Support basis: assumption-backed: CPU headroom exists
 - Decision-criteria fit: moderate latency gain
 - Expected impact: high
 - Assumptions and dependencies: none
@@ -61,7 +63,7 @@ External research status: completed
 - Mechanism: do Z
 - Mechanism category: pooling
 - Why it applies: because W
-- Support basis: evidence-backed: E1
+- Support basis: hypothesis: pooling helps bursts
 - Decision-criteria fit: limited criteria fit
 - Expected impact: high
 - Assumptions and dependencies: none

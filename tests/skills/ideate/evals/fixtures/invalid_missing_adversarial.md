@@ -89,7 +89,7 @@ External research status: completed
 - Conditions that would change the ranking: hit rate < 20%
 
 ## 6. Contradictions and open questions
-- Strongest challenge to rank 1: rank 2 may win if effort dominates
+- Strongest challenge to rank 1: 
 - Baseline comparison: baseline p99 remains 500ms without change
 - Alternate winner condition: I2 wins if compression yields >40% reduction
 - Remaining uncertainty: none remaining — E1 benchmark covers primary risk
