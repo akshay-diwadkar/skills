@@ -8,9 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 SEALER = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "seal_plan.py"
 SCAFFOLD = ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "scaffold_implementation.py"
+V6_RUNTIME = ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "plan_v6_runtime.py"
 
 
-def test_implement_plan_accepts_current_v6_sealed_plan(tmp_path: Path) -> None:
+def test_implement_plan_accepts_current_v7_sealed_plan(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     (repo / "src").mkdir(parents=True)
     (repo / "src" / "target.py").write_text("def target(raw: str) -> str:\n    return raw.strip()\n", encoding="utf-8")
@@ -27,8 +28,11 @@ def test_implement_plan_accepts_current_v6_sealed_plan(tmp_path: Path) -> None:
     draft.write_text(
         """# Handle empty target input
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {"intent":"bug-fix","tier":"tiny","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: empty target input | obligation: return an empty string for empty target input | covered_by: SC-1, CH-1, T-1
 
 ## Outcome
 SC-1: given: an empty target input | when: target processes the value | then: it returns an empty string | unchanged: non-empty values remain stripped
@@ -37,10 +41,10 @@ SC-1: given: an empty target input | when: target processes the value | then: it
 F-1: kind: source | path: src/target.py | lines: 1-2 | anchor: target | claim: target owns string normalization
 
 ## Implementation
-CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: return an empty string explicitly before stripping non-empty input values | locality: local | reversibility: reversible
+CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: return an empty string explicitly before stripping non-empty input values | depends_on: none | locality: local | reversibility: reversible
 
 ## Verification
-T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted target tests execute | then: empty input is empty and non-empty input is stripped | command: python -m pytest tests/test_target.py -q
+T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted target tests execute | then: the regression fails before the fix and empty input is empty while non-empty input is stripped | command: python -m pytest tests/test_target.py -q
 """,
         encoding="utf-8",
     )
@@ -59,6 +63,14 @@ T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted tar
     )
     assert scaffolded.returncode == 0, scaffolded.stdout + scaffolded.stderr
     value = json.loads(bundle.read_text(encoding="utf-8"))
-    assert value["plan"]["normalized"]["contract_version"] == 6
+    assert value["plan"]["normalized"]["contract_version"] == 7
+    assert value["plan"]["change_order"] == ["CH-1"]
+    assert value["workspace"]["change_order"] == ["CH-1"]
     assert value["warnings"] == []
     assert value["workspace"]["targets"][0]["path"] == "src/target.py"
+
+
+def test_frozen_v6_runtime_still_parses_historical_marker() -> None:
+    text = V6_RUNTIME.read_text(encoding="utf-8")
+    assert "CONTRACT_VERSION = 6" in text
+    assert "Exactly one plan-contract version 6 marker is required." in text

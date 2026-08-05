@@ -2,7 +2,7 @@
 
 `design-codebase` emits one validated `design-handoff.md`. Supply that exact file to
 `plan-change` as `request_file`; the planning agent then explores the checkout,
-writes a separate plan-contract v6 draft, and runs the stateless one-pass
+writes a separate plan-contract v7 draft, and runs the stateless one-pass
 sealer with both paths.
 
 The design handoff is sealed in one command; validation, evidence-hash

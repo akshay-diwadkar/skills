@@ -45,6 +45,7 @@ read only `required_reads`, write only `allowed_writes`, and stop on every
 4. Disconfirm candidates, validate, and review every accepted, rejected, and deferred outcome.
 5. Stop after `audit-handoff.md` is sealed. Pass one accepted finding at a
    time to `plan-change`; for multiple findings, use the explicit finding ID.
+   `plan-change` v7 copies exact finding text into `RQ` obligation anchors.
    When the user delegates selection, rank severity first and stable finding
    ID second. Use `raise-issue` only when publication is separately requested.
 

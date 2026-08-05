@@ -1,6 +1,6 @@
 {
   "environment": {
-    "date": "2026-08-01",
+    "date": "2026-08-05",
     "platform": "Windows-10-10.0.26200-SP0",
     "python": "3.11.15"
   },
@@ -15,10 +15,10 @@
     ]
   },
   "schema_version": 3,
-  "v6_sealing_microbenchmark": {
-    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 1 --output benchmarks/reports/plan-change-v6.json",
+  "v7_sealing_microbenchmark": {
+    "command": "python tests/skills/plan-change/evals/tools/benchmark_sealing.py --iterations 1 --output benchmarks/reports/plan-change-v7.json",
     "iterations": 1,
-    "label": "v6 sealing only; excludes repository exploration and agent work",
+    "label": "v7 sealing only; excludes repository exploration and agent work",
     "operation_counts": {
       "high-risk": {
         "bytes_read": 54,
@@ -53,16 +53,16 @@
     },
     "timings_seconds": {
       "high-risk": {
-        "median": 0.10405699999682838,
-        "p95": 0.10405699999682838
+        "median": 0.10619289998430759,
+        "p95": 0.10619289998430759
       },
       "standard": {
-        "median": 0.11434960000042338,
-        "p95": 0.11434960000042338
+        "median": 0.09623389999615029,
+        "p95": 0.09623389999615029
       },
       "tiny": {
-        "median": 0.1576026999973692,
-        "p95": 0.1576026999973692
+        "median": 0.13402669999049976,
+        "p95": 0.13402669999049976
       }
     }
   }

@@ -54,6 +54,7 @@ local evidence.
 Complete only when the sealer returns exactly
 `/absolute/output/issue-handoff.md`, its source and typed receipt verify, and no
 other primary artifact exists. Pass only `plan-ready` output to `plan-change`.
+`plan-change` v7 copies exact outcome/constraint text into `RQ` obligation anchors.
 
 If the issue timestamp or checkout commit changes, regenerate the handoff. If
 GitHub, authentication, or local evidence is unavailable, preserve exact

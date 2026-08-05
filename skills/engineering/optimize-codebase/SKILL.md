@@ -52,6 +52,7 @@ deferments. Paths and symbols are evidence anchors, never an edit list.
 Complete only when the sealer returns exactly
 `/absolute/output/optimization-handoff.md`, its typed receipt verifies, and no
 other primary artifact exists. Pass only `plan-ready` output to `plan-change`.
+`plan-change` v7 copies exact candidate/measure text into `RQ` obligation anchors.
 
 If evidence or candidate selection changes, regenerate the draft and repeat the
 affected gates. A blocked measurement remains `needs-evidence`; never convert

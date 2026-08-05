@@ -1,0 +1,169 @@
+{
+  "case_count": 12,
+  "cases": [
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "tiny-local-bug",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "section.order",
+          "matched_reason": true,
+          "name": "missing-obligation"
+        },
+        {
+          "complete": false,
+          "expected_reason": "verification.coverage",
+          "matched_reason": true,
+          "name": "missing-verification-cover"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "shared-refactor-callers",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "missing-propagation"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "feature-defaults-errors",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "change.specificity",
+          "matched_reason": true,
+          "name": "vague-change"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "config-dependency-change",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "fact.structured",
+          "matched_reason": true,
+          "name": "missing-config-evidence"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "generated-output-ownership",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "change.target",
+          "matched_reason": true,
+          "name": "missing-owner"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "public-contract-migration",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "section.order",
+          "matched_reason": true,
+          "name": "missing-rollout"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "concurrency-idempotency",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "record.invalid",
+          "matched_reason": true,
+          "name": "missing-risk"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "external-ambiguous-success",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "section.order",
+          "matched_reason": true,
+          "name": "missing-rollout"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "design-handoff-inheritance",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "propagation.required",
+          "matched_reason": true,
+          "name": "missing-propagation"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "optimization-handoff-inheritance",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "obligation.coverage",
+          "matched_reason": true,
+          "name": "missing-obligation-map"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "issue-handoff-protected-behavior",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "record.invalid",
+          "matched_reason": true,
+          "name": "lost-protected-behavior"
+        }
+      ]
+    },
+    {
+      "golden_complete": true,
+      "golden_sealed": true,
+      "id": "multi-finding-audit-selection",
+      "weak": [
+        {
+          "complete": false,
+          "expected_reason": "obligation.anchor",
+          "matched_reason": true,
+          "name": "wrong-finding-anchor"
+        }
+      ]
+    }
+  ],
+  "label": "deterministic plan-quality fixtures; excludes live agents and sealing microbenchmark",
+  "schema_version": 1
+}

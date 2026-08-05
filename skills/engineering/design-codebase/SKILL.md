@@ -56,8 +56,9 @@ Complete only when phase `complete` returns exactly
 `/absolute/output/design-handoff.md`, its typed receipt and evidence verification
 pass, and no other
 primary artifact exists. Pass that file to
-`plan-change` as `request_file`; the planning agent writes the separate v6
+`plan-change` as `request_file`; the planning agent writes the separate v7
 draft after native exploration and seals both inputs with the stateless run.
+`plan-change` copies exact decision/boundary text into `RQ` obligation anchors.
 
 If sealing fails, repair the draft named by the diagnostic and rerun the same
 seal command. If repository evidence changed, refresh the affected evidence

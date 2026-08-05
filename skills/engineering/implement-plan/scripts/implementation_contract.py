@@ -11,9 +11,18 @@ from pathlib import Path
 from typing import Any
 
 import plan_v6_runtime
+import plan_v7_runtime
 
-Diagnostic = plan_v6_runtime.Diagnostic
+Diagnostic = plan_v7_runtime.Diagnostic
 Plan = Any
+
+
+def _runtime_for_version(version: int | None):
+    if version == 6:
+        return plan_v6_runtime
+    if version == 7:
+        return plan_v7_runtime
+    return None
 
 
 def load_contract() -> dict[str, Any]:
@@ -152,27 +161,34 @@ def repository_state(root: Path, paths: list[str]) -> dict[str, Any]:
 
 def parse_plan(text: str) -> tuple[Plan | None, list[Any]]:
     version = plan_contract_version(text)
-    if version == 6:
-        plan, diagnostics = plan_v6_runtime.parse_plan(plan_v6_runtime.canonical_body(text))
-        proof_matches = list(plan_v6_runtime.PROOF_RE.finditer(text))
-        receipt_matches = list(plan_v6_runtime.VALIDATION_RE.finditer(text))
-        if plan is not None and len(proof_matches) == 1 and len(receipt_matches) == 1:
-            try:
-                proof = json.loads(proof_matches[0].group("json"))
-                binding = proof.get("binding") if isinstance(proof, dict) else None
-                if isinstance(binding, dict):
-                    plan = __import__("dataclasses").replace(
-                        plan,
-                        binding=binding,
-                        receipt={
-                            "body": receipt_matches[0].group("body"),
-                            "proof": receipt_matches[0].group("proof"),
-                        },
-                    )
-            except json.JSONDecodeError:
-                pass
-        return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
+    runtime = _runtime_for_version(version)
+    if runtime is None:
+        return None, [
+            Diagnostic(
+                "contract.unsupported",
+                f"plan-contract version {version!r} is not supported",
+                "Use a sealed plan-contract v6 or v7 plan.",
+            )
+        ]
+    plan, diagnostics = runtime.parse_plan(runtime.canonical_body(text))
+    proof_matches = list(runtime.PROOF_RE.finditer(text))
+    receipt_matches = list(runtime.VALIDATION_RE.finditer(text))
+    if plan is not None and len(proof_matches) == 1 and len(receipt_matches) == 1:
+        try:
+            proof = json.loads(proof_matches[0].group("json"))
+            binding = proof.get("binding") if isinstance(proof, dict) else None
+            if isinstance(binding, dict):
+                plan = __import__("dataclasses").replace(
+                    plan,
+                    binding=binding,
+                    receipt={
+                        "body": receipt_matches[0].group("body"),
+                        "proof": receipt_matches[0].group("proof"),
+                    },
+                )
+        except json.JSONDecodeError:
+            pass
+    return plan, diagnostics
 
 
 def plan_contract_version(text: str) -> int | None:
@@ -180,12 +196,28 @@ def plan_contract_version(text: str) -> int | None:
     return int(matches[0]) if len(matches) == 1 else None
 
 
+def change_order_for_plan(plan: Plan, version: int | None) -> list[str]:
+    if version == 7:
+        ordered, diagnostics = plan_v7_runtime.topological_change_order(plan)
+        if diagnostics:
+            raise ValueError("invalid change dependency order:\n" + "\n".join(str(item) for item in diagnostics))
+        return ordered
+    return [record.id for record in plan.records.get("CH", ())]
+
+
 def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
     version = plan_contract_version(text)
-    if version == 6:
-        plan, diagnostics, _view = plan_v6_runtime.verify_sealed_plan(text, root)
-        return plan, diagnostics
-    return None, [Diagnostic("contract.unsupported", f"plan-contract version {version!r} is not supported", "Use a sealed plan-contract v6 plan.")]
+    runtime = _runtime_for_version(version)
+    if runtime is None:
+        return None, [
+            Diagnostic(
+                "contract.unsupported",
+                f"plan-contract version {version!r} is not supported",
+                "Use a sealed plan-contract v6 or v7 plan.",
+            )
+        ]
+    plan, diagnostics, _view = runtime.verify_sealed_plan(text, root)
+    return plan, diagnostics
 
 
 def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id: str) -> dict[str, Any]:
@@ -202,13 +234,20 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         raise ValueError("invalid plan:\n" + "\n".join(str(item) for item in diagnostics))
     if output_path.is_relative_to(repo_root) and not (repo_root / ".gitignore").is_file():
         raise ValueError("output must be outside the repository or ignored")
+    change_order = change_order_for_plan(plan, version)
+    changes_by_id = {record.id: record for record in plan.records.get("CH", ())}
+    ordered_changes = [changes_by_id[identifier] for identifier in change_order if identifier in changes_by_id]
     targets = [
         {
             "path": change.fields.get("path", ""),
             "status": change.fields.get("status", ""),
             "before_sha256": sha256_file(repo_root / change.fields.get("path", "")),
+            "ch_id": change.id,
+            "depends_on": change.fields.get("depends_on", "none") if version == 7 else "none",
+            "locality": change.fields.get("locality", ""),
+            "reversibility": change.fields.get("reversibility", ""),
         }
-        for change in plan.records.get("CH", ())
+        for change in ordered_changes
     ]
     target_paths = [target["path"] for target in targets if target["path"]]
     state = repository_state(repo_root, target_paths)
@@ -221,12 +260,15 @@ def scaffold_bundle(repo_root: Path, plan_path: Path, output_path: Path, run_id:
         "plan": {
             "sha256": hashlib.sha256(text.encode()).hexdigest(),
             "normalized": json.loads(json.dumps(plan.to_dict())),
+            "contract_version": version,
+            "change_order": change_order,
         },
         "workspace": {
             "repository_id": state["repository_id"],
             "git_head": state["git_head"],
             "branch": state["branch"],
             "targets": targets,
+            "change_order": change_order,
             "initial_dirty": state["dirty"],
         },
         "baseline": {
