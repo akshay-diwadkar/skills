@@ -83,7 +83,7 @@ def test_pipeline_documentation_and_changelog_are_present() -> None:
     assert "design-codebase" in readme
     assert "draft_file" in readme
     assert "request_file" in readme
-    assert "plan-contract v6" in readme
+    assert "plan-contract v7" in readme
     assert "request digest" in readme
 
     for skill_name in ("plan-change", "scope-issue"):
