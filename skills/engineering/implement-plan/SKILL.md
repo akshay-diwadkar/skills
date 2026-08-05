@@ -20,10 +20,8 @@ limits behavior changes; repository evidence determines local form; the v4
 implementation contract proves the result.
 
 Accept finalized plan-contract v6 or v7 plans with the typed request binding
-(kind, version, and selected-item). Reject ambiguous, unfinalized, unsupported,
-receipt-mismatched, or materially contradicted plans. Route semantic gaps to
-`plan-change`; never reinterpret product intent during implementation. Preserve
-unrelated dirty work byte for byte, never edit a dirty target without explicit
+(kind, version, and selected-item). Reject ambiguous, unfinalized, unsupported, receipt-mismatched, or materially contradicted plans. Route semantic gaps to
+`plan-change`; never reinterpret product intent during implementation. Preserve unrelated dirty work byte for byte, never edit a dirty target without explicit
 authorization, and stop on a concurrent target change.
 
 ## Start
