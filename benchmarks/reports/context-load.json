@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 9100,
+    "pre_action": 9135,
     "repair_diagnostic": 3073,
     "tool_output": 2461,
-    "top_level": 6639,
-    "worst_context": 28530,
-    "worst_references": 18818
+    "top_level": 6674,
+    "worst_context": 29658,
+    "worst_references": 19911
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "0f71e04bcb238d5ca4d1a067e6fa9861dba5b83a7f98baaffa80ec69de420044",
+  "config_sha256": "b98ac54e002c799c90acd64ccedc08e9aa3d885a7f2c8c80d22d54ec21715590",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -278,19 +278,19 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 862,
+        "pre_action": 897,
         "repair_diagnostic": 261,
         "tool_output": 198,
-        "top_level": 664,
-        "worst_context": 2867,
-        "worst_references": 1942
+        "top_level": 699,
+        "worst_context": 3995,
+        "worst_references": 3035
       },
       "path": "skills/engineering/plan-change/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "85ace3e4e35fae9b2db92b564843201ef84dde377b37a7678e8e03ba8252704c",
+      "source_hash": "58b9efa120a29889fb1307400e8df99422213992b0b5564e76ed063831962cd5",
       "worst_reference_paths": [
         "references/evidence-kinds.md",
         "references/plan-contract.md",

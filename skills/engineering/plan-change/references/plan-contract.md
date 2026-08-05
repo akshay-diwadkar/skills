@@ -2,10 +2,6 @@
 
 Required sections once in order; conditional sections only at shown positions.
 
-Do not add records merely to satisfy the contract. Every record must guide an
-implementation decision, preserve required behaviour, expose a real dependency
-or affected surface, or prove completion.
-
 ```markdown
 # <Action-oriented title>
 
@@ -73,6 +69,7 @@ order, recovery action, and trigger.
 The sealer verifies RQ anchors against loaded request/handoff bytes, validates
 the CH graph, and adds plan-proof/plan-validation; never write those markers.
 
-Tiny plans use Obligations plus the four core sections. Add Decisions/
-Propagation for real choices, shared surfaces, or non-tiny local no-propagation
-declarations. Use [Plan Examples](plan-examples.md) when calibrating depth.
+Tiny plans use Obligations plus the four core sections; add Decisions/
+Propagation only for real choices, shared surfaces, or non-tiny local
+no-propagation declarations. Use [Plan Examples](plan-examples.md) when
+calibrating depth.

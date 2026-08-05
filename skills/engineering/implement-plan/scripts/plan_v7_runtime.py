@@ -559,25 +559,42 @@ class SealResult:
 def _fields(raw: str, record: str, line: int, diagnostics: list[Diagnostic]) -> dict[str, str]:
     fields: dict[str, str] = {}
     parts = raw.split(" | ")
-    invalid = any("|" in part for part in parts)
+    first_defect: str | None = None
     for part in parts:
         key, separator, value = part.partition(": ")
         normalized_value = value.strip("`")
-        if (
-            not separator
-            or re.fullmatch(r"[a-z][a-z0-9_-]*", key) is None
-            or not normalized_value
-            or value != value.strip()
-            or key in fields
-        ):
-            invalid = True
+        defect = None
+        if not separator:
+            defect = f"no ': ' separator in {part!r}"
+        elif re.fullmatch(r"[a-z][a-z0-9_-]*", key) is None:
+            defect = f"field name {key!r} is not valid"
+        elif not normalized_value:
+            defect = f"field {key!r} has an empty value"
+        elif value != value.strip():
+            defect = f"field {key!r} has stray surrounding whitespace"
+        elif key in fields:
+            defect = f"field {key!r} is duplicated"
+        if defect:
+            if first_defect is None:
+                first_defect = defect
             continue
         fields[key] = normalized_value
-    if invalid:
+    if first_defect is not None:
         diagnostics.append(
             Diagnostic(
                 "record.invalid",
-                "Fields must be unique non-empty 'key: value' pairs separated by exact ' | ' delimiters.",
+                f"Record fields must be unique 'key: value' pairs separated by exact ' | ' delimiters: {first_defect}.",
+                f"Correct the field syntax for {record}.",
+                record,
+                line=line,
+            )
+        )
+    elif any("|" in part for part in parts):
+        stray_key = next(part.partition(": ")[0] for part in parts if "|" in part)
+        diagnostics.append(
+            Diagnostic(
+                "record.invalid",
+                f"Record fields must be unique 'key: value' pairs separated by exact ' | ' delimiters: stray '|' in field {stray_key!r}.",
                 f"Correct the field syntax for {record}.",
                 record,
                 line=line,
@@ -681,11 +698,20 @@ def parse_plan(text: str) -> tuple[Plan | None, list[Diagnostic]]:
         match.group(1).strip(): normalized.count("\n", 0, match.start()) + 1 for match in heading_matches
     }
     expected = tuple(section for section in SECTION_ORDER if section in headings)
-    if any(section not in headings for section in REQUIRED_SECTIONS) or headings != expected or len(set(headings)) != len(headings):
+    missing_sections = [section for section in REQUIRED_SECTIONS if section not in headings]
+    duplicate_sections = sorted({section for section in headings if headings.count(section) > 1})
+    if missing_sections or duplicate_sections or headings != expected:
+        defects = []
+        if missing_sections:
+            defects.append(f"missing required: {', '.join(missing_sections)}")
+        if duplicate_sections:
+            defects.append(f"duplicate: {', '.join(duplicate_sections)}")
+        if headings != expected:
+            defects.append("not in canonical v7 order")
         diagnostics.append(
             Diagnostic(
                 "section.order",
-                "Required and conditional sections must occur once in canonical v7 order.",
+                f"Required and conditional sections must occur once in canonical v7 order; {'; '.join(defects)}.",
                 "Reorder sections to the canonical v7 sequence and add missing required sections.",
             )
         )
@@ -761,18 +787,24 @@ def _change_id_sort_key(identifier: str) -> tuple[int, str]:
         return 10**9, identifier
 
 
-def _depends_on_ids(raw: str) -> tuple[set[str], bool]:
+def _depends_on_ids(raw: str) -> tuple[set[str], bool, str | None]:
     value = raw.strip()
     if DEPENDS_NONE_RE.fullmatch(value):
-        return set(), False
+        return set(), False, None
     refs = _refs(value)
     tokens = [token.strip() for token in value.split(",") if token.strip()]
-    invalid = bool(tokens) and (
-        any(DEPENDS_NONE_RE.fullmatch(token) for token in tokens)
-        or any(re.fullmatch(r"CH-[1-9]\d*", token) is None for token in tokens)
-        or len(tokens) != len(refs)
-    )
-    return refs, invalid
+    defect: str | None = None
+    if tokens:
+        mixed = [token for token in tokens if DEPENDS_NONE_RE.fullmatch(token)]
+        bad = [token for token in tokens if re.fullmatch(r"CH-[1-9]\d*", token) is None]
+        if mixed:
+            defect = f"'{mixed[0]}' cannot be mixed with CH references"
+        elif bad:
+            defect = f"'{bad[0]}' is not a valid CH reference"
+        elif len(tokens) != len(refs):
+            duplicates = [token for token in tokens if tokens.count(token) > 1]
+            defect = f"'{duplicates[0]}' is duplicated"
+    return refs, defect is not None, defect
 
 
 def topological_change_order(plan: Plan) -> tuple[list[str], list[Diagnostic]]:
@@ -784,12 +816,12 @@ def topological_change_order(plan: Plan) -> tuple[list[str], list[Diagnostic]]:
     edges: dict[str, set[str]] = {identifier: set() for identifier in changes}
     indegree = {identifier: 0 for identifier in changes}
     for change in changes.values():
-        deps, invalid = _depends_on_ids(change.fields.get("depends_on", ""))
+        deps, invalid, defect = _depends_on_ids(change.fields.get("depends_on", ""))
         if invalid:
             diagnostics.append(
                 Diagnostic(
                     "dependency.invalid",
-                    "depends_on must be 'none' or a unique comma-separated CH list.",
+                    f"depends_on must be 'none' or a unique comma-separated CH list; {defect}.",
                     f"Correct {change.id}.depends_on.",
                     change.id,
                     line=change.line,
@@ -1186,11 +1218,14 @@ def _propagation_diagnostics(plan: Plan, repository: RepositoryView | None = Non
             )
         if disposition in {"unchanged", "out-of-scope"}:
             if not reason_facts or not reason_facts <= fact_ids or not _substantive(reason, 3):
+                repair = f"Update {record.id}.reason to cite F-n and describe the bounded sweep."
+                if plan.tier == "tiny":
+                    repair += f" Or remove {record.id} when the change is local."
                 diagnostics.append(
                     Diagnostic(
                         "propagation.evidence",
                         "Unchanged/out-of-scope propagation must cite evidence and a concrete sweep conclusion.",
-                        f"Update {record.id}.reason to cite F-n and describe the bounded sweep.",
+                        repair,
                         record.id,
                         line=record.line,
                     )
@@ -1305,8 +1340,15 @@ def _record_diagnostics(
         missing = REQUIRED_FIELDS[kind] - set(record.fields)
         unknown = set(record.fields) - REQUIRED_FIELDS[kind] - OPTIONAL_FIELDS.get(kind, set())
         if missing or unknown:
-            detail = f"missing={sorted(missing)}; unknown={sorted(unknown)}"
-            diagnostics.append(Diagnostic("record.invalid", detail, f"Correct the fields on {record.id}.", record.id, line=record.line))
+            detail = "; ".join(
+                part
+                for part in (
+                    f"missing: {', '.join(sorted(missing))}" if missing else "",
+                    f"unknown: {', '.join(sorted(unknown))}" if unknown else "",
+                )
+                if part
+            )
+            diagnostics.append(Diagnostic("record.invalid", f"Fields on {record.id}: {detail}.", f"Correct the fields on {record.id}.", record.id, line=record.line))
         for field, allowed in REFERENCE_FIELDS.get(kind, {}).items():
             raw = record.fields.get(field, "")
             if kind == "CH" and field == "depends_on" and DEPENDS_NONE_RE.fullmatch(raw.strip() or ""):

@@ -26,21 +26,26 @@ or affected surface, or prove completion.
 
 ## Workflow
 
-1. Select intent, tier, and risk domains. For typed audit/design/optimization/
-   issue handoffs, verify receipt and actionable state first. Plan one audit
-   finding per run (`handoff_item=<finding-id>` when multi-finding).
-2. Extract material obligations; map each to outcome plus CH and/or T ownership.
-3. Explore only enough owners, callers, tests, contracts, config, and boundaries
-   to be decision-complete. Build the CH dependency graph and one bounded
-   propagation sweep (callers/re-exports, tests/fixtures, schema/config/
-   generated, contracts/docs, deployment/ops).
-4. Write one v7 draft from inspected evidence only; do not calculate hashes. Use
-   [Plan Contract](references/plan-contract.md), matching
-   [Task Guidance](references/task-guidance.md), and
-   [Evidence Kinds](references/evidence-kinds.md) when needed. Read
-   [Plan Examples](references/plan-examples.md) only when calibrating tiny or
-   standard depth.
-5. Seal once:
+Explore only enough to be decision-complete; author one move at a time,
+stopping when its condition holds.
+
+1. Select intent, tier, and risk domains; verify typed handoff receipt first
+   (`handoff_item=<finding-id>` when multi-finding). Extract obligations as
+   RQ records with exact-text anchors and typed categories.
+   Stop: one anchored RQ per normative request item.
+2. Identify owner and root cause; cite evidence as F records.
+   Stop: same-path evidence or an ownership chain per CH path.
+3. Define CH changes, paths, and depends_on from inspected evidence.
+   Stop: acyclic dependency graph with concrete changes.
+4. Account for propagation with P records across all affected surfaces.
+   Stop: a P record per shared CH.
+5. Map outcomes and changes to T records with observable given/when/then and
+   a runnable command; bug fixes state fail-before and pass-after.
+   Stop: verification coverage is closed.
+6. Seal once (command below); the sealer computes hashes. Repair the named
+   record and field locally; re-explore only when a diagnostic marks stale
+   or missing evidence. Return the exact sealed Markdown.
+   Stop: the sealer returns the exact sealed Markdown.
 
 ```bash
 python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
@@ -48,13 +53,13 @@ python /absolute/skill-root/scripts/cli.py --repo-root /absolute/repo \
   --input draft_file=/absolute/plan.md --format json run
 ```
 
-6. Repair the named defect. Re-explore only when the diagnostic identifies
-   missing or stale scope, evidence, ownership, or repository understanding.
-   Return the exact sealed Markdown.
+Use [Plan Contract](references/plan-contract.md), matching
+[Task Guidance](references/task-guidance.md) and
+[Evidence Kinds](references/evidence-kinds.md) when needed. Read
+[Plan Examples](references/plan-examples.md) only when calibrating depth.
 
-Stop when obligations, CH evidence/ownership, shared propagation, verification
-coverage, and applicable risk/rollout needs are resolved. The draft is the only
-agent-authored artifact; sealing is one-pass over cited files plus Git identity.
+The draft is the only agent-authored artifact; sealing is one-pass over
+cited files plus Git identity.
 
 ## Depth
 
