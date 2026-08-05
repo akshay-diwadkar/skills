@@ -235,7 +235,7 @@ F-1: kind: source | path: payments/service.py | lines: 1-7 | anchor: charge_paym
 CH-1: path: payments/service.py | anchor: charge_payment | status: existing | evidence: F-1 | change: introduce the selected PaymentGateway charge boundary while preserving provider error behavior | depends_on: none | locality: shared | reversibility: reversible
 
 ## Propagation
-P-1: surface: caller | disposition: changed | path: checkout/process.py | owner: CH-1 | reason: F-1
+P-1: surface: caller | disposition: changed | path: checkout/process.py | owner: CH-1 | reason: F-1 checkout must adopt the selected gateway boundary
 
 ## Verification
 T-1: covers: SC-1, CH-1 | given: checkout and renewal payment scenarios | when: targeted payment tests execute | then: both callers use the gateway and preserve decline behavior | command: python -m pytest tests/test_checkout.py -q
