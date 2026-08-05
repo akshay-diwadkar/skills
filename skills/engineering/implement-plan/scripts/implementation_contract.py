@@ -63,7 +63,9 @@ def _write_before_snapshots(repo_root: Path, output_path: Path, paths: list[str]
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     for repo_path in paths:
         source = repo_root / repo_path
-        content = source.read_bytes() if source.is_file() else b""
+        if not source.is_file():
+            continue
+        content = source.read_bytes()
         snapshot = _snapshot_path(output_path, repo_path)
         if snapshot.exists():
             if snapshot.read_bytes() != content:
@@ -292,8 +294,17 @@ def validate_bundle_against_plan(
         if target.get("path") != target_path:
             errors.append(f"workspace.targets[{index}].path must match {ch_id}")
         if bundle_path is not None and target_path:
-            snapshot_sha = read_before_snapshot_sha256(bundle_path, target_path)
-            if snapshot_sha and target.get("before_sha256") != snapshot_sha:
+            expected_before: str | None = None
+            if target.get("status") == "new":
+                expected_before = ""
+            else:
+                expected_before = read_before_snapshot_sha256(bundle_path, target_path)
+                if not expected_before:
+                    errors.append(
+                        f"workspace.targets[{index}] before snapshot is missing for {target_path}"
+                    )
+                    expected_before = None
+            if expected_before is not None and target.get("before_sha256") != expected_before:
                 errors.append(
                     f"workspace.targets[{index}].before_sha256 must match scaffolded before snapshot for {target_path}"
                 )
@@ -363,12 +374,21 @@ def validate_bundle_against_plan(
                     if not path:
                         continue
                     target = targets_by_ch.get(ch_id)
-                    expected_before = target.get("before_sha256") if isinstance(target, dict) else None
+                    status = change_record.fields.get("status", "existing")
+                    expected_before = None
                     if bundle_path is not None:
-                        snapshot_sha = read_before_snapshot_sha256(bundle_path, path)
-                        if snapshot_sha:
-                            expected_before = snapshot_sha
-                    if expected_before and before_hashes.get(path) != expected_before:
+                        if status == "new":
+                            expected_before = ""
+                        else:
+                            expected_before = read_before_snapshot_sha256(bundle_path, path)
+                            if not expected_before:
+                                errors.append(
+                                    f"changes[{index}] before snapshot is missing for {path}"
+                                )
+                                expected_before = None
+                    elif isinstance(target, dict):
+                        expected_before = target.get("before_sha256")
+                    if expected_before is not None and before_hashes.get(path) != expected_before:
                         errors.append(
                             f"changes[{index}].before_sha256[{path}] must match scaffolded {ch_id}"
                         )

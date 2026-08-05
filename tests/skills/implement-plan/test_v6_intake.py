@@ -123,6 +123,51 @@ T-1: covers: SC-1, CH-1 | given: empty and non-empty values | when: targeted tar
     return repo, plan, request
 
 
+def _seal_v7_new_file(tmp_path: Path) -> tuple[Path, Path, Path]:
+    repo = tmp_path / "repo"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "__init__.py").write_text("# package\n", encoding="utf-8")
+    _git_repo(repo)
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    plan = tmp_path / "plan.md"
+    request.write_text(
+        "Add a new module that delegates to existing target normalization.\n",
+        encoding="utf-8",
+    )
+    draft.write_text(
+        """# Add a delegating module
+
+<!-- plan-contract: 7 -->
+<!-- plan-metadata: {"intent":"feature","tier":"tiny","risk_domains":[]} -->
+
+## Obligations
+RQ-1: source: request | anchor: new module that delegates | obligation: add a new module that delegates to the existing target normalization | covered_by: SC-1, CH-1, T-1
+
+## Outcome
+SC-1: given: the new module | when: it delegates to the existing target | then: it returns the stripped value | unchanged: existing target behavior remains unchanged
+
+## Evidence
+F-1: kind: directory-ownership | path: src/__init__.py | lines: 1-1 | anchor: package | claim: the src package owns new facade modules | directory: src
+
+## Implementation
+CH-1: path: src/new_module.py | anchor: new module seam | status: new | owner: F-1 | change: add a module that delegates to the existing target normalization and returns its stripped value | depends_on: none | locality: local | reversibility: reversible
+
+## Verification
+T-1: covers: SC-1, CH-1 | given: the new module | when: targeted tests execute | then: delegation returns the stripped value | command: python -m pytest tests/test_new_module.py -q
+""",
+        encoding="utf-8",
+    )
+    sealed = subprocess.run(
+        [sys.executable, str(SEALER), "--repo-root", str(repo), "--request-file", str(request), "--draft", str(draft)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    plan.write_text(sealed.stdout, encoding="utf-8")
+    return repo, plan, request
+
+
 def test_v7_plan_scaffolds_and_seals_end_to_end(tmp_path: Path) -> None:
     repo, plan, _request = _seal_v7(tmp_path)
     bundle = tmp_path / "bundle.json"
@@ -835,6 +880,168 @@ def test_tampered_before_sha256_fails_sealing(tmp_path: Path) -> None:
     )
     value["workspace"]["targets"][0]["before_sha256"] = "tamperedhash00000000000000000000000000000000000000000000000000000"
     value["changes"][0]["before_sha256"]["src/target.py"] = "tamperedhash00000000000000000000000000000000000000000000000000000"
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode != 0
+    assert "must match scaffolded" in finalized.stdout
+
+
+def test_v7_new_file_completion_succeeds(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7_new_file(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    scaffolded = subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert scaffolded.returncode == 0, scaffolded.stdout + scaffolded.stderr
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    target = value["workspace"]["targets"][0]
+    assert target["path"] == "src/new_module.py"
+    assert target["status"] == "new"
+    assert target["before_sha256"] == ""
+    _mark_complete(
+        value,
+        repo=repo,
+        ch_ids=["CH-1"],
+        paths=["src/new_module.py"],
+        anchors=["new module seam"],
+        t_ids=["T-1"],
+        command="python -m pytest tests/test_new_module.py -q",
+        evidence=["F-1"],
+        edits={"src/new_module.py": "def new_module(raw: str) -> str:\n    return raw.strip()\n"},
+    )
+    assert value["changes"][0]["before_sha256"] == {"src/new_module.py": ""}
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode == 0, finalized.stdout + finalized.stderr
+    sealed_bundle = json.loads(bundle.read_text(encoding="utf-8"))
+    assert sealed_bundle["status"] == "complete"
+    assert sealed_bundle["validation_receipt"]["plan_contract"] == 7
+
+
+def test_deleted_before_snapshot_fails_sealing(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for snapshot in (tmp_path / "snapshots").glob("*.before"):
+        snapshot.unlink()
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    _mark_complete(
+        value,
+        repo=repo,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+        command="python -m pytest tests/test_target.py -q",
+        evidence=["F-1"],
+        edits={
+            "src/target.py": (
+                "def target(raw: str) -> str:\n"
+                "    if not raw:\n"
+                "        return \"\"\n"
+                "    return raw.strip()\n"
+            )
+        },
+    )
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode != 0
+    assert "before snapshot is missing" in finalized.stdout
+
+
+def test_v7_existing_empty_file_completion_succeeds(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7_new_file(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    scaffolded = subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert scaffolded.returncode == 0, scaffolded.stdout + scaffolded.stderr
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    empty_sha = hashlib.sha256(b"").hexdigest()
+    assert value["workspace"]["targets"][0]["before_sha256"] == ""
+    _mark_complete(
+        value,
+        repo=repo,
+        ch_ids=["CH-1"],
+        paths=["src/new_module.py"],
+        anchors=["new module seam"],
+        t_ids=["T-1"],
+        command="python -m pytest tests/test_new_module.py -q",
+        evidence=["F-1"],
+        edits={"src/new_module.py": ""},
+    )
+    assert value["changes"][0]["before_sha256"] == {"src/new_module.py": ""}
+    assert value["changes"][0]["after_sha256"] == {"src/new_module.py": empty_sha}
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode == 0, finalized.stdout + finalized.stderr
+    sealed_bundle = json.loads(bundle.read_text(encoding="utf-8"))
+    assert sealed_bundle["status"] == "complete"
+    assert sealed_bundle["targeted_after_sha256"]["src/new_module.py"] == empty_sha
+
+
+def test_tampered_changes_before_sha256_fails_sealing(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    _mark_complete(
+        value,
+        repo=repo,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+        command="python -m pytest tests/test_target.py -q",
+        evidence=["F-1"],
+        edits={
+            "src/target.py": (
+                "def target(raw: str) -> str:\n"
+                "    if not raw:\n"
+                "        return \"\"\n"
+                "    return raw.strip()\n"
+            )
+        },
+    )
+    value["changes"][0]["before_sha256"]["src/target.py"] = (
+        "tamperedhash00000000000000000000000000000000000000000000000000000"
+    )
     bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     finalized = subprocess.run(
         [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
