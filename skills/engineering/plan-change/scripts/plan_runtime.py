@@ -244,18 +244,31 @@ def _request_text_without_fences(request_text: str) -> str:
 def _blank_skip_sections(request_text: str) -> str:
     lines: list[str] = []
     in_skip = False
+    skip_depth = 0
     for raw_line in request_text.replace("\r\n", "\n").replace("\r", "\n").splitlines():
         stripped = raw_line.strip()
-        if SKIP_SECTION_HEADER_RE.match(stripped):
+        skip_match = SKIP_SECTION_HEADER_RE.match(stripped)
+        if skip_match:
+            heading_match = re.match(r"^(#{1,6})", stripped)
+            skip_depth = len(heading_match.group(1)) if heading_match else 0
             in_skip = True
             lines.append("")
             continue
+
         if NORMATIVE_HEADER_RE.match(stripped) or AC_HEADER_RE.match(stripped):
             in_skip = False
+            skip_depth = 0
         elif stripped.startswith("#"):
-            in_skip = False
+            heading_match = re.match(r"^(#{1,6})", stripped)
+            heading_depth = len(heading_match.group(1)) if heading_match else 0
+            if in_skip:
+                if skip_depth == 0 or (heading_depth > 0 and heading_depth <= skip_depth):
+                    in_skip = False
+                    skip_depth = 0
+
         lines.append("" if in_skip else raw_line)
     return "\n".join(lines)
+
 
 
 def extract_structured_request_items(request_text: str) -> list[str]:

@@ -803,3 +803,45 @@ def test_v7_verification_command_must_match_planned_test(tmp_path: Path) -> None
     )
     assert finalized.returncode != 0
     assert "must match planned T-1.command" in finalized.stdout
+
+
+def test_tampered_before_sha256_fails_sealing(tmp_path: Path) -> None:
+    repo, plan, _request = _seal_v7(tmp_path)
+    bundle = tmp_path / "bundle.json"
+    subprocess.run(
+        [sys.executable, str(SCAFFOLD), "--repo-root", str(repo), "--plan", str(plan), "--output", str(bundle)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(bundle.read_text(encoding="utf-8"))
+    _mark_complete(
+        value,
+        repo=repo,
+        ch_ids=["CH-1"],
+        paths=["src/target.py"],
+        anchors=["target"],
+        t_ids=["T-1"],
+        command="python -m pytest tests/test_target.py -q",
+        evidence=["F-1"],
+        edits={
+            "src/target.py": (
+                "def target(raw: str) -> str:\n"
+                "    if not raw:\n"
+                "        return \"\"\n"
+                "    return raw.strip()\n"
+            )
+        },
+    )
+    value["workspace"]["targets"][0]["before_sha256"] = "tamperedhash00000000000000000000000000000000000000000000000000000"
+    value["changes"][0]["before_sha256"]["src/target.py"] = "tamperedhash00000000000000000000000000000000000000000000000000000"
+    bundle.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    finalized = subprocess.run(
+        [sys.executable, str(FINALIZER), "--repo-root", str(repo), "--plan", str(plan), "--bundle", str(bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert finalized.returncode != 0
+    assert "must match scaffolded" in finalized.stdout
+

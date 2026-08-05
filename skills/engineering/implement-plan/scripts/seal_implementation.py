@@ -41,7 +41,7 @@ def main() -> int:
         print("bundle must be an object")
         return 1
     order_errors = validate_bundle_against_plan(
-        bundle, plan, plan_text, version, require_completion=True, repo_root=root
+        bundle, plan, plan_text, version, require_completion=True, repo_root=root, bundle_path=args.bundle.resolve()
     )
     if order_errors:
         for error in order_errors:

@@ -382,6 +382,27 @@ def test_plain_skip_headers_end_normative_capture(header: str) -> None:
     assert "not blocking" not in items
 
 
+def test_nested_headings_under_skip_sections_remain_skipped() -> None:
+    request_text = (
+        "# Main Task\n\n"
+        "## Examples\n"
+        "Here are examples:\n\n"
+        "### Checklist Items in Example\n"
+        "- [ ] Example checklist item to ignore\n"
+        "Must do this example thing\n\n"
+        "## Notes\n"
+        "### Nested Notes Section\n"
+        "- [ ] Note checklist item to ignore\n\n"
+        "## Requirements:\n"
+        "- [ ] Real requirement item\n"
+    )
+    items = RUNTIME.extract_structured_request_items(request_text)
+    assert items == ["Real requirement item"]
+    assert "Example checklist item to ignore" not in items
+    assert "Note checklist item to ignore" not in items
+
+
+
 def test_weak_shared_anchor_covering_two_items_is_rejected(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")

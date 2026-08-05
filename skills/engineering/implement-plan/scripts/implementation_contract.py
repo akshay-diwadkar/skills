@@ -72,6 +72,11 @@ def _write_before_snapshots(repo_root: Path, output_path: Path, paths: list[str]
         snapshot.write_bytes(content)
 
 
+def read_before_snapshot_sha256(bundle_path: Path, repo_path: str) -> str:
+    snapshot = _snapshot_path(bundle_path, repo_path)
+    return sha256_file(snapshot) if snapshot.is_file() else ""
+
+
 def unified_diff_for_change(
     repo_root: Path, bundle_path: Path, change: dict[str, Any]
 ) -> str:
@@ -233,6 +238,7 @@ def validate_bundle_against_plan(
     *,
     require_completion: bool = True,
     repo_root: Path | None = None,
+    bundle_path: Path | None = None,
 ) -> list[str]:
     """Return human-readable errors when order or completion sequencing is invalid."""
     errors: list[str] = []
@@ -282,8 +288,15 @@ def validate_bundle_against_plan(
         expected_depends = _depends_on_raw(plan, ch_id, version)
         if target.get("depends_on") != expected_depends:
             errors.append(f"workspace.targets[{index}].depends_on must match {ch_id}")
-        if target.get("path") != change.fields.get("path", ""):
+        target_path = change.fields.get("path", "")
+        if target.get("path") != target_path:
             errors.append(f"workspace.targets[{index}].path must match {ch_id}")
+        if bundle_path is not None and target_path:
+            snapshot_sha = read_before_snapshot_sha256(bundle_path, target_path)
+            if snapshot_sha and target.get("before_sha256") != snapshot_sha:
+                errors.append(
+                    f"workspace.targets[{index}].before_sha256 must match scaffolded before snapshot for {target_path}"
+                )
         for field in ("locality", "reversibility"):
             expected = change.fields.get(field, "") if version == 7 else change.fields.get(field, "")
             if version == 7 and target.get(field) != expected:
@@ -316,6 +329,15 @@ def validate_bundle_against_plan(
                 errors.append(f"changes[{index}] must include before_sha256 and after_sha256 objects")
             elif not isinstance(evidence, list) or not all(isinstance(item, str) for item in evidence):
                 errors.append(f"changes[{index}].evidence must be a string array")
+            elif (
+                set(paths) != set(before_hashes.keys())
+                or set(paths) != set(after_hashes.keys())
+                or len(paths) != len(before_hashes)
+                or len(paths) != len(after_hashes)
+            ):
+                errors.append(
+                    f"changes[{index}] paths, before_sha256, and after_sha256 must have identical path keys"
+                )
             else:
                 expected_paths = {
                     changes_by_id[ch_id].fields.get("path", "")
@@ -342,6 +364,10 @@ def validate_bundle_against_plan(
                         continue
                     target = targets_by_ch.get(ch_id)
                     expected_before = target.get("before_sha256") if isinstance(target, dict) else None
+                    if bundle_path is not None:
+                        snapshot_sha = read_before_snapshot_sha256(bundle_path, path)
+                        if snapshot_sha:
+                            expected_before = snapshot_sha
                     if expected_before and before_hashes.get(path) != expected_before:
                         errors.append(
                             f"changes[{index}].before_sha256[{path}] must match scaffolded {ch_id}"
