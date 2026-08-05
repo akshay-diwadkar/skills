@@ -23,17 +23,18 @@ def score_ideas_draft(draft_path: Path, repo_root: Path | None = None) -> dict[s
     raw_text = draft_path.read_text(encoding="utf-8")
     diagnostics = validate_ideas_path(draft_path, repo_root=repo_root)
 
+    # Keys name structural checks only; they do not claim semantic quality.
     checks = {
-        "1_goal_understanding": "- Goal:" in raw_text and "- Success measure:" in raw_text and "- Baseline / status quo:" in raw_text,
+        "1_goal_framing": "- Goal:" in raw_text and "- Success measure:" in raw_text and "- Baseline / status quo:" in raw_text,
         "2_support_traceability": "## 2. Evidence" in raw_text and (
             "- Support basis:" in raw_text or "| L1 |" in raw_text or "| E1 |" in raw_text or "| C1 |" in raw_text
         ),
-        "3_candidate_relevance": "### I1." in raw_text and "### I2." in raw_text and "### I3." in raw_text,
-        "4_mechanism_diversity": "- Mechanism category:" in raw_text,
-        "5_lack_of_duplication": not any(d.code == "ideas.duplicate_mechanism_category" for d in diagnostics),
-        "6_ranking_defensibility": "## 4. Comparison" in raw_text and not any(d.code == "ideas.recommendation_mismatch" for d in diagnostics),
-        "7_confidence_calibration": not any(d.code == "ideas.limited_strong_verification" for d in diagnostics),
-        "8_experiment_decisiveness": "Cheapest decisive experiment:" in raw_text and not any(
+        "3_candidate_structure": "### I1." in raw_text and "### I2." in raw_text and "### I3." in raw_text,
+        "4_mechanism_category_declared": "- Mechanism category:" in raw_text,
+        "5_mechanism_distinctness": not any(d.code == "ideas.duplicate_mechanism_category" for d in diagnostics),
+        "6_rank1_lead_match": "## 4. Comparison" in raw_text and not any(d.code == "ideas.recommendation_mismatch" for d in diagnostics),
+        "7_research_limited_verification_guard": not any(d.code == "ideas.limited_strong_verification" for d in diagnostics),
+        "8_experiment_field_completeness": "Cheapest decisive experiment:" in raw_text and not any(
             d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics
         ),
         "9_adversarial_structure": (
@@ -44,11 +45,11 @@ def score_ideas_draft(draft_path: Path, repo_root: Path | None = None) -> dict[s
             and "- Remaining uncertainty:" in raw_text
             and not any(d.code in ("ideas.empty_section6", "ideas.missing_adversarial_field") for d in diagnostics)
         ),
-        "10_no_hallucination_fake_precision": not any(
+        "10_digest_integrity": not any(
             d.code in ("ideas.hash_verified_without_digest", "ideas.hash_verified_digest_mismatch")
             for d in diagnostics
         ),
-        "11_actionability": (
+        "11_recommendation_fields_present": (
             "- Why it beats rank 2:" in raw_text
             and "- Conditions that would change the ranking:" in raw_text
             and "- How decision criteria were applied:" in raw_text

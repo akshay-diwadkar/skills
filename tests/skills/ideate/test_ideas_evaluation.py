@@ -69,7 +69,7 @@ def test_eval_harness_invalid_fixtures(fixture_name: str, expected_code: str) ->
 def test_eval_harness_scoring_missing_experiment_subfields_fixture() -> None:
     results = score_ideas_draft(FIXTURES / "missing_experiment_subfields.md")
     assert results["valid"] is False
-    assert results["checks"]["8_experiment_decisiveness"] is False
+    assert results["checks"]["8_experiment_field_completeness"] is False
 
 
 def test_eval_harness_scoring_empty_section6_fixture() -> None:
@@ -83,7 +83,7 @@ def test_eval_harness_scoring_empty_section6_fixture() -> None:
 def test_eval_harness_scoring_weak_fixture() -> None:
     results = score_ideas_draft(FIXTURES / "structurally_valid_weak.md")
     assert results["valid"] is False
-    assert results["checks"]["5_lack_of_duplication"] is False
+    assert results["checks"]["5_mechanism_distinctness"] is False
     assert results["score_pct"] < 100.0
 
 
