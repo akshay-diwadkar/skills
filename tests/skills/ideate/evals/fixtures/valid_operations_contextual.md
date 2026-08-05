@@ -1,17 +1,17 @@
-# Ideas: reduce API response latency
+# Ideas: reduce fulfillment delays
 
 ## 1. Handoff
 - State: decision-ready
-- Goal: reduce API response latency
+- Goal: reduce fulfillment delays
 - Success measure: p99 < 200ms
 - Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- Scope: API layer
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
 - Decision horizon: Q3 2026
 - Decision criteria: latency, effort
-- Selected source playbooks: software/engineering
+- Selected source playbooks: business/product
 - Research coverage: docs, benchmarks
 - Research limitations: none
 - Research stop condition: sufficient benchmark evidence gathered
@@ -19,21 +19,24 @@
 
 ## 2. Evidence
 
+### Contextual evidence
+
+| ID | Claim | Source description | Locator | Verification |
+| --- | --- | --- | --- | --- |
+| C1 | pilot showed 20% throughput gain | operations review | Q2 notes | manager-reported |
+
 ### External evidence
 
-External research status: completed
+External research status: local-only
 
-| ID | Finding | Source | Locator | Date/freshness | Relevance |
-| --- | --- | --- | --- | --- | --- |
-| E1 | Found X | https://example.com | § 2 | 2026-07 | high |
 
 ## 3. Candidate ideas
 
-### I1. Alpha
-- Mechanism: do X
-- Mechanism category: caching
-- Why it applies: because Y
-- Support basis: evidence-backed: E1
+### I1. Batch windows
+- Mechanism: shift load
+- Mechanism category: scheduling
+- Why it applies: ops data
+- Support basis: evidence-backed: C1
 - Decision-criteria fit: best latency-effort trade-off
 - Expected impact: high
 - Assumptions and dependencies: none
@@ -43,12 +46,12 @@ External research status: completed
 - What would disconfirm it: Z fails
 - Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
-### I2. Beta
-- Mechanism: do Y
-- Mechanism category: compression
-- Why it applies: because Z
-- Support basis: evidence-backed: E1
-- Decision-criteria fit: moderate latency gain
+### I2. Vendor SLA
+- Mechanism: renegotiate
+- Mechanism category: contract
+- Why it applies: budget risk
+- Support basis: assumption-backed: vendor will accept
+- Decision-criteria fit: cost focus
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low
@@ -57,12 +60,12 @@ External research status: completed
 - What would disconfirm it: Z fails
 - Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
-### I3. Gamma
-- Mechanism: do Z
-- Mechanism category: pooling
-- Why it applies: because W
-- Support basis: evidence-backed: E1
-- Decision-criteria fit: limited criteria fit
+### I3. Automation
+- Mechanism: script handoffs
+- Mechanism category: automation
+- Why it applies: team capacity
+- Support basis: hypothesis: automation reduces delays
+- Decision-criteria fit: speed focus
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low

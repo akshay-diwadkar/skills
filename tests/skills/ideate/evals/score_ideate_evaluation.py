@@ -23,22 +23,36 @@ def score_ideas_draft(draft_path: Path, repo_root: Path | None = None) -> dict[s
     raw_text = draft_path.read_text(encoding="utf-8")
     diagnostics = validate_ideas_path(draft_path, repo_root=repo_root)
 
-    # 12 Structural Checks
     checks = {
         "1_goal_understanding": "- Goal:" in raw_text and "- Success measure:" in raw_text and "- Baseline / status quo:" in raw_text,
-        "2_evidence_traceability": "## 2. Evidence" in raw_text and ("| L1 |" in raw_text or "| E1 |" in raw_text),
+        "2_support_traceability": "## 2. Evidence" in raw_text and (
+            "- Support basis:" in raw_text or "| L1 |" in raw_text or "| E1 |" in raw_text or "| C1 |" in raw_text
+        ),
         "3_candidate_relevance": "### I1." in raw_text and "### I2." in raw_text and "### I3." in raw_text,
         "4_mechanism_diversity": "- Mechanism category:" in raw_text,
         "5_lack_of_duplication": not any(d.code == "ideas.duplicate_mechanism_category" for d in diagnostics),
         "6_ranking_defensibility": "## 4. Comparison" in raw_text and not any(d.code == "ideas.recommendation_mismatch" for d in diagnostics),
         "7_confidence_calibration": not any(d.code == "ideas.limited_strong_verification" for d in diagnostics),
-        "8_experiment_decisiveness": "Cheapest decisive experiment:" in raw_text and not any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics),
-        "9_handling_of_contradictions": "## 6. Contradictions and open questions" in raw_text and not any(d.code == "ideas.empty_section6" for d in diagnostics),
+        "8_experiment_decisiveness": "Cheapest decisive experiment:" in raw_text and not any(
+            d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics
+        ),
+        "9_adversarial_structure": (
+            "## 6. Contradictions and open questions" in raw_text
+            and "- Strongest challenge to rank 1:" in raw_text
+            and "- Baseline comparison:" in raw_text
+            and "- Alternate winner condition:" in raw_text
+            and "- Remaining uncertainty:" in raw_text
+            and not any(d.code in ("ideas.empty_section6", "ideas.missing_adversarial_field") for d in diagnostics)
+        ),
         "10_no_hallucination_fake_precision": not any(
             d.code in ("ideas.hash_verified_without_digest", "ideas.hash_verified_digest_mismatch")
             for d in diagnostics
         ),
-        "11_actionability": "- Why it beats rank 2:" in raw_text and "- Conditions that would change the ranking:" in raw_text,
+        "11_actionability": (
+            "- Why it beats rank 2:" in raw_text
+            and "- Conditions that would change the ranking:" in raw_text
+            and "- How decision criteria were applied:" in raw_text
+        ),
         "12_structural_completeness": len(diagnostics) == 0,
     }
 

@@ -1,11 +1,11 @@
-# Ideas: reduce API response latency
+# Ideas: reduce latency
 
 ## 1. Handoff
 - State: decision-ready
-- Goal: reduce API response latency
+- Goal: reduce latency
 - Success measure: p99 < 200ms
 - Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- Scope: API layer
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
@@ -80,7 +80,7 @@ External research status: completed
 | 3 | I3 | low | high | high | low | weak |
 
 ## 5. Recommendation
-- Provisional lead: I1 — Alpha
+- Provisional lead: I10 — Alpha
 - Why it leads: best ratio
 - Why it beats rank 2: lower effort
 - How decision criteria were applied: rank 1 minimizes latency with lowest effort

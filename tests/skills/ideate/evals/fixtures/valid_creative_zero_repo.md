@@ -1,17 +1,17 @@
-# Ideas: reduce API response latency
+# Ideas: finish a short story draft
 
 ## 1. Handoff
-- State: decision-ready
-- Goal: reduce API response latency
-- Success measure: p99 < 200ms
-- Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- State: experiment-first
+- Goal: finish a short story draft
+- Success measure: complete 3000-word draft
+- Baseline / status quo: no draft started
+- Scope: personal writing project
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
 - Decision horizon: Q3 2026
 - Decision criteria: latency, effort
-- Selected source playbooks: software/engineering
+- Selected source playbooks: hobby/creative
 - Research coverage: docs, benchmarks
 - Research limitations: none
 - Research stop condition: sufficient benchmark evidence gathered
@@ -21,20 +21,17 @@
 
 ### External evidence
 
-External research status: completed
+External research status: unavailable
 
-| ID | Finding | Source | Locator | Date/freshness | Relevance |
-| --- | --- | --- | --- | --- | --- |
-| E1 | Found X | https://example.com | § 2 | 2026-07 | high |
 
 ## 3. Candidate ideas
 
-### I1. Alpha
-- Mechanism: do X
-- Mechanism category: caching
-- Why it applies: because Y
-- Support basis: evidence-backed: E1
-- Decision-criteria fit: best latency-effort trade-off
+### I1. Morning pages
+- Mechanism: daily writing
+- Mechanism category: habit
+- Why it applies: creative block
+- Support basis: assumption-backed: mornings are freer
+- Decision-criteria fit: creativity fit
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low
@@ -43,12 +40,12 @@ External research status: completed
 - What would disconfirm it: Z fails
 - Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
-### I2. Beta
-- Mechanism: do Y
-- Mechanism category: compression
-- Why it applies: because Z
-- Support basis: evidence-backed: E1
-- Decision-criteria fit: moderate latency gain
+### I2. Workshop
+- Mechanism: external class
+- Mechanism category: class
+- Why it applies: cost
+- Support basis: hypothesis: workshop unlocks draft
+- Decision-criteria fit: learning fit
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low
@@ -57,12 +54,12 @@ External research status: completed
 - What would disconfirm it: Z fails
 - Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
-### I3. Gamma
-- Mechanism: do Z
-- Mechanism category: pooling
-- Why it applies: because W
-- Support basis: evidence-backed: E1
-- Decision-criteria fit: limited criteria fit
+### I3. Accountability
+- Mechanism: partner check-ins
+- Mechanism category: social
+- Why it applies: schedule
+- Support basis: hypothesis: accountability increases output
+- Decision-criteria fit: consistency fit
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low

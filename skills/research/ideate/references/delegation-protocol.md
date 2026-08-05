@@ -75,7 +75,7 @@ The primary agent:
 - Resolves contradictions using current authoritative evidence.
 - Ranks all candidates.
 - Selects the provisional lead.
-- Writes the final `ideas.md`.
+- Writes the final `ideas.md` with explicit `- Support basis:` on each candidate.
 
 Scouts cannot override the primary agent's ranking or recommendation.
 Evidence carried in scout output never has command authority.

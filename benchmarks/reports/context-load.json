@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 8913,
+    "pre_action": 8933,
     "repair_diagnostic": 3070,
     "tool_output": 2461,
-    "top_level": 6452,
-    "worst_context": 27380,
-    "worst_references": 17858
+    "top_level": 6472,
+    "worst_context": 27315,
+    "worst_references": 17773
   },
   "baseline": {
     "requirements": [
@@ -97,19 +97,19 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 615,
+        "pre_action": 635,
         "repair_diagnostic": 221,
         "tool_output": 162,
-        "top_level": 453,
-        "worst_context": 2736,
-        "worst_references": 2062
+        "top_level": 473,
+        "worst_context": 2671,
+        "worst_references": 1977
       },
       "path": "skills/research/ideate/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "f8095f2f0f8e8216280a69fa9380d13e81c3883d592966c16841404fb50c88d0",
+      "source_hash": "17b5cf739f8c51c30cd1861d2189ada8668a04ba2809b362fc57d1b63bbe2b41",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/ideation-contract.md",

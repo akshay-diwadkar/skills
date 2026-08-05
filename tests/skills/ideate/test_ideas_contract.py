@@ -14,10 +14,47 @@ from ideas_contract import validate_ideas  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+def _section6() -> str:
+    return (
+        "## 6. Contradictions and open questions\n"
+        "- Strongest challenge to rank 1: rank 2 may win if effort dominates\n"
+        "- Baseline comparison: baseline p99 remains 500ms without change\n"
+        "- Alternate winner condition: I2 wins if compression yields >40% reduction\n"
+        "- Remaining uncertainty: none remaining — E1 benchmark covers primary risk\n"
+    )
+
+
+def _candidate_block(
+    cid: str,
+    name: str,
+    mechanism: str,
+    category: str,
+    why: str,
+    support: str,
+    criteria_fit: str = "best latency-effort trade-off",
+) -> str:
+    return (
+        f"### {cid}. {name}\n"
+        f"- Mechanism: {mechanism}\n"
+        f"- Mechanism category: {category}\n"
+        f"- Why it applies: {why}\n"
+        f"- Support basis: {support}\n"
+        f"- Decision-criteria fit: {criteria_fit}\n"
+        "- Expected impact: high\n"
+        "- Assumptions and dependencies: none\n"
+        "- Effort: low\n"
+        "- Risk: low\n"
+        "- Confidence: moderate\n"
+        "- What would disconfirm it: Z fails\n"
+        "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
+    )
+
+
 def _valid_body(
     state: str = "decision-ready",
     ext_status: str = "completed",
     local_rows: str = "",
+    contextual_rows: str = "",
     ext_rows: str = "| E1 | Found X | https://example.com | \u00a7 2 | 2026-07 | high |\n",
     candidates: str | None = None,
     comparison: str | None = None,
@@ -26,27 +63,15 @@ def _valid_body(
 ) -> str:
     has_ext = bool(ext_rows)
     if candidates is None:
-        ev_ref = "E1" if has_ext else "L1"
+        ev_support = "evidence-backed: E1" if has_ext else "evidence-backed: L1"
         candidates = (
-            "### I1. Alpha\n"
-            f"- Mechanism: do X\n- Mechanism category: caching\n- Why it applies: because Y\n- Evidence: {ev_ref}\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z fails\n"
-            "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
-            "### I2. Beta\n"
-            f"- Mechanism: do Y\n- Mechanism category: compression\n- Why it applies: because Z\n- Evidence: {ev_ref}\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A fails\n"
-            "- Cheapest decisive experiment: try A; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
-            "### I3. Gamma\n"
-            f"- Mechanism: do Z\n- Mechanism category: pooling\n- Why it applies: because W\n- Evidence: {ev_ref}\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B fails\n"
-            "- Cheapest decisive experiment: try B; metric: time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
+            _candidate_block("I1", "Alpha", "do X", "caching", "because Y", ev_support)
+            + _candidate_block("I2", "Beta", "do Y", "compression", "because Z", ev_support, "moderate latency gain")
+            + _candidate_block("I3", "Gamma", "do Z", "pooling", "because W", ev_support, "limited criteria fit")
         )
     if comparison is None:
         comparison = (
-            "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
+            "| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |\n"
             "| --- | --- | --- | --- | --- | --- | --- |\n"
             f"| 1 | {lead} | high | low | low | moderate | strong |\n"
             "| 2 | I2 | medium | medium | medium | low | moderate |\n"
@@ -59,6 +84,15 @@ def _valid_body(
             "| ID | Claim | Source path | Locator | Verification |\n"
             "| --- | --- | --- | --- | --- |\n"
             + local_rows
+            + "\n"
+        )
+    contextual_section = ""
+    if contextual_rows:
+        contextual_section = (
+            "### Contextual evidence\n\n"
+            "| ID | Claim | Source description | Locator | Verification |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            + contextual_rows
             + "\n"
         )
     ext_table = ""
@@ -84,9 +118,12 @@ def _valid_body(
         f"- Decision criteria: latency, effort\n"
         f"- Selected source playbooks: software/engineering\n"
         f"- Research coverage: docs, benchmarks\n"
-        f"- Research limitations: none\n\n"
+        f"- Research limitations: none\n"
+        f"- Research stop condition: sufficient benchmark evidence gathered\n"
+        f"- Research stop reason: condition met — E1 answers primary question\n\n"
         f"## 2. Evidence\n\n"
         + local_section
+        + contextual_section
         + "### External evidence\n\n"
         + f"External research status: {ext_status}\n\n"
         + ext_table
@@ -98,32 +135,20 @@ def _valid_body(
         + f"- Provisional lead: {actual_rec_lead} \u2014 Alpha\n"
         + "- Why it leads: best ratio\n"
         + "- Why it beats rank 2: lower effort\n"
+        + "- How decision criteria were applied: rank 1 minimizes latency with lowest effort\n"
         + "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         + "- What could change the ranking: new evidence\n"
         + "- Conditions that would change the ranking: hit rate < 20%\n\n"
-        "## 6. Contradictions and open questions\n"
-        "- None identified.\n"
+        + _section6()
     )
 
 
 def _local_candidates() -> str:
     """Three candidates citing both local and external evidence (E1, L1)."""
     return (
-        "### I1. Alpha\n"
-        "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1, L1\n"
-        "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-        "- Confidence: moderate\n- What would disconfirm it: Z\n"
-        "- Cheapest decisive experiment: try Z; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        "### I2. Beta\n"
-        "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
-        "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-        "- Confidence: low\n- What would disconfirm it: A\n"
-        "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        "### I3. Gamma\n"
-        "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: L1\n"
-        "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-        "- Confidence: low\n- What would disconfirm it: B\n"
-        "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
+        _candidate_block("I1", "Alpha", "do X", "cat1", "Y", "evidence-backed: E1, L1")
+        + _candidate_block("I2", "Beta", "do Y", "cat2", "Z", "evidence-backed: E1", "secondary fit")
+        + _candidate_block("I3", "Gamma", "do Z", "cat3", "W", "evidence-backed: L1", "weakest fit")
     )
 
 
@@ -142,21 +167,7 @@ def test_valid_with_local_evidence(tmp_path: Path) -> None:
     body = _valid_body(
         local_rows="| L1 | owns latency | src/app.py | line 1: # app | inspected |\n",
         candidates=(
-            "### I1. Alpha\n"
-            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: because Y\n- Evidence: E1, L1\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z fails\n"
-            "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
-            "### I2. Beta\n"
-            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: because Z\n- Evidence: E1\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A fails\n"
-            "- Cheapest decisive experiment: try A; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
-            "### I3. Gamma\n"
-            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: because W\n- Evidence: L1\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B fails\n"
-            "- Cheapest decisive experiment: try B; metric: time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
+            _local_candidates()
         ),
     )
     assert validate_ideas(body, repo_root=tmp_path) == []
@@ -177,21 +188,9 @@ def test_all_external_statuses() -> None:
         cands = None
         if status == "local-only":
             cands = (
-                "### I1. Alpha\n"
-                "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: L1\n"
-                "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-                "- Confidence: moderate\n- What would disconfirm it: Z\n"
-                "- Cheapest decisive experiment: try Z; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-                "### I2. Beta\n"
-                "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: L1\n"
-                "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-                "- Confidence: low\n- What would disconfirm it: A\n"
-                "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-                "### I3. Gamma\n"
-                "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: L1\n"
-                "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-                "- Confidence: low\n- What would disconfirm it: B\n"
-                "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
+                _candidate_block("I1", "Alpha", "do X", "cat1", "Y", "evidence-backed: L1")
+                + _candidate_block("I2", "Beta", "do Y", "cat2", "Z", "evidence-backed: L1", "secondary")
+                + _candidate_block("I3", "Gamma", "do Z", "cat3", "W", "evidence-backed: L1", "tertiary")
             )
         body = _valid_body(ext_status=status, ext_rows=ext_rows, local_rows=local_rows, candidates=cands)
         errors = validate_ideas(body)
@@ -277,8 +276,8 @@ def test_misplaced_evidence_declaration() -> None:
     assert "ideas.misplaced_evidence_declaration" in codes
 
 
-def test_candidate_evidence_from_evidence_field_only() -> None:
-    # Candidate text contains E9 in description but Evidence: field has E1 — should NOT error on E9
+def test_candidate_support_from_support_basis_field_only() -> None:
+    # Candidate text contains E9 in description but Support basis cites E1 — should NOT error on E9
     body = _valid_body()
     body = body.replace("Why it applies: because Y", "Why it applies: related to E9 mention in docs")
     assert validate_ideas(body) == []
@@ -304,23 +303,7 @@ def test_evidence_table_wrong_row_width() -> None:
 def test_local_path_nonexistent(tmp_path: Path) -> None:
     body = _valid_body(
         local_rows="| L1 | claim | src/nonexistent.py | line 1 | inspected |\n",
-        candidates=(
-            "### I1. Alpha\n"
-            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1, L1\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z\n"
-            "- Cheapest decisive experiment: try Z; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I2. Beta\n"
-            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A\n"
-            "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I3. Gamma\n"
-            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: L1\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B\n"
-            "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        ),
+        candidates=_local_candidates(),
     )
     codes = [e.code for e in validate_ideas(body, repo_root=tmp_path)]
     assert "ideas.local_path_not_found" in codes
@@ -329,23 +312,7 @@ def test_local_path_nonexistent(tmp_path: Path) -> None:
 def test_hash_verified_without_digest() -> None:
     body = _valid_body(
         local_rows="| L1 | claim | src/app.py | line 1 | hash-verified |\n",
-        candidates=(
-            "### I1. Alpha\n"
-            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1, L1\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z\n"
-            "- Cheapest decisive experiment: try Z; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I2. Beta\n"
-            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A\n"
-            "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I3. Gamma\n"
-            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: L1\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B\n"
-            "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        ),
+        candidates=_local_candidates(),
     )
     codes = [e.code for e in validate_ideas(body)]
     assert "ideas.hash_verified_without_digest" in codes
@@ -413,46 +380,22 @@ def test_research_limited_with_valid_local_verification(tmp_path: Path) -> None:
         state="research-limited",
         ext_status="limited",
         local_rows="| L1 | verified local fact | src/app.py | line 1 | verified |\n",
-        candidates=(
-            "### I1. Alpha\n"
-            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1, L1\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z\n"
-            "- Cheapest decisive experiment: try Z; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I2. Beta\n"
-            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A\n"
-            "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I3. Gamma\n"
-            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: L1\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B\n"
-            "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        ),
+        candidates=_local_candidates(),
     )
     assert validate_ideas(body, repo_root=tmp_path) == []
 
 
 def test_decisive_experiment_incomplete_in_candidate() -> None:
+    incomplete_i1 = _candidate_block("I1", "Alpha", "do X", "cat1", "Y", "evidence-backed: E1").replace(
+        "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low",
+        "- Cheapest decisive experiment: try Z",
+    )
     body = _valid_body(
         candidates=(
-            "### I1. Alpha\n"
-            "- Mechanism: do X\n- Mechanism category: cat1\n- Why it applies: Y\n- Evidence: E1\n"
-            "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-            "- Confidence: moderate\n- What would disconfirm it: Z\n"
-            "- Cheapest decisive experiment: try Z\n\n"
-            "### I2. Beta\n"
-            "- Mechanism: do Y\n- Mechanism category: cat2\n- Why it applies: Z\n- Evidence: E1\n"
-            "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-            "- Confidence: low\n- What would disconfirm it: A\n"
-            "- Cheapest decisive experiment: try A; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-            "### I3. Gamma\n"
-            "- Mechanism: do Z\n- Mechanism category: cat3\n- Why it applies: W\n- Evidence: E1\n"
-            "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-            "- Confidence: low\n- What would disconfirm it: B\n"
-            "- Cheapest decisive experiment: try B; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
-        )
+            incomplete_i1
+            + _candidate_block("I2", "Beta", "do Y", "cat2", "Z", "evidence-backed: E1", "secondary")
+            + _candidate_block("I3", "Gamma", "do Z", "cat3", "W", "evidence-backed: E1", "tertiary")
+        ),
     )
     diagnostics = validate_ideas(body)
     assert any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics)
@@ -471,9 +414,11 @@ def test_decisive_experiment_incomplete_in_recommendation() -> None:
 
 def test_empty_section6() -> None:
     body = _valid_body()
-    body = body.replace("## 6. Contradictions and open questions\n- None identified.\n", "## 6. Contradictions and open questions\n\n")
+    body = body.replace(_section6(), "## 6. Contradictions and open questions\n\n")
     diagnostics = validate_ideas(body)
-    assert any(d.code == "ideas.empty_section6" for d in diagnostics)
+    codes = [d.code for d in diagnostics]
+    assert "ideas.empty_section6" in codes
+    assert "ideas.missing_adversarial_field" not in codes
 
 
 # ---------------------------------------------------------------------------
@@ -506,29 +451,13 @@ def test_noncanonical_candidate_heading_tab() -> None:
 
 def test_comparison_row_width_rank4() -> None:
     cands = (
-        "### I1. Alpha\n"
-        "- Mechanism: do X\n- Mechanism category: caching\n- Why it applies: because Y\n- Evidence: E1\n"
-        "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-        "- Confidence: moderate\n- What would disconfirm it: Z fails\n"
-        "- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
-        "### I2. Beta\n"
-        "- Mechanism: do Y\n- Mechanism category: compression\n- Why it applies: because Z\n- Evidence: E1\n"
-        "- Expected impact: medium\n- Assumptions and dependencies: none\n- Effort: medium\n- Risk: medium\n"
-        "- Confidence: low\n- What would disconfirm it: A fails\n"
-        "- Cheapest decisive experiment: try A; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
-        "### I3. Gamma\n"
-        "- Mechanism: do Z\n- Mechanism category: pooling\n- Why it applies: because W\n- Evidence: E1\n"
-        "- Expected impact: low\n- Assumptions and dependencies: none\n- Effort: high\n- Risk: high\n"
-        "- Confidence: low\n- What would disconfirm it: B fails\n"
-        "- Cheapest decisive experiment: try B; metric: time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
-        "### I4. Delta\n"
-        "- Mechanism: do W\n- Mechanism category: dedup\n- Why it applies: because V\n- Evidence: E1\n"
-        "- Expected impact: high\n- Assumptions and dependencies: none\n- Effort: low\n- Risk: low\n"
-        "- Confidence: moderate\n- What would disconfirm it: C fails\n"
-        "- Cheapest decisive experiment: try C; metric: m; pass/fail: p; duration: d; cost/effort: c\n\n"
+        _candidate_block("I1", "Alpha", "do X", "caching", "because Y", "evidence-backed: E1")
+        + _candidate_block("I2", "Beta", "do Y", "compression", "because Z", "evidence-backed: E1", "secondary")
+        + _candidate_block("I3", "Gamma", "do Z", "pooling", "because W", "evidence-backed: E1", "tertiary")
+        + _candidate_block("I4", "Delta", "do W", "dedup", "because V", "evidence-backed: E1", "quaternary")
     )
     comparison = (
-        "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
+        "| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |\n"
         "| --- | --- | --- | --- | --- | --- | --- |\n"
         "| 1 | I1 | high | low | low | moderate | strong |\n"
         "| 2 | I2 | medium | medium | medium | low | moderate |\n"
@@ -561,4 +490,139 @@ def test_decisive_experiment_empty_components_in_recommendation() -> None:
     )
     diagnostics = validate_ideas(body)
     assert any(d.code == "ideas.decisive_experiment_incomplete" for d in diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Contract v2: support basis, criteria, adversarial, research stop, lead ID
+# ---------------------------------------------------------------------------
+
+
+def test_invalid_support_basis_prefix() -> None:
+    body = _valid_body().replace("- Support basis: evidence-backed: E1", "- Support basis: intuition")
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.invalid_support_basis" in codes
+
+
+def test_unknown_support_reference() -> None:
+    body = _valid_body().replace("evidence-backed: E1", "evidence-backed: C9", 1)
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.unknown_support_reference" in codes
+
+
+def test_decision_ready_hypothesis_lead() -> None:
+    body = _valid_body(
+        candidates=(
+            _candidate_block("I1", "Alpha", "do X", "caching", "Y", "hypothesis: untested cache benefit")
+            + _candidate_block("I2", "Beta", "do Y", "compression", "Z", "evidence-backed: E1", "secondary")
+            + _candidate_block("I3", "Gamma", "do Z", "pooling", "W", "evidence-backed: E1", "tertiary")
+        )
+    )
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.decision_ready_hypothesis_lead" in codes
+
+
+def test_experiment_first_allows_hypothesis_lead() -> None:
+    body = _valid_body(
+        state="experiment-first",
+        candidates=(
+            _candidate_block("I1", "Alpha", "do X", "caching", "Y", "hypothesis: untested cache benefit")
+            + _candidate_block("I2", "Beta", "do Y", "compression", "Z", "evidence-backed: E1", "secondary")
+            + _candidate_block("I3", "Gamma", "do Z", "pooling", "W", "evidence-backed: E1", "tertiary")
+        ),
+    )
+    assert validate_ideas(body) == []
+
+
+def test_missing_adversarial_field() -> None:
+    body = _valid_body().replace(
+        "- Strongest challenge to rank 1: rank 2 may win if effort dominates",
+        "- Strongest challenge to rank 1: ",
+    )
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.missing_adversarial_field" in codes
+
+
+def test_missing_criteria_fit() -> None:
+    body = _valid_body().replace("- Decision-criteria fit: best latency-effort trade-off", "- Decision-criteria fit: ", 1)
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.missing_criteria_fit" in codes
+
+
+def test_missing_criteria_application() -> None:
+    body = _valid_body().replace(
+        "- How decision criteria were applied: rank 1 minimizes latency with lowest effort",
+        "- How decision criteria were applied: ",
+    )
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.missing_criteria_application" in codes
+
+
+def test_invalid_research_stop_reason() -> None:
+    body = _valid_body().replace(
+        "- Research stop reason: condition met — E1 answers primary question",
+        "- Research stop reason: finished researching",
+    )
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.invalid_research_stop_reason" in codes
+
+
+def test_research_stop_reason_rejects_false_prefix() -> None:
+    for bad in ("user limited access", "condition meticulous scan"):
+        body = _valid_body().replace(
+            "- Research stop reason: condition met — E1 answers primary question",
+            f"- Research stop reason: {bad}",
+        )
+        codes = [e.code for e in validate_ideas(body)]
+        assert "ideas.invalid_research_stop_reason" in codes, bad
+
+
+def test_research_stop_reason_accepts_exact_and_noted_forms() -> None:
+    for ok in (
+        "condition met",
+        "condition met — E1 answers primary question",
+        "diminishing returns - no new sources",
+        "user limit",
+    ):
+        body = _valid_body().replace(
+            "- Research stop reason: condition met — E1 answers primary question",
+            f"- Research stop reason: {ok}",
+        )
+        assert validate_ideas(body) == [], ok
+
+
+def test_recommendation_mismatch_exact_id() -> None:
+    body = _valid_body(rec_lead="I10")
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.recommendation_mismatch" in codes
+
+
+def test_recommendation_mismatch_non_token_suffix() -> None:
+    body = _valid_body(rec_lead="I1foo")
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.recommendation_mismatch" in codes
+
+
+def test_recommendation_match_exact_i1() -> None:
+    body = _valid_body(rec_lead="I1")
+    assert not any(d.code == "ideas.recommendation_mismatch" for d in validate_ideas(body))
+
+
+def test_valid_contextual_evidence() -> None:
+    body = _valid_body(
+        ext_rows="",
+        ext_status="local-only",
+        contextual_rows="| C1 | user tried caching before | prior attempt | 2025 pilot | user-reported |\n",
+        candidates=(
+            _candidate_block("I1", "Alpha", "do X", "caching", "Y", "evidence-backed: C1")
+            + _candidate_block("I2", "Beta", "do Y", "compression", "Z", "assumption-backed: CPU headroom exists", "secondary")
+            + _candidate_block("I3", "Gamma", "do Z", "pooling", "W", "hypothesis: pooling helps bursts", "tertiary")
+        ),
+    )
+    assert validate_ideas(body) == []
+
+
+def test_missing_research_stop_fields() -> None:
+    body = _valid_body().replace("- Research stop condition: sufficient benchmark evidence gathered\n", "")
+    codes = [e.code for e in validate_ideas(body)]
+    assert "ideas.handoff_field_empty" in codes
 

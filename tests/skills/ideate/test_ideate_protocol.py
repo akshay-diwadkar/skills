@@ -7,84 +7,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SKILL = ROOT / "skills" / "research" / "ideate"
+IDEATE_TEST_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(IDEATE_TEST_DIR))
 
-
-def _valid_draft_text() -> str:
-    return (
-        "# Ideas: reduce latency\n\n"
-        "## 1. Handoff\n"
-        "- State: decision-ready\n"
-        "- Goal: reduce latency\n"
-        "- Success measure: p99 < 200ms\n"
-        "- Baseline / status quo: p99 = 500ms\n"
-        "- Scope: API layer\n"
-        "- Non-goals: database\n"
-        "- Assumptions: current p99 = 500 ms\n"
-        "- Material unknowns: none\n"
-        "- Decision horizon: Q3 2026\n"
-        "- Decision criteria: latency, effort\n"
-        "- Selected source playbooks: software/engineering\n"
-        "- Research coverage: docs\n"
-        "- Research limitations: none\n\n"
-        "## 2. Evidence\n\n"
-        "### External evidence\n\n"
-        "External research status: completed\n\n"
-        "| ID | Finding | Source | Locator | Date/freshness | Relevance |\n"
-        "| --- | --- | --- | --- | --- | --- |\n"
-        "| E1 | Caching helps | https://example.com | § 1 | 2026-07 | high |\n\n"
-        "## 3. Candidate ideas\n\n"
-        "### I1. Add cache\n"
-        "- Mechanism: cache responses\n"
-        "- Mechanism category: caching\n"
-        "- Why it applies: E1 says so\n"
-        "- Evidence: E1\n"
-        "- Expected impact: high\n"
-        "- Assumptions and dependencies: none\n"
-        "- Effort: low\n"
-        "- Risk: low\n"
-        "- Confidence: moderate\n"
-        "- What would disconfirm it: low hit rate\n"
-        "- Cheapest decisive experiment: shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n\n"
-        "### I2. Compress\n"
-        "- Mechanism: gzip\n"
-        "- Mechanism category: compression\n"
-        "- Why it applies: saves bytes\n"
-        "- Evidence: E1\n"
-        "- Expected impact: medium\n"
-        "- Assumptions and dependencies: none\n"
-        "- Effort: low\n"
-        "- Risk: low\n"
-        "- Confidence: low\n"
-        "- What would disconfirm it: negligible size\n"
-        "- Cheapest decisive experiment: benchmark; metric: size; pass/fail: >20%; duration: 1d; cost/effort: low\n\n"
-        "### I3. Pool connections\n"
-        "- Mechanism: reuse\n"
-        "- Mechanism category: pooling\n"
-        "- Why it applies: overhead\n"
-        "- Evidence: E1\n"
-        "- Expected impact: medium\n"
-        "- Assumptions and dependencies: none\n"
-        "- Effort: high\n"
-        "- Risk: medium\n"
-        "- Confidence: low\n"
-        "- What would disconfirm it: no overhead\n"
-        "- Cheapest decisive experiment: profile; metric: time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
-        "## 4. Comparison\n\n"
-        "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
-        "| --- | --- | --- | --- | --- | --- | --- |\n"
-        "| 1 | I1 | high | low | low | moderate | strong |\n"
-        "| 2 | I2 | medium | low | low | low | moderate |\n"
-        "| 3 | I3 | medium | high | medium | low | weak |\n\n"
-        "## 5. Recommendation\n"
-        "- Provisional lead: I1 — Add cache\n"
-        "- Why it leads: best ratio\n"
-        "- Why it beats rank 2: lower effort\n"
-        "- Cheapest decisive experiment: shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
-        "- What could change the ranking: hit rate data\n"
-        "- Conditions that would change the ranking: hit rate < 20%\n\n"
-        "## 6. Contradictions and open questions\n"
-        "- None identified.\n"
-    )
+from test_ideas_sealer import _valid_draft as _valid_draft_text  # noqa: E402, I001
 
 
 def test_doctor_succeeds(tmp_path: Path) -> None:
@@ -154,7 +80,7 @@ def test_invocation_metadata() -> None:
     assert "user-invocable: true" in skill_md
     version_m = re.search(r"^version:\s*(.+)$", skill_md, re.MULTILINE)
     assert version_m is not None
-    assert version_m.group(1).strip() == "1.0.0"
+    assert version_m.group(1).strip() == "2.0.0"
 
 
 def test_vendored_runtime_matches_canonical() -> None:

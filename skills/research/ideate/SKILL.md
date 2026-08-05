@@ -1,7 +1,7 @@
 ---
 name: ideate
 description: "Generate and rank 3–7 evidence-linked candidate ideas for any researchable goal, then seal one decision-ready ideas.md. Domain-neutral: works for software, business, product, academic, hobby, lifestyle, and other goals. A repository is optional context."
-version: 1.0.0
+version: 2.0.0
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -19,10 +19,10 @@ Never modify the workspace. Never implement candidates or prescribe file changes
 ## Workflow
 
 1. **Frame.** Goal, success measure, scope, constraints, baseline, decision horizon, assumptions, unknowns. Ask only if missing facts block useful ideation.
-2. **Source.** Select source classes from [Source Playbooks](references/source-playbooks.md) and set a stop condition.
+2. **Source.** Select source classes from [Source Playbooks](references/source-playbooks.md), set a research stop condition, and record why research ended.
 3. **Research.** Gather current evidence. Optionally delegate read-only research per [Delegation Protocol](references/delegation-protocol.md).
-4. **Generate.** Produce 3–7 mechanism-distinct candidates. Deduplicate shared mechanisms.
-5. **Challenge.** Challenge provisional lead; surface counter-arguments, baseline comparison, and contradictions.
+4. **Generate.** Produce 3–7 mechanism-distinct candidates with explicit support basis and decision-criteria fit. Deduplicate shared mechanisms.
+5. **Challenge.** Challenge provisional lead with strongest counterargument, baseline comparison, alternate-winner condition, and remaining uncertainty.
 6. **Rank and seal.** Rank with goal criteria, recommend lead, and seal per [Ideation Contract](references/ideation-contract.md):
 
 ```bash

@@ -1,24 +1,25 @@
-# Ideation Contract
+# Ideation Contract (v2)
 
-This document specifies the exact format of `ideas.md`. The sealer validates every rule deterministically using standard-library Python only.
+Exact `ideas.md` format. Python enforces structure and syntax only; idea quality, relevance, novelty, and truthful prose remain agent obligations.
 
-## Document structure
+## Structure
 
 ```text
 # Ideas: <goal>
-
 ## 1. Handoff
 ## 2. Evidence
 ## 3. Candidate ideas
 ## 4. Comparison
 ## 5. Recommendation
 ## 6. Contradictions and open questions
-## 7. Optional downstream action   ← optional; omit when absent
+## 7. Optional downstream action   ← omit when absent
 ```
 
-Document title must be the first line with a non-empty goal. Headings must appear in exact order, once each.
+Title first line, non-empty goal. Headings in order, once each.
 
-## Section 1: Handoff
+## Deterministic rules
+
+### Handoff
 
 Required non-empty fields:
 
@@ -36,51 +37,34 @@ Required non-empty fields:
 - Selected source playbooks:
 - Research coverage:
 - Research limitations:
+- Research stop condition:
+- Research stop reason:
 ```
 
-- `decision-ready`: Evidence sufficient for action.
-- `experiment-first`: Decisive experiment required before ranking is reliable.
-- `research-limited`: External research unavailable/curtailed. Must not claim strong external verification ("verified", "confirmed local", "directly verified"). Local facts may be verified.
+`Research stop reason:` begins with `condition met`, `diminishing returns`, `unavailable sources`, or `user limit` (optional ` — note`). `decision-ready` rank 1 cannot use `hypothesis:` support. `research-limited` forbids strong external verification phrases in external evidence.
 
-## Section 2: Evidence
+### Evidence
 
-Evidence IDs (`L1..`, `E1..`) must be declared only inside Section 2 tables.
+IDs declared only in Section 2: `L*` local (optional), `E*` external, `C*` contextual (optional).
 
-### Local evidence (optional)
+Local header: `| ID | Claim | Source path | Locator | Verification |` — path under workspace, regular file, non-empty locator/verification; `hash-verified` needs SHA-256.
 
-Omit when absent. Required header when present:
+External status: `completed | limited | unavailable | user-disabled | local-only`. Header: `| ID | Finding | Source | Locator | Date/freshness | Relevance |`.
 
-```markdown
-| ID | Claim | Source path | Locator | Verification |
-| --- | --- | --- | --- | --- |
-```
+Contextual header: `| ID | Claim | Source description | Locator | Verification |` — user facts not repo files or external publications.
 
-Rules: `L1`, `L2`, … unique and contiguous. Source path must resolve under workspace root, exist, and be a regular file. Locator/Verification non-empty. `hash-verified` requires a SHA-256 digest.
+All ID sets unique and contiguous.
 
-### External evidence
+### Candidates
 
-Required status line: `External research status: completed | limited | unavailable | user-disabled | local-only`. `completed` requires rows; `local-only` prohibits them. `research-limited` + `completed` is invalid.
+3–7 candidates: `### I1. <name>` .. `### I7. <name>`. Required fields:
 
-Required header when table present:
-
-```markdown
-| ID | Finding | Source | Locator | Date/freshness | Relevance |
-| --- | --- | --- | --- | --- | --- |
-```
-
-External IDs: `E1`, `E2`, … unique and contiguous.
-
-## Section 3: Candidate ideas
-
-3 to 7 candidates (`### I1. <name>` .. `### I7. <name>`). IDs contiguous starting at `I1`. Candidate names and fields non-empty.
-
-Required fields per candidate:
-
-```markdown
+```text
 - Mechanism:
 - Mechanism category:
 - Why it applies:
-- Evidence:
+- Support basis:
+- Decision-criteria fit:
 - Expected impact:
 - Assumptions and dependencies:
 - Effort:
@@ -90,45 +74,55 @@ Required fields per candidate:
 - Cheapest decisive experiment:
 ```
 
-Rules:
-- `- Evidence:` references declared IDs (`L1`, `E1`). Every declared ID must be cited by at least one candidate.
-- Candidates must be mechanism-distinct by unique agent-authored `Mechanism category:`.
-- `Cheapest decisive experiment:` must include metric, pass/fail rule, duration bound, and effort/cost bound.
+Support basis (exact prefix):
 
-## Section 4: Comparison
-
-Table ranking every candidate exactly once with header:
-
-```markdown
-| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |
-| --- | --- | --- | --- | --- | --- | --- |
+```text
+- Support basis: evidence-backed: L1, E1, C1
+- Support basis: assumption-backed: <material assumption>
+- Support basis: hypothesis: <unverified claim>
 ```
 
-Ranks unique and contiguous from 1.
+Every declared ID cited by ≥1 candidate. Mechanism categories distinct. Decisive experiment needs metric, pass/fail, duration, cost/effort bounds.
 
-## Section 5: Recommendation
+### Comparison
 
-Required fields:
+`| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |` — rank every candidate once, contiguous ranks.
 
-```markdown
+### Recommendation
+
+```text
 - Provisional lead: I<n> — <name>
 - Why it leads:
 - Why it beats rank 2:
+- How decision criteria were applied:
 - Cheapest decisive experiment:
 - What could change the ranking:
 - Conditions that would change the ranking:
 ```
 
-`Provisional lead` must match Rank 1 candidate. `Cheapest decisive experiment:` must include metric, pass/fail rule, duration, and cost/effort.
+Leading candidate ID must exactly match rank 1 (`I1` ≠ `I10`).
 
-## Section 6: Contradictions and open questions
+### Section 6
 
-Non-empty body required. `None identified` is valid.
+```text
+- Strongest challenge to rank 1:
+- Baseline comparison:
+- Alternate winner condition:
+- Remaining uncertainty:
+```
 
-## Section 7: Optional downstream action (optional)
+### Section 7
 
-Omit when absent. Must appear after Section 6. May name downstream skills (`design-codebase`, `optimize-codebase`, `plan-change`). Must never route directly to `implement-plan`.
+Optional. Never route to `implement-plan`.
 
-## Prohibited content
+### Prohibited (deterministic)
 
-Diff/patch code blocks, fabricated precision, file edit instructions, workspace edits, extra primary artifacts beyond `ideas.md`.
+Diff/patch code blocks.
+
+### Receipt
+
+`<!-- ideas-handoff: 2; sha256: <digest> -->`
+
+## Agent obligations (not machine-judged)
+
+Truthful support prose, substantive criteria application and adversarial reasoning, honest research-stop recording, no fabricated precision, no file-edit instructions in artifact prose.

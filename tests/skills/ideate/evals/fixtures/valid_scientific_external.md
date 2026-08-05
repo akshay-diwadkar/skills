@@ -1,17 +1,17 @@
-# Ideas: reduce API response latency
+# Ideas: evaluate protein folding stability
 
 ## 1. Handoff
 - State: decision-ready
-- Goal: reduce API response latency
-- Success measure: p99 < 200ms
-- Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- Goal: evaluate protein folding stability
+- Success measure: identify stable fold candidates
+- Baseline / status quo: no validated stable fold
+- Scope: in-silico screening
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
 - Decision horizon: Q3 2026
 - Decision criteria: latency, effort
-- Selected source playbooks: software/engineering
+- Selected source playbooks: academic/scientific
 - Research coverage: docs, benchmarks
 - Research limitations: none
 - Research stop condition: sufficient benchmark evidence gathered

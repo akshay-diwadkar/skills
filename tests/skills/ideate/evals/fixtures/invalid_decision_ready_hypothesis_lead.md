@@ -1,11 +1,11 @@
-# Ideas: reduce API response latency
+# Ideas: reduce latency
 
 ## 1. Handoff
 - State: decision-ready
-- Goal: reduce API response latency
+- Goal: reduce latency
 - Success measure: p99 < 200ms
 - Baseline / status quo: p99 = 500ms
-- Scope: API gateway service
+- Scope: API layer
 - Non-goals: database
 - Assumptions: current p99 = 500 ms
 - Material unknowns: none
@@ -32,8 +32,8 @@ External research status: completed
 ### I1. Alpha
 - Mechanism: do X
 - Mechanism category: caching
-- Why it applies: because Y
-- Support basis: evidence-backed: E1
+- Why it applies: Y
+- Support basis: hypothesis: untested
 - Decision-criteria fit: best latency-effort trade-off
 - Expected impact: high
 - Assumptions and dependencies: none
@@ -46,9 +46,9 @@ External research status: completed
 ### I2. Beta
 - Mechanism: do Y
 - Mechanism category: compression
-- Why it applies: because Z
+- Why it applies: Z
 - Support basis: evidence-backed: E1
-- Decision-criteria fit: moderate latency gain
+- Decision-criteria fit: secondary
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low
@@ -60,9 +60,9 @@ External research status: completed
 ### I3. Gamma
 - Mechanism: do Z
 - Mechanism category: pooling
-- Why it applies: because W
+- Why it applies: W
 - Support basis: evidence-backed: E1
-- Decision-criteria fit: limited criteria fit
+- Decision-criteria fit: tertiary
 - Expected impact: high
 - Assumptions and dependencies: none
 - Effort: low

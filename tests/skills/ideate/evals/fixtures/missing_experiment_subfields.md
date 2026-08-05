@@ -3,17 +3,19 @@
 ## 1. Handoff
 - State: decision-ready
 - Goal: reduce API response latency
-- Success measure: p99 latency < 200ms
-- Baseline / status quo: p99 latency = 500ms
+- Success measure: p99 < 200ms
+- Baseline / status quo: p99 = 500ms
 - Scope: API gateway service
-- Non-goals: database query optimization
-- Assumptions: network latency is negligible
-- Material unknowns: impact of concurrent request bursts
+- Non-goals: database
+- Assumptions: current p99 = 500 ms
+- Material unknowns: none
 - Decision horizon: Q3 2026
-- Decision criteria: latency reduction, implementation cost
+- Decision criteria: latency, effort
 - Selected source playbooks: software/engineering
-- Research coverage: internal docs, benchmark logs
+- Research coverage: docs, benchmarks
 - Research limitations: none
+- Research stop condition: sufficient benchmark evidence gathered
+- Research stop reason: condition met — E1 answers primary question
 
 ## 2. Evidence
 
@@ -23,64 +25,71 @@ External research status: completed
 
 | ID | Finding | Source | Locator | Date/freshness | Relevance |
 | --- | --- | --- | --- | --- | --- |
-| E1 | In-memory cache reduces p99 by 60% | https://example.com/benchmarks | § 3 | 2026-06 | high |
+| E1 | Found X | https://example.com | § 2 | 2026-07 | high |
 
 ## 3. Candidate ideas
 
-### I1. In-Memory Response Caching
-- Mechanism: store frequent endpoint responses in Redis
-- Mechanism category: in-memory-caching
-- Why it applies: 80% of requests are read-only repeated queries
-- Evidence: E1
+### I1. Alpha
+- Mechanism: do X
+- Mechanism category: caching
+- Why it applies: because Y
+- Support basis: evidence-backed: E1
+- Decision-criteria fit: best latency-effort trade-off
 - Expected impact: high
-- Assumptions and dependencies: Redis cluster available
+- Assumptions and dependencies: none
 - Effort: low
 - Risk: low
-- Confidence: high
-- What would disconfirm it: cache hit rate < 40%
-- Cheapest decisive experiment: try running a quick cache test
+- Confidence: moderate
+- What would disconfirm it: Z fails
+- Cheapest decisive experiment: try Z; try Z
 
-### I2. Response Payload Compression
-- Mechanism: compress JSON responses with Brotli
-- Mechanism category: payload-compression
-- Why it applies: large payloads slow down transmission
-- Evidence: E1
-- Expected impact: medium
-- Assumptions and dependencies: CPU overhead acceptable
-- Effort: medium
+### I2. Beta
+- Mechanism: do Y
+- Mechanism category: compression
+- Why it applies: because Z
+- Support basis: evidence-backed: E1
+- Decision-criteria fit: moderate latency gain
+- Expected impact: high
+- Assumptions and dependencies: none
+- Effort: low
 - Risk: low
 - Confidence: moderate
-- What would disconfirm it: CPU usage spikes > 90%
-- Cheapest decisive experiment: try compression on sample payload
+- What would disconfirm it: Z fails
+- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
-### I3. Connection Pooling
-- Mechanism: reuse HTTP/2 TCP connections
-- Mechanism category: connection-pooling
-- Why it applies: handshake overhead adds 50ms per request
-- Evidence: E1
-- Expected impact: medium
-- Assumptions and dependencies: upstream supports HTTP/2
-- Effort: medium
-- Risk: medium
+### I3. Gamma
+- Mechanism: do Z
+- Mechanism category: pooling
+- Why it applies: because W
+- Support basis: evidence-backed: E1
+- Decision-criteria fit: limited criteria fit
+- Expected impact: high
+- Assumptions and dependencies: none
+- Effort: low
+- Risk: low
 - Confidence: moderate
-- What would disconfirm it: connection drops increase
-- Cheapest decisive experiment: test pool size 50
+- What would disconfirm it: Z fails
+- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
 
 ## 4. Comparison
 
-| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |
+| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | I1 | high | low | low | high | strong |
-| 2 | I2 | medium | medium | low | moderate | moderate |
-| 3 | I3 | medium | medium | medium | moderate | moderate |
+| 1 | I1 | high | low | low | moderate | strong |
+| 2 | I2 | medium | medium | medium | low | moderate |
+| 3 | I3 | low | high | high | low | weak |
 
 ## 5. Recommendation
-- Provisional lead: I1 — In-Memory Response Caching
-- Why it leads: highest latency reduction with lowest implementation effort
-- Why it beats rank 2: Caching eliminates computation
-- Cheapest decisive experiment: run cache test
-- What could change the ranking: Redis infrastructure cost exceeds budget
-- Conditions that would change the ranking: cache hit rate < 30%
+- Provisional lead: I1 — Alpha
+- Why it leads: best ratio
+- Why it beats rank 2: lower effort
+- How decision criteria were applied: rank 1 minimizes latency with lowest effort
+- Cheapest decisive experiment: try Z; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low
+- What could change the ranking: new evidence
+- Conditions that would change the ranking: hit rate < 20%
 
 ## 6. Contradictions and open questions
-- Cache invalidation strategy requires coordination across microservices.
+- Strongest challenge to rank 1: rank 2 may win if effort dominates
+- Baseline comparison: baseline p99 remains 500ms without change
+- Alternate winner condition: I2 wins if compression yields >40% reduction
+- Remaining uncertainty: none remaining — E1 benchmark covers primary risk

@@ -31,7 +31,9 @@ def _valid_draft() -> str:
         "- Decision criteria: latency, effort\n"
         "- Selected source playbooks: software/engineering\n"
         "- Research coverage: docs, benchmarks\n"
-        "- Research limitations: none\n\n"
+        "- Research limitations: none\n"
+        "- Research stop condition: benchmark evidence sufficient\n"
+        "- Research stop reason: condition met — E1 answers primary question\n\n"
         "## 2. Evidence\n\n"
         "### External evidence\n\n"
         "External research status: completed\n\n"
@@ -43,7 +45,8 @@ def _valid_draft() -> str:
         "- Mechanism: cache responses\n"
         "- Mechanism category: caching\n"
         "- Why it applies: E1 shows 50% reduction\n"
-        "- Evidence: E1\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: best latency-effort trade-off\n"
         "- Expected impact: high\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: low\n"
@@ -55,7 +58,8 @@ def _valid_draft() -> str:
         "- Mechanism: compress JSON\n"
         "- Mechanism category: compression\n"
         "- Why it applies: E1 secondary finding\n"
-        "- Evidence: E1\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: moderate latency gain\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: medium\n"
@@ -67,7 +71,8 @@ def _valid_draft() -> str:
         "- Mechanism: reuse connections\n"
         "- Mechanism category: pooling\n"
         "- Why it applies: E1 mentions pool overhead\n"
-        "- Evidence: E1\n"
+        "- Support basis: evidence-backed: E1\n"
+        "- Decision-criteria fit: weaker criteria fit\n"
         "- Expected impact: medium\n"
         "- Assumptions and dependencies: none\n"
         "- Effort: high\n"
@@ -76,7 +81,7 @@ def _valid_draft() -> str:
         "- What would disconfirm it: no connection overhead\n"
         "- Cheapest decisive experiment: profile connection setup; metric: setup time; pass/fail: <10ms; duration: 1d; cost/effort: medium\n\n"
         "## 4. Comparison\n\n"
-        "| Rank | Candidate | Impact | Effort | Risk | Confidence | Evidence strength |\n"
+        "| Rank | Candidate | Impact | Effort | Risk | Confidence | Support strength |\n"
         "| --- | --- | --- | --- | --- | --- | --- |\n"
         "| 1 | I1 | high | low | low | moderate | strong |\n"
         "| 2 | I2 | medium | medium | low | low | moderate |\n"
@@ -85,11 +90,15 @@ def _valid_draft() -> str:
         "- Provisional lead: I1 — Add cache\n"
         "- Why it leads: highest impact, lowest effort\n"
         "- Why it beats rank 2: lower effort than compression\n"
+        "- How decision criteria were applied: rank 1 minimizes latency with lowest effort\n"
         "- Cheapest decisive experiment: run 1-day shadow cache; metric: hit rate; pass/fail: >50%; duration: 1d; cost/effort: low\n"
         "- What could change the ranking: cache hit rate data\n"
         "- Conditions that would change the ranking: hit rate < 20%\n\n"
         "## 6. Contradictions and open questions\n"
-        "- None identified.\n"
+        "- Strongest challenge to rank 1: compression may win if payloads dominate\n"
+        "- Baseline comparison: baseline p99 remains 500ms\n"
+        "- Alternate winner condition: I2 wins if payload size drives latency\n"
+        "- Remaining uncertainty: none remaining — E1 benchmark covers primary risk\n"
     )
 
 
@@ -138,7 +147,7 @@ def test_receipt_digest_matches(tmp_path: Path) -> None:
     )
     sealed = (output / "ideas.md").read_text(encoding="utf-8")
     first, _, body = sealed.partition("\n")
-    assert first.startswith("<!-- ideas-handoff: 1; sha256: ")
+    assert first.startswith("<!-- ideas-handoff: 2; sha256: ")
     digest = first.split("sha256: ")[1].rstrip(" -->")
     assert hashlib.sha256(body.encode("utf-8")).hexdigest() == digest
 

@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ideas_contract import Diagnostic, compute_digest, seal_body, validate_ideas  # noqa: E402
 
 RECEIPT_PREFIX = "<!-- ideas-handoff:"
-RECEIPT_RE = re.compile(r"^<!-- ideas-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
+RECEIPT_RE = re.compile(r"^<!-- ideas-handoff: 2; sha256: ([0-9a-f]{64}) -->$")
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ def _receipt_free(text: str) -> str:
 
 def _with_receipt(body: str) -> str:
     digest = compute_digest(body)
-    return f"<!-- ideas-handoff: 1; sha256: {digest} -->\n{body}"
+    return f"<!-- ideas-handoff: 2; sha256: {digest} -->\n{body}"
 
 
 def _write_atomic(destination: Path, text: str) -> None:
