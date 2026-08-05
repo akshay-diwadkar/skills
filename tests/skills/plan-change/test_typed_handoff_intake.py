@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -20,6 +21,12 @@ SPEC.loader.exec_module(RUNTIME)
 def sealed(kind: str, body: str, version: int = 1) -> bytes:
     digest = hashlib.sha256(body.encode()).hexdigest()
     return f"<!-- {kind}-handoff: {version}; sha256: {digest} -->\n{body}".encode()
+
+
+def _diagnostics(error: BaseException) -> tuple[Any, ...]:
+    diagnostics = getattr(error, "diagnostics", None)
+    assert isinstance(diagnostics, tuple)
+    return diagnostics
 
 
 @pytest.mark.parametrize(
@@ -105,13 +112,13 @@ def test_typed_handoff_plans_require_matching_rq_source_and_audit_anchor(tmp_pat
     draft.write_text(wrong_source, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as wrong_source_error:
         RUNTIME.seal_plan(repo, request, draft, handoff_item="FND-2")
-    assert any(item.code == "obligation.source" for item in wrong_source_error.value.diagnostics)
+    assert any(item.code == "obligation.source" for item in _diagnostics(wrong_source_error.value))
 
     wrong_finding = good.replace("Normalize absent values safely", "Unrelated finding")
     draft.write_text(wrong_finding, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as wrong_finding_error:
         RUNTIME.seal_plan(repo, request, draft, handoff_item="FND-2")
-    assert any(item.code == "obligation.anchor" for item in wrong_finding_error.value.diagnostics)
+    assert any(item.code == "obligation.anchor" for item in _diagnostics(wrong_finding_error.value))
 
 
 def test_bug_fix_requires_fail_before_or_regression_verification(tmp_path: Path) -> None:
@@ -134,7 +141,7 @@ def test_bug_fix_requires_fail_before_or_regression_verification(tmp_path: Path)
     draft.write_text(weak, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as error:
         RUNTIME.seal_plan(repo, request, draft)
-    assert any(item.code == "verification.regression" for item in error.value.diagnostics)
+    assert any(item.code == "verification.regression" for item in _diagnostics(error.value))
 
 
 def _load_helpers(name: str):
@@ -168,7 +175,7 @@ def test_bug_fix_regression_ignores_command_path(tmp_path: Path) -> None:
     draft.write_text(weak, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as error:
         RUNTIME.seal_plan(repo, request, draft)
-    assert any(item.code == "verification.regression" for item in error.value.diagnostics)
+    assert any(item.code == "verification.regression" for item in _diagnostics(error.value))
 
 
 def test_irreversible_rollout_requires_concrete_content(tmp_path: Path) -> None:
@@ -190,7 +197,7 @@ def test_irreversible_rollout_requires_concrete_content(tmp_path: Path) -> None:
     draft.write_text(weak, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as error:
         RUNTIME.seal_plan(repo, request, draft)
-    assert any(item.code == "rollout.invalid" for item in error.value.diagnostics)
+    assert any(item.code == "rollout.invalid" for item in _diagnostics(error.value))
 
 
 def test_dependency_missing_and_cycle_are_rejected(tmp_path: Path) -> None:
@@ -204,7 +211,7 @@ def test_dependency_missing_and_cycle_are_rejected(tmp_path: Path) -> None:
     draft.write_text(missing, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as missing_error:
         RUNTIME.seal_plan(repo, request, draft)
-    assert any(item.code == "dependency.missing" for item in missing_error.value.diagnostics)
+    assert any(item.code == "dependency.missing" for item in _diagnostics(missing_error.value))
 
     cyclic = helpers.tiny_plan().replace(
         "CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
@@ -226,7 +233,7 @@ def test_dependency_missing_and_cycle_are_rejected(tmp_path: Path) -> None:
     draft.write_text(cyclic, encoding="utf-8")
     with pytest.raises(ValueError, match="draft validation failed") as cycle_error:
         RUNTIME.seal_plan(repo, request, draft)
-    assert any(item.code == "dependency.cycle" for item in cycle_error.value.diagnostics)
+    assert any(item.code == "dependency.cycle" for item in _diagnostics(cycle_error.value))
 
 
 def test_dependency_order_is_recorded_in_proof(tmp_path: Path) -> None:

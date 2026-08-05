@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -64,7 +65,7 @@ def test_weak_plans_fail_for_intended_reason(case, weak, tmp_path: Path) -> None
 
 
 def test_quality_report_artifact_contract(tmp_path: Path) -> None:
-    rows = []
+    rows: list[dict[str, Any]] = []
     for case in CASES:
         repo = tmp_path / case.id
         case.build_repo(repo)
@@ -81,7 +82,7 @@ def test_quality_report_artifact_contract(tmp_path: Path) -> None:
             obligation_manifest=case.obligations,
             handoff_item=case.handoff_item,
         )
-        weak_rows = []
+        weak_rows: list[dict[str, Any]] = []
         for weak in case.weak:
             weak_score = score_plan(
                 weak.mutate(case.golden),
@@ -107,7 +108,7 @@ def test_quality_report_artifact_contract(tmp_path: Path) -> None:
                 "weak": weak_rows,
             }
         )
-    report = {
+    report: dict[str, Any] = {
         "schema_version": 1,
         "label": "deterministic plan-quality fixtures; excludes live agents and sealing microbenchmark",
         "case_count": len(rows),
