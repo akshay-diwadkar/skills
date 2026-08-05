@@ -5,8 +5,8 @@
     "repair_diagnostic": 3073,
     "tool_output": 2461,
     "top_level": 6639,
-    "worst_context": 28474,
-    "worst_references": 18762
+    "worst_context": 28530,
+    "worst_references": 18818
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "0f0dba2c5669a61e9350a3a0d8645a81f9c67edf6d93286da61fbb13991bad36",
+  "config_sha256": "0f71e04bcb238d5ca4d1a067e6fa9861dba5b83a7f98baaffa80ec69de420044",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -125,8 +125,8 @@
         "repair_diagnostic": 231,
         "tool_output": 173,
         "top_level": 694,
-        "worst_context": 3284,
-        "worst_references": 2359
+        "worst_context": 3340,
+        "worst_references": 2415
       },
       "path": "skills/engineering/implement-plan/SKILL.md",
       "phases": {
@@ -156,7 +156,7 @@
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "3377322b102f315bc35459b1e729d1d94a0bd8736b24449322499b3f8826a227",
+      "source_hash": "33e555fe457eae44a049979b38125fe26173c905aa10e974ff6492f6122a834b",
       "worst_reference_paths": [
         "references/delegation-protocol.md",
         "references/implementation-contract.json",

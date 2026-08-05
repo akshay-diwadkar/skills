@@ -162,13 +162,13 @@ TRIVIAL_ANCHOR_WORDS = frozenset(
 )
 IDENTIFIER_LIKE_RE = re.compile(
     r"^(?:"
-    r"[A-Za-z_][A-Za-z0-9_]*"
+    r"[a-z]+(?:_[a-z0-9]+)+"
+    r"|[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"
+    r"|[A-Z][A-Z0-9_]{1,}"
     r"|[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+"
     r"|--?[A-Za-z][A-Za-z0-9_-]*"
-    r"|[A-Z][A-Z0-9_]*"
-    r"|[a-z]+(?:_[a-z0-9]+)+"
-    r"|[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"
     r"|[A-Za-z0-9_]+\.[A-Za-z0-9_.-]+"
+    r"|[A-Za-z_][A-Za-z0-9_]*=[^=].+"
     r")$"
 )
 TREE_SITTER_GRAMMARS = {
@@ -250,7 +250,9 @@ def _blank_skip_sections(request_text: str) -> str:
             in_skip = True
             lines.append("")
             continue
-        if stripped.startswith("#"):
+        if NORMATIVE_HEADER_RE.match(stripped) or AC_HEADER_RE.match(stripped):
+            in_skip = False
+        elif stripped.startswith("#"):
             in_skip = False
         lines.append("" if in_skip else raw_line)
     return "\n".join(lines)
@@ -274,6 +276,9 @@ def extract_structured_request_items(request_text: str) -> list[str]:
         stripped = raw_line.strip()
         if NORMATIVE_HEADER_RE.match(stripped) or AC_HEADER_RE.match(stripped):
             in_normative = True
+            continue
+        if SKIP_SECTION_HEADER_RE.match(stripped):
+            in_normative = False
             continue
         if stripped.startswith("#"):
             in_normative = False
@@ -1061,25 +1066,6 @@ def _obligation_diagnostics(
                                 line=record.line,
                             )
                         )
-        shape_patterns = {
-            "design": re.compile(r"\b(?:boundary|interface|decision|contract|seam)\b", re.I),
-            "optimization": re.compile(
-                r"\b(?:candidate|measure|workflow|latency|throughput|p95|cache|performance)\b",
-                re.I,
-            ),
-            "issue": re.compile(r"\b(?:protect\w*|constraint|outcome|preserve|must)\b", re.I),
-        }
-        pattern = shape_patterns.get(kind)
-        if pattern is not None and matching and not any(pattern.search(record.fields.get("obligation", "")) for record in matching):
-            diagnostics.append(
-                Diagnostic(
-                    "obligation.shape",
-                    f"{kind.title()} handoff obligations must name the inherited {kind} material.",
-                    f"Tighten the {kind} RQ obligation text.",
-                    matching[0].id,
-                    line=matching[0].line,
-                )
-            )
     if kind == "generic" and request_bytes is not None and request_text:
         for record in obligations:
             source = record.fields.get("source", "")

@@ -221,6 +221,10 @@ def _depends_on_ids(raw: str) -> set[str]:
     return {part.strip() for part in text.split(",") if part.strip()}
 
 
+def _refs(value: str) -> set[str]:
+    return set(plan_v7_runtime.ID_RE.findall(value))
+
+
 def validate_bundle_against_plan(
     bundle: dict[str, Any],
     plan: Plan,
@@ -228,6 +232,7 @@ def validate_bundle_against_plan(
     version: int | None,
     *,
     require_completion: bool = True,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Return human-readable errors when order or completion sequencing is invalid."""
     errors: list[str] = []
@@ -262,6 +267,8 @@ def validate_bundle_against_plan(
     if [target.get("ch_id") for target in targets if isinstance(target, dict)] != expected_order:
         errors.append("bundle.workspace.targets must follow change_order exactly")
     changes_by_id = {record.id: record for record in plan.records.get("CH", ())}
+    tests_by_id = {record.id: record for record in plan.records.get("T", ())}
+    targets_by_ch: dict[str, dict[str, Any]] = {}
     for index, target in enumerate(targets):
         if not isinstance(target, dict):
             errors.append(f"workspace.targets[{index}] must be an object")
@@ -270,6 +277,7 @@ def validate_bundle_against_plan(
         if not isinstance(ch_id, str) or ch_id not in changes_by_id:
             errors.append(f"workspace.targets[{index}].ch_id is not a planned CH")
             continue
+        targets_by_ch[ch_id] = target
         change = changes_by_id[ch_id]
         expected_depends = _depends_on_raw(plan, ch_id, version)
         if target.get("depends_on") != expected_depends:
@@ -294,6 +302,68 @@ def validate_bundle_against_plan(
         if not isinstance(ch_ids, list) or not all(isinstance(item, str) for item in ch_ids):
             errors.append(f"changes[{index}].ch_ids must be a string array")
             continue
+        if require_completion:
+            paths = change_row.get("paths")
+            anchors = change_row.get("anchors")
+            before_hashes = change_row.get("before_sha256")
+            after_hashes = change_row.get("after_sha256")
+            evidence = change_row.get("evidence")
+            if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+                errors.append(f"changes[{index}].paths must be a string array")
+            elif not isinstance(anchors, list) or not all(isinstance(item, str) for item in anchors):
+                errors.append(f"changes[{index}].anchors must be a string array")
+            elif not isinstance(before_hashes, dict) or not isinstance(after_hashes, dict):
+                errors.append(f"changes[{index}] must include before_sha256 and after_sha256 objects")
+            elif not isinstance(evidence, list) or not all(isinstance(item, str) for item in evidence):
+                errors.append(f"changes[{index}].evidence must be a string array")
+            else:
+                expected_paths = {
+                    changes_by_id[ch_id].fields.get("path", "")
+                    for ch_id in ch_ids
+                    if ch_id in changes_by_id
+                }
+                expected_paths.discard("")
+                if set(paths) != expected_paths:
+                    errors.append(
+                        f"changes[{index}].paths must equal planned paths for {', '.join(ch_ids)}"
+                    )
+                for ch_id in ch_ids:
+                    if ch_id not in changes_by_id:
+                        continue
+                    change_record = changes_by_id[ch_id]
+                    anchor = change_record.fields.get("anchor", "")
+                    if anchor and anchor not in anchors:
+                        errors.append(f"changes[{index}].anchors must include {ch_id} anchor")
+                    required_evidence = _refs(change_record.fields.get("evidence", ""))
+                    if required_evidence and not required_evidence.issubset(set(evidence)):
+                        errors.append(f"changes[{index}].evidence must include {ch_id} evidence refs")
+                    path = change_record.fields.get("path", "")
+                    if not path:
+                        continue
+                    target = targets_by_ch.get(ch_id)
+                    expected_before = target.get("before_sha256") if isinstance(target, dict) else None
+                    if expected_before and before_hashes.get(path) != expected_before:
+                        errors.append(
+                            f"changes[{index}].before_sha256[{path}] must match scaffolded {ch_id}"
+                        )
+                    reported_after = after_hashes.get(path, "")
+                    if repo_root is not None:
+                        actual_after = sha256_file(repo_root / path)
+                        if reported_after != actual_after:
+                            errors.append(
+                                f"changes[{index}].after_sha256[{path}] must match current repository hash"
+                            )
+                    status = change_record.fields.get("status", "existing")
+                    change_text = change_record.fields.get("change", "").strip()
+                    before_value = before_hashes.get(path, "")
+                    after_value = after_hashes.get(path, "")
+                    if status == "new":
+                        if not after_value:
+                            errors.append(f"changes[{index}] must record a non-empty after hash for new {ch_id}")
+                    elif change_text and before_value == after_value:
+                        errors.append(
+                            f"changes[{index}] must record a real file change for planned behavioral {ch_id}"
+                        )
         for ch_id in ch_ids:
             if ch_id not in changes_by_id:
                 errors.append(f"changes[{index}] references unknown CH {ch_id}")
@@ -328,11 +398,21 @@ def validate_bundle_against_plan(
                 errors.append(f"verification[{index}].t_ids must be a string array")
                 continue
             status = row.get("status")
+            if status == "passed" and row.get("exit_code") != 0:
+                errors.append(f"verification[{index}] with status passed must have exit_code 0")
+            command = str(row.get("command", "")).strip()
             for t_id in t_ids:
                 if t_id not in planned_test_set:
                     errors.append(f"verification[{index}] references unknown T {t_id}")
                 elif status == "passed":
                     passed_tests.add(t_id)
+                    planned = tests_by_id.get(t_id)
+                    if planned is not None:
+                        planned_command = str(planned.fields.get("command", "")).strip()
+                        if command != planned_command:
+                            errors.append(
+                                f"verification[{index}].command must match planned {t_id}.command"
+                            )
         missing_tests = sorted(planned_test_set - passed_tests)
         if missing_tests:
             errors.append(
@@ -358,6 +438,65 @@ def validate_plan_text(text: str, root: Path) -> tuple[Plan | None, list[Any]]:
             )
         ]
     plan, diagnostics, _view = runtime.verify_sealed_plan(text, root)
+    return plan, diagnostics
+
+
+def validate_plan_for_completion(text: str) -> tuple[Plan | None, list[Any]]:
+    """Validate sealed-plan markers and parse records without re-checking live evidence paths."""
+    version = plan_contract_version(text)
+    runtime = _runtime_for_version(version)
+    if runtime is None:
+        return None, [
+            Diagnostic(
+                "contract.unsupported",
+                f"plan-contract version {version!r} is not supported",
+                "Use a sealed plan-contract v6 or v7 plan.",
+            )
+        ]
+    diagnostics: list[Any] = []
+    proof_matches = list(runtime.PROOF_RE.finditer(text))
+    receipt_matches = list(runtime.VALIDATION_RE.finditer(text))
+    if len(proof_matches) != 1 or len(receipt_matches) != 1:
+        diagnostics.append(
+            Diagnostic(
+                "proof.stale",
+                "Sealed proof or receipt marker is missing.",
+                "Use the exact output from seal_plan.py.",
+                category="stale_evidence",
+            )
+        )
+        return None, diagnostics
+    body = runtime.canonical_body(text)
+    try:
+        proof = json.loads(proof_matches[0].group("json"))
+        if not isinstance(proof, dict):
+            raise ValueError("plan proof must be an object")
+    except (json.JSONDecodeError, ValueError):
+        diagnostics.append(
+            Diagnostic(
+                "proof.stale",
+                "Plan proof is malformed.",
+                "Use the exact output from seal_plan.py.",
+                category="stale_evidence",
+            )
+        )
+        return None, diagnostics
+    receipt = receipt_matches[0]
+    body_digest = hashlib.sha256(body.encode()).hexdigest()
+    proof_digest = hashlib.sha256(runtime._canonical_json(proof).encode()).hexdigest()
+    if receipt.group("body") != body_digest or receipt.group("proof") != proof_digest:
+        diagnostics.append(
+            Diagnostic(
+                "proof.stale",
+                "Plan body or proof digest does not match the receipt.",
+                "Reseal the unchanged draft.",
+                category="stale_evidence",
+            )
+        )
+    plan, parse_diagnostics = runtime.parse_plan(body)
+    diagnostics.extend(parse_diagnostics)
+    if plan is None:
+        return None, diagnostics
     return plan, diagnostics
 
 

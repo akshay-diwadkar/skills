@@ -13,7 +13,7 @@ from implementation_contract import (
     plan_contract_version,
     sha256_file,
     validate_bundle_against_plan,
-    validate_plan_text,
+    validate_plan_for_completion,
 )
 
 
@@ -31,7 +31,7 @@ def main() -> int:
     if version not in supported:
         print(f"contract.unsupported: plan-contract version {version!r} is not supported")
         return 1
-    plan, diagnostics = validate_plan_text(plan_text, root)
+    plan, diagnostics = validate_plan_for_completion(plan_text)
     if diagnostics or plan is None:
         for diagnostic in diagnostics:
             print(diagnostic)
@@ -41,7 +41,7 @@ def main() -> int:
         print("bundle must be an object")
         return 1
     order_errors = validate_bundle_against_plan(
-        bundle, plan, plan_text, version, require_completion=True
+        bundle, plan, plan_text, version, require_completion=True, repo_root=root
     )
     if order_errors:
         for error in order_errors:

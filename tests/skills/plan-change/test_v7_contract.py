@@ -265,6 +265,47 @@ def test_structured_generic_request_trivial_anchor_is_rejected(tmp_path: Path) -
     assert any(item.code == "obligation.anchor" and "weak" in item.message.lower() for item in result.diagnostics)
 
 
+@pytest.mark.parametrize("anchor", ["consumer", "behavior", "update"])
+def test_structured_generic_request_plain_single_word_anchor_is_rejected(
+    tmp_path: Path, anchor: str
+) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(
+        f"## Requirements\n- Update {anchor} paths in normalize_name\n",
+        encoding="utf-8",
+    )
+    draft.write_text(
+        _structured_generic_plan().replace(
+            "RQ-1: source: request | anchor: Fix absent names | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+            f"RQ-1: source: request | anchor: {anchor} | obligation: update {anchor} paths in normalize_name | covered_by: SC-1, CH-1, T-1",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    result = validate_draft(draft.read_text(encoding="utf-8"), repo, request_bytes=request.read_bytes())
+    assert any(item.code == "obligation.anchor" and "weak" in item.message.lower() for item in result.diagnostics)
+
+
+@pytest.mark.parametrize(
+    ("anchor", "weak"),
+    [
+        ("normalize_name", False),
+        ("read_old", False),
+        ("LEFT", False),
+        ("src/caller.py", False),
+        ("FOO=bar", False),
+        ("consumer", True),
+        ("behavior", True),
+        ("update", True),
+    ],
+)
+def test_weak_anchor_classification(anchor: str, weak: bool) -> None:
+    assert RUNTIME._is_weak_anchor(anchor) is weak
+
+
 def test_structured_generic_request_wrong_source_is_rejected(tmp_path: Path) -> None:
     repo = make_repo(tmp_path / "repo")
     (repo / "src" / "caller.py").write_text("from src.names import normalize_name\n", encoding="utf-8")
@@ -323,6 +364,22 @@ def test_examples_and_alternatives_are_not_blocking_obligations(tmp_path: Path) 
     )
     draft.write_text(tiny_plan(), encoding="utf-8")
     assert seal_plan(repo, request, draft).text.startswith("# Fix absent-name normalization")
+
+
+def test_plain_requirements_after_examples_resumes_normative_extraction() -> None:
+    items = RUNTIME.extract_structured_request_items(
+        "Examples:\n- Sample only\n\nRequirements:\n- Real requirement one\n"
+    )
+    assert items == ["Real requirement one"]
+
+
+@pytest.mark.parametrize("header", ["Examples:", "Alternatives:", "Notes:", "Background:"])
+def test_plain_skip_headers_end_normative_capture(header: str) -> None:
+    items = RUNTIME.extract_structured_request_items(
+        f"Requirements:\n- Req one\n\n{header}\n- not blocking\n"
+    )
+    assert items == ["Req one"]
+    assert "not blocking" not in items
 
 
 def test_weak_shared_anchor_covering_two_items_is_rejected(tmp_path: Path) -> None:

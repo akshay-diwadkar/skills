@@ -174,9 +174,9 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 2000,
+      "max_tokens": 1970,
       "expires": "2027-08-05",
-      "rationale": "Plan-contract and opt-in plan-examples document normative obligation extraction, material anchors, grouped multi-owner propagation, and anti-ceremony depth without weakening authority or sealing rules.",
+      "rationale": "Plan-contract and opt-in plan-examples add about 737 tokens of worst-reference growth versus origin/main; cap the measured total near 1942 with minimal headroom.",
       "supporting_paths": ["references/plan-contract.md", "references/plan-examples.md"],
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },

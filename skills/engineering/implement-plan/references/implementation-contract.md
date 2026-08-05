@@ -17,8 +17,11 @@ For v7 plans, prepare/intake and finalization require a deterministic
 schema requires matching `plan.change_order`, `workspace.change_order`, and
 per-target `ch_id` / `depends_on`. That declared order is the scaffold and proof
 order. Completion may follow any valid topological order: every planned CH
-exactly once, each only after its `depends_on` predecessors. Completing a
-dependent before its prerequisites fails sealing. Seal also requires every
+exactly once, each only after its `depends_on` predecessors. Each completion row
+must bind planned `CH` paths, anchors, evidence refs, scaffolded `before_sha256`,
+and current repository `after_sha256`; fake no-op completion for planned behavioral
+changes fails sealing. Passed verification rows require `exit_code: 0` and a
+`command` matching the planned `T`. Seal also requires every
 planned `T` in a passed verification row and empty `unresolved_changes` /
 `unresolved_tests`. For historical v6 plans, preserve record declaration order
 as `change_order` and do not invent obligation fields.
