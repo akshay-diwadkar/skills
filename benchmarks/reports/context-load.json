@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "3d5bb7ea4ed000316de43a9f90e70fe8fb107e867cc3221a31a7c6bc4e3dd4ff",
+  "config_sha256": "b4a30763c2b6221d7a4a1fe5dbdbf4037eb2f286accae5647f36b80bfceb9c50",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {

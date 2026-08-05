@@ -169,6 +169,18 @@
       "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output"]
     },
     {
+      "id": "plan-change-v7-structured-obligation-coverage",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1500,
+      "expires": "2027-08-05",
+      "rationale": "Plan-contract guidance documents structured generic-request obligation coverage, trivial-anchor rejection, and source:request requirements without weakening authority or sealing rules.",
+      "supporting_paths": ["references/plan-contract.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
+    },
+    {
       "id": "scope-handoff-reference-reduction",
       "skill": "scope-issue",
       "metric": "worst_references",
