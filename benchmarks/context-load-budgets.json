@@ -174,9 +174,9 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 4200,
+      "max_tokens": 3300,
       "expires": "2027-08-05",
-      "rationale": "Opt-in worked examples calibrate first-run authoring across tiny, standard, and high-risk tiers with complete drafts, delta records, tier decisions, and stop conditions; the examples stay opt-in and far below the user-orchestrator ceiling.",
+      "rationale": "Opt-in worked examples calibrate first-run authoring across tiny, standard, and high-risk tiers with complete drafts, delta records, tier decisions, and stop conditions; the examples stay opt-in, measure 3035 tokens, and the 3300-token cap preserves narrow repair headroom.",
       "supporting_paths": ["references/plan-contract.md", "references/plan-examples.md"],
       "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
