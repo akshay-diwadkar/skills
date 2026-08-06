@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 9135,
-    "repair_diagnostic": 3073,
-    "tool_output": 2461,
-    "top_level": 6674,
-    "worst_context": 29658,
-    "worst_references": 19911
+    "pre_action": 9682,
+    "repair_diagnostic": 3079,
+    "tool_output": 2473,
+    "top_level": 7209,
+    "worst_context": 32592,
+    "worst_references": 22304
   },
   "baseline": {
     "requirements": [
@@ -18,7 +18,7 @@
     "source_revision": "95c24d086067ec6c5acfdb5eab33aa9af5b637d2",
     "status": "established"
   },
-  "config_sha256": "b018e3c9b599195d77d5ae58b9e862ec34e5fc86bf120c6b22cfbc9f7b846aea",
+  "config_sha256": "7ea967e2cdf8dcf77f669f4aaddb5d2e1fc24899aa0b625a0191fafcefa1d09f",
   "schema_version": 2,
   "skills": {
     "audit-codebase": {
@@ -368,19 +368,19 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 734,
-        "repair_diagnostic": 225,
-        "tool_output": 174,
-        "top_level": 560,
-        "worst_context": 1532,
-        "worst_references": 747
+        "pre_action": 1281,
+        "repair_diagnostic": 231,
+        "tool_output": 186,
+        "top_level": 1095,
+        "worst_context": 4466,
+        "worst_references": 3140
       },
       "path": "skills/engineering/scope-issue/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "35fe3a6fee0c4fe8be58c028d41a5f52997e77cc0214f639a92d436e4feb2c88",
+      "source_hash": "57ff0c326685046ecbdd62cb6d3e28f0f6a6ea4968a1c741e6ad033e2744ea53",
       "worst_reference_paths": [
         "references/issue-plan-contract.json",
         "references/planning-rubric.md"

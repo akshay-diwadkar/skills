@@ -1,0 +1,10 @@
+{
+  "task": {
+    "text": "Work issue #7: normalize names consistently.",
+    "constraints": []
+  },
+  "repository": "acme/widget",
+  "epic": {"number": 7, "url": "https://github.com/acme/widget/issues/7"},
+  "override": null,
+  "exclusions": []
+}

@@ -1,7 +1,32 @@
 {
-  "contract_version": 1,
-  "statuses": ["plan-ready", "needs-info", "blocked", "close-candidate"],
+  "contract_version": 2,
+  "wire": {
+    "artifact": "issue-handoff.md",
+    "kind": "issue",
+    "version": 1,
+    "receipt_pattern": "^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$",
+    "note": "The receipt kind and version are a consumer wire contract. plan-change and implement-plan read kind 'issue' with version 1; do not change the receipt shape or version without a coordinated consumer update. The schema version advances in metadata.contract_version only."
+  },
+  "statuses": [
+    "plan-ready",
+    "needs-info",
+    "blocked",
+    "close-candidate",
+    "needs-decomposition",
+    "no-ready-issue",
+    "epic-complete"
+  ],
+  "readiness_states": [
+    "ready",
+    "blocked",
+    "in-progress",
+    "completed",
+    "superseded",
+    "unknown",
+    "needs-decomposition"
+  ],
   "required_sections": [
+    "Selection Stage",
     "Outcome and Scope",
     "Issue Claims (Untrusted)",
     "Local Evidence Ledger",
@@ -10,8 +35,41 @@
     "Risks and Open Questions",
     "Plan-Change Handoff"
   ],
+  "section_order": [
+    "Selection Stage",
+    "Outcome and Scope",
+    "Issue Claims (Untrusted)",
+    "Local Evidence Ledger",
+    "Issue-Level Decisions",
+    "Constraints and Protected Behavior",
+    "Risks and Open Questions",
+    "Plan-Change Handoff"
+  ],
+  "untrusted_section": "Issue Claims (Untrusted)",
+  "record_sections": {
+    "CAND": "Selection Stage",
+    "SEL": "Selection Stage",
+    "SC": "Outcome and Scope",
+    "F": "Local Evidence Ledger",
+    "D": "Issue-Level Decisions",
+    "C": "Constraints and Protected Behavior"
+  },
+  "record_numbering": {
+    "start": 1,
+    "sequential": true
+  },
+  "snapshot_requirements": {
+    "content_trust": "untrusted-github-data"
+  },
   "required_metadata": [
     "contract_version",
+    "status",
+    "task.text",
+    "task.constraints",
+    "epic.number",
+    "epic.url",
+    "override",
+    "exclusions",
     "source.repo",
     "source.issue_number",
     "source.issue_url",
@@ -21,22 +79,157 @@
     "checkout.remote_repo",
     "checkout.commit",
     "checkout.dirty",
-    "status",
     "questions",
     "blockers",
     "close_evidence"
   ],
   "record_formats": {
-    "SC": "- SC-n: observable issue outcome",
-    "F": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
-    "D": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback",
-    "C": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk"
+    "CAND": {
+      "format": "- CAND-n: candidate: #<issue> | readiness: <state> | basis: <evidence reference>",
+      "pattern": "^\\s*[-*]\\s*CAND-(?P<number>\\d+):\\s*candidate:\\s*#(?P<issue>\\d+)\\s*\\|\\s*readiness:\\s*(?P<readiness>[a-z-]+)\\s*\\|\\s*basis:\\s*(?P<basis>.+)$"
+    },
+    "SEL": {
+      "format": "- SEL-n: selected: #<issue> | rationale: <task/graph-linked reason> | alternatives: #<issue> why-not-now: <reason>",
+      "pattern": "^\\s*[-*]\\s*SEL-(?P<number>\\d+):\\s*selected:\\s*#(?P<issue>\\d+)\\s*\\|\\s*rationale:\\s*(?P<rationale>.+?)\\s*\\|\\s*alternatives:\\s*(?P<alternatives>.+)$"
+    },
+    "SC": {
+      "format": "- SC-n: observable issue outcome",
+      "pattern": "^\\s*[-*]\\s*SC-(?P<number>\\d+):\\s*(?P<body>.+)$"
+    },
+    "F": {
+      "format": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
+      "pattern": "^\\s*[-*]\\s*F-(?P<number>\\d+):\\s*`(?P<path>[^`]+):(?P<line>\\d+)`\\s*\\|\\s*anchor:\\s*`(?P<anchor>[^`]+)`\\s*\\|\\s*observation:\\s*(?P<body>.+)$"
+    },
+    "D": {
+      "format": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback",
+      "pattern": "^\\s*[-*]\\s*D-(?P<number>\\d+):\\s*selected:\\s*(?P<selected>.+?)\\s*\\|\\s*because:\\s*(?P<because>.+?)\\s*\\|\\s*rejected:\\s*(?P<rejected>.+)$",
+      "optional": true
+    },
+    "C": {
+      "format": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk",
+      "pattern": "^\\s*[-*]\\s*C-(?P<number>\\d+):\\s*(?P<body>.+?)\\s*\\|\\s*status:\\s*(?P<status>preserved|modified|at-risk)$"
+    }
   },
+  "forbidden_record_prefixes": ["CH", "T"],
   "status_requirements": {
-    "plan-ready": {"records": ["SC", "F", "C"]},
-    "needs-info": {"records": ["SC", "F", "C"], "questions_required": true},
-    "blocked": {"records": ["F"], "blockers_required": true},
-    "close-candidate": {"records": ["F"], "close_evidence_required": true}
+    "plan-ready": {
+      "requires_sel": true,
+      "sel_readiness": "ready",
+      "required_narrowing_records": ["SC", "F", "C"],
+      "required_fields": [],
+      "empty_fields": ["questions", "blockers", "close_evidence"]
+    },
+    "needs-info": {
+      "requires_sel": false,
+      "required_narrowing_records": ["F"],
+      "narrowing_records_require_sel": true,
+      "required_fields": ["questions"],
+      "empty_fields": ["close_evidence"],
+      "tie_obligation": {
+        "when_at_least_ready_candidates": 2,
+        "question_must_contain": "tie"
+      }
+    },
+    "blocked": {
+      "requires_sel": true,
+      "required_narrowing_records": ["F"],
+      "narrowing_records_require_sel": true,
+      "required_fields": ["blockers"],
+      "empty_fields": []
+    },
+    "close-candidate": {
+      "requires_sel": true,
+      "required_narrowing_records": ["F"],
+      "narrowing_records_require_sel": true,
+      "required_fields": ["close_evidence"],
+      "empty_fields": ["questions", "blockers"]
+    },
+    "needs-decomposition": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "required_narrowing_records": [],
+      "required_fields": [],
+      "empty_fields": [],
+      "candidate_readiness": {"any": ["needs-decomposition"]}
+    },
+    "no-ready-issue": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "required_narrowing_records": [],
+      "required_fields": [],
+      "empty_fields": [],
+      "candidate_readiness": {"any": ["blocked", "in-progress", "unknown"], "none": ["ready", "needs-decomposition"]}
+    },
+    "epic-complete": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "required_narrowing_records": [],
+      "required_fields": [],
+      "empty_fields": [],
+      "candidate_readiness": {"all": ["completed", "superseded"]}
+    }
   },
-  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"]
+  "selection_stage_obligations": {
+    "min_candidates": 1,
+    "sel_issue_must_be_candidate": true,
+    "sel_requires_ready_candidate": true,
+    "candidate_issues_must_be_in_snapshot": true,
+    "epic_must_be_in_snapshot": true,
+    "override_must_be_candidate": true,
+    "override_requires_ready_candidate": true,
+    "sel_cannot_be_excluded": true,
+    "cand_basis_must_cite": true,
+    "sel_alternatives_must_name_other_issue": true
+  },
+  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"],
+  "authority": {
+    "may": [
+      "inventory the bounded issue graph",
+      "classify readiness from fetched facts plus agent-authored reconciliation",
+      "compare ready candidates against the task",
+      "select one child or preserve a non-selection result",
+      "reconcile the selected child against local source",
+      "seal issue-level outcome, scope, exclusions, constraints, protected behavior, evidence, and decisions"
+    ],
+    "must_not": [
+      "create, edit, comment on, label, close, reopen, or reorder GitHub issues",
+      "decompose one broad ticket into new tickets",
+      "invent or change epic dependencies",
+      "plan file edits, implementation order, tests, rollout, or rollback",
+      "select a blocked issue merely because it has high value",
+      "convert arbitrary related issues into epic children"
+    ]
+  },
+  "producer_consumer": {
+    "producers": ["scope-issue 5.0.0+"],
+    "consumers": [
+      {
+        "name": "plan-change and implement-plan",
+        "wire": {"kind": "issue", "version": 1},
+        "reads": ["metadata.status"],
+        "requires_status": "plan-ready"
+      },
+      {
+        "name": "tools/classification runtime",
+        "reads": ["metadata.status", "metadata.questions", "metadata.blockers", "metadata.close_evidence"],
+        "note": "v1 precedence only; the new non-selection statuses collapse to plan-ready until scope-issue #213 updates the classifier."
+      }
+    ]
+  },
+  "migration": {
+    "from_contract_version": 1,
+    "single_issue_compat": "When scope_inputs.json names the snapshot's single issue as the epic, the issue is both umbrella and selected target and no child selection is needed. The selection stage must declare exactly one CAND (readiness: ready) and one SEL naming that issue. Task text is taken from scope_inputs.json only; it is never invented from issue prose.",
+    "status_mapping": {
+      "plan-ready": "plan-ready",
+      "needs-info": "needs-info",
+      "blocked": "blocked",
+      "close-candidate": "close-candidate"
+    },
+    "field_mapping": {
+      "source.issue_number": "epic.number (single-issue mode)",
+      "source.issue_url": "epic.url (single-issue mode)",
+      "status": "status (one-to-one)",
+      "questions/blockers/close_evidence": "unchanged"
+    }
+  }
 }
