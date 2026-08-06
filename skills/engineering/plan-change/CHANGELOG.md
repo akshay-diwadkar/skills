@@ -1,5 +1,16 @@
 # Changelog
 
+## 5.0.0 - 2026-08-05
+
+- Emit plan-contract v7 with required Obligations (`RQ`) records, explicit `CH`
+  dependency/locality/reversibility fields, and expanded intents
+  (`migration`, `operational`).
+- Require propagation accounting for every `shared` change, force high-risk
+  protections for irreversible changes, and keep sealing one-pass and
+  agent-first without repository rediscovery.
+- Add deterministic offline plan-quality fixtures separate from the sealing
+  microbenchmark.
+
 ## 3.0.0 - 2026-08-01
 
 - Replace the stateful v5 discovery workflow with agent-authored v6 drafts and

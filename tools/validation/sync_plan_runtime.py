@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-V6_SOURCE = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "plan_runtime.py"
-V6_TARGETS = (
-    ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "plan_v6_runtime.py",
+V7_SOURCE = ROOT / "skills" / "engineering" / "plan-change" / "scripts" / "plan_runtime.py"
+V7_TARGETS = (
+    ROOT / "skills" / "engineering" / "implement-plan" / "scripts" / "plan_v7_runtime.py",
 )
 
 
@@ -18,7 +18,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     pairs = [
-        *( (V6_SOURCE, target) for target in V6_TARGETS ),
+        *((V7_SOURCE, target) for target in V7_TARGETS),
     ]
     stale = [target for source, target in pairs if not target.is_file() or target.read_bytes() != source.read_bytes()]
     if args.check:

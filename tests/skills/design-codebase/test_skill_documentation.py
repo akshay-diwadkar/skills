@@ -32,7 +32,7 @@ def test_skill_has_one_final_artifact_and_no_legacy_contract_surfaces() -> None:
     assert not (SKILL / "references" / "design-decision-rubric.md").exists()
     assert "L0" not in text
     assert "assessment-validation" not in text
-    assert "version: 3.0.1" in text
+    assert "version: 3.0.2" in text
     assert "seal_assessment.py" in protocol
     assert "check_assessment.py" not in protocol
     assert "finalize_assessment.py" not in protocol
@@ -83,7 +83,7 @@ def test_pipeline_documentation_and_changelog_are_present() -> None:
     assert "design-codebase" in readme
     assert "draft_file" in readme
     assert "request_file" in readme
-    assert "plan-contract v6" in readme
+    assert "plan-contract v7" in readme
     assert "request digest" in readme
 
     for skill_name in ("plan-change", "scope-issue"):

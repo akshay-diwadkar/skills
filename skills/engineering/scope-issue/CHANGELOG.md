@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.0.2 - 2026-08-05
+
+- Clarify that `plan-change` v7 binds obligation anchors to outcome and protected-behavior regions.
+
 ## 4.0.0 - 2026-08-03
 
 - Stop at one read-only `issue-handoff.md` and remove execution and post-merge ownership.

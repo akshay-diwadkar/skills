@@ -665,32 +665,53 @@ def _instruction_section(path: Path, heading: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
+VERSIONING_DELEGATE_HEADING = "Repository Changes"
+VERSIONING_AUTHORITY_PATH = ROOT / "REPO_VERSIONING.md"
+VERSIONING_REQUIRED_TERMS = (
+    "`VERSION`",
+    "`VERSION_DESC.md`",
+    "Semantic Versioning",
+    "only the affected",
+    "unmodified skills retain",
+    "highest-impact",
+    "Major:",
+    "Minor:",
+    "Patch:",
+    "validate_repository.py",
+)
+
+
+def _versioning_delegate_section(path: Path) -> str | None:
+    for heading in (VERSIONING_DELEGATE_HEADING, "Versioning"):
+        section = _instruction_section(path, heading)
+        if section is not None:
+            return section
+    return None
+
+
 def validate_versioning_instructions() -> list[str]:
-    agents_section = _instruction_section(ROOT / "AGENTS.md", "Versioning")
-    claude_section = _instruction_section(ROOT / "CLAUDE.md", "Versioning")
+    agents_section = _versioning_delegate_section(ROOT / "AGENTS.md")
+    claude_section = _versioning_delegate_section(ROOT / "CLAUDE.md")
     errors: list[str] = []
     if agents_section is None:
-        errors.append("AGENTS.md: missing Versioning section")
+        errors.append(f"AGENTS.md: missing {VERSIONING_DELEGATE_HEADING} section")
     if claude_section is None:
-        errors.append("CLAUDE.md: missing Versioning section")
+        errors.append(f"CLAUDE.md: missing {VERSIONING_DELEGATE_HEADING} section")
     if agents_section is not None and claude_section is not None and agents_section != claude_section:
-        errors.append("AGENTS.md and CLAUDE.md Versioning sections must match")
-    required_terms = (
-        "`VERSION`",
-        "`VERSION_DESC.md`",
-        "Semantic Versioning",
-        "only the affected",
-        "unmodified skills retain",
-        "highest-impact",
-        "Major:",
-        "Minor:",
-        "Patch:",
-        "validate_repository.py",
-    )
-    if agents_section is not None:
-        for term in required_terms:
-            if term not in agents_section:
-                errors.append(f"Versioning instructions must mention {term}")
+        errors.append(
+            f"AGENTS.md and CLAUDE.md {VERSIONING_DELEGATE_HEADING} sections must match"
+        )
+    for label, section in (("AGENTS.md", agents_section), ("CLAUDE.md", claude_section)):
+        if section is not None and "REPO_VERSIONING.md" not in section:
+            errors.append(f"{label}: {VERSIONING_DELEGATE_HEADING} must reference REPO_VERSIONING.md")
+    if not VERSIONING_AUTHORITY_PATH.is_file():
+        errors.append("REPO_VERSIONING.md: missing versioning authority file")
+        return errors
+    authority_text = VERSIONING_AUTHORITY_PATH.read_text(encoding="utf-8")
+    authority_lower = authority_text.lower()
+    for term in VERSIONING_REQUIRED_TERMS:
+        if term.lower() not in authority_lower:
+            errors.append(f"REPO_VERSIONING.md must mention {term}")
     return errors
 
 

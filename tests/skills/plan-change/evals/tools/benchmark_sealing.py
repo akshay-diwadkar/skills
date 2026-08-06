@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure the v6 one-pass plan sealer without retired v5 runtime code."""
+"""Measure the v7 one-pass plan sealer without agent exploration."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[5]
 import sys
 
 sys.path.insert(0, str(ROOT / "tests" / "skills" / "plan-change"))
-import v6_helpers as HELPERS  # noqa: E402
+import v7_helpers as HELPERS  # noqa: E402
 
 
 def _percentile95(values: list[float]) -> float:
@@ -42,12 +42,19 @@ def _make_repo(root: Path) -> Path:
     return root
 
 
-def _v6_draft(tier: str) -> str:
+def _v7_draft(tier: str) -> str:
     metadata = {
         "tiny": '{"intent":"bug-fix","tier":"tiny","risk_domains":[]}',
         "standard": '{"intent":"refactor","tier":"standard","risk_domains":[]}',
         "high-risk": '{"intent":"bug-fix","tier":"high-risk","risk_domains":["security"]}',
     }[tier]
+    locality = "local" if tier == "tiny" else "shared"
+    propagation = ""
+    if locality == "shared":
+        propagation = """
+## Propagation
+P-1: surface: test | disposition: test-only | path: tests/test_target.py | owner: CH-1 | reason: F-1 owns the targeted regression surface
+"""
     boundaries = ""
     if tier == "high-risk":
         boundaries = """
@@ -55,10 +62,18 @@ def _v6_draft(tier: str) -> str:
 B-1: class: trusted input boundary | evidence: F-1 | flow: caller input -> authorization decision -> target normalization
 R-1: severity: P1 | owner: CH-1 | tests: T-1 | risk: unauthorized input could cross the normalization boundary
 """
+    verification_then = (
+        "the case fails before the fix and passes after the fix while both values retain the exact normalized result"
+        if tier in {"tiny", "high-risk"}
+        else "both values retain the exact normalized result"
+    )
     return f"""# Update the target behavior
 
-<!-- plan-contract: 6 -->
+<!-- plan-contract: 7 -->
 <!-- plan-metadata: {metadata} -->
+
+## Obligations
+RQ-1: source: request | anchor: {tier} target change | obligation: apply the tier-specific target normalization update | covered_by: SC-1, CH-1, T-1
 
 ## Outcome
 SC-1: given: a padded target value | when: target processes the input | then: it returns the stripped value | unchanged: the public string result remains stable
@@ -67,9 +82,9 @@ SC-1: given: a padded target value | when: target processes the input | then: it
 F-1: kind: source | path: src/target.py | lines: 1-2 | anchor: target | claim: target owns the current string normalization
 
 ## Implementation
-CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: preserve exact string normalization while applying the requested tier-specific implementation update | locality: shared | reversibility: reversible
-{boundaries}## Verification
-T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted tests execute | then: both values retain the exact normalized result | command: python -m pytest tests/test_target.py -q
+CH-1: path: src/target.py | anchor: target | status: existing | evidence: F-1 | change: preserve exact string normalization while applying the requested tier-specific implementation update | depends_on: none | locality: {locality} | reversibility: reversible
+{propagation}{boundaries}## Verification
+T-1: covers: SC-1, CH-1 | given: padded and plain target values | when: targeted tests execute | then: {verification_then} | command: python -m pytest tests/test_target.py -q
 """
 
 
@@ -83,8 +98,8 @@ def _measure(iterations: int) -> dict[str, Any]:
         for tier in tiers:
             request = root / f"{tier}-request.md"
             request.write_text(f"Apply the equivalent {tier} target change.\n", encoding="utf-8")
-            draft = root / f"{tier}-v6.md"
-            draft.write_text(_v6_draft(tier), encoding="utf-8")
+            draft = root / f"{tier}-v7.md"
+            draft.write_text(_v7_draft(tier), encoding="utf-8")
             for _ in range(iterations):
                 started = time.perf_counter()
                 sealed = HELPERS.RUNTIME.seal_plan(repo, request, draft)
@@ -111,14 +126,14 @@ def main() -> int:
             "excluded": ["agent exploration", "agent drafting", "tool-call accounting", "token accounting"],
             "end_to_end_native_agent_parity": "not_measured",
         },
-        "v6_sealing_microbenchmark": {
-            "label": "v6 sealing only; excludes repository exploration and agent work",
+        "v7_sealing_microbenchmark": {
+            "label": "v7 sealing only; excludes repository exploration and agent work",
             "command": command,
             "iterations": args.iterations,
             "timings_seconds": measured["timings"],
             "operation_counts": measured["operations"],
         },
-        "environment": {"date": "2026-08-01", "platform": platform.platform(), "python": platform.python_version()},
+        "environment": {"date": "2026-08-05", "platform": platform.platform(), "python": platform.python_version()},
     }
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:

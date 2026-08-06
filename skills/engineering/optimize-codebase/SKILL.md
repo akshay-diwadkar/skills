@@ -1,7 +1,7 @@
 ---
 name: optimize-codebase
 description: Investigate a named performance, build, CI, dependency, maintainability, or developer-experience bottleneck and seal one evidence-backed optimization handoff for plan-change. Use targeted mode for a known pain and sweep mode only for explicit repository-wide discovery.
-version: 4.0.1
+version: 4.0.2
 metadata:
   invocation: user-invoked
 disable-model-invocation: true
@@ -52,6 +52,8 @@ deferments. Paths and symbols are evidence anchors, never an edit list.
 Complete only when the sealer returns exactly
 `/absolute/output/optimization-handoff.md`, its typed receipt verifies, and no
 other primary artifact exists. Pass only `plan-ready` output to `plan-change`.
+`plan-change` v7 binds `RQ` anchors to the selected plan-ready `H-n` /
+candidate material (not rejected candidates).
 
 If evidence or candidate selection changes, regenerate the draft and repeat the
 affected gates. A blocked measurement remains `needs-evidence`; never convert

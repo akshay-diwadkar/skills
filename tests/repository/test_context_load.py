@@ -36,6 +36,7 @@ def test_report_covers_every_skill_and_every_reference_file() -> None:
     assert set(measured["skills"]["plan-change"]["worst_reference_paths"]) == {
         "references/evidence-kinds.md",
         "references/plan-contract.md",
+        "references/plan-examples.md",
         "references/task-guidance.md",
     }
 

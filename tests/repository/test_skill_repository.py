@@ -187,15 +187,15 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert all(not validator.validate_frontmatter(skill) for skill in validator.discover_skills())
     versions = {skill.name: _skill_version(skill) for skill in validator.discover_skills()}
     assert versions["map-codebase"] == "2.4.2"
-    assert versions["audit-codebase"] == "4.1.1"
+    assert versions["audit-codebase"] == "4.1.2"
     assert versions["raise-issue"] == "1.0.1"
-    assert versions["plan-change"] == "4.0.1"
-    assert versions["design-codebase"] == "3.0.1"
-    assert versions["implement-plan"] == "3.2.1"
-    assert versions["scope-issue"] == "4.0.1"
-    assert versions["optimize-codebase"] == "4.0.1"
+    assert versions["plan-change"] == "5.0.0"
+    assert versions["design-codebase"] == "3.0.2"
+    assert versions["implement-plan"] == "3.3.0"
+    assert versions["scope-issue"] == "4.0.2"
+    assert versions["optimize-codebase"] == "4.0.2"
     assert versions["ideate"] == "2.0.0"
-    assert "3.0.1" in set(versions.values())
+    assert "3.0.2" in set(versions.values())
     assert validator.SEMVER_RE.fullmatch("1.0.0-alpha.1+build.7")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-01")
     assert not validator.SEMVER_RE.fullmatch("1.0.0-alpha..1")
@@ -269,6 +269,22 @@ def test_router_contract_is_exact_and_read_only() -> None:
 
 def test_agent_instruction_versioning_policies_match() -> None:
     assert validator.validate_versioning_instructions() == []
+
+
+def test_versioning_authority_must_include_required_terms(tmp_path: Path) -> None:
+  authority = REPO_ROOT / "REPO_VERSIONING.md"
+  broken = tmp_path / "REPO_VERSIONING.md"
+  broken.write_text(
+      authority.read_text(encoding="utf-8").replace("highest-impact", "highest priority", 1),
+      encoding="utf-8",
+  )
+  original = validator.VERSIONING_AUTHORITY_PATH
+  validator.VERSIONING_AUTHORITY_PATH = broken
+  try:
+      errors = validator.validate_versioning_instructions()
+  finally:
+      validator.VERSIONING_AUTHORITY_PATH = original
+  assert any("REPO_VERSIONING.md must mention highest-impact" in error for error in errors)
 
 
 def test_publish_release_workflow_uses_version_description() -> None:

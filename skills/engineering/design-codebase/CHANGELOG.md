@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.2 - 2026-08-05
+
+- Clarify that `plan-change` v7 binds obligation anchors to Chosen Design body text.
+
 ## 3.0.0 - 2026-08-03
 
 - Rename the sole sealed artifact to `design-handoff.md` and add a typed receipt.

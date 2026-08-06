@@ -2,21 +2,22 @@
 
 Read only the matching branch.
 
-- Feature: trace the new behavior from entry point through ownership and tests;
-  name defaults, errors, ordering, and preserved behavior.
-- Bug fix: identify the root-cause branch and the smallest behavior correction;
-  include a regression test that fails before the fix.
-- Refactor: preserve observable behavior and enumerate agent-identified callers,
-  re-exports, fixtures, and contract surfaces.
-- Public contract or migration: describe old/new shapes, mixed-version behavior,
-  deployment order, interrupted state, and rollback or roll-forward.
-- Security: identify principal, tenant/trust boundary, authorization owner,
-  denial behavior, and cross-boundary tests.
-- Concurrency: identify shared state, atomicity/lock boundary, retries,
-  idempotency identity, worst interleaving, and reconciliation.
-- External integration or irreversible effect: cover API version,
-  authentication, timeouts, retry classes, rate limits, ambiguous success,
-  idempotency, and compensation/reconciliation.
+- Feature: entry → ownership → tests; name defaults, errors, ordering, preserved
+  behavior. Non-tiny local changes need an evidence-backed no-propagation P.
+- Bug fix: root-cause branch, smallest correction, verification that fails before
+  the fix and passes after.
+- Refactor: preserve behavior; enumerate callers, re-exports, fixtures, contracts.
+- Migration: old/new shapes, mixed-version behavior, deploy order, interrupted
+  state, rollback/roll-forward.
+- Operational: rollout trigger, observability signal, recovery, blast radius.
+- Public contract/schema: consumers, compatibility window, generated/config
+  companions.
+- Dependency/config: owning manifest, defaults/failures, downstream consumers.
+- Generated artifacts: generator ownership, exact outputs, regeneration checks.
+- Security: principal, trust boundary, authz owner, denial, cross-boundary tests.
+- Concurrency: shared state, atomicity, retries, idempotency, worst interleaving,
+  reconciliation.
+- External/irreversible: API version, auth, timeouts, retries, rate limits,
+  ambiguous success, idempotency, compensation.
 
-Add records only for applicable surfaces. Do not manufacture decisions,
-propagation, or risks to satisfy a template.
+Add records only for applicable surfaces; do not manufacture sections.

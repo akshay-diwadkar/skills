@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -20,6 +21,12 @@ SPEC.loader.exec_module(RUNTIME)
 def sealed(kind: str, body: str, version: int = 1) -> bytes:
     digest = hashlib.sha256(body.encode()).hexdigest()
     return f"<!-- {kind}-handoff: {version}; sha256: {digest} -->\n{body}".encode()
+
+
+def _diagnostics(error: BaseException) -> tuple[Any, ...]:
+    diagnostics = getattr(error, "diagnostics", None)
+    assert isinstance(diagnostics, tuple)
+    return diagnostics
 
 
 @pytest.mark.parametrize(
@@ -73,3 +80,283 @@ def test_rejects_tampered_unknown_and_unsupported_handoffs() -> None:
 def test_selector_is_rejected_for_non_audit_input() -> None:
     with pytest.raises(ValueError, match="only for audit"):
         RUNTIME.detect_request_source(sealed("design", "body\n"), "D-1")
+
+
+def test_typed_handoff_plans_require_matching_rq_source_and_audit_anchor(tmp_path: Path) -> None:
+    helpers_spec = importlib.util.spec_from_file_location(
+        "plan_change_v7_helpers",
+        ROOT / "tests" / "skills" / "plan-change" / "v7_helpers.py",
+    )
+    assert helpers_spec and helpers_spec.loader
+    helpers = importlib.util.module_from_spec(helpers_spec)
+    helpers_spec.loader.exec_module(helpers)
+
+    repo = helpers.make_repo(tmp_path / "repo")
+    body = "# Audit\n## Issue FND-2\nNormalize absent values safely.\n## Issue FND-9\nUnrelated finding.\n"
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_bytes(sealed("audit", body))
+    good = (
+        helpers.tiny_plan(request_anchor="Normalize absent values safely")
+        .replace("source: request", "source: audit")
+        .replace(
+            "obligation: absent input names must normalize to an empty string",
+            "obligation: remediate selected finding absent-value normalization",
+        )
+    )
+    draft.write_text(good, encoding="utf-8")
+    sealed_plan = RUNTIME.seal_plan(repo, request, draft, handoff_item="FND-2")
+    assert "<!-- plan-validation: 7;" in sealed_plan.text
+
+    wrong_source = good.replace("source: audit", "source: request")
+    draft.write_text(wrong_source, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as wrong_source_error:
+        RUNTIME.seal_plan(repo, request, draft, handoff_item="FND-2")
+    assert any(item.code == "obligation.source" for item in _diagnostics(wrong_source_error.value))
+
+    wrong_finding = good.replace("Normalize absent values safely", "Unrelated finding")
+    draft.write_text(wrong_finding, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as wrong_finding_error:
+        RUNTIME.seal_plan(repo, request, draft, handoff_item="FND-2")
+    assert any(item.code == "obligation.anchor" for item in _diagnostics(wrong_finding_error.value))
+
+
+def test_bug_fix_requires_fail_before_or_regression_verification(tmp_path: Path) -> None:
+    helpers_spec = importlib.util.spec_from_file_location(
+        "plan_change_v7_helpers_bugfix",
+        ROOT / "tests" / "skills" / "plan-change" / "v7_helpers.py",
+    )
+    assert helpers_spec and helpers_spec.loader
+    helpers = importlib.util.module_from_spec(helpers_spec)
+    helpers_spec.loader.exec_module(helpers)
+
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    weak = helpers.tiny_plan().replace(
+        "then: the case fails before the fix and passes after the fix with absent input empty and present input stripped",
+        "then: absent input is empty and present input is stripped",
+    )
+    draft.write_text(weak, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "verification.regression" for item in _diagnostics(error.value))
+
+
+def _load_helpers(name: str):
+    helpers_spec = importlib.util.spec_from_file_location(
+        name,
+        ROOT / "tests" / "skills" / "plan-change" / "v7_helpers.py",
+    )
+    assert helpers_spec and helpers_spec.loader
+    helpers = importlib.util.module_from_spec(helpers_spec)
+    helpers_spec.loader.exec_module(helpers)
+    return helpers
+
+
+def test_bug_fix_regression_ignores_command_path(tmp_path: Path) -> None:
+    helpers = _load_helpers("plan_change_v7_helpers_bugfix_command")
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text("Fix absent names.\n", encoding="utf-8")
+    weak = (
+        helpers.tiny_plan()
+        .replace(
+            "then: the case fails before the fix and passes after the fix with absent input empty and present input stripped",
+            "then: absent input is empty and present input is stripped",
+        )
+        .replace(
+            "command: python -m pytest tests/test_names.py -q",
+            "command: python -m pytest tests/regression/test_names.py -q",
+        )
+    )
+    draft.write_text(weak, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "verification.regression" for item in _diagnostics(error.value))
+
+
+def test_irreversible_rollout_requires_concrete_content(tmp_path: Path) -> None:
+    helpers = _load_helpers("plan_change_v7_helpers_irreversible_rollout")
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text("Deny unauthorized tenant names.\n", encoding="utf-8")
+    weak = (
+        helpers.high_risk_plan()
+        .replace("reversibility: reversible", "reversibility: irreversible")
+        .replace(
+            "## Verification\n",
+            "## Rollout and Rollback\n"
+            "Ship the authorization change carefully after review.\n"
+            "\n## Verification\n",
+        )
+    )
+    draft.write_text(weak, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "rollout.invalid" for item in _diagnostics(error.value))
+
+
+def test_dependency_missing_and_cycle_are_rejected(tmp_path: Path) -> None:
+    helpers = _load_helpers("plan_change_v7_helpers_dependency")
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(helpers.DEFAULT_REQUEST, encoding="utf-8")
+
+    missing = helpers.tiny_plan().replace("depends_on: none", "depends_on: CH-9")
+    draft.write_text(missing, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as missing_error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "dependency.missing" for item in _diagnostics(missing_error.value))
+
+    cyclic = helpers.tiny_plan().replace(
+        "CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: return the empty string for absent values before stripping present names | "
+        "depends_on: none | locality: local | reversibility: reversible",
+        "CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: return the empty string for absent values before stripping present names | "
+        "depends_on: CH-2 | locality: local | reversibility: reversible\n"
+        "CH-2: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: keep stripping present names after absent values normalize | "
+        "depends_on: CH-1 | locality: local | reversibility: reversible",
+    ).replace(
+        "T-1: covers: SC-1, CH-1 |",
+        "T-1: covers: SC-1, CH-1, CH-2 |",
+    ).replace(
+        "covered_by: SC-1, CH-1, T-1",
+        "covered_by: SC-1, CH-1, CH-2, T-1",
+    )
+    draft.write_text(cyclic, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as cycle_error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "dependency.cycle" for item in _diagnostics(cycle_error.value))
+
+
+def test_dependency_order_is_recorded_in_proof(tmp_path: Path) -> None:
+    helpers = _load_helpers("plan_change_v7_helpers_dependency_order")
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+    request.write_text(helpers.DEFAULT_REQUEST, encoding="utf-8")
+    ordered = helpers.tiny_plan().replace(
+        "CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: return the empty string for absent values before stripping present names | "
+        "depends_on: none | locality: local | reversibility: reversible",
+        "CH-1: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: return the empty string for absent values before stripping present names | "
+        "depends_on: none | locality: local | reversibility: reversible\n"
+        "CH-2: path: src/names.py | anchor: normalize_name | status: existing | evidence: F-1 | "
+        "change: document the empty-string contract beside the normalize_name owner | "
+        "depends_on: CH-1 | locality: local | reversibility: reversible",
+    ).replace(
+        "T-1: covers: SC-1, CH-1 |",
+        "T-1: covers: SC-1, CH-1, CH-2 |",
+    ).replace(
+        "covered_by: SC-1, CH-1, T-1",
+        "covered_by: SC-1, CH-1, CH-2, T-1",
+    )
+    draft.write_text(ordered, encoding="utf-8")
+    sealed = RUNTIME.seal_plan(repo, request, draft)
+    assert sealed.proof["change_order"] == ["CH-1", "CH-2"]
+
+
+def test_design_optimization_issue_anchors_must_use_selected_material(tmp_path: Path) -> None:
+    helpers = _load_helpers("plan_change_v7_helpers_selected_material")
+    repo = helpers.make_repo(tmp_path / "repo")
+    request = tmp_path / "request.md"
+    draft = tmp_path / "draft.md"
+
+    design_body = (
+        "## Chosen Design & Depth Rationale\n"
+        "- Boundary: NameGateway.normalize owns absent-name handling\n"
+        "- Constraint: preserve present-name strip contract\n"
+        "## Alternatives Considered\n"
+        "### Alternative: RejectedStripOnly\n"
+        "- Boundary: strip-only helper without gateway\n"
+    )
+    request.write_bytes(sealed("design", design_body))
+    good = (
+        helpers.tiny_plan(request_anchor="NameGateway.normalize owns absent-name handling")
+        .replace("source: request", "source: design")
+        .replace(
+            "RQ-1: source: design | anchor: NameGateway.normalize owns absent-name handling | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+            "RQ-1: source: design | category: decision | anchor: NameGateway.normalize owns absent-name handling | obligation: implement the selected NameGateway.normalize boundary | covered_by: SC-1, CH-1, T-1\n"
+            "RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1",
+        )
+        .replace(
+            "obligation: absent input names must normalize to an empty string",
+            "obligation: implement the selected NameGateway.normalize boundary",
+        )
+    )
+    # Fix if first replace already changed obligation text
+    if "RQ-2:" not in good:
+        good = (
+            helpers.tiny_plan(request_anchor="NameGateway.normalize owns absent-name handling")
+            .replace(
+                "RQ-1: source: request | anchor: NameGateway.normalize owns absent-name handling | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+                "RQ-1: source: design | category: decision | anchor: NameGateway.normalize owns absent-name handling | obligation: implement the selected NameGateway.normalize boundary | covered_by: SC-1, CH-1, T-1\n"
+                "RQ-2: source: design | category: constraint | anchor: preserve present-name strip contract | obligation: preserve the strip contract while introducing the boundary | covered_by: SC-1, CH-1, T-1",
+            )
+        )
+    draft.write_text(good, encoding="utf-8")
+    assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text
+    bad = good.replace("NameGateway.normalize owns absent-name handling", "strip-only helper without gateway")
+    draft.write_text(bad, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as design_error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "obligation.anchor" for item in _diagnostics(design_error.value))
+
+    opt_body = (
+        "- Selected candidate: C-1\n"
+        "- H-1: next: plan-ready | candidate: C-1 | measure: p95 latency | workflow: normalize_name hot path\n"
+        "- C-1: cache normalize_name for repeated inputs\n"
+        "- C-9: rejected speculative rewrite\n"
+    )
+    request.write_bytes(sealed("optimization", opt_body))
+    good_opt = helpers.tiny_plan(request_anchor="cache normalize_name for repeated inputs").replace(
+        "RQ-1: source: request | anchor: cache normalize_name for repeated inputs | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+        "RQ-1: source: optimization | category: candidate | anchor: cache normalize_name for repeated inputs | obligation: apply selected candidate cache for repeated inputs | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-2: source: optimization | category: workflow | anchor: normalize_name hot path | obligation: target the normalize_name hot path workflow | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-3: source: optimization | category: measure | anchor: p95 latency | obligation: improve the p95 latency measure for the workflow | covered_by: SC-1, CH-1, T-1",
+    ).replace(
+        '{"intent":"bug-fix","tier":"tiny","risk_domains":[]}',
+        '{"intent":"feature","tier":"tiny","risk_domains":[]}',
+    ).replace(
+        "then: the case fails before the fix and passes after the fix with absent input empty and present input stripped",
+        "then: cached repeated inputs match the measured workflow expectation",
+    )
+    draft.write_text(good_opt, encoding="utf-8")
+    assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text
+    bad_opt = good_opt.replace("cache normalize_name for repeated inputs", "rejected speculative rewrite")
+    draft.write_text(bad_opt, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as opt_error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "obligation.anchor" for item in _diagnostics(opt_error.value))
+
+    issue_body = (
+        "## Outcome and Scope\n"
+        "Return empty string for absent names.\n"
+        "## Constraints and Protected Behavior\n"
+        "Protect current strip behavior for present names.\n"
+        "Constraint: keep the public normalize_name signature stable.\n"
+        "## Risks and Open Questions\n"
+        "Incidental prose must not be used as an obligation anchor.\n"
+    )
+    request.write_bytes(sealed("issue", '<!-- issue-handoff-metadata -->\n```json\n{"status":"plan-ready"}\n```\n' + issue_body))
+    good_issue = helpers.tiny_plan(request_anchor="Protect current strip behavior").replace(
+        "RQ-1: source: request | anchor: Protect current strip behavior | obligation: absent input names must normalize to an empty string | covered_by: SC-1, CH-1, T-1",
+        "RQ-1: source: issue | category: outcome | anchor: Return empty string for absent names | obligation: return empty string for absent names | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-2: source: issue | category: protected-behavior | anchor: Protect current strip behavior | obligation: protect current strip behavior for present names | covered_by: SC-1, CH-1, T-1\n"
+        "RQ-3: source: issue | category: constraint | anchor: keep the public normalize_name signature stable | obligation: keep the public normalize_name signature stable | covered_by: SC-1, CH-1, T-1",
+    )
+    draft.write_text(good_issue, encoding="utf-8")
+    assert "<!-- plan-validation: 7;" in RUNTIME.seal_plan(repo, request, draft).text
+    bad_issue = good_issue.replace("Protect current strip behavior", "Incidental prose must not be used")
+    draft.write_text(bad_issue, encoding="utf-8")
+    with pytest.raises(ValueError, match="draft validation failed") as issue_error:
+        RUNTIME.seal_plan(repo, request, draft)
+    assert any(item.code == "obligation.anchor" for item in _diagnostics(issue_error.value))

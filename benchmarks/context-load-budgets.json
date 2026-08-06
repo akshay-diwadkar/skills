@@ -150,10 +150,10 @@
       "metric": "top_level",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 650,
-      "expires": "2027-08-03",
-      "rationale": "Plan intake now verifies four typed handoffs, enforces one audit finding, and records upstream provenance while preserving generic requests.",
-      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "max_tokens": 700,
+      "expires": "2027-08-05",
+      "rationale": "Plan intake verifies typed handoffs and now states anti-ceremony, repair/re-explore, and opt-in example calibration without weakening authority rules.",
+      "supporting_paths": ["SKILL.md", "skill-protocol.json", "references/plan-examples.md"],
       "protected_rule_ids": ["plan.read-only", "plan.agent-authority"]
     },
     {
@@ -162,11 +162,23 @@
       "metric": "pre_action",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 850,
+      "max_tokens": 900,
       "expires": "2027-08-03",
       "rationale": "The optional audit selector is exposed before sealing so multi-finding handoffs fail closed without adding another planning phase.",
       "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output"]
+    },
+    {
+      "id": "plan-change-v7-structured-obligation-coverage",
+      "skill": "plan-change",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 3300,
+      "expires": "2027-08-05",
+      "rationale": "Opt-in worked examples calibrate first-run authoring across tiny, standard, and high-risk tiers with complete drafts, delta records, tier decisions, and stop conditions; the examples stay opt-in, measure 3035 tokens, and the 3300-token cap preserves narrow repair headroom.",
+      "supporting_paths": ["references/plan-contract.md", "references/plan-examples.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
       "id": "scope-handoff-reference-reduction",

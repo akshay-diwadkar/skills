@@ -1,7 +1,7 @@
 ---
 name: design-codebase
 description: Decide and justify a repository-grounded codebase design, then emit one plan-ready handoff document. Use for boundary, dependency-direction, state-ownership, abstraction, consolidation, or subsystem design decisions that must be settled before plan-change determines implementation scope and verification.
-version: 3.0.1
+version: 3.0.2
 metadata:
   invocation: both
 disable-model-invocation: false
@@ -56,8 +56,10 @@ Complete only when phase `complete` returns exactly
 `/absolute/output/design-handoff.md`, its typed receipt and evidence verification
 pass, and no other
 primary artifact exists. Pass that file to
-`plan-change` as `request_file`; the planning agent writes the separate v6
+`plan-change` as `request_file`; the planning agent writes the separate v7
 draft after native exploration and seals both inputs with the stateless run.
+`plan-change` v7 binds `RQ` anchors to `## Chosen Design & Depth Rationale`
+(not Alternatives-only prose).
 
 If sealing fails, repair the draft named by the diagnostic and rerun the same
 seal command. If repository evidence changed, refresh the affected evidence
