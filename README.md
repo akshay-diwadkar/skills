@@ -252,5 +252,3 @@ owner; pull requests and other repository collaborators cannot invoke the publis
 ## License
 
 Released under the [MIT License](LICENSE).
-
-
