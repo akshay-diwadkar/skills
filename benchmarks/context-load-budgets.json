@@ -192,6 +192,66 @@
       "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
+      "id": "scope-epic-contract-top-level",
+      "skill": "scope-issue",
+      "metric": "top_level",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 780,
+      "expires": "2027-08-06",
+      "rationale": "The epic-aware SKILL.md states the two-stage selection/narrowing workflow and all eight honest terminal statuses without weakening read-only or one-artifact authority.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-epic-contract-pre-action",
+      "skill": "scope-issue",
+      "metric": "pre_action",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1250,
+      "expires": "2027-08-06",
+      "rationale": "The stateless protocol carries the immutable task and epic anchors plus the fetched graph snapshot before selection so status obligations verify without further reads.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-epic-contract-references",
+      "skill": "scope-issue",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 3400,
+      "expires": "2027-08-06",
+      "rationale": "The epic-aware scope contract is the single source of truth for two stages, eight statuses, seven selection record types, per-status obligations, and migration rules; it replaces the compact one-issue contract while staying under the absolute reference budget.",
+      "supporting_paths": ["references/issue-scope-contract.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-epic-contract-diagnostics",
+      "skill": "scope-issue",
+      "metric": "repair_diagnostic",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 360,
+      "expires": "2027-08-06",
+      "rationale": "Diagnostics name the exact failed obligation and the owning record or metadata field across the epic-aware status model instead of repeated phase instructions.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-epic-contract-output",
+      "skill": "scope-issue",
+      "metric": "tool_output",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 290,
+      "expires": "2027-08-06",
+      "rationale": "The one-pass seal result carries the typed v2 receipt envelope and the verified selection/narrowing summary while preserving compact single-artifact output.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
       "id": "plan-change-v6-top-level-reduction",
       "skill": "plan-change",
       "metric": "top_level",

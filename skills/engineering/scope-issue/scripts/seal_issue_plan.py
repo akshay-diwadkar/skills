@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically seal the sole selected-issue handoff artifact."""
+"""Atomically seal the sole selected-issue handoff artifact (contract v1 or v2)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import re
 import tempfile
 from pathlib import Path
 
-from check_issue_plan import validate_plan
+from check_issue_plan import HandoffContractError, parse_metadata, validate_plan
 
-RECEIPT_RE = re.compile(r"^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
+RECEIPT_RE = re.compile(r"^<!-- issue-handoff: ([12]); sha256: ([0-9a-f]{64}) -->$")
 
 
 def _receipt_free(text: str) -> str:
@@ -21,7 +21,7 @@ def _receipt_free(text: str) -> str:
     match = RECEIPT_RE.fullmatch(first)
     if match is None:
         return text
-    if not separator or hashlib.sha256(body.encode("utf-8")).hexdigest() != match.group(1):
+    if not separator or hashlib.sha256(body.encode("utf-8")).hexdigest() != match.group(2):
         raise ValueError("issue handoff receipt does not match content")
     return body
 
@@ -32,19 +32,38 @@ def main() -> int:
     parser.add_argument("--issue-json", type=Path, required=True)
     parser.add_argument("--draft", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--task")
+    parser.add_argument("--epic-number", type=int)
+    parser.add_argument("--child-override", type=int)
     args = parser.parse_args()
     try:
         text = _receipt_free(args.draft.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"valid": False, "diagnostics": [{"code": "handoff.invalid", "message": str(exc)}]}))
         return 1
-    errors = validate_plan(args.draft, args.issue_json, args.repo_root)
+    try:
+        version = int(parse_metadata(text).get("contract_version") or 0)
+    except (ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"valid": False, "diagnostics": [{"code": "handoff.invalid", "message": str(exc)}]}))
+        return 1
+    try:
+        errors = validate_plan(
+            args.draft,
+            args.issue_json,
+            args.repo_root,
+            task=args.task,
+            epic_number=args.epic_number,
+            child_override=args.child_override,
+        )
+    except HandoffContractError as exc:
+        print(json.dumps({"valid": False, "diagnostics": [{"code": "issue-handoff.invalid", "message": str(exc)}]}))
+        return 1
     if errors:
         print(json.dumps({"valid": False, "diagnostics": [{"code": "issue-handoff.invalid", "message": item} for item in errors]}, sort_keys=True, separators=(",", ":")))
         return 1
     body = text.replace("\r\n", "\n").replace("\r", "\n").rstrip() + "\n"
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-    sealed = f"<!-- issue-handoff: 1; sha256: {digest} -->\n{body}"
+    sealed = f"<!-- issue-handoff: {version}; sha256: {digest} -->\n{body}"
     destination = args.output_dir.resolve() / "issue-handoff.md"
     extras = [path for path in destination.parent.iterdir() if path != destination] if destination.parent.is_dir() else []
     if extras:

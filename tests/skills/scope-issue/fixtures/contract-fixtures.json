@@ -1,0 +1,103 @@
+[
+  {
+    "name": "plan-ready-single-ready-child",
+    "status": "plan-ready",
+    "selection": "- CAND-1: issue: #11 | readiness: ready | basis: open child, no linked PR\n- FRON-1: ready: [#11] | basis: single ready candidate\n- SEL-1: issue: #11 | rationale: only ready candidate and task fits | evidence: CAND-1, FRON-1\n",
+    "scope": "- SC-1: names are normalized consistently\n",
+    "ledger": "- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: normalization is owned here\n",
+    "constraints": "- C-1: preserve non-empty normalization | status: preserved\n"
+  },
+  {
+    "name": "selection-tie-honest-tie",
+    "status": "selection-tie",
+    "selection": "- CAND-1: issue: #11 | readiness: ready | basis: open\n- CAND-2: issue: #12 | readiness: ready | basis: open\n- FRON-1: ready: [#11, #12] | basis: both ready\n- ALT-1: issue: #11 | why-not-now: equivalent task fit\n- ALT-2: issue: #12 | why-not-now: equivalent task fit\n",
+    "metadata": {
+      "tie_evidence": ["both candidates are equivalent under the task constraints"],
+      "source": {
+        "repo": "acme/widget",
+        "issue_number": 10,
+        "issue_url": "https://github.com/acme/widget/issues/10",
+        "issue_updated_at": "2026-08-02T00:00:00Z",
+        "fetched_at": "2026-08-03T00:00:00Z"
+      }
+    }
+  },
+  {
+    "name": "no-ready-issue-honest-report",
+    "status": "no-ready-issue",
+    "selection": "- CAND-1: issue: #11 | readiness: blocked | basis: prerequisite PR open\n- CAND-2: issue: #12 | readiness: in-progress | basis: PR under review\n- FRON-1: ready: [] | basis: none ready\n",
+    "metadata": {
+      "no_ready_reason": ["all children are blocked or in-progress"],
+      "source": {
+        "repo": "acme/widget",
+        "issue_number": 10,
+        "issue_url": "https://github.com/acme/widget/issues/10",
+        "issue_updated_at": "2026-08-02T00:00:00Z",
+        "fetched_at": "2026-08-03T00:00:00Z"
+      }
+    }
+  },
+  {
+    "name": "needs-decomposition-honest-report",
+    "status": "needs-decomposition",
+    "selection": "- CAND-1: issue: #11 | readiness: decomposition | basis: child mixes refactor and new behavior\n- SEL-1: issue: #11 | rationale: task touches this child | evidence: CAND-1\n",
+    "metadata": {
+      "decomposition_reason": ["the child needs splitting into implementation-plan-sized chunks"]
+    }
+  },
+  {
+    "name": "blocked-honest-report",
+    "status": "blocked",
+    "selection": "",
+    "metadata": {
+      "blockers": ["repository checkout is incomplete"],
+      "source": {
+        "repo": "acme/widget",
+        "issue_number": 10,
+        "issue_url": "https://github.com/acme/widget/issues/10",
+        "issue_updated_at": "2026-08-02T00:00:00Z",
+        "fetched_at": "2026-08-03T00:00:00Z"
+      }
+    }
+  },
+  {
+    "name": "needs-info-honest-report",
+    "status": "needs-info",
+    "selection": "",
+    "metadata": {
+      "questions": ["which namespace owns normalization?"],
+      "source": {
+        "repo": "acme/widget",
+        "issue_number": 10,
+        "issue_url": "https://github.com/acme/widget/issues/10",
+        "issue_updated_at": "2026-08-02T00:00:00Z",
+        "fetched_at": "2026-08-03T00:00:00Z"
+      }
+    }
+  },
+  {
+    "name": "close-candidate-child-already-satisfied",
+    "status": "close-candidate",
+    "selection": "- SEL-1: issue: #11 | rationale: child already implements the outcome | evidence: merged PR #9\n",
+    "scope": "- SC-1: names are normalized consistently\n",
+    "ledger": "- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: normalization is owned here\n",
+    "metadata": {
+      "close_evidence": ["the child shipped the outcome in merged PR #9"]
+    }
+  },
+  {
+    "name": "epic-complete-all-children-shipped",
+    "status": "epic-complete",
+    "selection": "- CAND-1: issue: #11 | readiness: completed | basis: merged and verified\n- CAND-2: issue: #12 | readiness: completed | basis: merged and verified\n",
+    "metadata": {
+      "epic_complete_evidence": ["every child is completed; no remaining open work"],
+      "source": {
+        "repo": "acme/widget",
+        "issue_number": 10,
+        "issue_url": "https://github.com/acme/widget/issues/10",
+        "issue_updated_at": "2026-08-02T00:00:00Z",
+        "fetched_at": "2026-08-03T00:00:00Z"
+      }
+    }
+  }
+]

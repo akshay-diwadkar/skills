@@ -1,0 +1,252 @@
+{
+  "contract_version": 2,
+  "role": "Given one explicit user task and one explicit epic/umbrella GitHub issue, select and narrow exactly one ready child issue and seal one issue-handoff.md for plan-change, or preserve an honest non-selection state. Read-only with respect to GitHub and the target repository.",
+  "stages": {
+    "selection": "Bind task and epic anchors, inventory the bounded candidate set, classify readiness, derive the ready frontier, compare ready candidates against the task, and select one child or preserve a non-selection state.",
+    "narrowing": "Reconcile only the selected child against local source and record outcome, scope, exclusions, constraints, protected behavior, evidence, and issue-level decisions."
+  },
+  "statuses": [
+    "plan-ready",
+    "needs-info",
+    "blocked",
+    "close-candidate",
+    "needs-decomposition",
+    "no-ready-issue",
+    "epic-complete",
+    "selection-tie"
+  ],
+  "readiness": [
+    "ready",
+    "blocked",
+    "in-progress",
+    "completed",
+    "superseded",
+    "unknown",
+    "decomposition"
+  ],
+  "status_passes_downstream": {
+    "plan-ready": ["plan-change"]
+  },
+  "sections": [
+    "Task and Epic",
+    "Selection",
+    "Outcome and Scope",
+    "Issue Claims (Untrusted)",
+    "Local Evidence Ledger",
+    "Issue-Level Decisions",
+    "Constraints and Protected Behavior",
+    "Risks and Open Questions",
+    "Plan-Change Handoff"
+  ],
+  "status_sections": {
+    "plan-ready": [
+      "Task and Epic",
+      "Selection",
+      "Outcome and Scope",
+      "Issue Claims (Untrusted)",
+      "Local Evidence Ledger",
+      "Constraints and Protected Behavior",
+      "Risks and Open Questions",
+      "Plan-Change Handoff"
+    ],
+    "needs-info": ["Task and Epic", "Selection", "Risks and Open Questions"],
+    "blocked": ["Task and Epic", "Selection", "Risks and Open Questions"],
+    "close-candidate": [
+      "Task and Epic",
+      "Selection",
+      "Outcome and Scope",
+      "Issue Claims (Untrusted)",
+      "Local Evidence Ledger",
+      "Constraints and Protected Behavior",
+      "Risks and Open Questions"
+    ],
+    "needs-decomposition": ["Task and Epic", "Selection", "Issue Claims (Untrusted)", "Risks and Open Questions"],
+    "no-ready-issue": ["Task and Epic", "Selection", "Risks and Open Questions"],
+    "epic-complete": ["Task and Epic", "Selection", "Risks and Open Questions"],
+    "selection-tie": ["Task and Epic", "Selection", "Risks and Open Questions"]
+  },
+  "record_types": {
+    "CAND": {
+      "stage": "selection",
+      "format": "- CAND-n: issue: #N | readiness: <readiness enum> | basis: <evidence summary>"
+    },
+    "FRON": {
+      "stage": "selection",
+      "format": "- FRON-n: ready: [#N, ...] | basis: <summary>"
+    },
+    "SEL": {
+      "stage": "selection",
+      "format": "- SEL-n: issue: #N | rationale: <task-relative priority rationale> | evidence: <references>"
+    },
+    "ALT": {
+      "stage": "selection",
+      "format": "- ALT-n: issue: #N | why-not-now: <reason>"
+    },
+    "AWC": {
+      "stage": "selection",
+      "format": "- AWC-n: if: <condition> | then: #N"
+    },
+    "UNK": {
+      "stage": "selection",
+      "format": "- UNK-n: unknown: <item> | impact: <effect on selection>"
+    },
+    "OVR": {
+      "stage": "selection",
+      "format": "- OVR-n: issue: #N | validated: <membership and readiness facts>",
+      "note": "an explicit child override is binding only when its candidate is ready; a declined override must not be selected (SEL) and its decline is recorded in ALT or no_ready_reason"
+    },
+    "SC": {
+      "stage": "narrowing",
+      "format": "- SC-n: observable issue outcome"
+    },
+    "F": {
+      "stage": "narrowing",
+      "format": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior"
+    },
+    "D": {
+      "stage": "narrowing",
+      "format": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback"
+    },
+    "C": {
+      "stage": "narrowing",
+      "format": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk"
+    }
+  },
+  "forbidden_records": {
+    "CH": "plan-change change record; implementation planning is not owned by scope-issue",
+    "T": "plan-change verification record",
+    "P": "plan-change propagation record",
+    "R": "plan-change risk record",
+    "B": "plan-change boundary record"
+  },
+  "status_requirements": {
+    "plan-ready": {
+      "records": ["CAND", "FRON", "SEL", "SC", "F", "C"],
+      "sel_exactly_one": true,
+      "sel_in_ready_frontier": true,
+      "frontier_derived_from_candidates": true,
+      "alt_when_frontier_gt_1": true
+    },
+    "needs-info": {
+      "records": [],
+      "questions_required": true
+    },
+    "blocked": {
+      "records": [],
+      "blockers_required": true
+    },
+    "close-candidate": {
+      "records": ["SEL", "F", "SC", "C"],
+      "sel_exactly_one": true,
+      "close_evidence_required": true
+    },
+    "needs-decomposition": {
+      "records": ["CAND", "SEL"],
+      "sel_exactly_one": true,
+      "decomposition_reason_required": true
+    },
+    "no-ready-issue": {
+      "records": ["FRON"],
+      "frontier_empty": true,
+      "at_least_one_candidate_not_completed": true,
+      "no_ready_reason_required": true
+    },
+    "epic-complete": {
+      "records": ["CAND"],
+      "all_candidates_completed": true,
+      "epic_complete_evidence_required": true
+    },
+    "selection-tie": {
+      "records": ["CAND", "FRON", "ALT"],
+      "alt_at_least_2": true,
+      "no_sel": true,
+      "tie_evidence_required": true
+    }
+  },
+  "status_obligation_rules": {
+    "at_most_one_status_evidence_flag": "close_evidence, decomposition_reason, no_ready_reason, epic_complete_evidence, and tie_evidence are mutually exclusive: at most one may be non-empty and it must belong to the sealed status",
+    "questions_and_blockers_exclusive": "questions may be non-empty only for needs-info; blockers may be non-empty only for blocked",
+    "no_selection_records_for_report_states": "needs-info and blocked carry no selection records (CAND, FRON, SEL, ALT, OVR, AWC, UNK)"
+  },
+  "required_metadata": [
+    "contract_version",
+    "task.anchor",
+    "task.constraints",
+    "epic.issue_number",
+    "epic.issue_url",
+    "graph.snapshot",
+    "source.repo",
+    "source.issue_number",
+    "source.issue_url",
+    "source.issue_updated_at",
+    "source.fetched_at",
+    "checkout.root",
+    "checkout.remote_repo",
+    "checkout.commit",
+    "checkout.dirty",
+    "status",
+    "questions",
+    "blockers",
+    "close_evidence",
+    "decomposition_reason",
+    "no_ready_reason",
+    "epic_complete_evidence",
+    "tie_evidence"
+  ],
+  "metadata_array_fields": [
+    "task.constraints",
+    "questions",
+    "blockers",
+    "close_evidence",
+    "decomposition_reason",
+    "no_ready_reason",
+    "epic_complete_evidence",
+    "tie_evidence"
+  ],
+  "authority": {
+    "may": [
+      "inventory the bounded issue graph supplied as the fetched snapshot",
+      "classify candidate readiness from fetched facts plus agent-authored reconciliation",
+      "compare ready candidates against the immutable task",
+      "select one child or preserve a non-selection result",
+      "reconcile the selected child against local source",
+      "seal issue-level outcome, scope, exclusions, constraints, protected behavior, evidence, and decisions"
+    ],
+    "must_not": [
+      "create, edit, comment on, label, close, reopen, or reorder GitHub issues",
+      "decompose one broad ticket into new tickets (return needs-decomposition instead)",
+      "invent or change epic dependencies",
+      "plan file edits, implementation order, tests, rollout, or rollback",
+      "select a blocked issue merely because it has high value",
+      "convert arbitrary related issues into epic children"
+    ]
+  },
+  "canonical_ordering": [
+    "CAND",
+    "FRON",
+    "SEL",
+    "ALT",
+    "AWC",
+    "UNK",
+    "OVR",
+    "SC",
+    "F",
+    "D",
+    "C"
+  ],
+  "producer_consumer_versions": {
+    "producer": "scope-issue >= 5.0.0",
+    "consumer": "plan-change >= 5.0.0 issue-handoff intake"
+  },
+  "migration": {
+    "mode": "explicit-compatibility",
+    "v1_contract_file": "references/issue-plan-contract.json",
+    "trigger": "the epic-aware inputs (task, epic_number) are absent, so the supplied issue is both the umbrella and the selected target after the agent determines that no child selection is needed",
+    "rules": [
+      "contract_version 1 artifacts are accepted byte-compatibly when epic-aware inputs are absent",
+      "epic-aware inputs require contract_version 2",
+      "v1 SC/F/D/C records map unchanged to the narrowing stage of v2"
+    ]
+  },
+  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"]
+}

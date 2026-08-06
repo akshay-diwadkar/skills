@@ -192,7 +192,7 @@ def test_package_and_independent_skill_versions_are_valid() -> None:
     assert versions["plan-change"] == "5.0.0"
     assert versions["design-codebase"] == "3.0.2"
     assert versions["implement-plan"] == "3.3.0"
-    assert versions["scope-issue"] == "4.0.2"
+    assert versions["scope-issue"] == "5.0.0"
     assert versions["optimize-codebase"] == "4.0.2"
     assert versions["ideate"] == "2.0.0"
     assert "3.0.2" in set(versions.values())
