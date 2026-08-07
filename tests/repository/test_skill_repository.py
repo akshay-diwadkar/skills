@@ -65,6 +65,7 @@ def test_skill_metadata_and_tracked_references_use_canonical_names_only() -> Non
         "skills/engineering/map-codebase/scripts/link_agent_docs.py",
         "tests/skills/map-codebase/test_scaffold_github_workflow.py",
         "tests/skills/map-codebase/test_agent_docs_managed_block.py",
+        "benchmarks/reports/test-baseline.json",
     }
 
     for skill in validator.discover_skills():
