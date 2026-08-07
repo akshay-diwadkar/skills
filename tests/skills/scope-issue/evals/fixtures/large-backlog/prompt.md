@@ -1,1 +1,1 @@
-Use $scope-issue on a backlog with 150 issues and extensive comments. Build the reusable index, select the highest-priority issue, and deeply plan only that one issue in this pass.
+Use $scope-issue in epic-aware mode on a backlog with 150 issues and extensive comments. Build the reusable index, identify the epic and its children from the snapshot membership, select the task-relevant child, and deeply plan only that one issue in this pass. The membership mechanism is unverified; do not invent a children-of mapping that the snapshot does not provide.

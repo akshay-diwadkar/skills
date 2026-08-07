@@ -1,7 +1,7 @@
 # Engineering, Research, and Technical Communication Skills
 
 [![Repository Quality](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml/badge.svg?branch=main&event=push)](https://github.com/akshay-diwadkar/skills/actions/workflows/quality.yml?query=branch%3Amain)
-[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=7.3.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/akshay-diwadkar/skills?sort=semver&display_name=tag&cacheSeconds=300&v=7.4.0)](https://github.com/akshay-diwadkar/skills/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
 
@@ -20,24 +20,24 @@ Each skill is a self-contained package with focused instructions and, where need
 
 ### Request routing
 
-| Skill | Use it when you need to… |
+| Skill | Use it when you need to... |
 | --- | --- |
 | [`route-work`](skills/routing/route-work/SKILL.md) | Validate the agent-chosen workflow across engineering, research, and technical communication skills and return one decision with an inline `route_handoff` (compact by default; detailed guidance and file persistence are opt-in). |
 
 ### Engineering workflows
 
-| Skill | Use it when you need to… |
+| Skill | Use it when you need to... |
 | --- | --- |
 | [`plan-change`](skills/engineering/plan-change/SKILL.md) | Explore natively, draft an implementation plan (`docs/plans/*.md`), and seal cited repository proof in one pass. |
 | [`implement-plan`](skills/engineering/implement-plan/SKILL.md) | Execute an approved implementation plan (`docs/plans/*.md`) as a minimal patch while preserving repository patterns and uncommitted work. |
-| [`scope-issue`](skills/engineering/scope-issue/SKILL.md) | Ground one GitHub issue and seal `issue-handoff.md` for planning. |
+| [`scope-issue`](skills/engineering/scope-issue/SKILL.md) | Select one task-relevant child of an epic and seal `issue-handoff.md` for planning, or report honestly why not. |
 | [`audit-codebase`](skills/engineering/audit-codebase/SKILL.md) | Find confirmed bugs, security or performance risks, test gaps, and maintainability problems and seal `audit-handoff.md`. |
 | [`raise-issue`](skills/engineering/raise-issue/SKILL.md) | Preview and publish sealed `audit-handoff.md` artifacts as GitHub issues. |
 | [`diagram-codebase`](skills/engineering/diagram-codebase/SKILL.md) | Create a self-contained HTML diagram artifact of a system, architecture, workflow, or code relationship. |
 
 ### Engineering disciplines and utilities
 
-| Skill | Use it when you need to… |
+| Skill | Use it when you need to... |
 | --- | --- |
 | [`design-codebase`](skills/engineering/design-codebase/SKILL.md) | Decide structural boundaries and seal `design-handoff.md` for planning. |
 | [`optimize-codebase`](skills/engineering/optimize-codebase/SKILL.md) | Select an evidence-backed optimization and seal `optimization-handoff.md` for planning. |
@@ -45,13 +45,13 @@ Each skill is a self-contained package with focused instructions and, where need
 
 ### Technical communication
 
-| Skill | Use it when you need to… |
+| Skill | Use it when you need to... |
 | --- | --- |
 | [`manualize`](skills/technical-communication/manualize/SKILL.md) | Write or audit source-grounded manuals, procedures, runbooks, guides, notices, error messages, or reference documentation. |
 
 ### Research
 
-| Skill | Use it when you need to… |
+| Skill | Use it when you need to... |
 | --- | --- |
 | [`ideate`](skills/research/ideate/SKILL.md) | Generate and rank evidence-linked candidate ideas and seal `ideas.md` for any researchable goal (software, business, product, academic, hobby, lifestyle, and other domains). |
 

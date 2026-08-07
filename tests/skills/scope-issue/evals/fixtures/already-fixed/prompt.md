@@ -1,1 +1,1 @@
-Use $scope-issue to inspect issue #21. The checkout tests and implementation appear to contain the requested fix already. Verify the current state and keep all GitHub writes disabled.
+Use $scope-issue in single-issue mode to inspect issue #21. The checkout tests and implementation appear to contain the requested fix already. Verify the current state and keep all GitHub writes disabled.

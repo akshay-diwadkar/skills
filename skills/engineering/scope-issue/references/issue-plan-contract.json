@@ -1,7 +1,41 @@
 {
-  "contract_version": 1,
-  "statuses": ["plan-ready", "needs-info", "blocked", "close-candidate"],
+  "contract_version": 2,
+  "wire": {
+    "artifact": "issue-handoff.md",
+    "kind": "issue",
+    "version": 1,
+    "receipt_pattern": "^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$",
+    "note": "The receipt kind and version are a consumer wire contract. plan-change and implement-plan read kind 'issue' with version 1; do not change the receipt shape or version without a coordinated consumer update. The schema version advances in metadata.contract_version only."
+  },
+  "statuses": [
+    "plan-ready",
+    "needs-info",
+    "blocked",
+    "close-candidate",
+    "needs-decomposition",
+    "no-ready-issue",
+    "epic-complete"
+  ],
+  "readiness_states": [
+    "ready",
+    "blocked",
+    "in-progress",
+    "completed",
+    "superseded",
+    "unknown",
+    "needs-decomposition"
+  ],
+  "question_reason_codes": [
+    "selection-tie",
+    "clarification"
+  ],
+  "confidence_levels": [
+    "high",
+    "medium",
+    "low"
+  ],
   "required_sections": [
+    "Selection Stage",
     "Outcome and Scope",
     "Issue Claims (Untrusted)",
     "Local Evidence Ledger",
@@ -10,33 +44,329 @@
     "Risks and Open Questions",
     "Plan-Change Handoff"
   ],
+  "section_order": [
+    "Selection Stage",
+    "Outcome and Scope",
+    "Issue Claims (Untrusted)",
+    "Local Evidence Ledger",
+    "Issue-Level Decisions",
+    "Constraints and Protected Behavior",
+    "Risks and Open Questions",
+    "Plan-Change Handoff"
+  ],
+  "untrusted_section": "Issue Claims (Untrusted)",
+  "untrusted_fence": {
+    "begin": "<!-- scope-issue: untrusted-begin -->",
+    "end": "<!-- scope-issue: untrusted-end -->",
+    "note": "The untrusted payload must be copied between these machine-owned markers. The checker removes the fenced span before heading, placeholder, record, and citation parsing, so quoted GitHub content inside the fence is inert. Nothing may appear between the section heading and the begin marker, or between the end marker and the next section."
+  },
+  "record_sections": {
+    "CAND": "Selection Stage",
+    "SEL": "Selection Stage",
+    "SC": "Outcome and Scope",
+    "F": "Local Evidence Ledger",
+    "D": "Issue-Level Decisions",
+    "C": "Constraints and Protected Behavior"
+  },
+  "record_numbering": {
+    "start": 1,
+    "sequential": true
+  },
+  "snapshot_requirements": {
+    "content_trust": "untrusted-github-data",
+    "mode": {
+      "field": "metadata.mode",
+      "values": ["single", "index"],
+      "note": "The fetcher declares 'single' for --issue-number fetches and 'index' otherwise."
+    },
+    "membership": {
+      "field": "membership",
+      "completeness_field": "candidate_completeness",
+      "completeness_states": ["verified", "unverified"],
+      "children_field": "children_of",
+      "provenance": {
+        "mechanism": "mechanism",
+        "derived_at": "derived_at",
+        "note": "The mechanism string is opaque to this contract. Concrete membership derivation mechanisms (including any label convention) are owned by scope-issue #209; the checker only requires a non-empty mechanism when completeness is verified and null values when it is unverified."
+      },
+      "note": "Membership is structural: it proves child identity, membership, and provenance only. Child state, readiness, and PR semantics are agent-classified claims owned by scope-issue #209/#210; this contract layer never inspects child state. Verified children may therefore be closed issues or PRs.",
+      "verified": {
+        "requires_non_empty_mechanism": true,
+        "requires_derived_at": true,
+        "children_issues_must_exist_in_snapshot": true,
+        "cand_must_equal_children_minus_exclusions": true,
+        "exclusions_must_name_children": true,
+        "note": "A verified epic whose children minus exclusions is empty is valid and requires zero CAND records; the artifact may represent it only as status 'epic-complete' (see selection_stage_obligations.min_candidates). Producing a verified empty-children claim is scope-issue #209's job."
+      },
+      "unverified": {
+        "children_must_be_empty": true,
+        "mechanism_must_be_null": true,
+        "derived_at_must_be_null": true,
+        "cand_rule": "existence-only within the snapshot issues array",
+        "exclusions_must_name_snapshot_issues": true
+      }
+    },
+    "digest": {
+      "field": "digest",
+      "algorithm": "sha256",
+      "canonical": "json.dumps over all fields except digest, sort_keys, separators=(',', ':'), ensure_ascii=False, UTF-8 encoded",
+      "bound_into": "metadata.source.snapshot_digest",
+      "note": "The fetcher writes the digest; the artifact metadata must copy it verbatim; the checker recomputes it from the snapshot file and requires both to agree."
+    },
+    "freshness": {
+      "candidate_rule": "every CAND issue must resolve in the snapshot with updated_at not postdating fetched_at",
+      "note": "Freshness is derived by the checker from the snapshot; it is never duplicated into authored metadata."
+    }
+  },
+  "checkout_binding": {
+    "dirty_field": "checkout.dirty",
+    "dirty_fingerprint_field": "checkout.dirty_fingerprint",
+    "dirty_fingerprint_algorithm": "sha256",
+    "dirty_fingerprint_input": "sha256 over the exact raw UTF-8 bytes of `git status --porcelain` stdout, with no stripping; sha256 of b'' (the empty byte string) when the checkout is clean",
+    "note": "The fingerprint distinguishes different dirty states that the boolean alone cannot. It is always required. The checker recomputes it from the live checkout and requires the declaration to match."
+  },
   "required_metadata": [
     "contract_version",
+    "mode",
+    "status",
+    "task.text",
+    "task.constraints",
+    "epic.number",
+    "epic.url",
+    "epic.purpose",
+    "override",
+    "exclusions",
     "source.repo",
     "source.issue_number",
     "source.issue_url",
     "source.issue_updated_at",
     "source.fetched_at",
+    "source.snapshot_digest",
     "checkout.root",
     "checkout.remote_repo",
     "checkout.commit",
     "checkout.dirty",
-    "status",
+    "checkout.dirty_fingerprint",
+    "confidence",
+    "unknowns",
     "questions",
     "blockers",
-    "close_evidence"
+    "close_evidence",
+    "decomposition_target"
   ],
   "record_formats": {
-    "SC": "- SC-n: observable issue outcome",
-    "F": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
-    "D": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback",
-    "C": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk"
+    "CAND": {
+      "format": "- CAND-n: candidate: #<issue> | readiness: <state> | basis: <evidence reference>",
+      "pattern": "^\\s*[-*]\\s*CAND-(?P<number>\\d+):\\s*candidate:\\s*#(?P<issue>\\d+)\\s*\\|\\s*readiness:\\s*(?P<readiness>[a-z-]+)\\s*\\|\\s*basis:\\s*(?P<basis>.+)$"
+    },
+    "SEL": {
+      "format": "- SEL-n: selected: #<issue> | rationale: <reason> | alternatives: none | alternatives: CAND-n why-not-now: <reason>[, CAND-m why-not-now: <reason>]",
+      "pattern": "^\\s*[-*]\\s*SEL-(?P<number>\\d+):\\s*selected:\\s*#(?P<issue>\\d+)\\s*\\|\\s*rationale:\\s*(?P<rationale>.+?)\\s*\\|\\s*alternatives:\\s*(?P<alternatives>.+)$"
+    },
+    "SC": {
+      "format": "- SC-n: observable issue outcome",
+      "pattern": "^\\s*[-*]\\s*SC-(?P<number>\\d+):\\s*(?P<body>.+)$"
+    },
+    "F": {
+      "format": "- F-n: `path:line` | anchor: `existing text` | observation: verified local behavior",
+      "pattern": "^\\s*[-*]\\s*F-(?P<number>\\d+):\\s*`(?P<path>[^`]+):(?P<line>\\d+)`\\s*\\|\\s*anchor:\\s*`(?P<anchor>[^`]+)`\\s*\\|\\s*observation:\\s*(?P<body>.+)$"
+    },
+    "D": {
+      "format": "- D-n: selected: issue-level decision | because: evidence | rejected: alternative and drawback",
+      "pattern": "^\\s*[-*]\\s*D-(?P<number>\\d+):\\s*selected:\\s*(?P<selected>.+?)\\s*\\|\\s*because:\\s*(?P<because>.+?)\\s*\\|\\s*rejected:\\s*(?P<rejected>.+)$",
+      "optional": true
+    },
+    "C": {
+      "format": "- C-n: protected behavior or constraint | status: preserved|modified|at-risk",
+      "pattern": "^\\s*[-*]\\s*C-(?P<number>\\d+):\\s*(?P<body>.+?)\\s*\\|\\s*status:\\s*(?P<status>preserved|modified|at-risk)$"
+    }
   },
+  "forbidden_record_prefixes": ["CH", "T"],
   "status_requirements": {
-    "plan-ready": {"records": ["SC", "F", "C"]},
-    "needs-info": {"records": ["SC", "F", "C"], "questions_required": true},
-    "blocked": {"records": ["F"], "blockers_required": true},
-    "close-candidate": {"records": ["F"], "close_evidence_required": true}
+    "plan-ready": {
+      "requires_sel": true,
+      "required_narrowing_records": ["SC", "F", "C"],
+      "required_fields": [],
+      "empty_fields": ["questions", "blockers", "close_evidence"]
+    },
+    "needs-info": {
+      "requires_sel": false,
+      "required_fields": ["questions"],
+      "empty_fields": ["close_evidence"],
+      "tie_obligation": {
+        "when_at_least_ready_candidates": 2,
+        "requires_reason": "selection-tie"
+      },
+      "sel_stages": {
+        "pre_selection": {
+          "forbidden_narrowing_records": ["SC", "F", "C", "D"]
+        },
+        "narrowing": {
+          "required_narrowing_records": ["F"]
+        }
+      }
+    },
+    "blocked": {
+      "optional_sel": true,
+      "required_fields": ["blockers"],
+      "empty_fields": [],
+      "sel_stages": {
+        "pre_selection": {
+          "forbidden_narrowing_records": ["SC", "F", "C", "D"],
+          "blocker_evidence": "at least one blocker must cite the epic issue or a declared candidate"
+        },
+        "narrowing": {
+          "required_narrowing_records": ["F"],
+          "blocker_evidence": "at least one blocker must cite the selected child's issue"
+        }
+      }
+    },
+    "close-candidate": {
+      "requires_sel": true,
+      "required_narrowing_records": ["F"],
+      "narrowing_records_require_sel": true,
+      "required_fields": ["close_evidence"],
+      "empty_fields": ["questions", "blockers"]
+    },
+    "needs-decomposition": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
+      "required_fields": ["decomposition_target"],
+      "empty_fields": [],
+      "candidate_readiness": {"any": ["needs-decomposition"]},
+      "decomposition_target": {
+        "must_reference_declared_candidate": true,
+        "target_readiness": "needs-decomposition",
+        "must_not_be_excluded": true
+      }
+    },
+    "no-ready-issue": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
+      "required_fields": [],
+      "empty_fields": [],
+      "candidate_readiness": {"any": ["blocked", "in-progress", "unknown"], "none": ["ready", "needs-decomposition"]}
+    },
+    "epic-complete": {
+      "requires_sel": false,
+      "forbids_sel": true,
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
+      "required_fields": [],
+      "empty_fields": [],
+      "candidate_readiness": {"all": ["completed", "superseded"]}
+    }
   },
-  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"]
+  "stage_boundary": {
+    "note": "The selection/narrowing boundary is absolute: with no SEL record, no narrowing records (SC, F, C, D) may exist in any status. Narrowing records are only valid once a selection is made. Statuses without a sel_stages block apply forbidden_narrowing_records unconditionally when no SEL exists.",
+    "forbidden_without_sel": ["SC", "F", "C", "D"]
+  },
+  "selection_stage_obligations": {
+    "min_candidates": 1,
+    "zero_candidates_allowance": {
+      "when": "membership.candidate_completeness is verified and the epic's verified children minus exclusions is empty",
+      "status": "epic-complete",
+      "note": "A verified childless epic is represented with zero CAND records. Only status 'epic-complete' may use the allowance; every other status still requires at least one candidate, and a CAND record alongside verified-empty children still fails the children-minus-exclusions equality."
+    },
+    "sel_issue_must_be_candidate": true,
+    "sel_requires_ready_candidate": true,
+    "sel_invariants_note": "Whenever a SEL record exists — in any status, including optional-selection statuses — it must name exactly one declared CAND, that candidate must be ready, the selected issue must not be excluded, and an explicit override must still match it. These invariants are global and are enforced for every SEL.",
+    "candidate_issues_must_be_in_snapshot": true,
+    "candidate_issues_unique": true,
+    "epic_must_be_in_snapshot": true,
+    "override_must_be_candidate": true,
+    "override_requires_ready_candidate": true,
+    "sel_cannot_be_excluded": true,
+    "cand_cannot_be_excluded": true,
+    "cand_basis_must_cite": true,
+    "sel_alternatives": {
+      "grammar": "none | CAND-n why-not-now: <reason>[, CAND-m why-not-now: <reason>...]",
+      "must_name_declared_candidates": true,
+      "exhaustive_over_other_ready_candidates": true,
+      "none_when_sole_ready_candidate": true,
+      "reasons_must_be_non_empty": true,
+      "must_not_name_selected_candidate": true,
+      "must_not_duplicate": true,
+      "note": "Blocked, in-progress, completed, and superseded candidates already carry their why-not-now in readiness evidence, so alternatives cover only the other ready-frontier candidates."
+    },
+    "override_membership": {
+      "verified": "the override issue must be a verified child of the epic",
+      "unverified": "the override issue must exist in the snapshot issues array"
+    }
+  },
+  "single_issue_mode": {
+    "mode_field": "metadata.mode",
+    "mode": "single",
+    "input_mode_field": "scope_inputs.mode",
+    "input_mode_required": true,
+    "input_mode_values": ["single", "index"],
+    "three_way_agreement": "scope_inputs.mode must equal the snapshot metadata.mode and the artifact metadata.mode",
+    "snapshot_count_must_be_one": true,
+    "epic_must_be_the_single_issue": true,
+    "exactly_one_candidate_naming_the_issue": true,
+    "override_must_be_null": true,
+    "exclusions_must_be_empty": true,
+    "note": "Single-issue mode is an explicit compatibility declaration in scope_inputs.mode, never a consequence of the fetch alone: 'I fetched one issue' does not prove that the issue needs no child selection. It may be declared only when the user's task names one issue directly as the target. A single-issue snapshot without the input declaration fails closed; refetch in index mode unless the user named the issue directly. Readiness, SEL presence, and the terminal status still follow the normal status contract."
+  },
+  "citation_verification": {
+    "structured_fields": ["basis", "blockers", "close_evidence"],
+    "record_prose": ["SC", "F", "D", "C", "rationale"],
+    "reference_patterns": {
+      "issue": "#\\d+ must exist in the snapshot issues array",
+      "f_record": "F-\\d+ must match a declared F record"
+    },
+    "structured_candidate_references": ["decomposition_target", "SEL alternatives"],
+    "excluded": ["the untrusted fence span", "Plan-Change Handoff", "Risks and Open Questions"],
+    "note": "CAND-n references are validated in their structured fields only; issue and F references are validated in structured fields and record prose."
+  },
+  "canonicalization": {
+    "steps": [
+      "remove the receipt line",
+      "normalize CRLF and CR to LF",
+      "re-serialize the metadata JSON block with sorted keys and compact separators",
+      "preserve all authored whitespace",
+      "normalize EOF to exactly one LF"
+    ],
+    "shared_between": ["seal_issue_plan.py", "check_issue_plan.py"],
+    "note": "The canonicalizer must be a single shared function so the sealer and the receipt verification can never drift."
+  },
+  "placeholder_tokens": ["FILL_ME", "REPLACE_ME", "TBD", "TODO"],
+  "authority": {
+    "may": [
+      "inventory the bounded issue graph",
+      "classify readiness from fetched facts plus agent-authored reconciliation",
+      "compare ready candidates against the task",
+      "select one child or preserve a non-selection result",
+      "reconcile the selected child against local source",
+      "seal issue-level outcome, scope, exclusions, constraints, protected behavior, evidence, and decisions"
+    ],
+    "must_not": [
+      "create, edit, comment on, label, close, reopen, or reorder GitHub issues",
+      "decompose one broad ticket into new tickets",
+      "invent or change epic dependencies",
+      "plan file edits, implementation order, tests, rollout, or rollback",
+      "select a blocked issue merely because it has high value",
+      "convert arbitrary related issues into epic children"
+    ]
+  },
+  "producer_consumer": {
+    "producers": ["scope-issue 5.0.0+"],
+    "consumers": [
+      {
+        "name": "plan-change and implement-plan",
+        "wire": {"kind": "issue", "version": 1},
+        "reads": ["metadata.status"],
+        "requires_status": "plan-ready"
+      },
+      {
+        "name": "tools/classification runtime",
+        "reads": ["metadata.status", "metadata.questions", "metadata.blockers", "metadata.close_evidence"],
+        "note": "v1 precedence only; the new non-selection statuses collapse to plan-ready until scope-issue #213 updates the classifier."
+      }
+    ]
+  },
+  "migration": {
+    "note": "Contract v2 has no v1-to-v2 artifact migration path: plan-change consumes the v1 wire directly and no reader consumes v1 metadata, so no translator exists. Single-issue snapshots are a first-class v2 mode (see single_issue_mode), not a migration of v1 artifacts, and require the explicit scope_inputs.mode declaration; a fetch alone never authorizes them."
+  }
 }

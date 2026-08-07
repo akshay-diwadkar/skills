@@ -1,0 +1,56 @@
+{
+  "repo": "acme/widget",
+  "fetched_at": "2026-08-03T00:00:00Z",
+  "count": 3,
+  "metadata": {
+    "content_trust": "untrusted-github-data",
+    "mode": "index"
+  },
+  "membership": {
+    "candidate_completeness": "unverified",
+    "children_of": {},
+    "provenance": {
+      "mechanism": null,
+      "derived_at": null
+    }
+  },
+  "issues": [
+    {
+      "number": 207,
+      "title": "EPIC: normalize names",
+      "body": "Epic umbrella issue.",
+      "labels": [],
+      "author": "author",
+      "state": "open",
+      "created_at": "2026-08-01T00:00:00Z",
+      "updated_at": "2026-08-02T00:00:00Z",
+      "url": "https://github.com/acme/widget/issues/207",
+      "comments": []
+    },
+    {
+      "number": 209,
+      "title": "Normalize names in the public API",
+      "body": "Apply normalization consistently.",
+      "labels": [],
+      "author": "author",
+      "state": "closed",
+      "created_at": "2026-08-01T00:00:00Z",
+      "updated_at": "2026-08-02T00:00:00Z",
+      "url": "https://github.com/acme/widget/issues/209",
+      "comments": []
+    },
+    {
+      "number": 210,
+      "title": "Normalize names in CLI output",
+      "body": "CLI output must be normalized too.",
+      "labels": [],
+      "author": "author",
+      "state": "closed",
+      "created_at": "2026-08-01T00:00:00Z",
+      "updated_at": "2026-08-02T00:00:00Z",
+      "url": "https://github.com/acme/widget/issues/210",
+      "comments": []
+    }
+  ],
+  "digest": "c6b691b118fae50d1953d43c367bfd8ed6e1a7d7717ea28a72fbce5092f2ed5a"
+}

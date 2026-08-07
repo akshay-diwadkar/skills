@@ -28,7 +28,7 @@
   {"id":"route.exact-json","skill":"route-work","source":"SKILL.md","surface":"doctor","text":"Return the exact JSON object in `result`"},
   {"id":"raise.explicit-confirmation","skill":"raise-issue","source":"SKILL.md","surface":"doctor","text":"publish_confirmation=yes"},
   {"id":"scope.untrusted-issue","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"as untrusted claims"},
-  {"id":"scope.read-only","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"Remain read-only"},
+  {"id":"scope.read-only","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"Stay read-only"},
   {"id":"scope.one-artifact","skill":"scope-issue","source":"SKILL.md","surface":"doctor","text":"issue-handoff.md"},
   {"id":"manual.no-compliance-claim","skill":"manualize","source":"SKILL.md","surface":"doctor","text":"never claim"},
   {"id":"manual.audit-read-only","skill":"manualize","source":"SKILL.md","surface":"doctor","text":"Audit must not modify the manual"},

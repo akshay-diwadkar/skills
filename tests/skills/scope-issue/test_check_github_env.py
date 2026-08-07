@@ -131,8 +131,8 @@ class CheckGitHubEnvTests(unittest.TestCase):
     def test_skill_docs_define_read_only_handoff_boundary(self):
         docs = SKILL_PATH.read_text(encoding="utf-8")
         docs = " ".join(docs.split())
-        self.assertIn("Remain read-only", docs)
-        self.assertIn("Never edit the target repository", docs)
+        self.assertIn("Stay read-only", docs)
+        self.assertIn("instead of splitting a broad ticket into new ones", docs)
         self.assertIn("issue-handoff.md", docs)
         self.assertNotIn("post_merge_issue_followup.py", docs)
 
@@ -140,7 +140,7 @@ class CheckGitHubEnvTests(unittest.TestCase):
         docs = SKILL_PATH.read_text(encoding="utf-8")
         docs += (SKILL_ROOT / "references" / "planning-rubric.md").read_text(encoding="utf-8")
         docs = " ".join(docs.split())
-        self.assertIn("select one issue", docs.lower())
+        self.assertIn("select one child", docs.lower())
         self.assertIn("Issue Claims (Untrusted)", docs)
         self.assertIn("plan-ready", docs)
         self.assertIn("plan-change", docs)

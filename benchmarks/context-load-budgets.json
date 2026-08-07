@@ -117,7 +117,7 @@
     "scope-issue": {
       "category": "user_orchestrator",
       "diagnostic_input": "issue_json",
-      "representative_inputs": {"issue_json": "{fixture_file}", "draft": "{fixture_file}", "output_dir": "{fixture_dir}"}
+      "representative_inputs": {"scope_inputs": "{fixture_file}", "issue_json": "{fixture_file}", "draft": "{fixture_file}", "output_dir": "{fixture_dir}"}
     }
   },
   "exceptions": [
@@ -318,6 +318,64 @@
       "rationale": "Selected-issue sealing replaces inventory, classification, and readiness checkpoints with one supplied issue artifact and one plan.",
       "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": []
+    },
+    {
+      "id": "scope-issue-epic-aware-contract-top-level",
+      "skill": "scope-issue",
+      "metric": "top_level",
+      "direction": "increase",
+      "max_tokens": 1459,
+      "expires": "2027-08-06",
+      "rationale": "The epic-aware contract states the two-stage selection workflow, all seven statuses with their discriminator rules, and the scope_inputs binding; the plan-change rewrite precedent already carries a top-level exception.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-issue-epic-aware-contract-pre-action",
+      "skill": "scope-issue",
+      "metric": "pre_action",
+      "direction": "increase",
+      "max_tokens": 1645,
+      "expires": "2027-08-06",
+      "rationale": "Pre-action now binds the four stateless inputs and states the sealer verification contract; the compact rubric remains the only reference loaded before action.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-issue-epic-aware-contract-top-level-delta",
+      "skill": "scope-issue",
+      "metric": "top_level",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1459,
+      "expires": "2027-08-06",
+      "rationale": "The two-stage workflow, seven statuses, and scope_inputs binding are new text; SKILL.md grows to state them once, without repetition.",
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-issue-epic-aware-contract-pre-action-delta",
+      "skill": "scope-issue",
+      "metric": "pre_action",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 1645,
+      "expires": "2027-08-06",
+      "rationale": "Pre-action gained the scope_inputs anchor input and the sealer verification statement; the pre-action read set stays limited to the rubric and contract.",
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
+    },
+    {
+      "id": "scope-issue-epic-aware-contract-reference-delta",
+      "skill": "scope-issue",
+      "metric": "worst_references",
+      "direction": "increase",
+      "scope": "delta",
+      "max_tokens": 5400,
+      "expires": "2027-08-06",
+      "rationale": "The reference portfolio links the authoritative JSON contract alongside the rubric; the schema centralizes every status, record, section, stage-boundary, mode-agreement, and checkout-binding rule so SKILL.md stays lean. The contract measures 5159 tokens and the 5400-token cap preserves narrow repair headroom.",
+      "supporting_paths": ["references/planning-rubric.md", "references/issue-plan-contract.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-compact-diagnostics",

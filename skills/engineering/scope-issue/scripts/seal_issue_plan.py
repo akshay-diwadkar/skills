@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically seal the sole selected-issue handoff artifact."""
+"""Atomically seal the sole scope handoff artifact (issue-handoff.md)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from check_issue_plan import validate_plan
+from check_issue_plan import canonical_body, validate_plan
 
 RECEIPT_RE = re.compile(r"^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
 
@@ -30,6 +30,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--issue-json", type=Path, required=True)
+    parser.add_argument("--scope-inputs", type=Path, required=True)
     parser.add_argument("--draft", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
@@ -38,11 +39,11 @@ def main() -> int:
     except (OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"valid": False, "diagnostics": [{"code": "handoff.invalid", "message": str(exc)}]}))
         return 1
-    errors = validate_plan(args.draft, args.issue_json, args.repo_root)
+    errors = validate_plan(args.draft, args.issue_json, args.repo_root, args.scope_inputs)
     if errors:
         print(json.dumps({"valid": False, "diagnostics": [{"code": "issue-handoff.invalid", "message": item} for item in errors]}, sort_keys=True, separators=(",", ":")))
         return 1
-    body = text.replace("\r\n", "\n").replace("\r", "\n").rstrip() + "\n"
+    body = canonical_body(text)
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
     sealed = f"<!-- issue-handoff: 1; sha256: {digest} -->\n{body}"
     destination = args.output_dir.resolve() / "issue-handoff.md"

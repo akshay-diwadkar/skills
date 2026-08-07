@@ -1,1 +1,1 @@
-Use $scope-issue to plan issue #7 against this checkout. The issue reports that a local value-normalization function mishandles an empty input. Keep GitHub read-only and produce the validated artifact and senior handoff.
+Use $scope-issue in single-issue mode to plan issue #7 against this checkout. The issue reports that a local value-normalization function mishandles an empty input. Keep GitHub read-only and produce the validated artifact and senior handoff.
