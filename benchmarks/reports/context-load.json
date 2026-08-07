@@ -1,12 +1,12 @@
 {
   "aggregate_metrics": {
     "phase_references": 0,
-    "pre_action": 10046,
+    "pre_action": 9842,
     "repair_diagnostic": 3079,
     "tool_output": 2473,
-    "top_level": 7573,
-    "worst_context": 34642,
-    "worst_references": 23990
+    "top_level": 7369,
+    "worst_context": 34334,
+    "worst_references": 23886
   },
   "baseline": {
     "requirements": [
@@ -368,19 +368,19 @@
       "measured_successful_run": false,
       "metrics": {
         "phase_references": 0,
-        "pre_action": 1645,
+        "pre_action": 1441,
         "repair_diagnostic": 231,
         "tool_output": 186,
-        "top_level": 1459,
-        "worst_context": 6516,
-        "worst_references": 4826
+        "top_level": 1255,
+        "worst_context": 6208,
+        "worst_references": 4722
       },
       "path": "skills/engineering/scope-issue/SKILL.md",
       "phases": {},
       "pre_action_paths": [
         "SKILL.md"
       ],
-      "source_hash": "a55811748cddc854a37807fd096d64630b74b1537b33526c737a7aa8ecd08494",
+      "source_hash": "46b45d8200e68d4f97c4d7e92ebba993ee22d9d3534d99e3caf9d823d9b7fa57",
       "worst_reference_paths": [
         "references/issue-plan-contract.json",
         "references/planning-rubric.md"

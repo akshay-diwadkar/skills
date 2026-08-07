@@ -15,8 +15,8 @@ Only a `plan-ready` handoff is supplied to `plan-change` as `request_file`.
 Implementation, branches, pull requests, and GitHub updates belong to other
 explicitly invoked workflows.
 
-Single-issue users: when `scope_inputs.json` names the snapshot's single
-issue as the epic, the issue is both umbrella and selected target; no child
-selection is needed (see the contract's migration section).
+Single-issue mode: when the snapshot declares `metadata.mode: "single"`
+(fetched with `--issue-number`), the epic is that one issue and the frontier
+collapses to a single candidate; no override or exclusions apply.
 
 See the alternative [design handoff](../design-codebase/README.md).
