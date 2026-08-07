@@ -371,9 +371,9 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 4826,
+      "max_tokens": 5400,
       "expires": "2027-08-06",
-      "rationale": "The reference portfolio now links the authoritative JSON contract alongside the rubric; the schema centralizes every status, record, section, and obligation rule so SKILL.md stays lean.",
+      "rationale": "The reference portfolio links the authoritative JSON contract alongside the rubric; the schema centralizes every status, record, section, stage-boundary, mode-agreement, and checkout-binding rule so SKILL.md stays lean. The contract measures 5159 tokens and the 5400-token cap preserves narrow repair headroom.",
       "supporting_paths": ["references/planning-rubric.md", "references/issue-plan-contract.json"],
       "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },

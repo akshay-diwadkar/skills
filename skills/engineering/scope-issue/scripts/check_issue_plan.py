@@ -16,6 +16,7 @@ freshness, and digest are verified against the fetched issue JSON.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -226,6 +227,9 @@ def _parse_artifact(
     for name in required:
         if names.count(name) > 1:
             errors.append(f"section must appear exactly once: {name}")
+    for name in names:
+        if name not in required:
+            errors.append(f"section not part of the contract: {name}")
     if not _is_subsequence(required, names):
         errors.append("required sections must appear in contract order")
     allowed_by_section = {section: [prefix for prefix, owner in contract["record_sections"].items() if owner == section] for section in required}
@@ -290,6 +294,10 @@ def _validate_scope_inputs(inputs: dict[str, Any]) -> list[str]:
         errors.append("scope_inputs.override must be null or an object with a positive issue number")
     if not isinstance(inputs.get("exclusions", []), list) or not all(isinstance(item, int) for item in inputs.get("exclusions", [])):
         errors.append("scope_inputs.exclusions must be an array of issue numbers")
+    mode = inputs.get("mode")
+    allowed_modes = ("single", "index")
+    if mode not in allowed_modes:
+        errors.append(f"scope_inputs.mode must be one of: {', '.join(allowed_modes)}")
     return errors
 
 
@@ -297,12 +305,22 @@ def _validate_anchors(metadata: dict[str, Any], inputs: dict[str, Any]) -> list[
     errors: list[str] = []
     for label, expected in (
         ("task", inputs.get("task")),
-        ("epic", inputs.get("epic")),
         ("override", inputs.get("override")),
         ("exclusions", inputs.get("exclusions", [])),
     ):
         if metadata.get(label) != expected:
             errors.append(f"metadata.{label} does not match scope_inputs.json")
+    metadata_epic = metadata.get("epic")
+    inputs_epic = inputs.get("epic")
+    if (
+        not isinstance(metadata_epic, dict)
+        or not isinstance(inputs_epic, dict)
+        or metadata_epic.get("number") != inputs_epic.get("number")
+        or metadata_epic.get("url") != inputs_epic.get("url")
+    ):
+        errors.append("metadata.epic does not match scope_inputs.json")
+    if metadata.get("mode") != inputs.get("mode"):
+        errors.append("metadata.mode does not match scope_inputs.mode")
     if metadata.get("source", {}).get("repo") != inputs.get("repository"):
         errors.append("source.repo does not match scope_inputs.repository")
     return errors
@@ -365,9 +383,13 @@ def _validate_source(metadata: dict[str, Any], payload: dict[str, Any], repo_roo
         errors.append("checkout origin does not match issue source")
     if checkout.get("commit") != _git(actual_root, "rev-parse", "HEAD"):
         errors.append("issue handoff is stale because HEAD changed")
-    actual_dirty = bool(_git(actual_root, "status", "--porcelain"))
+    porcelain = _git(actual_root, "status", "--porcelain")
+    actual_dirty = bool(porcelain)
     if checkout.get("dirty") != actual_dirty:
         errors.append("checkout.dirty does not match git status")
+    actual_fingerprint = hashlib.sha256(porcelain.rstrip("\n").encode("utf-8")).hexdigest()
+    if checkout.get("dirty_fingerprint") != actual_fingerprint:
+        errors.append("checkout.dirty_fingerprint does not match git status")
     return errors
 
 
@@ -434,13 +456,8 @@ def _validate_membership(
             children = []
         issues_by_number = {issue.get("number"): issue for issue in _snapshot_issues(payload)}
         for child in children:
-            child_issue = issues_by_number.get(child)
-            if child_issue is None:
+            if issues_by_number.get(child) is None:
                 errors.append(f"verified child #{child} is absent from the fetched snapshot")
-            elif child_issue.get("state") != "open":
-                errors.append(f"verified child #{child} must be an open issue")
-            elif "pull_request" in child_issue:
-                errors.append(f"verified child #{child} must be a non-PR issue")
         if requirements["verified"].get("cand_must_equal_children_minus_exclusions"):
             expected = {child for child in children if child not in exclusions}
             actual = {int(candidate["issue"]) for candidate in candidates}
@@ -579,6 +596,7 @@ def _validate_status_obligations(
     selections: list[dict[str, str]],
     snapshot_issues: list[dict[str, Any]],
     inputs: dict[str, Any],
+    zero_candidates_allowed: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     rule = contract["status_requirements"].get(status)
@@ -612,21 +630,17 @@ def _validate_status_obligations(
                 targets = {epic_number} | {int(candidate["issue"]) for candidate in candidates}
                 if not _blocker_cites(metadata["blockers"], targets):
                     errors.append("status blocked pre-selection requires a blocker citing the epic issue or a declared candidate")
+    elif not selections:
+        for prefix in rule.get("forbidden_narrowing_records", []):
+            if records[prefix]:
+                errors.append(f"status {status} cannot carry {prefix} records without a selection")
     for prefix in rule.get("required_narrowing_records", []):
         if rule.get("narrowing_records_require_sel") and not selections:
             continue
         if not records[prefix]:
             errors.append(f"status {status} requires at least one {prefix} record")
-    if rule.get("requires_sel"):
-        if len(selections) != 1:
-            errors.append(f"status {status} requires exactly one SEL record")
-        elif candidates:
-            selected = int(selections[0]["issue"])
-            matching = [candidate for candidate in candidates if int(candidate["issue"]) == selected]
-            if not matching:
-                errors.append("SEL issue must be declared as a CAND candidate")
-            elif rule.get("sel_readiness") is not None and matching[0]["readiness"] != rule.get("sel_readiness"):
-                errors.append("SEL candidate must have readiness 'ready'")
+    if rule.get("requires_sel") and len(selections) != 1:
+        errors.append(f"status {status} requires exactly one SEL record")
     if rule.get("forbids_sel") and selections:
         errors.append(f"status {status} cannot carry a SEL record")
     tie_obligation = rule.get("tie_obligation")
@@ -658,7 +672,7 @@ def _validate_status_obligations(
     readiness_rule = rule.get("candidate_readiness")
     if readiness_rule:
         states = [candidate["readiness"] for candidate in candidates]
-        if not states:
+        if not states and not zero_candidates_allowed:
             errors.append(f"status {status} requires at least one CAND record")
         if readiness_rule.get("any") and not any(state in readiness_rule["any"] for state in states):
             errors.append(f"status {status} requires at least one candidate with readiness in {readiness_rule['any']}")
@@ -667,7 +681,7 @@ def _validate_status_obligations(
         if readiness_rule.get("none") and any(state in readiness_rule["none"] for state in states):
             errors.append(f"status {status} forbids candidate readiness in {readiness_rule['none']}")
     obligations = contract["selection_stage_obligations"]
-    if obligations.get("min_candidates") and not candidates:
+    if obligations.get("min_candidates") and not candidates and not zero_candidates_allowed:
         errors.append("selection stage requires at least one CAND record")
     snapshot_numbers = {issue.get("number") for issue in snapshot_issues}
     for candidate in candidates:
@@ -681,6 +695,13 @@ def _validate_status_obligations(
             errors.append(f"CAND-{candidate['number']} issue must not be excluded by scope_inputs.exclusions")
     if selections and obligations.get("sel_cannot_be_excluded") and int(selections[0]["issue"]) in exclusions:
         errors.append("SEL issue must not be excluded by scope_inputs.exclusions")
+    if selections and obligations.get("sel_issue_must_be_candidate"):
+        if int(selections[0]["issue"]) not in {int(candidate["issue"]) for candidate in candidates}:
+            errors.append("SEL issue must be declared as a CAND candidate")
+    if selections and obligations.get("sel_requires_ready_candidate"):
+        matching = [candidate for candidate in candidates if int(candidate["issue"]) == int(selections[0]["issue"])]
+        if matching and matching[0]["readiness"] != "ready":
+            errors.append("SEL candidate must have readiness 'ready'")
     if obligations.get("cand_basis_must_cite"):
         for candidate in candidates:
             if not re.search(r"#\d+|\bF-\d+\b", candidate["basis"]):
@@ -715,6 +736,20 @@ def validate_plan(plan_path: Path, issue_json: Path, repo_root: Path, scope_inpu
     status = metadata.get("status")
     if status not in contract["statuses"]:
         errors.append(f"status must be one of: {', '.join(contract['statuses'])}")
+    metadata_mode = metadata.get("mode")
+    allowed_modes = contract["snapshot_requirements"]["mode"]["values"]
+    if metadata_mode not in allowed_modes:
+        errors.append(f"metadata.mode must be one of: {', '.join(allowed_modes)}")
+    epic_meta = metadata.get("epic")
+    if not isinstance(epic_meta, dict) or not isinstance(epic_meta.get("purpose"), str) or not epic_meta["purpose"].strip():
+        errors.append("metadata epic.purpose must be a non-empty string")
+    if metadata.get("confidence") not in contract["confidence_levels"]:
+        errors.append(f"metadata confidence must be one of: {', '.join(contract['confidence_levels'])}")
+    for field in ("unknowns", "alternate_winners"):
+        if field not in metadata:
+            continue
+        if not isinstance(metadata[field], list) or not all(isinstance(item, str) and item.strip() for item in metadata[field]):
+            errors.append(f"metadata {field} must be an array of non-empty strings")
     for field in ("blockers", "close_evidence"):
         if not isinstance(metadata.get(field), list) or not all(isinstance(item, str) and item.strip() for item in metadata.get(field, [])):
             errors.append(f"metadata {field} must be an array of non-empty strings")
@@ -751,9 +786,10 @@ def validate_plan(plan_path: Path, issue_json: Path, repo_root: Path, scope_inpu
     if _nested(payload, "metadata.content_trust") != expected_trust:
         errors.append(f"issue JSON must declare metadata.content_trust={expected_trust}")
     mode = _nested(payload, "metadata.mode")
-    allowed_modes = contract["snapshot_requirements"]["mode"]["values"]
     if mode not in allowed_modes:
         errors.append(f"snapshot metadata.mode must be one of: {', '.join(allowed_modes)}")
+    if mode != metadata_mode:
+        errors.append("metadata.mode does not match the snapshot mode")
     if payload.get("repo") != inputs.get("repository"):
         errors.append("snapshot repo does not match scope_inputs.repository")
     epic = inputs.get("epic") or {}
@@ -763,11 +799,27 @@ def validate_plan(plan_path: Path, issue_json: Path, repo_root: Path, scope_inpu
     selections = records["SEL"]
     if len(selections) > 1:
         errors.append("at most one SEL record is allowed per artifact")
+    if selections and "alternate_winners" not in metadata:
+        errors.append("alternate_winners is required when a SEL record exists")
+    if not selections and "alternate_winners" in metadata:
+        errors.append("alternate_winners is only valid when a SEL record exists")
     candidate_issues = [int(candidate["issue"]) for candidate in candidates]
     if len(candidate_issues) != len(set(candidate_issues)):
         errors.append("CAND issues must be unique across the artifact")
     exclusions = inputs.get("exclusions", []) or []
     epic_number = epic.get("number") if isinstance(epic, dict) else None
+    zero_candidates_allowed = False
+    if isinstance(epic_number, int) and status == "epic-complete":
+        membership = payload.get("membership")
+        children_of = membership.get("children_of") if isinstance(membership, dict) else None
+        if (
+            isinstance(membership, dict)
+            and membership.get("candidate_completeness") == "verified"
+            and isinstance(children_of, dict)
+        ):
+            children = children_of.get(str(epic_number), children_of.get(epic_number, []))
+            if isinstance(children, list) and set(children) <= set(exclusions):
+                zero_candidates_allowed = True
     if isinstance(epic_number, int):
         errors.extend(_validate_membership(contract, payload, epic_number, candidates, exclusions))
         errors.extend(_validate_override_membership(contract, payload, inputs, epic_number))
@@ -786,7 +838,7 @@ def validate_plan(plan_path: Path, issue_json: Path, repo_root: Path, scope_inpu
                 errors.append("single-issue mode forbids exclusions")
     errors.extend(_validate_freshness(payload, candidates))
     if isinstance(status, str):
-        errors.extend(_validate_status_obligations(contract, status, metadata, records, candidates, selections, _snapshot_issues(payload), inputs))
+        errors.extend(_validate_status_obligations(contract, status, metadata, records, candidates, selections, _snapshot_issues(payload), inputs, zero_candidates_allowed=zero_candidates_allowed))
     tie_reason = contract["question_reason_codes"][0]
     ready_count = sum(1 for candidate in candidates if candidate["readiness"] == "ready")
     if isinstance(questions, list) and any(isinstance(item, dict) and item.get("reason") == tie_reason for item in questions) and ready_count < 2:

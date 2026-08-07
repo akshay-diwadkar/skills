@@ -4,6 +4,7 @@
     "constraints": []
   },
   "repository": "acme/widget",
+  "mode": "single",
   "epic": {"number": 7, "url": "https://github.com/acme/widget/issues/7"},
   "override": null,
   "exclusions": []

@@ -444,8 +444,18 @@ def test_blocked_pre_selection_allows_no_selection(tmp_path: Path) -> None:
     fixture = FIXTURES / "v2" / "blocked"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     text = draft.read_text(encoding="utf-8")
-    mutated = text.replace("- SEL-1: selected: #209 | rationale: only ready child matching the task | alternatives: none\n", "").replace("- SC-1: names are normalized consistently through the public API\n", "")
+    mutated = (
+        text.replace("- SEL-1: selected: #209 | rationale: only ready child matching the task | alternatives: none\n", "")
+        .replace("- SC-1: names are normalized consistently through the public API\n", "")
+        .replace("- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: normalization is owned here\n", "")
+    )
     mutate_draft(draft, mutated)
+    text = draft.read_text(encoding="utf-8")
+    metadata = metadata_of(text)
+    del metadata["alternate_winners"]
+    match = CHECKER.METADATA_RE.search(text)
+    assert match is not None
+    mutate_draft(draft, text[: match.start("json")] + json.dumps(metadata) + text[match.end("json"):])
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert errors == []
 
@@ -655,6 +665,282 @@ def test_placeholder_tokens_in_metadata_are_allowed(tmp_path: Path) -> None:
     replace_metadata(draft, blockers=["TODO: verify the linked PR state for #209"])
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert errors == []
+
+
+def test_blocked_sel_must_name_a_declared_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "blocked"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "SEL-1: selected: #209", "SEL-1: selected: #999")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("SEL issue must be declared as a CAND candidate" in error for error in errors)
+
+
+def test_blocked_sel_requires_ready_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "blocked"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-1: candidate: #209 | readiness: ready", "CAND-1: candidate: #209 | readiness: blocked")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("SEL candidate must have readiness 'ready'" in error for error in errors)
+
+
+def test_needs_info_sel_must_name_a_declared_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-info-tie"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "- No selection: a genuine tie is preserved as needs-info rather than a forced pick.\n",
+        "- SEL-1: selected: #999 | rationale: invented selection | alternatives: none\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("SEL issue must be declared as a CAND candidate" in error for error in errors)
+
+
+def test_needs_info_sel_requires_ready_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-info-tie"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-1: candidate: #209 | readiness: ready", "CAND-1: candidate: #209 | readiness: blocked")
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "- No selection: a genuine tie is preserved as needs-info rather than a forced pick.\n",
+        "- SEL-1: selected: #209 | rationale: invented selection | alternatives: none\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("SEL candidate must have readiness 'ready'" in error for error in errors)
+
+
+def test_epic_complete_forbids_narrowing_records(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "epic-complete"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "No local narrowing evidence was required.\n",
+        "- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: local fact\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("status epic-complete cannot carry F records without a selection" in error for error in errors)
+
+
+def test_no_ready_issue_forbids_narrowing_records(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "no-ready-issue"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "No child is actionable yet; nothing was narrowed.\n",
+        "- SC-1: a smuggled outcome claim\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("status no-ready-issue cannot carry SC records without a selection" in error for error in errors)
+
+
+def test_needs_decomposition_forbids_narrowing_records(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-decomposition"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "No local narrowing evidence was required.\n",
+        "- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: local fact\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("status needs-decomposition cannot carry F records without a selection" in error for error in errors)
+
+
+def test_blocked_pre_selection_forbids_narrowing_records(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "blocked"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace("- SEL-1: selected: #209 | rationale: only ready child matching the task | alternatives: none\n", "").replace("- SC-1: names are normalized consistently through the public API\n", "")
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("status blocked cannot carry F records before a selection is made" in error for error in errors)
+
+
+def test_needs_info_forbids_narrowing_records_without_selection(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-info-tie"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "No local narrowing evidence was required for a non-selected outcome.\n",
+        "- F-1: `src/names.py:1` | anchor: `normalize_name` | observation: local fact\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("status needs-info cannot carry F records before a selection is made" in error for error in errors)
+
+
+def test_undeclared_sections_are_rejected(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text + "\n## Execution Plan\nDraft the patch now.\n"
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("section not part of the contract: Execution Plan" in error for error in errors)
+
+
+def test_verified_membership_allows_closed_children(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "epic-complete"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    snapshot["membership"] = {
+        "candidate_completeness": "verified",
+        "children_of": {"207": [209, 210]},
+        "provenance": {"mechanism": "gh issue graph cross-check", "derived_at": "2026-08-03T00:00:00Z"},
+    }
+    snapshot["digest"] = CHECKER.snapshot_digest(snapshot)
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    text = draft.read_text(encoding="utf-8")
+    match = CHECKER.METADATA_RE.search(text)
+    assert match is not None
+    metadata = json.loads(match.group("json"))
+    metadata["source"]["snapshot_digest"] = snapshot["digest"]
+    mutate_draft(draft, text[: match.start("json")] + json.dumps(metadata) + text[match.end("json"):])
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert errors == []
+
+
+def test_verified_empty_children_epic_complete_needs_no_candidates(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "epic-complete"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace("- CAND-1: candidate: #209 | readiness: completed | basis: snapshot #209 closed, merged PR linked\n", "").replace("- CAND-2: candidate: #210 | readiness: superseded | basis: snapshot #210 closed, superseded by #209\n", "")
+    mutate_draft(draft, mutated)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    snapshot["membership"] = {
+        "candidate_completeness": "verified",
+        "children_of": {"207": []},
+        "provenance": {"mechanism": "gh issue graph cross-check", "derived_at": "2026-08-03T00:00:00Z"},
+    }
+    snapshot["digest"] = CHECKER.snapshot_digest(snapshot)
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    text = draft.read_text(encoding="utf-8")
+    match = CHECKER.METADATA_RE.search(text)
+    assert match is not None
+    metadata = json.loads(match.group("json"))
+    metadata["source"]["snapshot_digest"] = snapshot["digest"]
+    mutate_draft(draft, text[: match.start("json")] + json.dumps(metadata) + text[match.end("json"):])
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert errors == []
+
+
+def test_verified_empty_children_reject_stray_candidates(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "epic-complete"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    snapshot["membership"] = {
+        "candidate_completeness": "verified",
+        "children_of": {"207": []},
+        "provenance": {"mechanism": "gh issue graph cross-check", "derived_at": "2026-08-03T00:00:00Z"},
+    }
+    snapshot["digest"] = CHECKER.snapshot_digest(snapshot)
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert any("CAND issues must equal verified children minus exclusions" in error for error in errors)
+
+
+def test_single_issue_requires_input_mode_declaration(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "single-issue"
+    draft, _scope_inputs = render(fixture, repo, commit, tmp_path)
+    inputs = json.loads(read_text(fixture / "scope-inputs.json"))
+    del inputs["mode"]
+    inputs_path = tmp_path / "scope-inputs.json"
+    inputs_path.write_text(json.dumps(inputs), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, inputs_path)
+    assert any("scope_inputs.mode must be one of: single, index" in error for error in errors)
+    assert any("metadata.mode does not match scope_inputs.mode" in error for error in errors)
+
+
+def test_artifact_mode_must_match_snapshot_mode(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "single-issue"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, mode="index")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("metadata.mode does not match the snapshot mode" in error for error in errors)
+
+
+def test_dirty_fingerprint_must_match_git(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    metadata = metadata_of(text)
+    metadata["checkout"]["dirty_fingerprint"] = "0" * 64
+    replace_metadata(draft, checkout=metadata["checkout"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("checkout.dirty_fingerprint does not match git status" in error for error in errors)
+
+
+def test_epic_purpose_is_required(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, epic={"number": 207, "url": "https://github.com/acme/widget/issues/207"})
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("missing metadata field epic.purpose" in error for error in errors)
+
+
+def test_confidence_must_be_a_contract_level(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, confidence="certain")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("metadata confidence must be one of" in error for error in errors)
+
+
+def test_alternate_winners_required_when_selection_exists(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    metadata = metadata_of(text)
+    del metadata["alternate_winners"]
+    match = CHECKER.METADATA_RE.search(text)
+    assert match is not None
+    mutated = text[: match.start("json")] + json.dumps(metadata) + text[match.end("json"):]
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("alternate_winners is required when a SEL record exists" in error for error in errors)
+
+
+def test_alternate_winners_forbidden_without_selection(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-info-tie"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, alternate_winners=["a future winner"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("alternate_winners is only valid when a SEL record exists" in error for error in errors)
+
+
+def test_unknowns_reject_empty_entries(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, unknowns=["   "])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("metadata unknowns must be an array of non-empty strings" in error for error in errors)
 
 
 def test_sealed_plan_ready_handoff_stays_plan_change_wire_compatible(tmp_path: Path) -> None:

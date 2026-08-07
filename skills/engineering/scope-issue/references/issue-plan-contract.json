@@ -29,6 +29,11 @@
     "selection-tie",
     "clarification"
   ],
+  "confidence_levels": [
+    "high",
+    "medium",
+    "low"
+  ],
   "required_sections": [
     "Selection Stage",
     "Outcome and Scope",
@@ -84,13 +89,14 @@
         "derived_at": "derived_at",
         "note": "The mechanism string is opaque to this contract. Concrete membership derivation mechanisms (including any label convention) are owned by scope-issue #209; the checker only requires a non-empty mechanism when completeness is verified and null values when it is unverified."
       },
+      "note": "Membership is structural: it proves child identity, membership, and provenance only. Child state, readiness, and PR semantics are agent-classified claims owned by scope-issue #209/#210; this contract layer never inspects child state. Verified children may therefore be closed issues or PRs.",
       "verified": {
         "requires_non_empty_mechanism": true,
         "requires_derived_at": true,
         "children_issues_must_exist_in_snapshot": true,
-        "children_are_open_non_pr_issues": true,
         "cand_must_equal_children_minus_exclusions": true,
-        "exclusions_must_name_children": true
+        "exclusions_must_name_children": true,
+        "note": "A verified epic whose children minus exclusions is empty is valid and requires zero CAND records; the artifact may represent it only as status 'epic-complete' (see selection_stage_obligations.min_candidates). Producing a verified empty-children claim is scope-issue #209's job."
       },
       "unverified": {
         "children_must_be_empty": true,
@@ -112,13 +118,22 @@
       "note": "Freshness is derived by the checker from the snapshot; it is never duplicated into authored metadata."
     }
   },
+  "checkout_binding": {
+    "dirty_field": "checkout.dirty",
+    "dirty_fingerprint_field": "checkout.dirty_fingerprint",
+    "dirty_fingerprint_algorithm": "sha256",
+    "dirty_fingerprint_input": "sha256 over the exact `git status --porcelain` stdout (UTF-8) with the trailing newline removed; sha256 of the empty string when the checkout is clean",
+    "note": "The fingerprint distinguishes different dirty states that the boolean alone cannot. It is always required. The checker recomputes it from the live checkout and requires the declaration to match."
+  },
   "required_metadata": [
     "contract_version",
+    "mode",
     "status",
     "task.text",
     "task.constraints",
     "epic.number",
     "epic.url",
+    "epic.purpose",
     "override",
     "exclusions",
     "source.repo",
@@ -131,6 +146,9 @@
     "checkout.remote_repo",
     "checkout.commit",
     "checkout.dirty",
+    "checkout.dirty_fingerprint",
+    "confidence",
+    "unknowns",
     "questions",
     "blockers",
     "close_evidence",
@@ -167,20 +185,25 @@
   "status_requirements": {
     "plan-ready": {
       "requires_sel": true,
-      "sel_readiness": "ready",
       "required_narrowing_records": ["SC", "F", "C"],
       "required_fields": [],
       "empty_fields": ["questions", "blockers", "close_evidence"]
     },
     "needs-info": {
       "requires_sel": false,
-      "required_narrowing_records": ["F"],
-      "narrowing_records_require_sel": true,
       "required_fields": ["questions"],
       "empty_fields": ["close_evidence"],
       "tie_obligation": {
         "when_at_least_ready_candidates": 2,
         "requires_reason": "selection-tie"
+      },
+      "sel_stages": {
+        "pre_selection": {
+          "forbidden_narrowing_records": ["SC", "F", "C", "D"]
+        },
+        "narrowing": {
+          "required_narrowing_records": ["F"]
+        }
       }
     },
     "blocked": {
@@ -189,7 +212,7 @@
       "empty_fields": [],
       "sel_stages": {
         "pre_selection": {
-          "forbidden_narrowing_records": ["SC", "C"],
+          "forbidden_narrowing_records": ["SC", "F", "C", "D"],
           "blocker_evidence": "at least one blocker must cite the epic issue or a declared candidate"
         },
         "narrowing": {
@@ -208,7 +231,7 @@
     "needs-decomposition": {
       "requires_sel": false,
       "forbids_sel": true,
-      "required_narrowing_records": [],
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
       "required_fields": ["decomposition_target"],
       "empty_fields": [],
       "candidate_readiness": {"any": ["needs-decomposition"]},
@@ -221,7 +244,7 @@
     "no-ready-issue": {
       "requires_sel": false,
       "forbids_sel": true,
-      "required_narrowing_records": [],
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
       "required_fields": [],
       "empty_fields": [],
       "candidate_readiness": {"any": ["blocked", "in-progress", "unknown"], "none": ["ready", "needs-decomposition"]}
@@ -229,16 +252,26 @@
     "epic-complete": {
       "requires_sel": false,
       "forbids_sel": true,
-      "required_narrowing_records": [],
+      "forbidden_narrowing_records": ["SC", "F", "C", "D"],
       "required_fields": [],
       "empty_fields": [],
       "candidate_readiness": {"all": ["completed", "superseded"]}
     }
   },
+  "stage_boundary": {
+    "note": "The selection/narrowing boundary is absolute: with no SEL record, no narrowing records (SC, F, C, D) may exist in any status. Narrowing records are only valid once a selection is made. Statuses without a sel_stages block apply forbidden_narrowing_records unconditionally when no SEL exists.",
+    "forbidden_without_sel": ["SC", "F", "C", "D"]
+  },
   "selection_stage_obligations": {
     "min_candidates": 1,
+    "zero_candidates_allowance": {
+      "when": "membership.candidate_completeness is verified and the epic's verified children minus exclusions is empty",
+      "status": "epic-complete",
+      "note": "A verified childless epic is represented with zero CAND records. Only status 'epic-complete' may use the allowance; every other status still requires at least one candidate, and a CAND record alongside verified-empty children still fails the children-minus-exclusions equality."
+    },
     "sel_issue_must_be_candidate": true,
     "sel_requires_ready_candidate": true,
+    "sel_invariants_note": "Whenever a SEL record exists — in any status, including optional-selection statuses — it must name exactly one declared CAND, that candidate must be ready, the selected issue must not be excluded, and an explicit override must still match it. These invariants are global and are enforced for every SEL.",
     "candidate_issues_must_be_in_snapshot": true,
     "candidate_issues_unique": true,
     "epic_must_be_in_snapshot": true,
@@ -265,12 +298,16 @@
   "single_issue_mode": {
     "mode_field": "metadata.mode",
     "mode": "single",
+    "input_mode_field": "scope_inputs.mode",
+    "input_mode_required": true,
+    "input_mode_values": ["single", "index"],
+    "three_way_agreement": "scope_inputs.mode must equal the snapshot metadata.mode and the artifact metadata.mode",
     "snapshot_count_must_be_one": true,
     "epic_must_be_the_single_issue": true,
     "exactly_one_candidate_naming_the_issue": true,
     "override_must_be_null": true,
     "exclusions_must_be_empty": true,
-    "note": "Single-issue mode collapses the frontier to one candidate; readiness, SEL presence, and the terminal status still follow the normal status contract. It is a first-class v2 mode, not a v1 migration."
+    "note": "Single-issue mode is an explicit compatibility declaration in scope_inputs.mode, never a consequence of the fetch alone: 'I fetched one issue' does not prove that the issue needs no child selection. It may be declared only when the user's task names one issue directly as the target. A single-issue snapshot without the input declaration fails closed; refetch in index mode unless the user named the issue directly. Readiness, SEL presence, and the terminal status still follow the normal status contract."
   },
   "citation_verification": {
     "structured_fields": ["basis", "blockers", "close_evidence"],
@@ -330,6 +367,6 @@
     ]
   },
   "migration": {
-    "note": "Contract v2 has no v1-to-v2 artifact migration path: plan-change consumes the v1 wire directly and no reader consumes v1 metadata, so no translator exists. Single-issue snapshots are a first-class v2 mode (see single_issue_mode), not a migration of v1 artifacts."
+    "note": "Contract v2 has no v1-to-v2 artifact migration path: plan-change consumes the v1 wire directly and no reader consumes v1 metadata, so no translator exists. Single-issue snapshots are a first-class v2 mode (see single_issue_mode), not a migration of v1 artifacts, and require the explicit scope_inputs.mode declaration; a fetch alone never authorizes them."
   }
 }

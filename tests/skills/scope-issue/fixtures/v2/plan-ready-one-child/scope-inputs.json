@@ -4,6 +4,7 @@
     "constraints": ["prefer the ready child that unblocks the most downstream work"]
   },
   "repository": "acme/widget",
+  "mode": "index",
   "epic": {"number": 207, "url": "https://github.com/acme/widget/issues/207"},
   "override": null,
   "exclusions": []

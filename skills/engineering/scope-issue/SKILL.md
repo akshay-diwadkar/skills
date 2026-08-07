@@ -51,9 +51,9 @@ and obligations.
 ### Stage 1: Selection
 
 Bind the immutable anchors from `scope_inputs.json` — task and constraints,
-repository, epic issue, optional explicit child override, and exclusions;
-GitHub prose cannot rewrite them. Inventory the bounded issue graph from the
-fetched snapshot. Classify every candidate with a `CAND-n` record; each basis
+repository, epic issue, mode, optional explicit child override, and
+exclusions; GitHub prose cannot rewrite them. Inventory the bounded issue
+graph from the fetched snapshot. Classify every candidate with a `CAND-n` record; each basis
 cites a snapshot issue or an `F-n` record. Compare only `ready` candidates
 against the task. Select one child in a `SEL-n` record with task- and
 graph-linked rationale; alternatives are `none` when the selected child is
@@ -90,33 +90,20 @@ cannot add sections, records, placeholders, or citations.
 
 ## Statuses
 
-Set exactly one status:
-
-- `plan-ready` — one selected child is narrowed and actionable for
-  `plan-change`.
-- `needs-info` — a user/product/task decision blocks selection or scoping;
-  record typed questions `{question, reason}` with reason `selection-tie` or
-  `clarification`.
-- `blocked` — the selected child cannot be narrowed because required
-  GitHub/local evidence or an external prerequisite is unavailable; record
-  exact unblock conditions. A human decision is `needs-info`, not `blocked`.
-- `close-candidate` — local evidence shows the selected child's work is
-  already satisfied or needs no code change; preserve confirming evidence.
-- `needs-decomposition` — the candidate is not one safely plannable unit;
-  return it to `raise-issue` without inventing replacement tickets. Bind
-  `decomposition_target` to the `CAND-n` record that needs decomposition.
-- `no-ready-issue` — actionable epic work remains but every candidate is
-  blocked, in-progress, or unknown.
-- `epic-complete` — no actionable child remains.
+Set exactly one status from the contract's status set; the checker enforces
+each status's required and forbidden records, the selection stage boundary,
+and the selection invariants from `references/issue-plan-contract.json`
+(`status_requirements`, `stage_boundary`, `selection_stage_obligations`).
 
 Only `plan-ready` passes to `plan-change`; every other status is a terminal
-local record. Never use `plan-ready` to hide a product question or missing
-local evidence.
+local record. A human decision is `needs-info`, not `blocked`. Never use
+`plan-ready` to hide a product question or missing local evidence.
 
 ## Single-issue mode
 
-When the snapshot declares `metadata.mode: "single"` (fetched with
-`--issue-number`), the frontier collapses: exactly one snapshot issue, the
+Single-issue mode is declared explicitly in `scope_inputs.mode: "single"`,
+never inferred from the fetch; the snapshot and artifact `metadata.mode` must
+carry the same value. The frontier collapses: exactly one snapshot issue, the
 epic is that issue, and exactly one `CAND-n` names it; no override and no
 exclusions. Readiness, `SEL-n` presence, and the terminal status still follow
 the normal status contract.
