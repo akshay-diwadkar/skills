@@ -31,7 +31,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pytest
-
 from test_baseline_utils import NodeMetrics, bucket_seconds
 
 

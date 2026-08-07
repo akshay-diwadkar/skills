@@ -41,8 +41,6 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from test_baseline_utils import (
-    BUCKET_EDGES,
-    BUCKET_LABELS,
     bucket_seconds,
     derive_layer_from_path,
     median_bucket,
