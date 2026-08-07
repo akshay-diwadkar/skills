@@ -100,6 +100,9 @@ def test_owner_derivation_rules() -> None:
         _owner_of("benchmarks/repos/schema-migration-service/tests/test_x.py::test_a")
         == "external-fixture"
     )
+    # owner_overrides exception support
+    override_exc = {"owner_overrides": {"tests/repository/test_x.py": "skills/engineering/custom"}}
+    assert _owner_of("tests/repository/test_x.py::test_a", override_exc) == "skills/engineering/custom"
 
 
 def test_failure_locality_rules() -> None:
@@ -296,7 +299,7 @@ def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     assert "quality.full" in duplicate_row["lanes"]
     assert duplicate_row["owner"] == "skills/engineering/map-codebase"
     assert first["schema_version"] == 2
-    assert first["failure_locality"]["evidence"] == "derived-static"
+    assert first["failure_locality"]["evidence"] == "offline-representative-signal"
     assert set(first["failure_locality"]["distribution"]) <= {"direct", "path-derived", "broad"}
     assert all(len(samples) <= 5 for samples in first["failure_locality"]["representative"].values())
     full_lane = first["ownership"]["lanes"]["quality.full"]
