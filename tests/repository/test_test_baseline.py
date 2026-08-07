@@ -10,7 +10,6 @@ sys.path.insert(0, str(REPO_ROOT / "tools" / "validation"))
 
 import build_test_baseline as baseline  # noqa: E402
 from build_test_baseline import (  # noqa: E402
-    _bucket,
     _classify,
     _derive_layer,
     _failure_locality,
@@ -19,6 +18,7 @@ from build_test_baseline import (  # noqa: E402
     _owner_of,
     validate_exceptions,
 )
+from test_baseline_utils import bucket_seconds  # noqa: E402
 
 LANES_PATH = REPO_ROOT / "tools" / "validation" / "test-baseline-lanes.json"
 EXCEPTIONS_PATH = REPO_ROOT / "tools" / "validation" / "test-baseline-exceptions.json"
@@ -39,11 +39,11 @@ REDUCED_MANIFEST = {
 
 
 def test_bucket_boundaries() -> None:
-    assert _bucket(0.0) == "0s"
-    assert _bucket(0.04) == "0s"
-    assert _bucket(0.05) == "0.05s"
-    assert _bucket(2.5) == "2s"
-    assert _bucket(500.0) == ">120s"
+    assert bucket_seconds(0.0) == "0s"
+    assert bucket_seconds(0.04) == "0s"
+    assert bucket_seconds(0.05) == "0.05s"
+    assert bucket_seconds(2.5) == "2s"
+    assert bucket_seconds(500.0) == ">120s"
 
 
 def test_derive_layer_rules() -> None:
@@ -84,7 +84,7 @@ def test_classify_rules() -> None:
     )
     assert (
         _classify("tests/skills/plan-change/test_x.py::test_a", [], ["quality.full", "plan-change-hardening.plan-change"])
-        == "suspected-duplicate"
+        == "primary-proof"
     )
 
 
@@ -291,7 +291,7 @@ def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     duplicate_row = next(
         row
         for row in first["inventory"]
-        if row["classification"] == "suspected-duplicate" and row["domain"] == "map-codebase"
+        if row["is_duplicate_execution"] and row["domain"] == "map-codebase"
     )
     assert "quality.full" in duplicate_row["lanes"]
     assert duplicate_row["owner"] == "skills/engineering/map-codebase"
@@ -300,8 +300,8 @@ def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     assert set(first["failure_locality"]["distribution"]) <= {"direct", "path-derived", "broad"}
     assert all(len(samples) <= 5 for samples in first["failure_locality"]["representative"].values())
     full_lane = first["ownership"]["lanes"]["quality.full"]
-    assert full_lane["boundary_justified"] is None
-    assert full_lane["unresolved"] is True
+    assert full_lane["boundary_justified"] is True
+    assert full_lane["unresolved"] is False
     assert "overlaps" in full_lane
     map_owner = first["ownership"]["owners"]["skills/engineering/map-codebase"]
     assert map_owner["owning_surface"] == ["skills/engineering/map-codebase/**"]

@@ -40,6 +40,14 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Sequence
 
+from test_baseline_utils import (
+    BUCKET_EDGES,
+    BUCKET_LABELS,
+    bucket_seconds,
+    derive_layer_from_path,
+    median_bucket,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 LANES_PATH = ROOT / "tools" / "validation" / "test-baseline-lanes.json"
 EXCEPTIONS_PATH = ROOT / "tools" / "validation" / "test-baseline-exceptions.json"
@@ -47,9 +55,6 @@ REPORT_PATH = ROOT / "benchmarks" / "reports" / "test-baseline.json"
 RECORDER_PLUGIN = "test_baseline_recorder"
 RECORDER_PATH = ROOT / "tools" / "validation" / f"{RECORDER_PLUGIN}.py"
 TESTS_ROOT = ROOT / "tests"
-
-BUCKET_EDGES = (0.0, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0)
-BUCKET_LABELS = tuple(f"{edge:g}s" for edge in BUCKET_EDGES)
 
 VALIDATOR_LANES: list[dict[str, Any]] = [
     {
@@ -172,6 +177,30 @@ VALIDATOR_LANES: list[dict[str, Any]] = [
     },
 ]
 
+VALIDATOR_OVERLAPS: list[dict[str, Any]] = [
+    {
+        "validator_lane": "quality.validate-repository",
+        "script": "tools/validation/validate_repository.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_repository_validation_passes"
+        ],
+    },
+    {
+        "validator_lane": "quality.context-load",
+        "script": "tools/validation/measure_context_load.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_context_load_measured"
+        ],
+    },
+    {
+        "validator_lane": "quality.fixture-lifecycle",
+        "script": "tools/benchmarks",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_test_baseline.py::test_exceptions_validity"
+        ],
+    },
+]
+
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
@@ -179,25 +208,6 @@ def _canonical_json(value: Any) -> str:
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _bucket(seconds: float) -> str:
-    for index, edge in enumerate(BUCKET_EDGES):
-        if seconds < edge:
-            return BUCKET_LABELS[max(index - 1, 0)]
-    return f">{BUCKET_EDGES[-1]:g}s"
-
-
-def _bucket_index(label: str) -> int:
-    try:
-        return BUCKET_LABELS.index(label)
-    except ValueError:
-        return len(BUCKET_LABELS) - 1
-
-
-def _median_bucket(labels: Sequence[str]) -> str:
-    indices = sorted(_bucket_index(label) for label in labels)
-    return BUCKET_LABELS[indices[(len(indices) - 1) // 2]]
 
 
 def _median(values: Sequence[int]) -> int:
@@ -233,71 +243,11 @@ def _suite_of(node_id: str) -> str:
     return parts[0] if parts else file_path
 
 
-def _layer_for_file(relative: str) -> str:
-    if relative.startswith(".."):
-        return "external-fixture"
-    lowered = relative.lower()
-    if lowered.startswith("skills") and (
-        "/evals/" in lowered
-        or "/eval/" in lowered
-        or "/fixtures/" in lowered
-        or "/repos/" in lowered
-        or lowered.endswith(("worked-example-fixtures", "static-regression-cases"))
-    ):
-        return "fixture-repository"
-    if lowered.startswith("skills"):
-        return "skill-local"
-    if lowered.startswith("repository"):
-        return "repository-policy"
-    if lowered.startswith("shared"):
-        return "shared-runtime"
-    if lowered.startswith("skill_protocol"):
-        return "shared-protocol"
-    if lowered.startswith("classification"):
-        return "classification"
-    if lowered.startswith("integration"):
-        return "installed-execution"
-    if lowered.startswith("benchmarks"):
-        return "benchmark-fixture"
-    return "unclassified"
-
-
 def _derive_layer(node_id: str) -> str:
     relative = _rel(_node_file(node_id), TESTS_ROOT)
     if relative.startswith(".."):
         return "external-fixture"
-    return _derive_layer_from_path(relative)
-
-
-def _derive_layer_from_path(relative: str) -> str:
-    lowered = relative.lower().replace(os.sep, "/")
-    if lowered.startswith("skills") and any(
-        marker in lowered
-        for marker in (
-            "/evals/",
-            "/eval/",
-            "/fixtures/",
-            "/repos/",
-            "/worked-example-fixtures",
-            "/static-regression-cases",
-        )
-    ):
-        return "fixture-repository"
-    if lowered.startswith("skills"):
-        return "skill-local"
-    if lowered.startswith("repository"):
-        return "repository-policy"
-    if lowered.startswith("shared"):
-        return "shared-runtime"
-    if lowered.startswith("skill_protocol"):
-        return "shared-protocol"
-    if lowered.startswith("classification"):
-        return "classification"
-    if lowered.startswith("integration"):
-        return "installed-execution"
-    if lowered.startswith("benchmarks"):
-        return "benchmark-fixture"
-    return "unclassified"
+    return derive_layer_from_path(relative)
 
 
 def _derive_domain(node_id: str) -> str:
@@ -364,9 +314,10 @@ BROAD_LOCALITY_LAYERS = (
 
 
 def _failure_locality(node_id: str, owner: str) -> str:
-    if _derive_layer(node_id) in BROAD_LOCALITY_LAYERS:
+    layer = _derive_layer(node_id)
+    if layer in BROAD_LOCALITY_LAYERS:
         return "broad"
-    if owner.startswith("skills/"):
+    if owner.startswith("skills/") or "test_skill_" in node_id or "test_contract" in node_id:
         return "direct"
     return "path-derived"
 
@@ -376,13 +327,64 @@ def _classify(node_id: str, markers: Sequence[str], lanes: Sequence[str]) -> str
         return "fixture-integrity"
     if "benchmark" in markers or "benchmark_slow" in markers:
         return "benchmark-evidence"
-    if _derive_layer(node_id) == "installed-execution":
+    layer = _derive_layer(node_id)
+    if layer == "installed-execution":
         return "compatibility-check"
-    if _derive_layer(node_id) == "fixture-repository":
+    if layer in ("fixture-repository", "benchmark-fixture"):
         return "fixture-composition"
-    if len(lanes) > 1:
-        return "suspected-duplicate"
     return "primary-proof"
+
+
+_AST_CACHE: dict[str, ast.AST | None] = {}
+
+
+def _inspect_node_ast(root: Path, file_path_rel: str, node_id: str) -> tuple[list[str], list[str]]:
+    """Parse test file AST and extract boundaries and fixture parameters used by target node."""
+    full_path = root / file_path_rel
+    if not full_path.exists():
+        return [], []
+    if file_path_rel not in _AST_CACHE:
+        try:
+            _AST_CACHE[file_path_rel] = ast.parse(full_path.read_text(encoding="utf-8"))
+        except Exception:
+            _AST_CACHE[file_path_rel] = None
+    tree = _AST_CACHE[file_path_rel]
+    if tree is None:
+        return [], []
+
+    # Get function name from node_id
+    raw_name = node_id.split("::")[-1].split("[")[0]
+    target_def: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+    for item in ast.walk(tree):
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == raw_name:
+            target_def = item
+            break
+
+    if target_def is None:
+        return [], []
+
+    fixtures_used = [arg.arg for arg in target_def.args.args if arg.arg not in ("self", "cls")]
+    boundaries: set[str] = set()
+
+    for child in ast.walk(target_def):
+        if isinstance(child, ast.Call):
+            func = child.func
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                base, attr = func.value.id, func.attr
+                if base == "subprocess" or attr in ("run", "Popen", "call", "check_call", "check_output"):
+                    boundaries.add("subprocess")
+                elif base == "shutil" and attr.startswith("copy"):
+                    boundaries.add("copytree")
+                elif base == "tempfile" or attr.startswith("mkdtemp"):
+                    boundaries.add("temp_repo")
+                elif base in ("requests", "urllib", "socket", "httpx"):
+                    boundaries.add("network")
+                elif base == "os" and attr in ("system", "popen", "spawn"):
+                    boundaries.add("subprocess")
+            elif isinstance(func, ast.Name) and func.id in ("subprocess", "exec"):
+                boundaries.add("subprocess")
+
+    return sorted(boundaries), sorted(fixtures_used)
 
 
 def _run_pytest(
@@ -412,7 +414,7 @@ def collect_lane(lane: dict[str, Any], recorder_out: str | None) -> dict[str, An
     returncode, output = _run_pytest([*args, "--collect-only", "-q"], recorder_out)
     elapsed = time.monotonic() - started
     node_ids = sorted(line.strip() for line in output.splitlines() if line.startswith("tests/"))
-    summary: dict[str, Any] = {"returncode": returncode, "elapsed_seconds_bucket": _bucket(elapsed)}
+    summary: dict[str, Any] = {"returncode": returncode, "elapsed_seconds_bucket": bucket_seconds(elapsed)}
     collected_match = re.search(r"(\d+)\s+tests collected", output)
     if collected_match:
         summary["tests_collected"] = int(collected_match.group(1))
@@ -550,10 +552,12 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
         markers = sorted(all_markers.get(node_id, []))
         classification = _classify(node_id, markers, lanes_here)
         owner = _owner_of(node_id)
+        file_path_rel = _node_file(node_id)
+        boundaries, fixtures_used = _inspect_node_ast(root, file_path_rel, node_id)
         inventory.append(
             {
                 "node_id": node_id,
-                "file": _node_file(node_id),
+                "file": file_path_rel,
                 "suite": _suite_of(node_id),
                 "layer": _derive_layer(node_id),
                 "domain": _derive_domain(node_id),
@@ -561,7 +565,10 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
                 "failure_locality": _failure_locality(node_id, owner),
                 "markers": markers,
                 "classification": classification,
+                "is_duplicate_execution": len(lanes_here) > 1,
                 "lanes": lanes_here,
+                "boundaries": boundaries,
+                "fixtures_used": fixtures_used,
             }
         )
 
@@ -628,8 +635,10 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
             other for other, other_set in all_nodes.items()
             if other != lane_id and nodes <= other_set
         )
-        if subsumers:
-            cheapest_layer = f"subsumed-by:{subsumers[0]}"
+        subsumed_by = subsumers[0] if subsumers else None
+        if subsumed_by:
+            layers = Counter(_derive_layer(n) for n in nodes)
+            cheapest_layer = layers.most_common(1)[0][0] if layers else "repository"
         elif unique_nodes:
             unique_layers = Counter(_derive_layer(node_id) for node_id in unique_nodes)
             cheapest_layer = unique_layers.most_common(1)[0][0]
@@ -643,6 +652,7 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
             "overlaps": overlaps,
             "not_protected": not_protected,
             "cheapest_owning_layer": cheapest_layer,
+            "subsumed_by_lane": subsumed_by,
             "boundary_justified": boundary_justified,
             "proposed_owner": proposed_owner,
             "unresolved": boundary_justified is None,
@@ -673,6 +683,7 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
             "overlap_pairs": overlap_pairs,
             "subsumptions": subsumptions,
             "source_path_rollup": source_path_rollup,
+            "validator_overlaps": VALIDATOR_OVERLAPS,
         },
         "ownership": {
             "owners": owners,
@@ -744,14 +755,14 @@ def _merge_recorder(run_files: Sequence[Path]) -> dict[str, Any]:
     }
     for node_id, entry in sorted(nodes.items()):
         merged["nodes"][node_id] = {
-            "duration_bucket": _median_bucket(entry["bucket_labels"]),
+            "duration_bucket": median_bucket(entry["bucket_labels"]),
             "subprocess": _median(entry["subprocess_counts"]),
             "copy_bytes": _median(entry["copy_volume"]),
             "copy_count": _median(entry["copy_counts"]),
         }
     for name, count in fixtures.most_common():
         merged["fixtures"].append(
-            {"fixture": name, "occurrences": count, "duration_bucket": _median_bucket(fixture_buckets[name])}
+            {"fixture": name, "occurrences": count, "duration_bucket": median_bucket(fixture_buckets[name])}
         )
     by_kind: dict[str, Counter[str]] = defaultdict(Counter)
     for boundary in boundaries:
@@ -786,12 +797,12 @@ def runtime_runs(runs: int, work_dir: Path) -> dict[str, Any]:
         started = time.monotonic()
         collect_out = work_dir / f"collect_run{index}.json"
         collect_lane(lane, str(collect_out))
-        collection_buckets.append(_bucket(time.monotonic() - started))
+        collection_buckets.append(bucket_seconds(time.monotonic() - started))
         started = time.monotonic()
         returncode, output = _run_pytest(
             [*lane["args"], "-q"], str(out), timeout_seconds=3600
         )
-        wall_buckets.append(_bucket(time.monotonic() - started))
+        wall_buckets.append(bucket_seconds(time.monotonic() - started))
         if returncode != 0:
             raise RuntimeError(f"baseline runtime run {index} failed:\n{output[-3000:]}")
         run_files.append(out)
@@ -832,7 +843,7 @@ def lane_executions(work_dir: Path) -> dict[str, Any]:
             "executed": True,
             "executed_count": counts.get("executed", 0),
             "collected": counts,
-            "wall_duration_bucket": _bucket(time.monotonic() - started),
+            "wall_duration_bucket": bucket_seconds(time.monotonic() - started),
             "returncode": returncode,
         }
         if returncode != 0:

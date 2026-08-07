@@ -32,15 +32,12 @@ from typing import Any, Callable
 
 import pytest
 
-BUCKET_EDGES = (0.0, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0)
-BUCKET_LABELS = tuple(f"{edge:g}s" for edge in BUCKET_EDGES)
+from test_baseline_utils import NodeMetrics, bucket_seconds
 
 
-def _bucket(seconds: float) -> str:
-    for index, edge in enumerate(BUCKET_EDGES):
-        if seconds < edge:
-            return BUCKET_LABELS[max(index - 1, 0)]
-    return f">{BUCKET_EDGES[-1]:g}s"
+def _default_node_metrics() -> NodeMetrics:
+    return {"bucket": ">120s", "subprocess": 0, "copy_bytes": 0, "copy_count": 0}
+
 
 
 _state: dict[str, Any] = {
@@ -59,9 +56,7 @@ def _record_boundary(kind: str, detail: str, volume: int = 0) -> None:
         {"nodeid": nodeid, "kind": kind, "detail": detail, "volume": volume}
     )
     if nodeid != "collection":
-        node = _state["nodes"].setdefault(
-            nodeid, {"bucket": ">120s", "subprocess": 0, "copy_bytes": 0, "copy_count": 0}
-        )
+        node = _state["nodes"].setdefault(nodeid, _default_node_metrics())
         if kind == "subprocess":
             node["subprocess"] += 1
         else:
@@ -212,10 +207,8 @@ def pytest_runtest_teardown(item: Any, nextitem: Any) -> None:
     nodeid = item.nodeid
     started = _state["node_starts"].pop(nodeid, None)
     if started is not None:
-        node = _state["nodes"].setdefault(
-            nodeid, {"bucket": ">120s", "subprocess": 0, "copy_bytes": 0, "copy_count": 0}
-        )
-        node["bucket"] = _bucket(time.monotonic() - started)
+        node = _state["nodes"].setdefault(nodeid, _default_node_metrics())
+        node["bucket"] = bucket_seconds(time.monotonic() - started)
     if _state["current_node"] == nodeid:
         _state["current_node"] = ""
 
@@ -232,7 +225,7 @@ def pytest_fixture_setup(fixturedef: Any, request: Any) -> Any:
                 fixturedef, "argname", getattr(fixturedef, "fixturename", "")
             ),
             "baseid": str(getattr(fixturedef, "baseid", getattr(fixturedef, "parentid", ""))),
-            "bucket": _bucket(time.monotonic() - started),
+            "bucket": bucket_seconds(time.monotonic() - started),
         }
     )
     return result
