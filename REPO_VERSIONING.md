@@ -75,6 +75,17 @@ For `map-codebase` benchmark and fixture work:
 
 Run the smallest relevant tests first. Expand in proportion to risk. Do not repeat expensive unchanged suites.
 
+Repository guards such as `test_skill_metadata_and_tracked_references_use_canonical_names_only`
+scan only Git-tracked files (`git ls-files`). When a change adds or modifies
+tracked artifacts (reports, fixtures, JSON, generated files), re-run the
+tracked-file guard suites and repository validation after `git add` and before
+pushing:
+
+```bash
+python -m pytest tests/repository -q
+python tools/validation/validate_repository.py
+```
+
 Before declaring merge readiness:
 
 1. Install release requirements.
