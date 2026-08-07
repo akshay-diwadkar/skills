@@ -122,7 +122,7 @@
     "dirty_field": "checkout.dirty",
     "dirty_fingerprint_field": "checkout.dirty_fingerprint",
     "dirty_fingerprint_algorithm": "sha256",
-    "dirty_fingerprint_input": "sha256 over the exact `git status --porcelain` stdout (UTF-8) with the trailing newline removed; sha256 of the empty string when the checkout is clean",
+    "dirty_fingerprint_input": "sha256 over the exact raw UTF-8 bytes of `git status --porcelain` stdout, with no stripping; sha256 of b'' (the empty byte string) when the checkout is clean",
     "note": "The fingerprint distinguishes different dirty states that the boolean alone cannot. It is always required. The checker recomputes it from the live checkout and requires the declaration to match."
   },
   "required_metadata": [

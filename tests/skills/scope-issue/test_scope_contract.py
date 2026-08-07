@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import re
@@ -887,6 +888,29 @@ def test_dirty_fingerprint_must_match_git(tmp_path: Path) -> None:
     text = draft.read_text(encoding="utf-8")
     metadata = metadata_of(text)
     metadata["checkout"]["dirty_fingerprint"] = "0" * 64
+    replace_metadata(draft, checkout=metadata["checkout"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("checkout.dirty_fingerprint does not match git status" in error for error in errors)
+
+
+def test_dirty_fingerprint_hashes_exact_porcelain_bytes(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    names = repo / "src" / "names.py"
+    names.write_text(names.read_text(encoding="utf-8") + "\n# dirty\n", encoding="utf-8")
+    porcelain = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain"], check=True, capture_output=True
+    ).stdout
+    assert porcelain.startswith(b" M ")
+    metadata = metadata_of(draft.read_text(encoding="utf-8"))
+    metadata["checkout"]["dirty"] = True
+    metadata["checkout"]["dirty_fingerprint"] = hashlib.sha256(porcelain).hexdigest()
+    replace_metadata(draft, checkout=metadata["checkout"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert errors == []
+    metadata = metadata_of(draft.read_text(encoding="utf-8"))
+    metadata["checkout"]["dirty_fingerprint"] = hashlib.sha256(porcelain.strip()).hexdigest()
     replace_metadata(draft, checkout=metadata["checkout"])
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert any("checkout.dirty_fingerprint does not match git status" in error for error in errors)

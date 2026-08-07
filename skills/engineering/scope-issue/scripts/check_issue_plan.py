@@ -81,6 +81,14 @@ def _git(repo_root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def _git_bytes(repo_root: Path, *args: str) -> bytes:
+    try:
+        result = subprocess.run(["git", "-C", str(repo_root), *args], capture_output=True, check=True)
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        raise HandoffContractError(f"unable to inspect git checkout: {' '.join(args)}") from exc
+    return result.stdout
+
+
 def _tokenizers(contract: dict[str, Any]) -> dict[str, re.Pattern[str]]:
     return {prefix: re.compile(entry["pattern"]) for prefix, entry in contract["record_formats"].items()}
 
@@ -383,11 +391,11 @@ def _validate_source(metadata: dict[str, Any], payload: dict[str, Any], repo_roo
         errors.append("checkout origin does not match issue source")
     if checkout.get("commit") != _git(actual_root, "rev-parse", "HEAD"):
         errors.append("issue handoff is stale because HEAD changed")
-    porcelain = _git(actual_root, "status", "--porcelain")
+    porcelain = _git_bytes(actual_root, "status", "--porcelain")
     actual_dirty = bool(porcelain)
     if checkout.get("dirty") != actual_dirty:
         errors.append("checkout.dirty does not match git status")
-    actual_fingerprint = hashlib.sha256(porcelain.rstrip("\n").encode("utf-8")).hexdigest()
+    actual_fingerprint = hashlib.sha256(porcelain).hexdigest()
     if checkout.get("dirty_fingerprint") != actual_fingerprint:
         errors.append("checkout.dirty_fingerprint does not match git status")
     return errors
