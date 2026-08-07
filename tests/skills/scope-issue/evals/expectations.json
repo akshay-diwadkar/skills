@@ -5,7 +5,7 @@
   "needs-info": {"minimum_score": 90, "status": "needs-info", "required": ["questions"]},
   "prompt-injection": {"minimum_score": 90, "status": "plan-ready", "required": ["Issue Claims (Untrusted)"]},
   "large-backlog": {"minimum_score": 90, "status": "plan-ready", "required": ["source.issue_number"]},
-  "stale-plan": {"minimum_score": 90, "status": "blocked", "required": ["blockers"]},
+  "stale-plan": {"minimum_score": 90, "status": "invalid", "required": ["snapshot_digest", "checkout.commit", "no sealed handoff"]},
   "go-ast-grounding": {"minimum_score": 90, "status": "plan-ready", "required": ["src/names.go", "normalizeName"]},
   "java-ast-grounding": {"minimum_score": 90, "status": "plan-ready", "required": ["src/Parser.java", "parseValue"]},
   "rust-ast-grounding": {"minimum_score": 90, "status": "plan-ready", "required": ["src/lib.rs", "parse_value"]},

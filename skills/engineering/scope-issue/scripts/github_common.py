@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -189,3 +190,16 @@ def masked(value: str, secret: bool = False) -> str:
             return "***"
         return f"{value[:4]}...{value[-4:]}"
     return value
+
+
+def snapshot_digest(snapshot: dict[str, Any]) -> str:
+    """sha256 over the snapshot JSON minus the digest field (contract section canonicalization)."""
+
+    payload = {k: v for k, v in snapshot.items() if k != "digest"}
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

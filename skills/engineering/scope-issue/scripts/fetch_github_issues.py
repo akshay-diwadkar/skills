@@ -18,8 +18,17 @@ from github_common import (
     normalize_github_repo_target,
     parse_int,
     parse_labels,
+    snapshot_digest,
     validate_github_api_url,
 )
+
+
+def unverified_membership() -> dict[str, Any]:
+    return {
+        "candidate_completeness": "unverified",
+        "children_of": {},
+        "provenance": {"mechanism": None, "derived_at": None},
+    }
 
 
 class PlannerGitHubClient(GitHubClient):
@@ -122,7 +131,7 @@ def fetch_issues(
             comments = client.list_comments(repo, number)
         issues.append(normalize_issue(raw_issue, comments))
 
-    return {
+    result = {
         "repo": repo,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "count": len(issues),
@@ -135,8 +144,11 @@ def fetch_issues(
             "mode": "index",
             "content_trust": "untrusted-github-data",
         },
+        "membership": unverified_membership(),
         "issues": issues,
     }
+    result["digest"] = snapshot_digest(result)
+    return result
 
 
 def fetch_single_issue(
@@ -148,7 +160,7 @@ def fetch_single_issue(
     raw_issue = client.get_issue(repo, issue_number)
     comments = client.list_comments(repo, issue_number) if include_comments else []
     normalized = normalize_issue(raw_issue, comments)
-    return {
+    result = {
         "repo": repo,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "count": 1,
@@ -161,8 +173,11 @@ def fetch_single_issue(
             "mode": "single",
             "content_trust": "untrusted-github-data",
         },
+        "membership": unverified_membership(),
         "issues": [normalized],
     }
+    result["digest"] = snapshot_digest(result)
+    return result
 
 
 def write_json_atomic(output_path: Path, data: dict[str, Any]) -> None:

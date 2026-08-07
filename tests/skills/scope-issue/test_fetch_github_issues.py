@@ -121,6 +121,15 @@ class FetchGitHubIssuesTests(unittest.TestCase):
                 "content_trust": "untrusted-github-data",
             },
         )
+        self.assertEqual(
+            result["membership"],
+            {
+                "candidate_completeness": "unverified",
+                "children_of": {},
+                "provenance": {"mechanism": None, "derived_at": None},
+            },
+        )
+        self.assertEqual(result["digest"], fetcher.snapshot_digest(result))
 
     def test_limit_counts_only_real_issues_after_pull_request_filtering(self):
         client = fetcher.PlannerGitHubClient()
@@ -142,6 +151,8 @@ class FetchGitHubIssuesTests(unittest.TestCase):
         self.assertEqual(result["issues"][0]["comments"][0]["body"], "Clarification")
         self.assertEqual(result["metadata"]["mode"], "single")
         self.assertEqual(result["metadata"]["content_trust"], "untrusted-github-data")
+        self.assertEqual(result["membership"]["candidate_completeness"], "unverified")
+        self.assertEqual(result["digest"], fetcher.snapshot_digest(result))
 
     def test_exact_issue_rejects_pull_request_number(self):
         client = fetcher.PlannerGitHubClient()

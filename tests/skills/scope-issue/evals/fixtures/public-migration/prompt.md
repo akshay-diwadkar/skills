@@ -1,1 +1,1 @@
-Use $scope-issue to plan issue #12, which requests a new required field in a shared persisted event. Ground the change locally, classify routing, validate the issue artifact, and provide the senior handoff without implementing.
+Use $scope-issue in single-issue mode to plan issue #12, which requests a new required field in a shared persisted event. Ground the change locally, classify routing, validate the issue artifact, and provide the senior handoff without implementing.

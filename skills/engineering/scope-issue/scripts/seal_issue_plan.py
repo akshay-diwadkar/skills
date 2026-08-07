@@ -11,7 +11,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from check_issue_plan import canonicalize_metadata, validate_plan
+from check_issue_plan import canonical_body, validate_plan
 
 RECEIPT_RE = re.compile(r"^<!-- issue-handoff: 1; sha256: ([0-9a-f]{64}) -->$")
 
@@ -24,12 +24,6 @@ def _receipt_free(text: str) -> str:
     if not separator or hashlib.sha256(body.encode("utf-8")).hexdigest() != match.group(1):
         raise ValueError("issue handoff receipt does not match content")
     return body
-
-
-def canonical_body(text: str) -> str:
-    """Canonical sealed form: receipt-free, canonical metadata, LF, single final newline."""
-    canonical = canonicalize_metadata(text.replace("\r\n", "\n").replace("\r", "\n"))
-    return canonical.rstrip() + "\n"
 
 
 def main() -> int:

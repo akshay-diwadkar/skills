@@ -66,9 +66,9 @@ def test_seals_one_typed_plan_ready_handoff(tmp_path: Path) -> None:
     assert {item.name for item in path.parent.iterdir()} == {"issue-handoff.md"}
 
 
-def test_seals_single_issue_compatibility_handoff(tmp_path: Path) -> None:
+def test_seals_single_issue_handoff(tmp_path: Path) -> None:
     repo, _commit = init_repo(tmp_path)
-    path = seal(repo, FIXTURES / "v2" / "single-issue-compat", tmp_path)
+    path = seal(repo, FIXTURES / "v2" / "single-issue", tmp_path)
     first, body = path.read_text(encoding="utf-8").split("\n", 1)
     assert first == f"<!-- issue-handoff: 1; sha256: {hashlib.sha256(body.encode()).hexdigest()} -->"
     assert "## Selection Stage" in body

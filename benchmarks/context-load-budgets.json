@@ -11,21 +11,9 @@
     ]
   },
   "category_budgets": {
-    "router": {
-      "top_level": 500,
-      "pre_action": 750,
-      "worst_references": 800
-    },
-    "model_helper": {
-      "top_level": 650,
-      "pre_action": 900,
-      "worst_references": 3500
-    },
-    "user_orchestrator": {
-      "top_level": 750,
-      "pre_action": 1250,
-      "worst_references": 10000
-    }
+    "router": {"top_level": 500, "pre_action": 750, "worst_references": 800},
+    "model_helper": {"top_level": 650, "pre_action": 900, "worst_references": 3500},
+    "user_orchestrator": {"top_level": 750, "pre_action": 1250, "worst_references": 10000}
   },
   "shared_budgets": {
     "phase_references": 6000,
@@ -80,17 +68,12 @@
     "implement-plan": {
       "category": "user_orchestrator",
       "diagnostic_input": "plan_file",
-      "representative_inputs": {
-        "plan_file": "{fixture_file}",
-        "bundle": "{fixture_file}"
-      }
+      "representative_inputs": {"plan_file": "{fixture_file}", "bundle": "{fixture_file}"}
     },
     "map-codebase": {
       "category": "model_helper",
       "diagnostic_input": "task",
-      "representative_inputs": {
-        "task": "locate the application entrypoint"
-      }
+      "representative_inputs": {"task": "locate the application entrypoint"}
     },
     "manualize": {
       "category": "user_orchestrator",
@@ -123,28 +106,18 @@
     "raise-issue": {
       "category": "user_orchestrator",
       "diagnostic_input": "handoff",
-      "representative_inputs": {
-        "handoff": "{fixture_file}",
-        "github_repo_url": "owner/repo"
-      }
+      "representative_inputs": {"handoff": "{fixture_file}", "github_repo_url": "owner/repo"}
     },
     "route-work": {
       "category": "router",
       "diagnostic_input": "selected_skills",
-      "representative_inputs": {
-        "selected_skills": "plan-change"
-      },
+      "representative_inputs": {"selected_skills": "plan-change"},
       "measure_successful_run": true
     },
     "scope-issue": {
       "category": "user_orchestrator",
       "diagnostic_input": "issue_json",
-      "representative_inputs": {
-        "scope_inputs": "{fixture_file}",
-        "issue_json": "{fixture_file}",
-        "draft": "{fixture_file}",
-        "output_dir": "{fixture_dir}"
-      }
+      "representative_inputs": {"scope_inputs": "{fixture_file}", "issue_json": "{fixture_file}", "draft": "{fixture_file}", "output_dir": "{fixture_dir}"}
     }
   },
   "exceptions": [
@@ -156,15 +129,8 @@
       "max_tokens": 1000,
       "expires": "2027-08-03",
       "rationale": "The stateless run output carries the protocol envelope plus the compact route_handoff decision by contract; the agent-decision inputs and the expanded routing policy keep that envelope bounded while detailed guidance stays opt-in.",
-      "supporting_paths": [
-        "SKILL.md",
-        "skill-protocol.json"
-      ],
-      "protected_rule_ids": [
-        "route.read-only",
-        "route.no-execution",
-        "route.exact-json"
-      ]
+      "supporting_paths": ["SKILL.md", "skill-protocol.json"],
+      "protected_rule_ids": ["route.read-only", "route.no-execution", "route.exact-json"]
     },
     {
       "id": "audit-typed-selection-boundary",
@@ -175,13 +141,8 @@
       "max_tokens": 650,
       "expires": "2027-08-03",
       "rationale": "Audit now states the one-finding-at-a-time planning boundary and deterministic delegated selection without weakening read-only or publication authority.",
-      "supporting_paths": [
-        "SKILL.md"
-      ],
-      "protected_rule_ids": [
-        "audit.read-only",
-        "audit.handoff-terminal"
-      ]
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["audit.read-only", "audit.handoff-terminal"]
     },
     {
       "id": "plan-typed-intake-top-level",
@@ -192,15 +153,8 @@
       "max_tokens": 700,
       "expires": "2027-08-05",
       "rationale": "Plan intake verifies typed handoffs and now states anti-ceremony, repair/re-explore, and opt-in example calibration without weakening authority rules.",
-      "supporting_paths": [
-        "SKILL.md",
-        "skill-protocol.json",
-        "references/plan-examples.md"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.agent-authority"
-      ]
+      "supporting_paths": ["SKILL.md", "skill-protocol.json", "references/plan-examples.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.agent-authority"]
     },
     {
       "id": "plan-typed-intake-pre-action",
@@ -211,13 +165,8 @@
       "max_tokens": 900,
       "expires": "2027-08-03",
       "rationale": "The optional audit selector is exposed before sealing so multi-finding handoffs fail closed without adding another planning phase.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.exact-finalizer-output"
-      ]
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output"]
     },
     {
       "id": "plan-change-v7-structured-obligation-coverage",
@@ -228,16 +177,8 @@
       "max_tokens": 3300,
       "expires": "2027-08-05",
       "rationale": "Opt-in worked examples calibrate first-run authoring across tiny, standard, and high-risk tiers with complete drafts, delta records, tier decisions, and stop conditions; the examples stay opt-in, measure 3035 tokens, and the 3300-token cap preserves narrow repair headroom.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/plan-examples.md"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.untrusted-evidence",
-        "plan.exact-finalizer-output",
-        "plan.agent-authority"
-      ]
+      "supporting_paths": ["references/plan-contract.md", "references/plan-examples.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
       "id": "scope-handoff-reference-reduction",
@@ -247,15 +188,8 @@
       "scope": "delta",
       "expires": "2027-08-03",
       "rationale": "Removing branch, PR, post-merge, and implementation-plan guidance leaves one compact issue-grounding rubric and handoff contract.",
-      "supporting_paths": [
-        "references/planning-rubric.md",
-        "references/issue-plan-contract.json"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["references/planning-rubric.md", "references/issue-plan-contract.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "plan-change-v6-top-level-reduction",
@@ -265,15 +199,8 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The v6 agent-first workflow replaces stateful discovery and repeated validation guidance with one concise native-exploration and sealing workflow while retaining every protected authority and safety rule.",
-      "supporting_paths": [
-        "SKILL.md"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.untrusted-evidence",
-        "plan.exact-finalizer-output",
-        "plan.agent-authority"
-      ]
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
       "id": "plan-change-v6-pre-action-reduction",
@@ -283,14 +210,8 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The stateless protocol removes phase state, inventory, classification, scaffold, and baseline reads so pre-action context contains only the required request and draft inputs.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.exact-finalizer-output",
-        "plan.agent-authority"
-      ]
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["plan.read-only", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
       "id": "plan-change-v6-reference-reduction",
@@ -300,17 +221,8 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The v6 reference portfolio intentionally removes the v5 inventory, delegation, adversarial, compatibility, glossary, and scaffold manuals in favor of three compact task-selected references.",
-      "supporting_paths": [
-        "references/plan-contract.md",
-        "references/task-guidance.md",
-        "references/evidence-kinds.md"
-      ],
-      "protected_rule_ids": [
-        "plan.read-only",
-        "plan.untrusted-evidence",
-        "plan.exact-finalizer-output",
-        "plan.agent-authority"
-      ]
+      "supporting_paths": ["references/plan-contract.md", "references/task-guidance.md", "references/evidence-kinds.md"],
+      "protected_rule_ids": ["plan.read-only", "plan.untrusted-evidence", "plan.exact-finalizer-output", "plan.agent-authority"]
     },
     {
       "id": "audit-codebase-bounded-delegation-phase",
@@ -322,12 +234,8 @@
       "max_tokens": 1500,
       "expires": "2027-07-31",
       "rationale": "Risk-surface inspection loads the bounded category-scout contract so parallel and sequential collection preserve one authority model.",
-      "supporting_paths": [
-        "references/delegation-protocol.md"
-      ],
-      "protected_rule_ids": [
-        "audit.delegation-authority"
-      ]
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["audit.delegation-authority"]
     },
     {
       "id": "audit-codebase-bounded-delegation-portfolio",
@@ -338,12 +246,8 @@
       "max_tokens": 5500,
       "expires": "2027-07-31",
       "rationale": "The complete audit reference portfolio includes the bounded category-scout contract required for provider-neutral fallback and reconciliation.",
-      "supporting_paths": [
-        "references/delegation-protocol.md"
-      ],
-      "protected_rule_ids": [
-        "audit.delegation-authority"
-      ]
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["audit.delegation-authority"]
     },
     {
       "id": "design-codebase-bounded-delegation-phase",
@@ -360,11 +264,7 @@
         "references/design-protocol.md",
         "references/handoff-template.md"
       ],
-      "protected_rule_ids": [
-        "design.delegation-authority",
-        "design.one-artifact",
-        "design.no-edit-validated"
-      ]
+      "protected_rule_ids": ["design.delegation-authority", "design.one-artifact", "design.no-edit-validated"]
     },
     {
       "id": "design-codebase-bounded-delegation-portfolio",
@@ -381,11 +281,7 @@
         "references/handoff-template.md",
         "references/worked-examples.md"
       ],
-      "protected_rule_ids": [
-        "design.delegation-authority",
-        "design.one-artifact",
-        "design.no-edit-validated"
-      ]
+      "protected_rule_ids": ["design.delegation-authority", "design.one-artifact", "design.no-edit-validated"]
     },
     {
       "id": "implement-plan-bounded-delegation-phase",
@@ -397,12 +293,8 @@
       "max_tokens": 5800,
       "expires": "2027-07-31",
       "rationale": "Implementation loads the bounded post-change review contract without transferring edit, recovery, or completion authority.",
-      "supporting_paths": [
-        "references/delegation-protocol.md"
-      ],
-      "protected_rule_ids": [
-        "implement.delegation-authority"
-      ]
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["implement.delegation-authority"]
     },
     {
       "id": "implement-plan-bounded-delegation-portfolio",
@@ -413,12 +305,8 @@
       "max_tokens": 6250,
       "expires": "2027-07-31",
       "rationale": "The complete implementation reference portfolio includes bounded fidelity, convention, and coverage reviews with sequential fallback.",
-      "supporting_paths": [
-        "references/delegation-protocol.md"
-      ],
-      "protected_rule_ids": [
-        "implement.delegation-authority"
-      ]
+      "supporting_paths": ["references/delegation-protocol.md"],
+      "protected_rule_ids": ["implement.delegation-authority"]
     },
     {
       "id": "scope-issue-agent-first-reduction",
@@ -428,9 +316,7 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "Selected-issue sealing replaces inventory, classification, and readiness checkpoints with one supplied issue artifact and one plan.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
+      "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": []
     },
     {
@@ -438,34 +324,22 @@
       "skill": "scope-issue",
       "metric": "top_level",
       "direction": "increase",
-      "max_tokens": 1150,
+      "max_tokens": 1459,
       "expires": "2027-08-06",
       "rationale": "The epic-aware contract states the two-stage selection workflow, all seven statuses with their discriminator rules, and the scope_inputs binding; the plan-change rewrite precedent already carries a top-level exception.",
-      "supporting_paths": [
-        "SKILL.md"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-epic-aware-contract-pre-action",
       "skill": "scope-issue",
       "metric": "pre_action",
       "direction": "increase",
-      "max_tokens": 1350,
+      "max_tokens": 1645,
       "expires": "2027-08-06",
       "rationale": "Pre-action now binds the four stateless inputs and states the sealer verification contract; the compact rubric remains the only reference loaded before action.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-epic-aware-contract-top-level-delta",
@@ -473,17 +347,11 @@
       "metric": "top_level",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 1150,
+      "max_tokens": 1459,
       "expires": "2027-08-06",
       "rationale": "The two-stage workflow, seven statuses, and scope_inputs binding are new text; SKILL.md grows to state them once, without repetition.",
-      "supporting_paths": [
-        "SKILL.md"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["SKILL.md"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-epic-aware-contract-pre-action-delta",
@@ -491,17 +359,11 @@
       "metric": "pre_action",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 1350,
+      "max_tokens": 1645,
       "expires": "2027-08-06",
       "rationale": "Pre-action gained the scope_inputs anchor input and the sealer verification statement; the pre-action read set stays limited to the rubric and contract.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["skill-protocol.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-epic-aware-contract-reference-delta",
@@ -509,18 +371,11 @@
       "metric": "worst_references",
       "direction": "increase",
       "scope": "delta",
-      "max_tokens": 3300,
+      "max_tokens": 4826,
       "expires": "2027-08-06",
       "rationale": "The reference portfolio now links the authoritative JSON contract alongside the rubric; the schema centralizes every status, record, section, and obligation rule so SKILL.md stays lean.",
-      "supporting_paths": [
-        "references/planning-rubric.md",
-        "references/issue-plan-contract.json"
-      ],
-      "protected_rule_ids": [
-        "scope.untrusted-issue",
-        "scope.read-only",
-        "scope.one-artifact"
-      ]
+      "supporting_paths": ["references/planning-rubric.md", "references/issue-plan-contract.json"],
+      "protected_rule_ids": ["scope.untrusted-issue", "scope.read-only", "scope.one-artifact"]
     },
     {
       "id": "scope-issue-compact-diagnostics",
@@ -530,9 +385,7 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The one-pass sealing lifecycle returns record-specific diagnostics rather than repeated phase instructions.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
+      "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": []
     },
     {
@@ -543,9 +396,7 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "Issue planning returns a compact seal result instead of inventory and classifier payloads.",
-      "supporting_paths": [
-        "skill-protocol.json"
-      ],
+      "supporting_paths": ["skill-protocol.json"],
       "protected_rule_ids": []
     },
     {
@@ -561,10 +412,7 @@
         "references/optimization-contract.md",
         "references/optimization-techniques.md"
       ],
-      "protected_rule_ids": [
-        "optimize.handoff-only",
-        "optimize.one-artifact"
-      ]
+      "protected_rule_ids": ["optimize.handoff-only", "optimize.one-artifact"]
     },
     {
       "id": "audit-codebase-reference-consolidation",
@@ -579,12 +427,7 @@
         "references/audit-contract.md",
         "references/audit-techniques.md"
       ],
-      "protected_rule_ids": [
-        "audit.read-only",
-        "audit.untrusted-authority",
-        "audit.delegation-authority",
-        "audit.handoff-terminal"
-      ]
+      "protected_rule_ids": ["audit.read-only", "audit.untrusted-authority", "audit.delegation-authority", "audit.handoff-terminal"]
     },
     {
       "id": "implement-plan-reference-consolidation",
@@ -600,12 +443,7 @@
         "references/implementation-contract.md",
         "references/safety-and-recovery.md"
       ],
-      "protected_rule_ids": [
-        "implement.strict-intake",
-        "implement.preserve-dirty",
-        "implement.no-whole-restore",
-        "implement.delegation-authority"
-      ]
+      "protected_rule_ids": ["implement.strict-intake", "implement.preserve-dirty", "implement.no-whole-restore", "implement.delegation-authority"]
     },
     {
       "id": "diagram-codebase-reference-consolidation",
@@ -615,14 +453,8 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The diagram question and renderer guides are merged into one payload and fidelity contract while preserving plan-mode, permission, and renderer safety rules.",
-      "supporting_paths": [
-        "references/diagram-output-guide.md"
-      ],
-      "protected_rule_ids": [
-        "diagram.plan-mode",
-        "diagram.separate-permissions",
-        "diagram.no-alternate-renderer"
-      ]
+      "supporting_paths": ["references/diagram-output-guide.md"],
+      "protected_rule_ids": ["diagram.plan-mode", "diagram.separate-permissions", "diagram.no-alternate-renderer"]
     },
     {
       "id": "map-codebase-benchmark-reference-extraction",
@@ -632,9 +464,7 @@
       "scope": "delta",
       "expires": "2027-07-31",
       "rationale": "The reader-facing benchmark report and complete task catalog move to the repository-level benchmarks portfolio, keeping distributed resolver guidance focused while preserving public evidence through the main README.",
-      "supporting_paths": [
-        "SKILL.md"
-      ],
+      "supporting_paths": ["SKILL.md"],
       "protected_rule_ids": []
     }
   ]

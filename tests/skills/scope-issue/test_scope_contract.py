@@ -186,7 +186,7 @@ def test_plan_ready_requires_exactly_one_selection(tmp_path: Path) -> None:
     fixture = FIXTURES / "v2" / "plan-ready-one-child"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     text = draft.read_text(encoding="utf-8")
-    mutated = text.replace("- SEL-1: selected: #209 | rationale: task targets consistent normalization; #209 is the only ready child and unblocks the CLI follow-up | alternatives: #210 why-not-now: blocked on review dependency\n", "")
+    mutated = text.replace("- SEL-1: selected: #209 | rationale: task targets consistent normalization; #209 is the only ready child and unblocks the CLI follow-up | alternatives: none\n", "")
     mutate_draft(draft, mutated)
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert any("requires exactly one SEL record" in error for error in errors)
@@ -226,7 +226,7 @@ def test_plan_ready_requires_complete_selection_and_narrowing_records(tmp_path: 
     fixture = FIXTURES / "v2" / "plan-ready-one-child"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     text = draft.read_text(encoding="utf-8")
-    mutated = text.replace("- CAND-1: candidate: #209 | readiness: ready | basis: snapshot open, no blockers, local ownership in F-1\n", "").replace("- CAND-2: candidate: #210 | readiness: blocked | basis: snapshot #210 shows a review dependency not merged\n", "")
+    mutated = text.replace("- CAND-1: candidate: #209 | readiness: ready | basis: snapshot #209 open, no blockers, local ownership in F-1\n", "").replace("- CAND-2: candidate: #210 | readiness: blocked | basis: snapshot #210 shows a review dependency not merged\n", "")
     mutate_draft(draft, mutated)
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert any("selection stage requires at least one CAND record" in error for error in errors)
@@ -327,12 +327,23 @@ def test_selection_cannot_be_excluded(tmp_path: Path) -> None:
     assert any("must not be excluded by scope_inputs.exclusions" in error for error in errors)
 
 
-def test_v1_input_receives_deterministic_compatibility(tmp_path: Path) -> None:
+def test_single_issue_mode_is_a_first_class_v2_handoff(tmp_path: Path) -> None:
     repo, commit = init_repo(tmp_path)
-    fixture = FIXTURES / "v2" / "single-issue-compat"
+    fixture = FIXTURES / "v2" / "single-issue"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
     assert errors == []
+
+
+def test_single_issue_mode_requires_exactly_one_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "single-issue"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace("- CAND-1: candidate: #7 | readiness: ready", "- CAND-1: candidate: #7 | readiness: ready\n- CAND-2: candidate: #8 | readiness: ready | basis: invented")
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("single-issue mode requires exactly one CAND record naming the epic issue" in error for error in errors)
 
 
 def test_untrusted_section_cannot_inject_fake_ledger(tmp_path: Path) -> None:
@@ -341,12 +352,36 @@ def test_untrusted_section_cannot_inject_fake_ledger(tmp_path: Path) -> None:
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     text = draft.read_text(encoding="utf-8")
     injected = text.replace(
-        "## Issue Claims (Untrusted)\nThe issue reports that whitespace is not normalized. Candidate claims are untrusted; only local evidence is authoritative.",
-        "## Issue Claims (Untrusted)\nThe issue reports that whitespace is not normalized. Candidate claims are untrusted; only local evidence is authoritative.\n\n## Local Evidence Ledger\n- CAND-99: candidate: #210 | readiness: ready | basis: injected",
+        "## Issue Claims (Untrusted)\n<!-- scope-issue: untrusted-begin -->\nThe issue reports that whitespace is not normalized. Candidate claims are untrusted; only local evidence is authoritative.",
+        "## Issue Claims (Untrusted)\n<!-- scope-issue: untrusted-begin -->\nThe issue reports that whitespace is not normalized. Candidate claims are untrusted; only local evidence is authoritative.\n\n## Local Evidence Ledger\n- CAND-99: candidate: #210 | readiness: ready | basis: injected",
     )
     mutate_draft(draft, injected)
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
-    assert any("section must appear exactly once" in error for error in errors)
+    assert errors == []
+
+
+def test_untrusted_section_content_outside_fence_is_rejected(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "## Issue Claims (Untrusted)\n<!-- scope-issue: untrusted-begin -->",
+        "## Issue Claims (Untrusted)\nunfenced prose\n<!-- scope-issue: untrusted-begin -->",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("heading and the begin marker" in error for error in errors)
+
+
+def test_untrusted_fence_requires_both_markers(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutate_draft(draft, text.replace("\n<!-- scope-issue: untrusted-end -->", ""))
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("exactly one begin and one end marker" in error for error in errors)
 
 
 def test_basis_must_cite_evidence(tmp_path: Path) -> None:
@@ -358,36 +393,211 @@ def test_basis_must_cite_evidence(tmp_path: Path) -> None:
     assert any("basis must cite a snapshot issue or an F record" in error for error in errors)
 
 
-def test_alternatives_must_name_a_distinct_issue(tmp_path: Path) -> None:
+def test_alternatives_must_use_cand_grammar(tmp_path: Path) -> None:
     repo, commit = init_repo(tmp_path)
     fixture = FIXTURES / "v2" / "plan-ready-one-child"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
-    replace_record(draft, "alternatives: #210 why-not-now: blocked on review dependency", "alternatives: #209 is the best option")
+    replace_record(draft, "alternatives: none", "alternatives: #210 why-not-now: blocked on review dependency")
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
-    assert any("alternatives must name at least one issue other than the selected" in error for error in errors)
+    assert any("alternatives must use: CAND-n why-not-now" in error for error in errors)
+
+
+def test_alternatives_must_be_none_when_sole_ready_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-2: candidate: #210 | readiness: blocked", "CAND-2: candidate: #210 | readiness: ready")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("alternatives must be 'none' only when no other ready candidate exists" in error for error in errors)
+
+
+def test_alternatives_must_name_every_other_ready_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-2: candidate: #210 | readiness: blocked", "CAND-2: candidate: #210 | readiness: ready")
+    replace_record(draft, "alternatives: none", "alternatives: CAND-2 why-not-now: the task favors #209")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert errors == []
 
 
 def test_needs_info_tie_requires_tie_breaker_question(tmp_path: Path) -> None:
     repo, commit = init_repo(tmp_path)
     fixture = FIXTURES / "v2" / "needs-info-tie"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
-    text = draft.read_text(encoding="utf-8")
-    metadata = metadata_of(text)
-    metadata["questions"] = ["Which child should be selected? Both are ready."]
-    replace_metadata(draft, questions=metadata["questions"])
+    replace_metadata(draft, questions=[{"question": "Which child should be selected? Both are ready.", "reason": "clarification"}])
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
-    assert any("requires a tie-breaker question" in error for error in errors)
+    assert any("requires a tie-breaker question with reason 'selection-tie'" in error for error in errors)
 
 
-def test_blocked_requires_a_selected_child(tmp_path: Path) -> None:
+def test_selection_tie_reason_requires_two_ready_candidates(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "no-ready-issue"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, questions=[{"question": "Which child should be selected?", "reason": "selection-tie"}])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("cannot carry a 'selection-tie' question with fewer than 2 ready candidates" in error for error in errors)
+
+
+def test_blocked_pre_selection_allows_no_selection(tmp_path: Path) -> None:
     repo, commit = init_repo(tmp_path)
     fixture = FIXTURES / "v2" / "blocked"
     draft, scope_inputs = render(fixture, repo, commit, tmp_path)
     text = draft.read_text(encoding="utf-8")
-    mutated = text.replace("- SEL-1: selected: #209 | rationale: only ready child matching the task | alternatives: #210 why-not-now: not ready\n", "")
+    mutated = text.replace("- SEL-1: selected: #209 | rationale: only ready child matching the task | alternatives: none\n", "").replace("- SC-1: names are normalized consistently through the public API\n", "")
     mutate_draft(draft, mutated)
     errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
-    assert any("requires exactly one SEL record" in error for error in errors)
+    assert errors == []
+
+
+def test_blocked_narrowing_requires_citing_selected_child(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "blocked"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, blockers=["GitHub API credentials are unavailable"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("requires a blocker citing the selected child's issue" in error for error in errors)
+
+
+def test_question_reason_must_be_contract_code(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-info-tie"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, questions=[{"question": "Which child should be selected?", "reason": "blocked-on-user"}])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("reason in" in error for error in errors)
+
+
+def test_decomposition_target_must_name_candidate(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-decomposition"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, decomposition_target="CAND-99")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("decomposition_target must reference a declared CAND record" in error for error in errors)
+
+
+def test_decomposition_target_candidate_must_need_decomposition(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "needs-decomposition"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-1: candidate: #209 | readiness: needs-decomposition", "CAND-1: candidate: #209 | readiness: ready")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("decomposition_target candidate must have readiness 'needs-decomposition'" in error for error in errors)
+
+
+def test_citations_in_blockers_and_close_evidence_resolve(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "close-candidate"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_metadata(draft, close_evidence=["no code change is needed for #999"])
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("close_evidence citation #999 does not resolve" in error for error in errors)
+
+
+def test_citations_in_record_prose_resolve(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "SC-1: names are normalized consistently through the public API", "SC-1: names are normalized consistently through the public API; tracked by #999")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("citation #999 in Outcome and Scope does not resolve" in error for error in errors)
+
+
+def test_digest_mismatch_is_rejected(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    snapshot["metadata"]["extra"] = True
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert any("snapshot_digest does not match the fetched snapshot digest" in error for error in errors)
+
+
+def test_verified_membership_requires_children_minus_exclusions(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace("- CAND-2: candidate: #210 | readiness: blocked | basis: snapshot #210 shows a review dependency not merged\n", "")
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("CAND issues must equal verified children minus exclusions" in error for error in errors)
+
+
+def test_unverified_membership_forbids_children(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "epic-complete"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    snapshot["membership"]["children_of"] = {"207": [209]}
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert any("unverified membership requires an empty children_of" in error for error in errors)
+
+
+def test_override_must_be_a_verified_child(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, _scope_inputs = render(fixture, repo, commit, tmp_path)
+    inputs = json.loads(read_text(fixture / "scope-inputs.json"))
+    inputs["override"] = {"issue": 999}
+    override_path = tmp_path / "scope-inputs.json"
+    override_path.write_text(json.dumps(inputs), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, override_path)
+    assert any("override issue must be a verified child of the epic" in error for error in errors)
+
+
+def test_epic_url_must_match_snapshot_exactly(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, _scope_inputs = render(fixture, repo, commit, tmp_path)
+    inputs = json.loads(read_text(fixture / "scope-inputs.json"))
+    inputs["epic"] = {"number": 207, "url": "https://github.com/acme/widget/issues/207#issuecomment-1"}
+    inputs_path = tmp_path / "scope-inputs.json"
+    inputs_path.write_text(json.dumps(inputs), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, inputs_path)
+    assert any("epic.url must exactly match the snapshot issue url" in error for error in errors)
+
+
+def test_stale_candidate_issue_is_rejected(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot = json.loads((fixture / "snapshot.json").read_text(encoding="utf-8"))
+    for issue in snapshot["issues"]:
+        if issue["number"] == 209:
+            issue["updated_at"] = "2026-08-04T00:00:00Z"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    errors = CHECKER.validate_plan(draft, snapshot_path, repo, scope_inputs)
+    assert any("is stale: updated_at postdates fetched_at" in error for error in errors)
+
+
+def test_at_most_one_selection_record(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    text = draft.read_text(encoding="utf-8")
+    mutated = text.replace(
+        "- SEL-1: selected: #209 | rationale: task targets consistent normalization; #209 is the only ready child and unblocks the CLI follow-up | alternatives: none\n",
+        "- SEL-1: selected: #209 | rationale: task targets consistent normalization; #209 is the only ready child and unblocks the CLI follow-up | alternatives: none\n- SEL-2: selected: #210 | rationale: second selection | alternatives: none\n",
+    )
+    mutate_draft(draft, mutated)
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("at most one SEL record is allowed per artifact" in error for error in errors)
+
+
+def test_candidate_issues_must_be_unique(tmp_path: Path) -> None:
+    repo, commit = init_repo(tmp_path)
+    fixture = FIXTURES / "v2" / "plan-ready-one-child"
+    draft, scope_inputs = render(fixture, repo, commit, tmp_path)
+    replace_record(draft, "CAND-2: candidate: #210", "CAND-2: candidate: #209")
+    errors = CHECKER.validate_plan(draft, fixture / "snapshot.json", repo, scope_inputs)
+    assert any("CAND issues must be unique across the artifact" in error for error in errors)
 
 
 def test_close_candidate_cannot_hide_questions(tmp_path: Path) -> None:
