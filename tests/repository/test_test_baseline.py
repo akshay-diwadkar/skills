@@ -12,11 +12,15 @@ import build_test_baseline as baseline  # noqa: E402
 from build_test_baseline import (  # noqa: E402
     _classify,
     _derive_layer,
+    _extract_failure_excerpt,
     _failure_locality,
+    _find_failure_summary,
+    _inspect_node_ast,
     _merge_recorder,
     _normalize_detail,
     _owner_of,
     validate_exceptions,
+    validate_failure_samples,
 )
 from test_baseline_utils import bucket_seconds  # noqa: E402
 
@@ -151,12 +155,15 @@ def test_static_scan_detects_boundary_usage(tmp_path: Path) -> None:
     (tests_dir / "test_demo.py").write_text(
         textwrap.dedent(
             """
+            import os
             import shutil
             import subprocess
 
             def test_a(tmp_path):
                 subprocess.run(["git", "status"], check=False)
+                subprocess.run(["pip", "install", "x"], check=False)
                 shutil.copytree(tmp_path, tmp_path / "copy")
+                os.environ["OPENAI_API_KEY"]
             """
         ),
         encoding="utf-8",
@@ -165,6 +172,40 @@ def test_static_scan_detects_boundary_usage(tmp_path: Path) -> None:
     kinds = {kind for kind, files in static.items() if files}
     assert "run" in kinds
     assert "copytree" in kinds
+    assert "installer" in kinds
+    assert "external-tool" in kinds
+    assert "credential" in kinds
+
+
+def test_inspect_node_ast_classifies_boundaries(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_demo.py").write_text(
+        textwrap.dedent(
+            """
+            import os
+            import subprocess
+            import sys
+
+            def test_boundary_heavy(tmp_path):
+                subprocess.run(["pip", "install", "x"], check=False)
+                subprocess.run(["git", "status"], check=False)
+                subprocess.run(["curl", "https://example.test"], check=False)
+                subprocess.run(["python", "-m", "pip", "install", "y"], check=False)
+                subprocess.run(["python", "-c", "print(1)"], check=False)
+                subprocess.run([sys.executable, "-S", "script.py"], check=False)
+                os.environ["OPENAI_API_KEY"]
+
+            def test_plain(tmp_path):
+                assert True
+            """
+        ),
+        encoding="utf-8",
+    )
+    heavy, _ = _inspect_node_ast(tmp_path, "tests/test_demo.py", "tests/test_demo.py::test_boundary_heavy")
+    plain, _ = _inspect_node_ast(tmp_path, "tests/test_demo.py", "tests/test_demo.py::test_plain")
+    assert set(heavy) == {"subprocess", "installer", "external-tool", "network", "credential"}
+    assert plain == []
 
 
 def _write_instrumentation_suite(tmp_path: Path) -> None:
@@ -279,6 +320,127 @@ def test_merge_recorder_medians_across_runs(tmp_path: Path) -> None:
     assert merged["boundary_files"] == ["tests/x.py"]
 
 
+def test_validate_failure_samples_accepts_and_rejects() -> None:
+    collected = {"tests/real.py::test_z"}
+    good = {"schema_version": 1, "samples": [
+        {"node_id": "tests/real.py::test_z",
+         "mutation": {"type": "json-set", "path": "benchmarks/reports/plan-change-v7.json",
+                      "target": ["schema_version"], "value": 4}},
+    ]}
+    assert validate_failure_samples(good, collected, REPO_ROOT) == []
+    bad = {"schema_version": 1, "samples": [
+        {"node_id": "tests/missing.py::test_a",
+         "mutation": {"type": "json-set", "path": "benchmarks/reports/plan-change-v7.json",
+                      "target": ["schema_version"], "value": 4}},
+        {"node_id": "tests/real.py::test_z",
+         "mutation": {"type": "unknown", "path": "benchmarks/reports/does-not-exist.json"}},
+    ]}
+    errors = validate_failure_samples(bad, collected, REPO_ROOT)
+    assert len(errors) == 3
+    schema_errors = validate_failure_samples({"schema_version": 9, "samples": []}, collected, REPO_ROOT)
+    assert len(schema_errors) == 1
+
+
+def test_failure_diagnostic_parsing() -> None:
+    node_id = (
+        "tests/skills/plan-change/test_benchmark_report.py::"
+        "test_committed_plan_change_benchmark_has_comparable_machine_phases_only"
+    )
+    output = textwrap.dedent(
+        f"""\
+        _________________ {node_id.split("::")[-1]} _________________
+        tests/skills/plan-change/test_benchmark_report.py:15: in {node_id.split("::")[-1]}
+            _assert_contract(json.loads(REPORT.read_text(encoding="utf-8")))
+        tests/skills/plan-change/test_benchmark_report.py:16: in _assert_contract
+        >   assert report["schema_version"] == 3
+        E   AssertionError: assert 4 == 3
+        =========================== short test summary info ===========================
+        FAILED {node_id} - AssertionError: assert 4 == 3
+        """
+    )
+    assert _find_failure_summary(output, node_id) == f"FAILED {node_id} - AssertionError: assert 4 == 3"
+    excerpt = _extract_failure_excerpt(output, node_id)
+    assert "assert report[\"schema_version\"] == 3" in excerpt
+    assert "AssertionError: assert 4 == 3" in excerpt
+    assert "short test summary info" not in excerpt
+
+
+def _write_failure_sample_suite(tmp_path: Path) -> None:
+    (tmp_path / "data.json").write_text(
+        '{"schema_version": 3, "name": "x"}', encoding="utf-8"
+    )
+    source = tmp_path / "src"
+    (source / "scripts").mkdir(parents=True)
+    (source / "scripts" / "seal.py").write_text("print('seal')\n", encoding="utf-8")
+    (source / "data.txt").write_text("not fixtures and not benchmark and not benchmark_slow\n", encoding="utf-8")
+    (tmp_path / "test_sample_suite.py").write_text(
+        textwrap.dedent(
+            """
+            import json
+            import shutil
+            from pathlib import Path
+
+            DATA = Path(__file__).with_name("data.json")
+            SRC = Path(__file__).with_name("src")
+            TEXT = Path(__file__).with_name("src") / "data.txt"
+
+            def test_json_schema_version():
+                report = json.loads(DATA.read_text(encoding="utf-8"))
+                assert report["schema_version"] == 3
+
+            def test_copied_tree_keeps_sealer(tmp_path: Path):
+                installed = tmp_path / "installed"
+                shutil.copytree(SRC, installed)
+                assert (installed / "scripts" / "seal.py").exists()
+
+            def test_workflow_profile_preserved():
+                assert "not fixtures and not benchmark and not benchmark_slow" in TEXT.read_text(encoding="utf-8")
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
+def _run_sample_pytest(tmp_path: Path, suite_path: Path, manifest: dict) -> tuple[int, str]:
+    manifest_path = tmp_path / "samples.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return baseline._run_pytest(
+        [str(suite_path), "-p", "test_baseline_failure_samples", "--color=no", "-q"],
+        None,
+        extra_env={
+            "TEST_BASELINE_SAMPLES_PATH": str(manifest_path),
+            "TEST_BASELINE_SAMPLES_ROOT": str(tmp_path),
+        },
+    )
+
+
+def test_failure_sample_interceptions_are_scoped_and_leave_files_untouched(tmp_path: Path) -> None:
+    _write_failure_sample_suite(tmp_path)
+    manifest = {
+        "schema_version": 1,
+        "samples": [
+            {"node_id": "test_sample_suite.py::test_json_schema_version",
+             "mutation": {"type": "json-set", "path": "data.json",
+                          "target": ["schema_version"], "value": 4}},
+            {"node_id": "test_sample_suite.py::test_copied_tree_keeps_sealer",
+             "mutation": {"type": "file-delete", "path": "src", "delete": "scripts/seal.py"}},
+            {"node_id": "test_sample_suite.py::test_workflow_profile_preserved",
+             "mutation": {"type": "replace-string", "path": "src/data.txt",
+                          "old": "not fixtures and not benchmark and not benchmark_slow",
+                          "new": "not fixtures and not benchmark"}},
+        ],
+    }
+    returncode, output = _run_sample_pytest(tmp_path, tmp_path / "test_sample_suite.py", manifest)
+    assert returncode != 0
+    assert "3 failed" in output
+    assert "assert 4 == 3" in output
+    assert "AssertionError: assert False" in output
+    assert "FAILED" in output
+    assert json.loads((tmp_path / "data.json").read_text(encoding="utf-8"))["schema_version"] == 3
+    assert (tmp_path / "src" / "scripts" / "seal.py").exists()
+    assert "not fixtures and not benchmark and not benchmark_slow" in (tmp_path / "src" / "data.txt").read_text(encoding="utf-8")
+
+
 def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     manifest_path = tmp_path / "lanes.json"
     manifest_path.write_text(json.dumps(REDUCED_MANIFEST), encoding="utf-8")
@@ -299,9 +461,17 @@ def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     assert "quality.full" in duplicate_row["lanes"]
     assert duplicate_row["owner"] == "skills/engineering/map-codebase"
     assert first["schema_version"] == 2
-    assert first["failure_locality"]["evidence"] == "offline-representative-signal"
+    assert first["failure_locality"]["evidence"] == "observed-sample"
     assert set(first["failure_locality"]["distribution"]) <= {"direct", "path-derived", "broad"}
     assert all(len(samples) <= 5 for samples in first["failure_locality"]["representative"].values())
+    assert len(first["failure_locality"]["sample"]) == 3
+    assert all(sample["diagnostic"] for sample in first["failure_locality"]["sample"])
+    assert all(sample["mutation"] for sample in first["failure_locality"]["sample"])
+    assert {sample["locality"] for sample in first["failure_locality"]["sample"]} == {
+        "direct",
+        "path-derived",
+        "broad",
+    }
     full_lane = first["ownership"]["lanes"]["quality.full"]
     assert full_lane["boundary_justified"] is True
     assert full_lane["unresolved"] is False

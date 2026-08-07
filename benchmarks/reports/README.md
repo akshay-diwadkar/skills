@@ -16,18 +16,34 @@ repository's test system (roadmap #218): per-lane collect-only node sets for
 every pytest lane in the CI workflows, duplicate and subsumption evidence,
 ownership evidence (per-node owner and owning surface, per-lane unique
 protection, overlaps, gaps, cheapest owning layer, and unresolved boundary
-judgments), static failure-locality evidence, static boundary usage, and
+judgments), observed failure-locality evidence, static boundary usage, and
 bounded runtime evidence.
 
 The `ownership.lanes` judgment fields (`boundary_justified`, `proposed_owner`)
 are `null` until a human records them in `ownership_notes` in the exceptions
 file; `unresolved: true` marks them open by design.
 
-The `failure_locality` section is derived statically
-(`evidence: "derived-static"`), never from observed failures: `direct` tests
-live in a single skill's suite, `path-derived` tests identify their owner only
-via a shared suite, `broad` tests (integration, benchmark, shared-runtime)
-cannot name a specific owning contract.
+The `failure_locality` section (`evidence: "observed-sample"`) combines two
+kinds of evidence. The `distribution`, `per_lane`, and `representative`
+breakdowns are derived from paths and owners: `direct` tests live in a single
+skill's suite, `path-derived` tests identify their owner only via a shared
+suite, `broad` tests (integration, benchmark, shared-runtime) cannot name a
+specific owning contract. The `sample` list records observed diagnostics: a
+small set of real tests is run against deterministic mutations of the
+committed data they consume (see
+`tools/validation/test-baseline-failure-samples.json`), so they fail naturally
+on their own assertions and the actual pytest failure output (summary line and
+failure excerpt, with machine paths normalized) is recorded per locality
+class. A mutation that stops provoking a failure fails baseline generation by
+design, so stale evidence is never committed silently.
+
+Per-node `boundaries` classify each test's usage of subprocess, copytree, temp
+repositories, and the semantic kinds installer (package-manager install
+commands), network (HTTP/socket libraries and `curl`/`wget` subprocesses),
+credential (environment reads of key/token/secret/password names plus
+`keyring`/`netrc`), and external-tool (git, node, npm, go, cargo, dotnet,
+gradle, and similar invocations). The report's `static` section is the same
+vocabulary at file level.
 
 `runtime.lane_executions` records executed counts and wall buckets for every
 non-benchmark pytest lane; the two benchmark lanes and the fixture-build lane
@@ -44,6 +60,7 @@ python tools/validation/build_test_baseline.py --check          # verify committ
 
 - Lane manifest: `tools/validation/test-baseline-lanes.json` (mirror every pytest command in `.github/workflows`).
 - Exceptions: `tools/validation/test-baseline-exceptions.json` (schema v2: `excluded` node refs, `owner_overrides` re-mapping derived owners, `ownership_notes` resolving per-lane boundary judgments; empty by default — derivation-first).
+- Failure samples: `tools/validation/test-baseline-failure-samples.json` (schema v1: real test nodes plus deterministic mutations of the committed data they consume, one per locality class).
 - Focused tests: `tests/repository/test_test_baseline.py`.
 
 Post-commit gate: repository guards such as

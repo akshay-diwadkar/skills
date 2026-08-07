@@ -9,6 +9,9 @@ Derives a machine-readable baseline of the repository's test system:
   paths, markers, and the committed exceptions file;
 - duplicate evidence by exact node identity across lanes, plus subsumption
   and source-path rollups;
+- observed representative-failure diagnostics: a small set of real tests is
+  run against deterministic mutations of the committed data they consume, and
+  the actual pytest failure output is recorded per locality class;
 - runtime boundary evidence (subprocess, copy volume, fixture hotspots,
   duration buckets) via ``test_baseline_recorder`` when executed;
 - static AST boundary evidence for files the runtime pass does not exercise.
@@ -32,6 +35,7 @@ import ast
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -42,15 +46,19 @@ from typing import Any, Sequence
 
 from test_baseline_utils import (
     bucket_seconds,
+    classify_subprocess_command,
     derive_layer_from_path,
+    env_name_is_credential,
     median_bucket,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 LANES_PATH = ROOT / "tools" / "validation" / "test-baseline-lanes.json"
 EXCEPTIONS_PATH = ROOT / "tools" / "validation" / "test-baseline-exceptions.json"
+SAMPLES_PATH = ROOT / "tools" / "validation" / "test-baseline-failure-samples.json"
 REPORT_PATH = ROOT / "benchmarks" / "reports" / "test-baseline.json"
 RECORDER_PLUGIN = "test_baseline_recorder"
+SAMPLE_PLUGIN = "test_baseline_failure_samples"
 RECORDER_PATH = ROOT / "tools" / "validation" / f"{RECORDER_PLUGIN}.py"
 TESTS_ROOT = ROOT / "tests"
 
@@ -346,6 +354,66 @@ def _classify(node_id: str, markers: Sequence[str], lanes: Sequence[str]) -> str
 _AST_CACHE: dict[str, ast.AST | None] = {}
 
 
+def _literal_string(value: ast.expr) -> str | None:
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return value.value
+    return None
+
+
+def _command_tokens(call: ast.Call) -> list[str]:
+    """Extract a subprocess command's token list from its first argument."""
+    if not call.args:
+        return []
+    first = call.args[0]
+    if isinstance(first, (ast.List, ast.Tuple)):
+        tokens: list[str] = []
+        for element in first.elts:
+            literal = _literal_string(element)
+            if literal is not None:
+                tokens.append(literal)
+            elif (
+                isinstance(element, ast.Attribute)
+                and isinstance(element.value, ast.Name)
+                and element.value.id == "sys"
+                and element.attr == "executable"
+            ):
+                tokens.append("python")
+        return tokens
+    literal = _literal_string(first)
+    if literal is None:
+        return []
+    return shlex.split(literal)
+
+
+def _is_os_environ(node: ast.expr) -> bool:
+    if isinstance(node, ast.Attribute) and node.attr == "environ":
+        return isinstance(node.value, ast.Name) and node.value.id == "os"
+    return isinstance(node, ast.Name) and node.id == "environ"
+
+
+def _env_read_name(node: ast.AST) -> str | None:
+    """Return the environment variable name read by a subscript or call node."""
+    if isinstance(node, ast.Subscript) and _is_os_environ(node.value):
+        return _literal_string(node.slice)
+    if isinstance(node, ast.Call) and node.args:
+        func = node.func
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == "get"
+            and isinstance(func.value, ast.Attribute)
+            and _is_os_environ(func.value)
+        ):
+            return _literal_string(node.args[0])
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == "getenv"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "os"
+        ):
+            return _literal_string(node.args[0])
+    return None
+
+
 def _inspect_node_ast(root: Path, file_path_rel: str, node_id: str) -> tuple[list[str], list[str]]:
     """Parse test file AST and extract boundaries and fixture parameters used by target node."""
     full_path = root / file_path_rel
@@ -381,16 +449,26 @@ def _inspect_node_ast(root: Path, file_path_rel: str, node_id: str) -> tuple[lis
                 base, attr = func.value.id, func.attr
                 if base == "subprocess" and attr in ("run", "Popen", "call", "check_call", "check_output"):
                     boundaries.add("subprocess")
+                    boundaries.update(classify_subprocess_command(_command_tokens(child)))
                 elif base == "shutil" and attr.startswith("copy"):
                     boundaries.add("copytree")
                 elif base == "tempfile" and attr in ("mkdtemp", "TemporaryDirectory", "NamedTemporaryFile"):
                     boundaries.add("temp_repo")
                 elif base in ("requests", "urllib", "socket", "httpx"):
                     boundaries.add("network")
+                elif base in ("keyring", "netrc"):
+                    boundaries.add("credential")
                 elif base == "os" and attr in ("system", "popen", "spawn", "execv", "execve"):
                     boundaries.add("subprocess")
             elif isinstance(func, ast.Name) and func.id in ("exec", "system"):
                 boundaries.add("subprocess")
+            env_name = _env_read_name(child)
+            if env_name is not None and env_name_is_credential(env_name):
+                boundaries.add("credential")
+        elif isinstance(child, ast.Subscript):
+            env_name = _env_read_name(child)
+            if env_name is not None and env_name_is_credential(env_name):
+                boundaries.add("credential")
 
     return sorted(boundaries), sorted(fixtures_used)
 
@@ -447,18 +525,31 @@ def static_scan(root: Path) -> dict[str, Any]:
             continue
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
+                if (
+                    isinstance(node, ast.Subscript)
+                    and (env_name := _env_read_name(node)) is not None
+                    and env_name_is_credential(env_name)
+                ):
+                    kind_of["credential"].append(_rel(path, root))
                 continue
             func = node.func
             if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
                 base, attr = func.value.id, func.attr
                 if base == "subprocess" and attr in ("run", "Popen", "call", "check_call", "check_output"):
                     kind_of[attr].append(_rel(path, root))
+                    for kind in classify_subprocess_command(_command_tokens(node)):
+                        kind_of[kind].append(_rel(path, root))
                 elif base == "shutil" and attr.startswith(("copy", "copytree", "rmtree")):
                     kind_of[attr].append(_rel(path, root))
                 elif base == "os" and attr in ("system", "popen", "spawn"):
                     kind_of["os-spawn"].append(_rel(path, root))
                 elif base in ("requests", "urllib", "socket", "httpx"):
                     kind_of["network"].append(_rel(path, root))
+                elif base in ("keyring", "netrc"):
+                    kind_of["credential"].append(_rel(path, root))
+            env_name = _env_read_name(node)
+            if env_name is not None and env_name_is_credential(env_name):
+                kind_of["credential"].append(_rel(path, root))
     static: dict[str, Any] = {}
     for kind, files in sorted(kind_of.items()):
         static[kind] = sorted(set(files))
@@ -510,7 +601,9 @@ def _collect_ignore_findings(root: Path) -> list[dict[str, str]]:
     return findings
 
 
-def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dict[str, Any]:
+def build_structural(
+    root: Path, lanes_path: Path, exceptions_path: Path, samples_path: Path = SAMPLES_PATH
+) -> dict[str, Any]:
     lanes_manifest = _load_json(lanes_path)
     exceptions = _load_json(exceptions_path)
     if lanes_manifest.get("schema_version") != 1:
@@ -677,6 +770,22 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
         for lane_id in row["lanes"]:
             per_lane_locality.setdefault(lane_id, Counter())[locality] += 1
 
+    sample_diagnostics = run_failure_samples(root, samples_path)
+    samples_manifest = _load_json(samples_path)
+    sample: list[dict[str, Any]] = []
+    for entry in samples_manifest.get("samples", []):
+        node_id = entry["node_id"]
+        owner = _owner_of(node_id, exceptions)
+        sample.append(
+            {
+                "node_id": node_id,
+                "locality": _failure_locality(node_id, owner),
+                "owner": owner,
+                "mutation": entry.get("mutation"),
+                "diagnostic": sample_diagnostics.get(node_id, ""),
+            }
+        )
+
     return {
         "schema_version": 2,
         "repository": {
@@ -698,32 +807,13 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
             "lanes": lane_ownership,
         },
         "failure_locality": {
-            "evidence": "offline-representative-signal",
+            "evidence": "observed-sample",
             "distribution": dict(sorted(locality_distribution.items())),
             "per_lane": {
                 lane_id: dict(sorted(counts.items())) for lane_id, counts in sorted(per_lane_locality.items())
             },
             "representative": {class_name: samples for class_name, samples in sorted(representative.items())},
-            "offline_signals": [
-                {
-                    "locality": "direct",
-                    "node_id": "tests/skills/plan-change/test_plan_change.py::test_boundary",
-                    "owner": "skills/engineering/plan-change",
-                    "diagnostic": "AssertionError: contract violation in plan change intake boundary",
-                },
-                {
-                    "locality": "path-derived",
-                    "node_id": "tests/repository/test_skill_repository.py::test_repository_validation_passes",
-                    "owner": "repository",
-                    "diagnostic": "ValueError: baseline report drift detected",
-                },
-                {
-                    "locality": "broad",
-                    "node_id": "tests/integration/test_installed_skill_execution.py::test_installed_execution",
-                    "owner": "installed-execution",
-                    "diagnostic": "RuntimeError: installed skill execution exit non-zero",
-                },
-            ],
+            "sample": sample,
         },
         "static": static,
         "in_process_validator_imports": _scan_in_process_validators(root),
@@ -733,8 +823,8 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
     }
 
 
-def _normalize_detail(detail: str) -> str:
-    normalized = detail.replace(os.sep, "/")
+def _replace_machine_paths(text: str) -> str:
+    normalized = text.replace(os.sep, "/")
     root_forward = str(ROOT).replace(os.sep, "/")
     normalized = normalized.replace(root_forward, ".")
     tempdir = tempfile.gettempdir().replace(os.sep, "/")
@@ -743,7 +833,15 @@ def _normalize_detail(detail: str) -> str:
         if normalized.startswith(candidate):
             normalized = "%TEMP%" + normalized[len(candidate) :]
             break
-    return normalized[:300]
+    return normalized
+
+
+def _normalize_detail(detail: str) -> str:
+    return _replace_machine_paths(detail)[:300]
+
+
+def _normalize_diagnostic(diagnostic: str) -> str:
+    return _replace_machine_paths(diagnostic)[:3000]
 
 
 def _merge_recorder(run_files: Sequence[Path]) -> dict[str, Any]:
@@ -800,6 +898,78 @@ def _merge_recorder(run_files: Sequence[Path]) -> dict[str, Any]:
             {"detail": detail, "count": count} for detail, count in counter.most_common(10)
         ]
     return merged
+
+
+def _find_failure_summary(output: str, node_id: str) -> str:
+    for line in output.splitlines():
+        stripped = line.strip()
+        if (stripped.startswith("FAILED ") or stripped.startswith("ERROR ")) and node_id in stripped:
+            return stripped
+    return ""
+
+
+def _extract_failure_excerpt(output: str, node_id: str) -> str:
+    name = node_id.split("::")[-1].split("[")[0]
+    lines = output.splitlines()
+    excerpt: list[str] = []
+    capture = False
+    for line in lines:
+        if capture:
+            if "short test summary info" in line:
+                break
+            if line.startswith("_") and name in line:
+                break
+            stripped = line.strip()
+            if stripped and len(stripped) >= 4 and stripped[0] == stripped[3] and stripped[0] in "=-_":
+                break
+            excerpt.append(line)
+        elif line.startswith("_") and name in line:
+            capture = True
+    return "\n".join(line for line in excerpt if line.strip())[:3000]
+
+
+def run_failure_samples(root: Path, samples_path: Path) -> dict[str, str]:
+    """Run the curated representative-failure samples and return observed diagnostics.
+
+    Runs only the sample node IDs with the sample plugin loaded, so the real
+    tests fail naturally on the mutated committed data they consume. Returns
+    node_id -> normalized diagnostic (summary line plus failure excerpt) and
+    raises if a sample stops provoking a failure, because stale evidence must
+    never be committed silently.
+    """
+    samples = _load_json(samples_path).get("samples", [])
+    node_ids = [str(sample["node_id"]) for sample in samples]
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        *node_ids,
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        SAMPLE_PLUGIN,
+        "--color=no",
+        "-q",
+    ]
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT / "tools" / "validation") + os.pathsep + env.get("PYTHONPATH", "")
+    env["TEST_BASELINE_SAMPLES_PATH"] = str(samples_path)
+    env["TEST_BASELINE_SAMPLES_ROOT"] = str(root)
+    result = subprocess.run(
+        command, cwd=ROOT, capture_output=True, text=True, env=env, timeout=600
+    )
+    output = result.stdout + result.stderr
+    if result.returncode == 0:
+        raise RuntimeError("failure sample run passed; mutations no longer provoke failures")
+    diagnostics: dict[str, str] = {}
+    for node_id in node_ids:
+        summary = _find_failure_summary(output, node_id)
+        if not summary:
+            raise RuntimeError(f"failure sample produced no diagnostic for {node_id}:\n{output[-2000:]}")
+        diagnostics[node_id] = _normalize_diagnostic(
+            summary + "\n" + _extract_failure_excerpt(output, node_id)
+        )
+    return diagnostics
 
 
 def _parse_executed_counts(output: str) -> dict[str, int]:
@@ -904,11 +1074,40 @@ def validate_exceptions(
     return errors
 
 
+def validate_failure_samples(
+    samples: dict[str, Any], collected: set[str], root: Path
+) -> list[str]:
+    errors: list[str] = []
+    if samples.get("schema_version") != 1:
+        errors.append("failure samples: unsupported schema version")
+    for entry in samples.get("samples", []):
+        node_id = entry.get("node_id")
+        if not isinstance(node_id, str) or node_id not in collected:
+            errors.append(f"failure sample references nothing collected: {node_id!r}")
+        mutation = entry.get("mutation", {})
+        mutation_type = mutation.get("type")
+        known = ("json-set", "json-remove", "replace-string", "file-delete")
+        if mutation_type not in known:
+            errors.append(f"failure sample {node_id!r}: unknown mutation type {mutation_type!r}")
+        source = mutation.get("path")
+        if not source or not (root / source).exists():
+            errors.append(f"failure sample {node_id!r}: mutation source does not exist: {source!r}")
+        if mutation_type in ("json-set", "json-remove") and not mutation.get("target"):
+            errors.append(f"failure sample {node_id!r}: json mutation is missing 'target'")
+        if mutation_type == "replace-string" and "old" not in mutation:
+            errors.append(f"failure sample {node_id!r}: replace-string mutation is missing 'old'")
+        if mutation_type == "file-delete" and not mutation.get("delete"):
+            errors.append(f"failure sample {node_id!r}: file-delete mutation is missing 'delete'")
+    return errors
+
+
 def structural_payload(report: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in report.items() if key != "runtime"}
 
 
-def check_report(report_path: Path, root: Path, lanes_path: Path, exceptions_path: Path) -> int:
+def check_report(
+    report_path: Path, root: Path, lanes_path: Path, exceptions_path: Path, samples_path: Path
+) -> int:
     if not report_path.exists():
         print(f"missing committed report: {report_path}", file=sys.stderr)
         return 1
@@ -917,7 +1116,7 @@ def check_report(report_path: Path, root: Path, lanes_path: Path, exceptions_pat
         print("committed report has unsupported schema_version", file=sys.stderr)
         return 1
     try:
-        regenerated = build_structural(root, lanes_path, exceptions_path)
+        regenerated = build_structural(root, lanes_path, exceptions_path, samples_path)
     except RuntimeError as exc:
         print(f"regeneration failed: {exc}", file=sys.stderr)
         return 1
@@ -925,6 +1124,8 @@ def check_report(report_path: Path, root: Path, lanes_path: Path, exceptions_pat
     lane_ids = {lane["id"] for lane in regenerated["lanes"]}
     exceptions = _load_json(exceptions_path)
     errors = validate_exceptions(exceptions, collected, lane_ids)
+    samples = _load_json(samples_path)
+    errors.extend(validate_failure_samples(samples, collected, root))
     for error in errors:
         print(f"exception error: {error}", file=sys.stderr)
     committed_payload = structural_payload(committed)
@@ -951,17 +1152,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--report-path", type=Path, default=REPORT_PATH, help="override committed report path")
     parser.add_argument("--lanes-path", type=Path, default=LANES_PATH, help="override lane manifest path")
     parser.add_argument("--exceptions-path", type=Path, default=EXCEPTIONS_PATH, help="override exceptions path")
+    parser.add_argument("--samples-path", type=Path, default=SAMPLES_PATH, help="override failure-samples manifest path")
     parser.add_argument("--work-dir", type=Path, default=None, help="scratch directory for recorder outputs")
     args = parser.parse_args(argv)
 
     if args.check:
-        return check_report(args.report_path, ROOT, args.lanes_path, args.exceptions_path)
+        return check_report(args.report_path, ROOT, args.lanes_path, args.exceptions_path, args.samples_path)
 
-    report = build_structural(ROOT, args.lanes_path, args.exceptions_path)
+    report = build_structural(ROOT, args.lanes_path, args.exceptions_path, args.samples_path)
     collected = {row["node_id"] for row in report["inventory"]}
     lane_ids = {lane["id"] for lane in report["lanes"]}
     exceptions = _load_json(args.exceptions_path)
     errors = validate_exceptions(exceptions, collected, lane_ids)
+    errors.extend(validate_failure_samples(_load_json(args.samples_path), collected, ROOT))
     if errors:
         for error in errors:
             print(f"exception error: {error}", file=sys.stderr)
