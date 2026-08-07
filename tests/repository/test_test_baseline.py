@@ -13,8 +13,10 @@ from build_test_baseline import (  # noqa: E402
     _bucket,
     _classify,
     _derive_layer,
+    _failure_locality,
     _merge_recorder,
     _normalize_detail,
+    _owner_of,
     validate_exceptions,
 )
 
@@ -86,20 +88,47 @@ def test_classify_rules() -> None:
     )
 
 
+def test_owner_derivation_rules() -> None:
+    assert _owner_of("tests/skills/plan-change/test_v6_intake.py::test_a") == "skills/engineering/plan-change"
+    assert _owner_of("tests/repository/test_x.py::test_a") == "repository"
+    assert _owner_of("tests/shared/test_x.py::test_a") == "shared-runtime"
+    assert _owner_of("tests/skill_protocol/test_x.py::test_a") == "shared-protocol"
+    assert _owner_of("tests/integration/test_x.py::test_a") == "installed-execution"
+    assert _owner_of("tests/benchmarks/test_x.py::test_a") == "benchmark-fixture"
+    assert _owner_of("tests/classification/test_x.py::test_a") == "classification"
+    assert (
+        _owner_of("benchmarks/repos/schema-migration-service/tests/test_x.py::test_a")
+        == "external-fixture"
+    )
+
+
+def test_failure_locality_rules() -> None:
+    assert _failure_locality("tests/skills/plan-change/test_x.py::test_a", "skills/engineering/plan-change") == "direct"
+    assert _failure_locality("tests/integration/test_x.py::test_a", "installed-execution") == "broad"
+    assert _failure_locality("tests/benchmarks/test_x.py::test_a", "benchmark-fixture") == "broad"
+    assert _failure_locality("tests/shared/test_x.py::test_a", "shared-runtime") == "broad"
+    assert _failure_locality("tests/repository/test_x.py::test_a", "repository") == "path-derived"
+    assert _failure_locality("tests/classification/test_x.py::test_a", "classification") == "path-derived"
+
+
 def test_validate_exceptions_rejects_unreferenced_nodes() -> None:
     errors = validate_exceptions(
         {"excluded": [{"node_id": "tests/nonexistent.py::test_x", "reason": "gone"}],
-         "classification_overrides": {"tests/nonexistent.py::test_y": "primary-proof"}},
+         "owner_overrides": {"tests/nonexistent.py::test_y": "repository"},
+         "ownership_notes": {"unknown.lane": {"boundary_justified": "nope"}}},
         {"tests/real.py::test_z"},
+        {"quality.full"},
     )
-    assert len(errors) == 2
+    assert len(errors) == 3
 
 
 def test_validate_exceptions_accepts_exact_and_prefix_nodes() -> None:
     errors = validate_exceptions(
         {"excluded": [{"node_id": "tests/real.py::test_z", "reason": "exact"}],
-         "classification_overrides": {"tests/real.py": "primary-proof"}},
+         "owner_overrides": {"tests/real.py": "repository"},
+         "ownership_notes": {"quality.full": {"boundary_justified": "required"}}},
         {"tests/real.py::test_z"},
+        {"quality.full"},
     )
     assert errors == []
 
@@ -156,6 +185,16 @@ def _write_instrumentation_suite(tmp_path: Path) -> None:
                 target = tmp_path / "target.txt"
                 shutil.copyfile(source, target)
                 assert target.read_text(encoding="utf-8") == "hello"
+
+            def test_copy2_records_bytes(tmp_path: Path) -> None:
+                source = tmp_path / "source2.txt"
+                source.write_text("hello2", encoding="utf-8")
+                shutil.copy2(source, tmp_path / "target2.txt")
+
+            def test_copy_records_bytes(tmp_path: Path) -> None:
+                source = tmp_path / "source3.txt"
+                source.write_text("hello3", encoding="utf-8")
+                shutil.copy(source, tmp_path / "target3.txt")
             """
         ),
         encoding="utf-8",
@@ -169,7 +208,7 @@ def test_instrumentation_is_semantics_preserving_and_records(tmp_path: Path) -> 
         [str(tmp_path / "test_instrumentation_demo.py"), "-q"], str(recorder_out)
     )
     assert returncode == 0, output
-    assert "2 passed" in output
+    assert "4 passed" in output
     assert "failed" not in output
     assert recorder_out.exists()
     data = json.loads(recorder_out.read_text(encoding="utf-8"))
@@ -184,6 +223,12 @@ def test_instrumentation_is_semantics_preserving_and_records(tmp_path: Path) -> 
     )
     assert any(boundary["kind"] == "copy" for boundary in data["boundaries"])
     assert data["nodes"][copy_node]["copy_count"] >= 1
+    assert data["nodes"][copy_node]["copy_bytes"] == 5
+    for node in data["nodes"]:
+        if node.endswith("::test_copy2_records_bytes"):
+            assert data["nodes"][node]["copy_bytes"] == 6
+        if node.endswith("::test_copy_records_bytes"):
+            assert data["nodes"][node]["copy_bytes"] == 6
 
 
 def test_merge_recorder_medians_across_runs(tmp_path: Path) -> None:
@@ -249,3 +294,15 @@ def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
         if row["classification"] == "suspected-duplicate" and row["domain"] == "map-codebase"
     )
     assert "quality.full" in duplicate_row["lanes"]
+    assert duplicate_row["owner"] == "skills/engineering/map-codebase"
+    assert first["schema_version"] == 2
+    assert first["failure_locality"]["evidence"] == "derived-static"
+    assert set(first["failure_locality"]["distribution"]) <= {"direct", "path-derived", "broad"}
+    assert all(len(samples) <= 5 for samples in first["failure_locality"]["representative"].values())
+    full_lane = first["ownership"]["lanes"]["quality.full"]
+    assert full_lane["boundary_justified"] is None
+    assert full_lane["unresolved"] is True
+    assert "overlaps" in full_lane
+    map_owner = first["ownership"]["owners"]["skills/engineering/map-codebase"]
+    assert map_owner["owning_surface"] == ["skills/engineering/map-codebase/**"]
+    assert map_owner["node_count"] > 100

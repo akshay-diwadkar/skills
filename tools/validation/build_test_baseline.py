@@ -307,6 +307,70 @@ def _derive_domain(node_id: str) -> str:
     return "repository"
 
 
+SKILL_OWNERS: dict[str, str] = {}
+for _domain_dir in sorted((ROOT / "skills").iterdir()):
+    if not _domain_dir.is_dir():
+        continue
+    for _skill_dir in sorted(_domain_dir.iterdir()):
+        if _skill_dir.is_dir() and (_skill_dir / "SKILL.md").is_file():
+            SKILL_OWNERS[_skill_dir.name] = f"skills/{_domain_dir.name}/{_skill_dir.name}"
+
+
+def _owner_of(node_id: str) -> str:
+    relative = _rel(_node_file(node_id), TESTS_ROOT)
+    if relative.startswith(".."):
+        return "external-fixture"
+    parts = Path(relative).parts
+    if parts and parts[0] == "skills":
+        if len(parts) >= 2:
+            return SKILL_OWNERS.get(parts[1], f"skills/{parts[1]}")
+        return "skills"
+    if parts:
+        return {
+            "repository": "repository",
+            "shared": "shared-runtime",
+            "skill_protocol": "shared-protocol",
+            "integration": "installed-execution",
+            "benchmarks": "benchmark-fixture",
+            "classification": "classification",
+        }.get(parts[0], parts[0])
+    return relative
+
+
+OWNING_SURFACES: dict[str, list[str]] = {
+    "repository": ["tools/validation/**", "tools/benchmarks/**"],
+    "shared-runtime": ["skills/**/lib/**", "skills/**/scripts/**"],
+    "shared-protocol": ["skill_protocol/**"],
+    "installed-execution": ["skills/**/scripts/**"],
+    "benchmark-fixture": ["benchmarks/**"],
+    "classification": ["tools/classification/**"],
+    "external-fixture": ["benchmarks/**"],
+}
+
+
+def _owning_surface(owner: str) -> list[str]:
+    if owner.startswith("skills/"):
+        return [f"{owner}/**"]
+    return OWNING_SURFACES.get(owner, [f"{owner}/**"])
+
+
+BROAD_LOCALITY_LAYERS = (
+    "installed-execution",
+    "benchmark-fixture",
+    "shared-runtime",
+    "shared-protocol",
+    "external-fixture",
+)
+
+
+def _failure_locality(node_id: str, owner: str) -> str:
+    if _derive_layer(node_id) in BROAD_LOCALITY_LAYERS:
+        return "broad"
+    if owner.startswith("skills/"):
+        return "direct"
+    return "path-derived"
+
+
 def _classify(node_id: str, markers: Sequence[str], lanes: Sequence[str]) -> str:
     if "fixtures" in markers:
         return "fixture-integrity"
@@ -441,7 +505,7 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
     exceptions = _load_json(exceptions_path)
     if lanes_manifest.get("schema_version") != 1:
         raise ValueError(f"{lanes_path}: unsupported lane manifest schema version")
-    if exceptions.get("schema_version") != 1:
+    if exceptions.get("schema_version") != 2:
         raise ValueError(f"{exceptions_path}: unsupported exceptions schema version")
 
     lanes: list[dict[str, Any]] = []
@@ -485,6 +549,7 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
         lanes_here = sorted(lane_id for lane_id, nodes in all_nodes.items() if node_id in nodes)
         markers = sorted(all_markers.get(node_id, []))
         classification = _classify(node_id, markers, lanes_here)
+        owner = _owner_of(node_id)
         inventory.append(
             {
                 "node_id": node_id,
@@ -492,6 +557,8 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
                 "suite": _suite_of(node_id),
                 "layer": _derive_layer(node_id),
                 "domain": _derive_domain(node_id),
+                "owner": owner,
+                "failure_locality": _failure_locality(node_id, owner),
                 "markers": markers,
                 "classification": classification,
                 "lanes": lanes_here,
@@ -533,8 +600,67 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
         if node_id and node_id in all_markers:
             excluded.append({"node_id": node_id, "reason": entry.get("reason", "")})
 
+    owners: dict[str, dict[str, Any]] = {}
+    for row in inventory:
+        entry = owners.setdefault(
+            row["owner"], {"owning_surface": _owning_surface(row["owner"]), "node_count": 0}
+        )
+        entry["node_count"] += 1
+    for owner in exceptions.get("owner_overrides", {}):
+        if owner not in owners:
+            owners[owner] = {"owning_surface": _owning_surface(owner), "node_count": 0}
+
+    all_skill_owners = sorted(
+        {row["owner"] for row in inventory if row["owner"].startswith("skills/")}
+    )
+    lane_ownership: dict[str, dict[str, Any]] = {}
+    for lane_id, nodes in sorted(all_nodes.items()):
+        other_nodes = {n for other, other_set in all_nodes.items() if other != lane_id for n in other_set}
+        unique_nodes = sorted(nodes - other_nodes)
+        overlaps = {
+            other: len(nodes & other_set)
+            for other, other_set in sorted(all_nodes.items())
+            if other != lane_id and nodes & other_set
+        }
+        lane_owner_set = {_owner_of(node_id) for node_id in nodes}
+        not_protected = sorted(set(all_skill_owners) - lane_owner_set)
+        subsumers = sorted(
+            other for other, other_set in all_nodes.items()
+            if other != lane_id and nodes <= other_set
+        )
+        if subsumers:
+            cheapest_layer = f"subsumed-by:{subsumers[0]}"
+        elif unique_nodes:
+            unique_layers = Counter(_derive_layer(node_id) for node_id in unique_nodes)
+            cheapest_layer = unique_layers.most_common(1)[0][0]
+        else:
+            cheapest_layer = "duplicated (no unique protection)"
+        note = exceptions.get("ownership_notes", {}).get(lane_id, {})
+        boundary_justified = note.get("boundary_justified")
+        proposed_owner = note.get("proposed_owner")
+        lane_ownership[lane_id] = {
+            "unique_protection": unique_nodes,
+            "overlaps": overlaps,
+            "not_protected": not_protected,
+            "cheapest_owning_layer": cheapest_layer,
+            "boundary_justified": boundary_justified,
+            "proposed_owner": proposed_owner,
+            "unresolved": boundary_justified is None,
+        }
+
+    locality_distribution: dict[str, int] = Counter()
+    representative: dict[str, list[str]] = defaultdict(list)
+    per_lane_locality: dict[str, dict[str, int]] = {}
+    for row in sorted(inventory, key=lambda entry: entry["node_id"]):
+        locality = row["failure_locality"]
+        locality_distribution[locality] += 1
+        if len(representative[locality]) < 5:
+            representative[locality].append(row["node_id"])
+        for lane_id in row["lanes"]:
+            per_lane_locality.setdefault(lane_id, Counter())[locality] += 1
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "repository": {
             "head_commit": _head_commit(),
             "python": sys.version.split()[0],
@@ -547,6 +673,18 @@ def build_structural(root: Path, lanes_path: Path, exceptions_path: Path) -> dic
             "overlap_pairs": overlap_pairs,
             "subsumptions": subsumptions,
             "source_path_rollup": source_path_rollup,
+        },
+        "ownership": {
+            "owners": owners,
+            "lanes": lane_ownership,
+        },
+        "failure_locality": {
+            "evidence": "derived-static",
+            "distribution": dict(sorted(locality_distribution.items())),
+            "per_lane": {
+                lane_id: dict(sorted(counts.items())) for lane_id, counts in sorted(per_lane_locality.items())
+            },
+            "representative": {class_name: samples for class_name, samples in sorted(representative.items())},
         },
         "static": static,
         "in_process_validator_imports": _scan_in_process_validators(root),
@@ -625,6 +763,19 @@ def _merge_recorder(run_files: Sequence[Path]) -> dict[str, Any]:
     return merged
 
 
+def _parse_executed_counts(output: str) -> dict[str, int]:
+    summary = output.splitlines()[-1] if output.splitlines() else ""
+    counts: dict[str, int] = {}
+    for kind in ("passed", "failed", "skipped", "error", "xfailed", "xpassed"):
+        match = re.search(rf"(\d+)\s+{kind}", summary)
+        if match:
+            counts[kind] = int(match.group(1))
+    counts["executed"] = sum(
+        counts.get(kind, 0) for kind in ("passed", "failed", "error", "xpassed")
+    )
+    return counts
+
+
 def runtime_runs(runs: int, work_dir: Path) -> dict[str, Any]:
     lane = {"args": ["-m", "not fixtures and not benchmark and not benchmark_slow"]}
     run_files: list[Path] = []
@@ -648,10 +799,51 @@ def runtime_runs(runs: int, work_dir: Path) -> dict[str, Any]:
     merged["runs"] = runs
     merged["wall_duration_buckets"] = wall_buckets
     merged["collection_duration_buckets"] = collection_buckets
+    merged["lane_executions"] = lane_executions(work_dir)
     return merged
 
 
-def validate_exceptions(exceptions: dict[str, Any], collected: set[str]) -> list[str]:
+BENCHMARK_GATED_LANES = {
+    "quality.representative-benchmark",
+    "benchmarks.map-codebase-full",
+    "fixture-builds.realistic-quality",
+}
+
+
+def lane_executions(work_dir: Path) -> dict[str, Any]:
+    lanes_manifest = _load_json(LANES_PATH)
+    executions: dict[str, Any] = {}
+    for lane in lanes_manifest["lanes"]:
+        lane_id = lane["id"]
+        if lane_id == "quality.full":
+            continue
+        if lane_id in BENCHMARK_GATED_LANES:
+            executions[lane_id] = {
+                "executed": False,
+                "reason": "benchmark-gated",
+                "executed_count": 0,
+                "wall_duration_bucket": None,
+            }
+            continue
+        started = time.monotonic()
+        returncode, output = _run_pytest([*lane["args"], "-q"], None)
+        counts = _parse_executed_counts(output)
+        entry: dict[str, Any] = {
+            "executed": True,
+            "executed_count": counts.get("executed", 0),
+            "collected": counts,
+            "wall_duration_bucket": _bucket(time.monotonic() - started),
+            "returncode": returncode,
+        }
+        if returncode != 0:
+            entry["error"] = output[-2000:]
+        executions[lane_id] = entry
+    return executions
+
+
+def validate_exceptions(
+    exceptions: dict[str, Any], collected: set[str], lane_ids: set[str]
+) -> list[str]:
     errors: list[str] = []
 
     def referenced(node_id: Any) -> bool:
@@ -665,9 +857,12 @@ def validate_exceptions(exceptions: dict[str, Any], collected: set[str]) -> list
         node_id = entry.get("node_id")
         if not referenced(node_id):
             errors.append(f"excluded node references nothing collected: {node_id!r}")
-    for node_id in exceptions.get("classification_overrides", {}):
+    for node_id in exceptions.get("owner_overrides", {}):
         if not referenced(node_id):
-            errors.append(f"classification override references nothing collected: {node_id!r}")
+            errors.append(f"owner override references nothing collected: {node_id!r}")
+    for lane_id in exceptions.get("ownership_notes", {}):
+        if lane_id not in lane_ids:
+            errors.append(f"ownership note references unknown lane: {lane_id!r}")
     return errors
 
 
@@ -680,7 +875,7 @@ def check_report(report_path: Path, root: Path, lanes_path: Path, exceptions_pat
         print(f"missing committed report: {report_path}", file=sys.stderr)
         return 1
     committed = _load_json(report_path)
-    if committed.get("schema_version") != 1:
+    if committed.get("schema_version") != 2:
         print("committed report has unsupported schema_version", file=sys.stderr)
         return 1
     try:
@@ -689,8 +884,9 @@ def check_report(report_path: Path, root: Path, lanes_path: Path, exceptions_pat
         print(f"regeneration failed: {exc}", file=sys.stderr)
         return 1
     collected = {row["node_id"] for row in regenerated["inventory"]}
+    lane_ids = {lane["id"] for lane in regenerated["lanes"]}
     exceptions = _load_json(exceptions_path)
-    errors = validate_exceptions(exceptions, collected)
+    errors = validate_exceptions(exceptions, collected, lane_ids)
     for error in errors:
         print(f"exception error: {error}", file=sys.stderr)
     committed_payload = structural_payload(committed)
@@ -723,8 +919,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     report = build_structural(ROOT, args.lanes_path, args.exceptions_path)
     collected = {row["node_id"] for row in report["inventory"]}
+    lane_ids = {lane["id"] for lane in report["lanes"]}
     exceptions = _load_json(args.exceptions_path)
-    errors = validate_exceptions(exceptions, collected)
+    errors = validate_exceptions(exceptions, collected, lane_ids)
     if errors:
         for error in errors:
             print(f"exception error: {error}", file=sys.stderr)

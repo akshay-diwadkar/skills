@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
-  "note": "Compact exceptions to path/marker derivation for the #218 test baseline. 'excluded' entries must reference collected node IDs (exact) or node-ID prefixes; each must carry a reason. Populated from real evidence during generation; empty means full derivation coverage.",
+  "schema_version": 2,
+  "note": "Compact exceptions to path/marker derivation for the #218 test baseline. 'excluded' entries must reference collected node IDs (exact) or node-ID prefixes and carry a reason. 'owner_overrides' re-map the derived owner of a node ID or prefix. 'ownership_notes' record per-lane boundary justifications and proposed owners that derivation cannot decide; unresolved lanes stay null. Empty means full derivation coverage.",
   "excluded": [],
-  "classification_overrides": {}
+  "owner_overrides": {},
+  "ownership_notes": {}
 }

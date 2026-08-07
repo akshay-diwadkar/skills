@@ -110,6 +110,35 @@ def _wrap_callable(
     return wrapper
 
 
+_copy_depth = 0
+
+
+def _wrap_copy_callable(
+    target: Callable[..., Any],
+    kind: str,
+    detail_fn: Callable[[tuple[Any, ...], dict[str, Any]], tuple[str, int]],
+) -> Callable[..., Any]:
+    @wraps(target)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        global _copy_depth
+        outer = _copy_depth == 0
+        _copy_depth += 1
+        try:
+            result = target(*args, **kwargs)
+        except BaseException:
+            if outer:
+                _record_boundary(kind, "attempted")
+            raise
+        finally:
+            _copy_depth -= 1
+        if outer:
+            detail, volume = detail_fn(args, kwargs)
+            _record_boundary(kind, detail, volume)
+        return result
+
+    return wrapper
+
+
 def _command_detail(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[str, int]:
     raw = args[0] if args else kwargs.get("args", "")
     text = " ".join(str(part) for part in raw) if isinstance(raw, (list, tuple)) else str(raw)
@@ -119,33 +148,54 @@ def _command_detail(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[str,
 def _copy_detail(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[str, int]:
     source = kwargs["src"] if "src" in kwargs else (args[0] if args else None)
     path = Path(str(source)) if source is not None else None
-    volume = _dir_bytes(path) if path is not None else 0
+    volume = 0
+    if path is not None:
+        if path.is_dir():
+            volume = _dir_bytes(path)
+        else:
+            volume = _file_bytes(path)
     return str(path) if path is not None else "", volume
 
 
+def _copyfileobj_detail(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[str, int]:
+    source = kwargs.get("fsrc", args[0] if args else None)
+    volume = 0
+    try:
+        if source is not None:
+            volume = os.fstat(source.fileno()).st_size
+    except (AttributeError, OSError, ValueError):
+        volume = 0
+    return "copyfileobj", volume
+
+
+def _zero_detail(args: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[str, int]:
+    source = kwargs.get("src", args[0] if args else None)
+    return str(source) if source is not None else "", 0
+
+
 def _install_wraps() -> None:
-    _wrap_module(subprocess, "subprocess", _command_detail)
-    _wrap_module(shutil, "copy", _copy_detail)
+    _wrap_module(subprocess, "subprocess", _wrap_callable, _command_detail)
+    _wrap_module(shutil, "copy", _wrap_copy_callable, _copy_detail, ("copytree", "copy", "copy2", "copyfile"))
+    _wrap_module(shutil, "copy", _wrap_copy_callable, _copyfileobj_detail, ("copyfileobj",))
+    _wrap_module(shutil, "copy", _wrap_copy_callable, _zero_detail, ("copymode", "copystat"))
 
 
 def _wrap_module(
     module: Any,
     kind: str,
+    factory: Callable[..., Callable[..., Any]],
     detail_fn: Callable[[tuple[Any, ...], dict[str, Any]], tuple[str, int]],
+    names: tuple[str, ...] | None = None,
 ) -> None:
-    names = ("run", "call", "check_call", "check_output") if kind == "subprocess" else (
-        "copytree",
-        "copy",
-        "copy2",
-        "copyfile",
-        "copyfileobj",
-        "copymode",
-        "copystat",
+    names = names or (
+        ("run", "call", "check_call", "check_output")
+        if kind == "subprocess"
+        else ("copytree", "copy", "copy2", "copyfile", "copyfileobj", "copymode", "copystat")
     )
     for name in names:
         target = getattr(module, name, None)
         if callable(target):
-            setattr(module, name, _wrap_callable(target, kind, detail_fn))
+            setattr(module, name, factory(target, kind, detail_fn))
 
 
 def pytest_collection_modifyitems(session: Any, config: Any, items: list[Any]) -> None:
