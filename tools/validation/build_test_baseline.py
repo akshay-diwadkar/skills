@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from test_baseline_utils import (
+    apply_failure_sample_text_mutation,
     bucket_seconds,
     classify_subprocess_command,
     derive_layer_from_path,
@@ -938,6 +939,10 @@ def run_failure_samples(root: Path, samples_path: Path) -> dict[str, str]:
     never be committed silently.
     """
     samples = _load_json(samples_path).get("samples", [])
+    mutation_errors = validate_failure_sample_mutations({"samples": samples}, root)
+    if mutation_errors:
+        details = "\n".join(f"- {error}" for error in mutation_errors)
+        raise RuntimeError(f"failure sample mutation validation failed before pytest:\n{details}")
     node_ids = [str(sample["node_id"]) for sample in samples]
     command = [
         sys.executable,
@@ -1081,23 +1086,75 @@ def validate_failure_samples(
     if samples.get("schema_version") != 1:
         errors.append("failure samples: unsupported schema version")
     for entry in samples.get("samples", []):
+        if not isinstance(entry, dict):
+            errors.append(f"failure sample entry must be an object: {entry!r}")
+            continue
         node_id = entry.get("node_id")
         if not isinstance(node_id, str) or node_id not in collected:
             errors.append(f"failure sample references nothing collected: {node_id!r}")
         mutation = entry.get("mutation", {})
-        mutation_type = mutation.get("type")
-        known = ("json-set", "json-remove", "replace-string", "file-delete")
-        if mutation_type not in known:
-            errors.append(f"failure sample {node_id!r}: unknown mutation type {mutation_type!r}")
+        if not isinstance(mutation, dict):
+            errors.append(f"failure sample {node_id!r}: mutation must be an object")
+            continue
         source = mutation.get("path")
-        if not source or not (root / source).exists():
+        if not isinstance(source, str) or not source or not (root / source).exists():
             errors.append(f"failure sample {node_id!r}: mutation source does not exist: {source!r}")
-        if mutation_type in ("json-set", "json-remove") and not mutation.get("target"):
-            errors.append(f"failure sample {node_id!r}: json mutation is missing 'target'")
-        if mutation_type == "replace-string" and "old" not in mutation:
-            errors.append(f"failure sample {node_id!r}: replace-string mutation is missing 'old'")
-        if mutation_type == "file-delete" and not mutation.get("delete"):
-            errors.append(f"failure sample {node_id!r}: file-delete mutation is missing 'delete'")
+    errors.extend(validate_failure_sample_mutations(samples, root))
+    return errors
+
+
+def validate_failure_sample_mutations(samples: dict[str, Any], root: Path) -> list[str]:
+    """Prove every declared failure-sample mutation applies and changes data."""
+    errors: list[str] = []
+    for entry in samples.get("samples", []):
+        if not isinstance(entry, dict):
+            continue
+        node_id = entry.get("node_id")
+        mutation = entry.get("mutation")
+        if not isinstance(mutation, dict):
+            errors.append(f"failure sample {node_id!r}: mutation must be an object")
+            continue
+        mutation_type = mutation.get("type")
+        if mutation_type not in ("json-set", "json-remove", "replace-string", "file-delete"):
+            errors.append(f"failure sample {node_id!r}: unknown mutation type {mutation_type!r}")
+            continue
+        source_value = mutation.get("path")
+        if not isinstance(source_value, str) or not source_value:
+            continue
+        source = root / source_value
+        if not source.exists():
+            continue
+        try:
+            if mutation_type in ("json-set", "json-remove"):
+                original = source.read_text(encoding="utf-8")
+                mutated = apply_failure_sample_text_mutation(original, mutation)
+                if json.loads(mutated) == json.loads(original):
+                    errors.append(
+                        f"failure sample {node_id!r}: {mutation_type} mutation is a no-op"
+                    )
+            elif mutation_type == "replace-string":
+                original = source.read_text(encoding="utf-8")
+                mutated = apply_failure_sample_text_mutation(original, mutation)
+                if mutated == original:
+                    errors.append(
+                        f"failure sample {node_id!r}: replace-string mutation does not replace a source string"
+                    )
+            elif mutation_type == "file-delete":
+                if not source.is_dir():
+                    raise NotADirectoryError(source)
+                delete_value = mutation.get("delete")
+                if not isinstance(delete_value, str) or not delete_value:
+                    raise ValueError("file-delete mutation requires a non-empty 'delete' path")
+                target = (source / delete_value).resolve()
+                source_root = source.resolve()
+                if target == source_root or source_root not in target.parents:
+                    raise ValueError("file-delete target must stay inside the copied source")
+                if not target.is_file():
+                    raise FileNotFoundError(target)
+        except (OSError, TypeError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
+            errors.append(
+                f"failure sample {node_id!r}: {mutation_type} mutation cannot be applied: {exc}"
+            )
     return errors
 
 

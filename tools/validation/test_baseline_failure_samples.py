@@ -37,6 +37,8 @@ import shutil
 from pathlib import Path
 from typing import Any, Callable
 
+from test_baseline_utils import apply_failure_sample_text_mutation
+
 _STATE: dict[str, Any] = {"by_source": {}, "root": None}
 
 
@@ -62,26 +64,7 @@ def _load_manifest() -> None:
 
 
 def _mutate_text(text: str, mutation: dict[str, Any]) -> str:
-    mutation_type = mutation.get("type")
-    if mutation_type == "replace-string":
-        return text.replace(mutation["old"], mutation["new"])
-    if mutation_type in ("json-set", "json-remove"):
-        value = json.loads(text)
-        target = list(mutation["target"])
-        cursor = value
-        for key in target[:-1]:
-            cursor = cursor[key]
-        if mutation_type == "json-set":
-            cursor[target[-1]] = mutation["value"]
-        else:
-            remove = cursor[target[-1]]
-            index = int(mutation.get("index", 0))
-            if isinstance(remove, list):
-                del remove[index]
-            else:
-                del remove[target[-1]]
-        return json.dumps(value, sort_keys=True, separators=(",", ":"))
-    return text
+    return apply_failure_sample_text_mutation(text, mutation)
 
 
 def _install_read_text_wrap() -> None:

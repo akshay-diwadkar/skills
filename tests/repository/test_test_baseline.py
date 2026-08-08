@@ -5,6 +5,8 @@ import sys
 import textwrap
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "validation"))
 
@@ -339,6 +341,84 @@ def test_validate_failure_samples_accepts_and_rejects() -> None:
     assert len(errors) == 3
     schema_errors = validate_failure_samples({"schema_version": 9, "samples": []}, collected, REPO_ROOT)
     assert len(schema_errors) == 1
+
+
+def test_validate_failure_samples_rejects_unappliable_targets_indexes_and_replacements(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "data.json").write_text('{"items":["a"],"version":3}', encoding="utf-8")
+    (tmp_path / "data.txt").write_text("expected marker\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "present.txt").write_text("fixture\n", encoding="utf-8")
+    samples = {
+        "schema_version": 1,
+        "samples": [
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "json-set", "path": "data.json", "target": ["missing"], "value": 4},
+            },
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "json-remove", "path": "data.json", "target": ["items"], "index": 4},
+            },
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "replace-string", "path": "data.txt", "old": "absent", "new": "changed"},
+            },
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "replace-string", "path": "data.txt", "old": "expected", "new": "expected"},
+            },
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "json-set", "path": "data.json", "target": ["version"], "value": 3},
+            },
+            {
+                "node_id": "tests/real.py::test_z",
+                "mutation": {"type": "file-delete", "path": "src", "delete": "missing.txt"},
+            },
+        ],
+    }
+
+    errors = validate_failure_samples(samples, {"tests/real.py::test_z"}, tmp_path)
+
+    assert len(errors) == 6
+    assert any("json-set mutation cannot be applied" in error for error in errors)
+    assert any("json-remove mutation cannot be applied" in error for error in errors)
+    assert sum("does not replace a source string" in error for error in errors) == 2
+    assert any("json-set mutation is a no-op" in error for error in errors)
+    assert any("file-delete mutation cannot be applied" in error for error in errors)
+
+
+def test_run_failure_samples_validates_before_launching_pytest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "data.json").write_text('{"version":3}', encoding="utf-8")
+    manifest_path = tmp_path / "samples.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "samples": [
+                    {
+                        "node_id": "tests/real.py::test_z",
+                        "mutation": {
+                            "type": "json-remove",
+                            "path": "data.json",
+                            "target": ["version"],
+                            "index": 1,
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_if_pytest_starts(*args: object, **kwargs: object) -> None:
+        raise AssertionError("pytest subprocess was launched")
+
+    monkeypatch.setattr(baseline.subprocess, "run", fail_if_pytest_starts)
+    with pytest.raises(RuntimeError, match="before pytest"):
+        baseline.run_failure_samples(tmp_path, manifest_path)
 
 
 def test_failure_diagnostic_parsing() -> None:
