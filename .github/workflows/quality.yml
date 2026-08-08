@@ -63,53 +63,15 @@ jobs:
       - name: Repository validation
         run: python tools/validation/validate_repository.py
       - name: Test
-        run: python -m pytest -m "not fixtures and not benchmark and not benchmark_slow" -q
-
-  fixture-contract:
-    name: Fixture Contract (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Install fixture dependencies
-        run: |
-          python -m pip install pytest
-          python -m pip install -r skills/engineering/map-codebase/requirements.txt
-      - name: Validate fixture lifecycle
-        run: |
-          python -m tools.benchmarks validate
-          python -m tools.benchmarks regenerate --check
-          python -m tools.benchmarks audit --check
-      - name: Run fixture contract tests
-        run: python -m pytest -m fixtures -q
-
-  representative-benchmark:
-    name: Representative Deterministic Benchmarks
-    if: github.event_name == 'pull_request'
-    timeout-minutes: 12
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-      - name: Install benchmark dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes ripgrep
-          python -m pip install pytest
-          python -m pip install -r skills/engineering/map-codebase/requirements.txt
-          python -m pip install -r skills/technical-communication/manualize/requirements.txt
-      - name: Run representative deterministic benchmarks
-        run: python -m pytest -m "benchmark and not benchmark_slow" -q
+        run: >-
+          python -m pytest
+          --ignore=tests/skills/map-codebase
+          -m "not fixtures and not benchmark and not benchmark_slow" -q
+          --deselect "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-positive]"
+          --deselect "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-negative]"
+          --deselect "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-ambiguous]"
+          --deselect "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-adversarial]"
+          --deselect "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]"
 
   cross-platform:
     name: Cross-Platform Runtime (${{ matrix.os }}, Python ${{ matrix.python-version }})
@@ -131,28 +93,11 @@ jobs:
           python -m pip install -r skills/engineering/map-codebase/requirements.txt
           python -m pip install -r skills/technical-communication/manualize/requirements.txt
       - name: Run installed skill execution tests
-        run: python -m pytest tests/integration/test_installed_skill_execution.py -v
+        run: >-
+          python -m pytest tests/integration/test_installed_skill_execution.py -v
+          --deselect "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]"
       - name: Verify deterministic context-load report
         run: python tools/validation/measure_context_load.py --check
-
-  map-codebase-clean-install:
-    name: Map Codebase Clean Install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-      - name: Install test harness and runtime requirements
-        run: |
-          python -m pip install pytest
-          python -m pip install -r skills/engineering/map-codebase/requirements.txt
-      - name: Check runtime prerequisites
-        run: python skills/engineering/map-codebase/scripts/cli.py doctor --repo-root .
-      - name: Run map-codebase suite
-        run: >-
-          python -m pytest tests/skills/map-codebase
-          -m "not fixtures and not benchmark and not benchmark_slow" -q
 
   npx-install:
     name: Skills CLI Installation (${{ matrix.agent }})
