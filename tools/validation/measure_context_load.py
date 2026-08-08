@@ -372,13 +372,18 @@ def _validate_config(config: Mapping[str, Any], root: Path) -> list[str]:
     return errors
 
 
-def build_report(root: Path = ROOT, config_path: Path | None = None) -> dict[str, Any]:
+def build_report(
+    root: Path = ROOT,
+    config_path: Path | None = None,
+    excluded_skills: set[str] | None = None,
+) -> dict[str, Any]:
     config_file = config_path or root / "benchmarks" / "context-load-budgets.json"
     config = _json(config_file)
     config_errors = _validate_config(config, root)
     if config_errors:
         raise ValueError("; ".join(config_errors))
     tokenizer = _tokenizer()
+    excluded = excluded_skills or set()
     rows: dict[str, Any] = {}
     with tempfile.TemporaryDirectory(prefix="context-load-") as temp_name:
         temp = Path(temp_name).resolve()
@@ -386,6 +391,8 @@ def build_report(root: Path = ROOT, config_path: Path | None = None) -> dict[str
         for skill_md in skill_paths(root):
             skill = skill_md.parent.resolve()
             name = skill.name
+            if name in excluded:
+                continue
             manifest = _json(skill / "skill-protocol.json")
             spec = config["skills"][name]
             doctor_payload, doctor_output = _run_runtime_case(
@@ -439,6 +446,21 @@ def build_report(root: Path = ROOT, config_path: Path | None = None) -> dict[str
         "aggregate_metrics": aggregate_metrics,
         "skills": rows,
     }
+
+
+def _without_skills(report: Mapping[str, Any], excluded_skills: set[str]) -> dict[str, Any]:
+    if not excluded_skills:
+        return dict(report)
+    filtered = dict(report)
+    skills = {
+        name: row for name, row in report["skills"].items() if name not in excluded_skills
+    }
+    filtered["skills"] = skills
+    filtered["aggregate_metrics"] = {
+        metric: sum(int(row["metrics"][metric]) for row in skills.values())
+        for metric in (*METRICS, "worst_context")
+    }
+    return filtered
 
 
 def _default_limit(config: Mapping[str, Any], row: Mapping[str, Any], metric: str) -> int:
@@ -576,20 +598,23 @@ def validate_report(
     root: Path = ROOT,
     config_path: Path | None = None,
     compare_ref: str | None = None,
+    excluded_skills: set[str] | None = None,
 ) -> list[str]:
     label = path.relative_to(root) if path.is_relative_to(root) else path
+    excluded = excluded_skills or set()
     if not path.is_file():
         return [f"Missing {label}"]
     try:
         committed = _json(path)
-        current = build_report(root, config_path)
+        current = build_report(root, config_path, excluded)
         config = _json(config_path or root / "benchmarks" / "context-load-budgets.json")
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return [f"{label}: cannot measure context load: {exc}"]
     errors: list[str] = []
-    if committed != current:
+    committed_for_compare = _without_skills(committed, excluded)
+    if committed_for_compare != current:
         errors.append(f"{label}: generated report is stale; run measure_context_load.py --write")
-        errors.extend(_report_differences(committed, current))
+        errors.extend(_report_differences(committed_for_compare, current))
     errors.extend(budget_errors(current, config))
     if compare_ref:
         errors.extend(delta_errors(current, _git_report(compare_ref, root), config))
@@ -677,9 +702,18 @@ def main() -> int:
     action.add_argument("--check", action="store_true", help="Validate and enforce the committed report")
     parser.add_argument("--compare-ref", help="Trusted Git ref containing a compatible base report")
     parser.add_argument("--summary-file", type=Path, help="Write a Markdown totals and changes table")
+    parser.add_argument(
+        "--exclude-skill",
+        action="append",
+        default=[],
+        dest="excluded_skills",
+        metavar="NAME",
+        help="Skip a skill runtime case; may be supplied more than once.",
+    )
     args = parser.parse_args()
+    excluded_skills = set(args.excluded_skills)
     try:
-        report = build_report()
+        report = build_report(excluded_skills=excluded_skills)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"Context-load measurement failed: {exc}", file=sys.stderr)
         return 1
@@ -687,7 +721,7 @@ def main() -> int:
     if args.write:
         _write_report(report, REPORT_PATH)
     else:
-        errors = validate_report(compare_ref=args.compare_ref)
+        errors = validate_report(compare_ref=args.compare_ref, excluded_skills=excluded_skills)
         if errors:
             for error in errors:
                 print(error, file=sys.stderr)

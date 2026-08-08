@@ -324,7 +324,7 @@ def test_pre_release_workflow_matches_release_validation_environment() -> None:
     assert "python tools/validation/validate_repository.py" in workflow
     for skill_requirements in (
         "structured-evidence-requirements.txt",
-        "skills/engineering/map-codebase/requirements.txt",
+        "tiktoken>=0.7,<1",
         "skills/engineering/scope-issue/requirements.txt",
         "skills/technical-communication/manualize/requirements.txt",
     ):

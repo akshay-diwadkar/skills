@@ -1,13 +1,5 @@
 # AGENTS.md
 
-## Repository Knowledge
-
-Before repository exploration, read `.agent/knowledge/KNOWLEDGE.md` and use the `map-codebase` resolver:
-
-* Start at phase 1; read only returned targets and selected symbol shards.
-* Expand only when its stop condition is unmet.
-* Verify conclusions in current source.
-
 ## Skill Design
 
 Before creating, reviewing, or changing a skill, read [SKILL_PHILOSOPHY.md](SKILL_PHILOSOPHY.md) and apply its Change Gate.
