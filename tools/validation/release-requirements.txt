@@ -1,4 +1,4 @@
 -r structured-evidence-requirements.txt
--r ../../skills/engineering/map-codebase/requirements.txt
+tiktoken>=0.7,<1
 -r ../../skills/engineering/scope-issue/requirements.txt
 -r ../../skills/technical-communication/manualize/requirements.txt

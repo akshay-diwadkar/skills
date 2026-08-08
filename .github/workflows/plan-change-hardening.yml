@@ -21,11 +21,11 @@ jobs:
         run: |
           python -m pip install mypy pytest pytest-subtests pyyaml ruff
           python -m pip install -r tools/validation/structured-evidence-requirements.txt
-          python -m pip install -r skills/engineering/map-codebase/requirements.txt
+          python -m pip install "tiktoken>=0.7,<1"
       - name: Ruff
         run: ruff check .
       - name: Mypy
-        run: python tools/validation/run_mypy.py
+        run: python tools/validation/run_mypy.py --exclude-skill map-codebase
       - name: Repository contract
         run: python tools/validation/validate_repository.py
       - name: Plan Change

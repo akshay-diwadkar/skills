@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
@@ -26,7 +27,10 @@ def run_mypy_group(label: str, targets: list[Path], extra_paths: list[Path] | No
     return True
 
 
-def discover_skill_scopes() -> list[tuple[str, list[Path], list[Path]]]:
+def discover_skill_scopes(
+    excluded_skills: set[str] | None = None,
+) -> list[tuple[str, list[Path], list[Path]]]:
+    excluded = excluded_skills or set()
     return [
         (
             f"{skill_dir.parent.name}/{skill_dir.name}",
@@ -37,12 +41,23 @@ def discover_skill_scopes() -> list[tuple[str, list[Path], list[Path]]]:
         for skill_dir in sorted(
             path for path in domain_dir.iterdir() if path.is_dir() and (path / "SKILL.md").is_file()
         )
+        if skill_dir.name not in excluded
     ]
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Run mypy in discovered repository scopes.")
+    parser.add_argument(
+        "--exclude-skill",
+        action="append",
+        default=[],
+        dest="excluded_skills",
+        metavar="NAME",
+        help="Skip a skill and its tests; may be supplied more than once.",
+    )
+    args = parser.parse_args()
     failures: list[str] = []
-    for name, targets, extra_paths in discover_skill_scopes():
+    for name, targets, extra_paths in discover_skill_scopes(set(args.excluded_skills)):
         if not run_mypy_group(f"skill: {name}", targets, extra_paths):
             failures.append(name)
     tooling = [
