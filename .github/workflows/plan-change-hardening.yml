@@ -22,6 +22,7 @@ jobs:
           python -m pip install mypy pytest pytest-subtests pyyaml ruff
           python -m pip install -r tools/validation/structured-evidence-requirements.txt
           python -m pip install "tiktoken>=0.7,<1"
+          python -m pip install -r skills/technical-communication/manualize/requirements.txt
       - name: Ruff
         run: ruff check .
       - name: Mypy
