@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "note": "Compact exceptions to path/marker derivation for the #218 test baseline. 'excluded' entries must reference collected node IDs (exact) or node-ID prefixes and carry a reason. 'owner_overrides' re-map the derived owner of a node ID or prefix. 'ownership_notes' record per-lane boundary justifications and proposed owners that derivation cannot decide; unresolved lanes stay null. Empty means full derivation coverage.",
+  "excluded": [],
+  "owner_overrides": {},
+  "ownership_notes": {
+    "quality.full": {
+      "boundary_justified": true,
+      "proposed_owner": "repository",
+      "rationale": "Primary fast proof lane for non-fixture, non-benchmark pytest suites."
+    },
+    "quality.cross-platform.installed-execution": {
+      "boundary_justified": true,
+      "proposed_owner": "installed-execution",
+      "rationale": "Cross-platform matrix check ensuring CLI install and execution compatibility."
+    },
+    "plan-change-hardening.plan-change": {
+      "boundary_justified": true,
+      "proposed_owner": "skills/engineering/plan-change",
+      "rationale": "PR gate for plan-change skill changes; subsumed by quality.full."
+    },
+    "plan-change-hardening.implement-plan": {
+      "boundary_justified": true,
+      "proposed_owner": "skills/engineering/implement-plan",
+      "rationale": "PR gate for implement-plan skill changes; subsumed by quality.full."
+    },
+    "plan-change-hardening.scope-issue": {
+      "boundary_justified": true,
+      "proposed_owner": "skills/engineering/scope-issue",
+      "rationale": "PR gate for scope-issue skill changes; subsumed by quality.full."
+    },
+    "plan-change-hardening.installed-execution": {
+      "boundary_justified": true,
+      "proposed_owner": "installed-execution",
+      "rationale": "PR gate verifying installed execution on Linux runner prior to cross-platform matrix."
+    },
+    "plan-change-hardening.large-repo-gate": {
+      "boundary_justified": true,
+      "proposed_owner": "skills/engineering/plan-change",
+      "rationale": "Environment-gated large repository boundary check."
+    }
+  }
+}

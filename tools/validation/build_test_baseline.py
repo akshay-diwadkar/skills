@@ -1,0 +1,1394 @@
+#!/usr/bin/env python3
+"""Build the canonical repository test-system baseline (roadmap #218).
+
+Derives a machine-readable baseline of the repository's test system:
+
+- exact collected node sets for every required CI lane command (pytest
+  ``--collect-only``);
+- per-node suite, layer, domain, markers, and classification derived from
+  paths, markers, and the committed exceptions file;
+- duplicate evidence by exact node identity across lanes, plus subsumption
+  and source-path rollups;
+- observed representative-failure diagnostics: a small set of real tests is
+  run against deterministic mutations of the committed data they consume, and
+  the actual pytest failure output is recorded per locality class;
+- runtime boundary evidence (subprocess, copy volume, fixture hotspots,
+  duration buckets) via ``test_baseline_recorder`` when executed;
+- static AST boundary evidence for files the runtime pass does not exercise.
+
+The committed report is ``benchmarks/reports/test-baseline.json``. The
+``--check`` mode regenerates the structural sections and fails on drift, so
+determinism and exceptions validity are assertable without re-running the
+suite.
+
+Usage::
+
+    python tools/validation/build_test_baseline.py --collect-only
+    python tools/validation/build_test_baseline.py --runs 3
+    python tools/validation/build_test_baseline.py --check
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any, Sequence
+
+from test_baseline_failure_mutations import (
+    MutationValidationError,
+    validate_failure_sample_mutation,
+)
+from test_baseline_utils import (
+    bucket_index,
+    bucket_seconds,
+    classify_subprocess_command,
+    derive_layer_from_path,
+    env_name_is_credential,
+    median_bucket,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+LANES_PATH = ROOT / "tools" / "validation" / "test-baseline-lanes.json"
+EXCEPTIONS_PATH = ROOT / "tools" / "validation" / "test-baseline-exceptions.json"
+SAMPLES_PATH = ROOT / "tools" / "validation" / "test-baseline-failure-samples.json"
+REPORT_PATH = ROOT / "benchmarks" / "reports" / "test-baseline.json"
+RECORDER_PLUGIN = "test_baseline_recorder"
+SAMPLE_PLUGIN = "test_baseline_failure_samples"
+RECORDER_PATH = ROOT / "tools" / "validation" / f"{RECORDER_PLUGIN}.py"
+TESTS_ROOT = ROOT / "tests"
+
+DEFERRED_DOMAINS = [
+    {
+        "domain": "map-codebase",
+        "owner_issue": 140,
+        "validation_reintegration_issue": 230,
+        "status": "deferred",
+        "reason": "Map-specific tests, benchmarks, fixtures, runtime, and knowledge validation are outside Phase 0.",
+    }
+]
+
+INVENTORY_ARGS = [
+    "--ignore=tests/skills/map-codebase",
+    "--deselect",
+    "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-positive]",
+    "--deselect",
+    "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-negative]",
+    "--deselect",
+    "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-ambiguous]",
+    "--deselect",
+    "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-adversarial]",
+    "--deselect",
+    "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]",
+]
+
+VALIDATOR_LANES: list[dict[str, Any]] = [
+    {
+        "id": "quality.context-load.push",
+        "workflow": "quality.yml",
+        "job": "context-load",
+        "command": "python tools/validation/measure_context_load.py --check --exclude-skill map-codebase",
+        "kind": "measurement",
+    },
+    {
+        "id": "quality.context-load.pull-request",
+        "workflow": "quality.yml",
+        "job": "context-load",
+        "command": "python tools/validation/measure_context_load.py --check --exclude-skill map-codebase --compare-ref <base.sha>",
+        "kind": "measurement",
+        "event": "pull_request",
+    },
+    {
+        "id": "quality.ruff",
+        "workflow": "quality.yml",
+        "job": "quality",
+        "command": "ruff check .",
+        "kind": "lint",
+    },
+    {
+        "id": "quality.mypy",
+        "workflow": "quality.yml",
+        "job": "quality",
+        "command": "python tools/validation/run_mypy.py --exclude-skill map-codebase",
+        "kind": "type-check",
+    },
+    {
+        "id": "quality.validate-repository",
+        "workflow": "quality.yml",
+        "job": "quality",
+        "command": "python tools/validation/validate_repository.py",
+        "kind": "validator",
+    },
+    {
+        "id": "quality.npx-output",
+        "workflow": "quality.yml",
+        "job": "npx-install",
+        "commands": [
+            "npx --yes skills@1.5.21 add <workspace> --list",
+            "python tools/validation/validate_npx_output.py <skills-list>",
+        ],
+        "kind": "installer",
+        "matrix_cells": ["codex"],
+    },
+    {
+        "id": "quality.npx-install",
+        "workflow": "quality.yml",
+        "job": "npx-install",
+        "command": "python tools/validation/validate_skills_cli_install.py --agent <agent>",
+        "kind": "installer",
+        "matrix_cells": ["claude-code", "codex", "github-copilot"],
+    },
+    {
+        "id": "quality.cross-platform.context-load",
+        "workflow": "quality.yml",
+        "job": "cross-platform",
+        "command": "python tools/validation/measure_context_load.py --check --exclude-skill map-codebase",
+        "kind": "measurement",
+        "matrix_cells": [
+            "ubuntu-latest py3.11",
+            "ubuntu-latest py3.12",
+            "windows-latest py3.11",
+            "windows-latest py3.12",
+            "macos-latest py3.11",
+            "macos-latest py3.12",
+        ],
+    },
+    {
+        "id": "plan-change-hardening.ruff",
+        "workflow": "plan-change-hardening.yml",
+        "job": "verify",
+        "command": "ruff check .",
+        "kind": "lint",
+    },
+    {
+        "id": "plan-change-hardening.mypy",
+        "workflow": "plan-change-hardening.yml",
+        "job": "verify",
+        "command": "python tools/validation/run_mypy.py --exclude-skill map-codebase",
+        "kind": "type-check",
+    },
+    {
+        "id": "plan-change-hardening.validate-repository",
+        "workflow": "plan-change-hardening.yml",
+        "job": "verify",
+        "command": "python tools/validation/validate_repository.py",
+        "kind": "validator",
+    },
+    {
+        "id": "pre-release.validate-runtime-discovery",
+        "workflow": "pre-release.yml",
+        "job": "validate-release",
+        "command": "python tools/validation/validate_runtime_discovery_policy.py",
+        "kind": "validator",
+    },
+    {
+        "id": "pre-release.validate-repository",
+        "workflow": "pre-release.yml",
+        "job": "validate-release",
+        "command": "python tools/validation/validate_repository.py",
+        "kind": "validator",
+    },
+    {
+        "id": "publish.validate-repository",
+        "workflow": "publish-release.yml",
+        "job": "publish",
+        "command": "python tools/validation/validate_repository.py",
+        "kind": "validator",
+    },
+    {
+        "id": "publish.release-description-gate",
+        "workflow": "publish-release.yml",
+        "job": "publish",
+        "command": "git diff --quiet <before.sha> <github.sha> -- VERSION_DESC.md",
+        "kind": "release-guard",
+        "event": "push",
+    },
+    {
+        "id": "publish.release-guards",
+        "workflow": "publish-release.yml",
+        "job": "publish",
+        "commands": [
+            "gh release view <tag> --repo <repository>",
+            "git show-ref --verify --quiet refs/tags/<tag>",
+            "git rev-list -n 1 <tag>",
+            "gh release create <tag> --repo <repository> --target <github.sha> --title <tag> --notes-file VERSION_DESC.md --latest",
+        ],
+        "kind": "release-guard",
+    },
+]
+
+VALIDATOR_OVERLAPS: list[dict[str, Any]] = [
+    {
+        "validator_lane": "quality.validate-repository",
+        "script": "tools/validation/validate_repository.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_repository_validation_passes"
+        ],
+    },
+    {
+        "validator_lane": "quality.context-load.push",
+        "script": "tools/validation/measure_context_load.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_context_load.py::test_report_covers_every_skill_and_every_reference_file"
+        ],
+    },
+    {
+        "validator_lane": "quality.npx-output",
+        "script": "tools/validation/validate_npx_output.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_npx_output_validator.py::test_accepts_expected_grouped_output"
+        ],
+    },
+    {
+        "validator_lane": "plan-change-hardening.validate-repository",
+        "script": "tools/validation/validate_repository.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_repository_validation_passes"
+        ],
+    },
+    {
+        "validator_lane": "pre-release.validate-repository",
+        "script": "tools/validation/validate_repository.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_repository_validation_passes"
+        ],
+    },
+    {
+        "validator_lane": "publish.validate-repository",
+        "script": "tools/validation/validate_repository.py",
+        "pytest_counterpart_nodes": [
+            "tests/repository/test_skill_repository.py::test_repository_validation_passes"
+        ],
+    },
+]
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
+
+
+def _load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _median(values: Sequence[int]) -> int:
+    if not values:
+        return 0
+    ordered = sorted(values)
+    return ordered[(len(ordered) - 1) // 2]
+
+
+def _head_commit() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    return result.stdout.strip() or "unknown"
+
+
+def _node_file(node_id: str) -> str:
+    return node_id.split("::", 1)[0]
+
+
+def _is_deferred_node(node_id: str) -> bool:
+    """Keep deferred map nodes out of every Phase-0 artifact."""
+    normalized = node_id.replace("\\", "/")
+    return (
+        "/map-codebase/" in normalized
+        or "[map-codebase-" in normalized
+        or "[engineering-map-codebase]" in normalized
+    )
+
+
+def _rel(path: Path | str, base: Path) -> str:
+    return str(os.path.relpath(Path(path), base)).replace(os.sep, "/")
+
+
+def _suite_of(node_id: str) -> str:
+    file_path = _node_file(node_id)
+    relative = _rel(file_path, TESTS_ROOT)
+    if relative.startswith(".."):
+        return file_path
+    parts = Path(relative).parts
+    if parts and parts[0] == "skills" and len(parts) >= 3:
+        return f"skills/{parts[1]}"
+    return parts[0] if parts else file_path
+
+
+def _derive_layer(node_id: str) -> str:
+    relative = _rel(_node_file(node_id), TESTS_ROOT)
+    if relative.startswith(".."):
+        return "external-fixture"
+    return derive_layer_from_path(relative)
+
+
+def _derive_domain(node_id: str) -> str:
+    parts = Path(_rel(_node_file(node_id), TESTS_ROOT)).parts
+    if parts and parts[0] == "skills" and len(parts) >= 2:
+        return parts[1]
+    return "repository"
+
+
+SKILL_OWNERS: dict[str, str] = {}
+for _domain_dir in sorted((ROOT / "skills").iterdir()):
+    if not _domain_dir.is_dir():
+        continue
+    for _skill_dir in sorted(_domain_dir.iterdir()):
+        if _skill_dir.is_dir() and (_skill_dir / "SKILL.md").is_file():
+            SKILL_OWNERS[_skill_dir.name] = f"skills/{_domain_dir.name}/{_skill_dir.name}"
+
+
+def _owner_of(node_id: str, exceptions: dict[str, Any] | None = None) -> str:
+    if exceptions:
+        overrides = exceptions.get("owner_overrides", {})
+        if node_id in overrides:
+            return overrides[node_id]
+        file_path = _node_file(node_id)
+        if file_path in overrides:
+            return overrides[file_path]
+        for key, owner in overrides.items():
+            if node_id.startswith(key):
+                return owner
+    relative = _rel(_node_file(node_id), TESTS_ROOT)
+    if relative.startswith(".."):
+        return "external-fixture"
+    parts = Path(relative).parts
+    if parts and parts[0] == "skills":
+        if len(parts) >= 2:
+            return SKILL_OWNERS.get(parts[1], f"skills/{parts[1]}")
+        return "skills"
+    if parts:
+        return {
+            "repository": "repository",
+            "shared": "shared-runtime",
+            "skill_protocol": "shared-protocol",
+            "integration": "installed-execution",
+            "benchmarks": "benchmark-fixture",
+            "classification": "classification",
+        }.get(parts[0], parts[0])
+    return relative
+
+
+OWNING_SURFACES: dict[str, list[str]] = {
+    "repository": ["tools/validation/**", "tools/benchmarks/**"],
+    "shared-runtime": ["skills/**/lib/**", "skills/**/scripts/**"],
+    "shared-protocol": ["skill_protocol/**"],
+    "installed-execution": ["skills/**/scripts/**"],
+    "benchmark-fixture": ["benchmarks/**"],
+    "classification": ["tools/classification/**"],
+    "external-fixture": ["benchmarks/**"],
+}
+
+
+def _owning_surface(owner: str) -> list[str]:
+    if owner.startswith("skills/"):
+        return [f"{owner}/**"]
+    return OWNING_SURFACES.get(owner, [f"{owner}/**"])
+
+
+BROAD_LOCALITY_LAYERS = (
+    "installed-execution",
+    "benchmark-fixture",
+    "shared-runtime",
+    "shared-protocol",
+    "external-fixture",
+)
+
+
+def _failure_locality(node_id: str, owner: str) -> str:
+    layer = _derive_layer(node_id)
+    if layer in BROAD_LOCALITY_LAYERS:
+        return "broad"
+    if owner.startswith("skills/") or "test_skill_" in node_id or "test_contract" in node_id:
+        return "direct"
+    return "path-derived"
+
+
+def _proof_role(node_id: str, classification: str, duplicate: bool) -> str:
+    if duplicate:
+        return "suspected-duplicate"
+    if classification == "compatibility-check":
+        return "compatibility-evidence"
+    if classification in ("fixture-composition", "benchmark-evidence"):
+        return "integration-composition"
+    if _derive_layer(node_id) in ("installed-execution", "shared-runtime", "shared-protocol"):
+        return "integration-composition"
+    return "primary-proof"
+
+
+def _classify(node_id: str, markers: Sequence[str], lanes: Sequence[str]) -> str:
+    if "fixtures" in markers:
+        return "fixture-integrity"
+    if "benchmark" in markers or "benchmark_slow" in markers:
+        return "benchmark-evidence"
+    layer = _derive_layer(node_id)
+    if layer == "installed-execution":
+        return "compatibility-check"
+    if layer in ("fixture-repository", "benchmark-fixture"):
+        return "fixture-composition"
+    return "primary-proof"
+
+
+_AST_CACHE: dict[str, ast.AST | None] = {}
+
+
+def _literal_string(value: ast.expr) -> str | None:
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return value.value
+    return None
+
+
+def _command_tokens(call: ast.Call) -> list[str]:
+    """Extract a subprocess command's token list from its first argument."""
+    if not call.args:
+        return []
+    first = call.args[0]
+    if isinstance(first, (ast.List, ast.Tuple)):
+        tokens: list[str] = []
+        for element in first.elts:
+            literal = _literal_string(element)
+            if literal is not None:
+                tokens.append(literal)
+            elif (
+                isinstance(element, ast.Attribute)
+                and isinstance(element.value, ast.Name)
+                and element.value.id == "sys"
+                and element.attr == "executable"
+            ):
+                tokens.append("python")
+        return tokens
+    literal = _literal_string(first)
+    if literal is None:
+        return []
+    return shlex.split(literal)
+
+
+def _is_os_environ(node: ast.expr) -> bool:
+    if isinstance(node, ast.Attribute) and node.attr == "environ":
+        return isinstance(node.value, ast.Name) and node.value.id == "os"
+    return isinstance(node, ast.Name) and node.id == "environ"
+
+
+def _env_read_name(node: ast.AST) -> str | None:
+    """Return the environment variable name read by a subscript or call node."""
+    if isinstance(node, ast.Subscript) and _is_os_environ(node.value):
+        return _literal_string(node.slice)
+    if isinstance(node, ast.Call) and node.args:
+        func = node.func
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == "get"
+            and isinstance(func.value, ast.Attribute)
+            and _is_os_environ(func.value)
+        ):
+            return _literal_string(node.args[0])
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == "getenv"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "os"
+        ):
+            return _literal_string(node.args[0])
+    return None
+
+
+def _inspect_node_ast(root: Path, file_path_rel: str, node_id: str) -> tuple[list[str], list[str]]:
+    """Parse test file AST and extract boundaries and fixture parameters used by target node."""
+    full_path = root / file_path_rel
+    if not full_path.exists():
+        return [], []
+    if file_path_rel not in _AST_CACHE:
+        try:
+            _AST_CACHE[file_path_rel] = ast.parse(full_path.read_text(encoding="utf-8"))
+        except Exception:
+            _AST_CACHE[file_path_rel] = None
+    tree = _AST_CACHE[file_path_rel]
+    if tree is None:
+        return [], []
+
+    # Get function name from node_id
+    raw_name = node_id.split("::")[-1].split("[")[0]
+    target_def: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+    for item in ast.walk(tree):
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == raw_name:
+            target_def = item
+            break
+
+    if target_def is None:
+        return [], []
+
+    fixtures_used = [arg.arg for arg in target_def.args.args if arg.arg not in ("self", "cls")]
+    boundaries: set[str] = set()
+
+    for child in ast.walk(target_def):
+        if isinstance(child, ast.Call):
+            func = child.func
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                base, attr = func.value.id, func.attr
+                if base == "subprocess" and attr in ("run", "Popen", "call", "check_call", "check_output"):
+                    boundaries.add("subprocess")
+                    boundaries.update(classify_subprocess_command(_command_tokens(child)))
+                elif base == "shutil" and attr.startswith("copy"):
+                    boundaries.add("copytree")
+                elif base == "tempfile" and attr in ("mkdtemp", "TemporaryDirectory", "NamedTemporaryFile"):
+                    boundaries.add("temp_repo")
+                elif base in ("requests", "urllib", "socket", "httpx"):
+                    boundaries.add("network")
+                elif base in ("keyring", "netrc"):
+                    boundaries.add("credential")
+                elif base == "os" and attr in ("system", "popen", "spawn", "execv", "execve"):
+                    boundaries.add("subprocess")
+            elif isinstance(func, ast.Name) and func.id in ("exec", "system"):
+                boundaries.add("subprocess")
+            env_name = _env_read_name(child)
+            if env_name is not None and env_name_is_credential(env_name):
+                boundaries.add("credential")
+        elif isinstance(child, ast.Subscript):
+            env_name = _env_read_name(child)
+            if env_name is not None and env_name_is_credential(env_name):
+                boundaries.add("credential")
+
+    return sorted(boundaries), sorted(fixtures_used)
+
+
+def _run_pytest(
+    args: Sequence[str],
+    recorder_out: str | None,
+    extra_env: dict[str, str] | None = None,
+    timeout_seconds: int = 3600,
+) -> tuple[int, str]:
+    command = [sys.executable, "-m", "pytest", *args, "-p", "no:cacheprovider"]
+    env = dict(os.environ)
+    validation_dir = str(ROOT / "tools" / "validation")
+    env["PYTHONPATH"] = validation_dir + os.pathsep + env.get("PYTHONPATH", "")
+    if recorder_out:
+        env["TEST_BASELINE_RECORDER_OUT"] = recorder_out
+        command.extend(["-p", RECORDER_PLUGIN])
+    if extra_env:
+        env.update(extra_env)
+    result = subprocess.run(
+        command, cwd=ROOT, capture_output=True, text=True, env=env, timeout=timeout_seconds
+    )
+    return result.returncode, result.stdout + result.stderr
+
+
+def collect_lane(lane: dict[str, Any], recorder_out: str | None) -> dict[str, Any]:
+    args = list(lane["args"])
+    started = time.monotonic()
+    returncode, output = _run_pytest(
+        [*args, "--collect-only", "-q"], recorder_out, extra_env=lane.get("env")
+    )
+    elapsed = time.monotonic() - started
+    node_ids = sorted(
+        line.strip()
+        for line in output.splitlines()
+        if line.startswith("tests/") and not _is_deferred_node(line.strip())
+    )
+    summary: dict[str, Any] = {"returncode": returncode, "elapsed_seconds_bucket": bucket_seconds(elapsed)}
+    collected_match = re.search(r"(\d+)\s+tests collected", output)
+    if collected_match:
+        summary["tests_collected"] = int(collected_match.group(1))
+    deselected_match = re.search(r"(\d+)\s+tests deselected", output)
+    if deselected_match:
+        summary["tests_deselected"] = int(deselected_match.group(1))
+    if returncode != 0 or "ERROR" in output:
+        summary["error"] = output[-2000:]
+    summary["node_ids"] = node_ids
+    return summary
+
+
+def static_scan(root: Path) -> dict[str, Any]:
+    kind_of: dict[str, list[str]] = defaultdict(list)
+    scan_root = root / "tests"
+    for path in sorted(scan_root.rglob("test_*.py")):
+        if "__pycache__" in path.parts or "map-codebase" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                if (
+                    isinstance(node, ast.Subscript)
+                    and (env_name := _env_read_name(node)) is not None
+                    and env_name_is_credential(env_name)
+                ):
+                    kind_of["credential"].append(_rel(path, root))
+                continue
+            func = node.func
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                base, attr = func.value.id, func.attr
+                if base == "subprocess" and attr in ("run", "Popen", "call", "check_call", "check_output"):
+                    kind_of["subprocess"].append(_rel(path, root))
+                    kind_of[attr].append(_rel(path, root))
+                    for kind in classify_subprocess_command(_command_tokens(node)):
+                        kind_of[kind].append(_rel(path, root))
+                elif base == "shutil" and attr.startswith(("copy", "copytree", "rmtree")):
+                    kind_of[attr].append(_rel(path, root))
+                    kind_of["copy"].append(_rel(path, root))
+                elif base == "tempfile" and attr in ("mkdtemp", "TemporaryDirectory", "NamedTemporaryFile"):
+                    kind_of["temp_repo"].append(_rel(path, root))
+                elif base == "os" and attr in ("system", "popen", "spawn"):
+                    kind_of["subprocess"].append(_rel(path, root))
+                    kind_of["os-spawn"].append(_rel(path, root))
+                elif base in ("requests", "urllib", "socket", "httpx"):
+                    kind_of["network"].append(_rel(path, root))
+                elif base in ("keyring", "netrc"):
+                    kind_of["credential"].append(_rel(path, root))
+            env_name = _env_read_name(node)
+            if env_name is not None and env_name_is_credential(env_name):
+                kind_of["credential"].append(_rel(path, root))
+    static: dict[str, Any] = {}
+    for kind, files in sorted(kind_of.items()):
+        static[kind] = sorted(set(files))
+    return static
+
+
+def _scan_in_process_validators(root: Path) -> list[str]:
+    imports: list[str] = []
+    for path in sorted((root / "tests").rglob("*.py")):
+        if "__pycache__" in path.parts or "map-codebase" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for marker in (
+            "import validate_",
+            "import run_mypy",
+            "import tools.benchmarks",
+            "from tools.benchmarks",
+            "import benchmarks",
+            "from benchmarks",
+        ):
+            if marker in text:
+                imports.append(f"{_rel(path, root)}: {marker[7:]}")
+                break
+    return imports
+
+
+def _skills_without_tests(root: Path) -> list[str]:
+    skills = {
+        skill.name
+        for domain in sorted((root / "skills").iterdir())
+        if domain.is_dir()
+        for skill in sorted(domain.iterdir())
+        if skill.is_dir() and (skill / "SKILL.md").is_file()
+    }
+    with_tests = {path.name for path in (root / "tests" / "skills").iterdir() if path.is_dir()}
+    return sorted(skills - with_tests)
+
+
+def _collect_ignore_findings(root: Path) -> list[dict[str, str]]:
+    findings: list[dict[str, str]] = []
+    for path in sorted((root / "tests").rglob("conftest.py")):
+        if "map-codebase" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if "collect_ignore" in stripped:
+                findings.append(
+                    {"file": _rel(path, root), "line": stripped[:120]}
+                )
+    return findings
+
+
+def build_structural(
+    root: Path,
+    lanes_path: Path,
+    exceptions_path: Path,
+    samples_path: Path = SAMPLES_PATH,
+    *,
+    require_sample_nodes: bool = True,
+) -> dict[str, Any]:
+    lanes_manifest = _load_json(lanes_path)
+    exceptions = _load_json(exceptions_path)
+    if lanes_manifest.get("schema_version") != 1:
+        raise ValueError(f"{lanes_path}: unsupported lane manifest schema version")
+    if exceptions.get("schema_version") != 2:
+        raise ValueError(f"{exceptions_path}: unsupported exceptions schema version")
+
+    lanes: list[dict[str, Any]] = []
+    all_markers: dict[str, list[str]] = {}
+    all_nodes: dict[str, set[str]] = {}
+    with tempfile.TemporaryDirectory() as work:
+        inventory_recorder = Path(work) / "inventory-markers.json"
+        inventory_lane = {
+            "args": INVENTORY_ARGS,
+            "env": {},
+        }
+        inventory_collection = collect_lane(inventory_lane, str(inventory_recorder))
+        if inventory_collection.get("error"):
+            raise RuntimeError(f"inventory collection failed: {inventory_collection['error']}")
+        inventory_nodes = set(inventory_collection["node_ids"])
+        if inventory_recorder.exists():
+            markers = _load_json(inventory_recorder).get("markers", {})
+            for node_id, names in markers.items():
+                if node_id in inventory_nodes:
+                    all_markers[node_id] = sorted(set(names))
+
+        for lane in lanes_manifest["lanes"]:
+            recorder_out = os.path.join(work, "markers.json")
+            collected_lane = collect_lane(lane, recorder_out)
+            if collected_lane.get("error"):
+                raise RuntimeError(f"lane {lane['id']} failed: {collected_lane['error']}")
+            lane_id: str = lane["id"]
+            nodes = collected_lane["node_ids"]
+            all_nodes[lane_id] = set(nodes)
+            entry = {
+                "id": lane_id,
+                "workflow": lane["workflow"],
+                "job": lane["job"],
+                "args": list(lane["args"]),
+                "matrix_cells": list(lane.get("matrix_cells", [])),
+                "env_gated": bool(lane.get("env_gated", False)),
+                "node_count": len(nodes),
+                "node_ids": nodes,
+            }
+            if entry["matrix_cells"]:
+                entry["matrix_executions"] = len(nodes) * len(entry["matrix_cells"])
+            if "error" in collected_lane:
+                entry["error"] = collected_lane["error"]
+            lanes.append(entry)
+            markers_path = Path(recorder_out)
+            if markers_path.exists():
+                markers = _load_json(markers_path).get("markers", {})
+                for node_id, names in markers.items():
+                    if node_id in all_nodes[lane_id]:
+                        all_markers[node_id] = sorted(set(all_markers.get(node_id, [])) | set(names))
+
+    static = static_scan(root)
+
+    inventory: list[dict[str, Any]] = []
+    for node_id in sorted(inventory_nodes | set().union(*all_nodes.values())):
+        lanes_here = sorted(lane_id for lane_id, nodes in all_nodes.items() if node_id in nodes)
+        markers = sorted(all_markers.get(node_id, []))
+        classification = _classify(node_id, markers, lanes_here)
+        owner = _owner_of(node_id, exceptions)
+        file_path_rel = _node_file(node_id)
+        boundaries, fixtures_used = _inspect_node_ast(root, file_path_rel, node_id)
+        duplicate = len(lanes_here) > 1
+        inventory.append(
+            {
+                "node_id": node_id,
+                "file": file_path_rel,
+                "suite": _suite_of(node_id),
+                "layer": _derive_layer(node_id),
+                "domain": _derive_domain(node_id),
+                "owner": owner,
+                "owning_surface": _owning_surface(owner),
+                "failure_locality": _failure_locality(node_id, owner),
+                "markers": markers,
+                "classification": classification,
+                "proof_role": _proof_role(node_id, classification, duplicate),
+                "is_duplicate_execution": duplicate,
+                "lanes": lanes_here,
+                "boundaries": boundaries,
+                "fixtures_used": fixtures_used,
+            }
+        )
+
+    overlap_pairs: list[dict[str, Any]] = []
+    subsumptions: list[dict[str, Any]] = []
+    lane_ids = sorted(all_nodes)
+    for index, lane_a in enumerate(lane_ids):
+        for lane_b in lane_ids[index + 1 :]:
+            overlap = sorted(all_nodes[lane_a] & all_nodes[lane_b])
+            if not overlap:
+                continue
+            overlap_pairs.append(
+                {"lane_a": lane_a, "lane_b": lane_b, "overlap_count": len(overlap), "node_ids": overlap}
+            )
+            if len(all_nodes[lane_a]) == len(overlap):
+                subsumptions.append({"subset": lane_a, "superset": lane_b, "overlap_count": len(overlap)})
+            if len(all_nodes[lane_b]) == len(overlap):
+                subsumptions.append({"subset": lane_b, "superset": lane_a, "overlap_count": len(overlap)})
+
+    source_path_rollup: dict[str, Any] = {}
+    by_file: dict[str, dict[str, Any]] = defaultdict(lambda: {"lanes": set(), "count": 0})
+    for row in inventory:
+        entry = by_file[row["file"]]
+        entry["lanes"].update(row["lanes"])
+        entry["count"] += 1
+    for file_path, entry in sorted(by_file.items()):
+        if len(entry["lanes"]) > 1:
+            source_path_rollup[file_path] = {
+                "count": entry["count"],
+                "lanes": sorted(entry["lanes"]),
+            }
+
+    excluded: list[dict[str, Any]] = []
+    for entry in exceptions.get("excluded", []):
+        node_id = entry.get("node_id")
+        if node_id and node_id in all_markers:
+            excluded.append({"node_id": node_id, "reason": entry.get("reason", "")})
+
+    owners: dict[str, dict[str, Any]] = {}
+    for row in inventory:
+        entry = owners.setdefault(
+            row["owner"], {"owning_surface": _owning_surface(row["owner"]), "node_count": 0}
+        )
+        entry["node_count"] += 1
+    for owner in exceptions.get("owner_overrides", {}):
+        if owner not in owners:
+            owners[owner] = {"owning_surface": _owning_surface(owner), "node_count": 0}
+
+    all_skill_owners = sorted(
+        {row["owner"] for row in inventory if row["owner"].startswith("skills/")}
+    )
+    lane_ownership: dict[str, dict[str, Any]] = {}
+    for lane_id, nodes in sorted(all_nodes.items()):
+        other_nodes = {n for other, other_set in all_nodes.items() if other != lane_id for n in other_set}
+        unique_nodes = sorted(nodes - other_nodes)
+        overlaps = {
+            other: len(nodes & other_set)
+            for other, other_set in sorted(all_nodes.items())
+            if other != lane_id and nodes & other_set
+        }
+        lane_owner_set = {_owner_of(node_id, exceptions) for node_id in nodes}
+        not_protected = sorted(set(all_skill_owners) - lane_owner_set)
+        subsumers = sorted(
+            other for other, other_set in all_nodes.items()
+            if other != lane_id and nodes <= other_set
+        )
+        subsumed_by = subsumers[0] if subsumers else None
+        if subsumed_by:
+            layers = Counter(_derive_layer(n) for n in nodes)
+            cheapest_layer = layers.most_common(1)[0][0] if layers else "repository"
+        elif unique_nodes:
+            unique_layers = Counter(_derive_layer(node_id) for node_id in unique_nodes)
+            cheapest_layer = unique_layers.most_common(1)[0][0]
+        else:
+            cheapest_layer = "duplicated (no unique protection)"
+        note = exceptions.get("ownership_notes", {}).get(lane_id, {})
+        boundary_justified = note.get("boundary_justified")
+        proposed_owner = note.get("proposed_owner")
+        lane_ownership[lane_id] = {
+            "unique_protection": unique_nodes,
+            "overlaps": overlaps,
+            "not_protected": not_protected,
+            "cheapest_owning_layer": cheapest_layer,
+            "subsumed_by_lane": subsumed_by,
+            "boundary_justified": boundary_justified,
+            "proposed_owner": proposed_owner,
+            "unresolved": boundary_justified is None,
+        }
+
+    locality_distribution: dict[str, int] = Counter()
+    representative: dict[str, list[str]] = defaultdict(list)
+    per_lane_locality: dict[str, dict[str, int]] = {}
+    for row in sorted(inventory, key=lambda entry: entry["node_id"]):
+        locality = row["failure_locality"]
+        locality_distribution[locality] += 1
+        if len(representative[locality]) < 5:
+            representative[locality].append(row["node_id"])
+        for lane_id in row["lanes"]:
+            per_lane_locality.setdefault(lane_id, Counter())[locality] += 1
+
+    samples_manifest = _load_json(samples_path)
+    collected = {row["node_id"] for row in inventory}
+    sample_collected = collected
+    if not require_sample_nodes and isinstance(samples_manifest, dict):
+        sample_collected = collected | {
+            entry["node_id"]
+            for entry in samples_manifest.get("samples", [])
+            if isinstance(entry, dict) and isinstance(entry.get("node_id"), str)
+        }
+    sample_diagnostics = run_failure_samples(root, samples_path, sample_collected)
+    sample: list[dict[str, Any]] = []
+    for entry in samples_manifest.get("samples", []):
+        node_id = entry["node_id"]
+        owner = _owner_of(node_id, exceptions)
+        sample.append(
+            {
+                "node_id": node_id,
+                "locality": _failure_locality(node_id, owner),
+                "owner": owner,
+                "mutation": entry.get("mutation"),
+                "diagnostic": sample_diagnostics.get(node_id, ""),
+            }
+        )
+
+    return {
+        "schema_version": 2,
+        "repository": {
+            "head_commit": _head_commit(),
+            "python": sys.version.split()[0],
+            "root": ".",
+        },
+        "lanes": lanes,
+        "inventory_source": {
+            "kind": "pytest-collection",
+            "args": INVENTORY_ARGS,
+            "node_count": len(inventory_nodes),
+            "deferred_domains_excluded": [entry["domain"] for entry in DEFERRED_DOMAINS],
+        },
+        "validators": VALIDATOR_LANES,
+        "deferred_domains": DEFERRED_DOMAINS,
+        "inventory": inventory,
+        "duplicates": {
+            "overlap_pairs": overlap_pairs,
+            "subsumptions": subsumptions,
+            "source_path_rollup": source_path_rollup,
+            "validator_overlaps": VALIDATOR_OVERLAPS,
+        },
+        "ownership": {
+            "owners": owners,
+            "lanes": lane_ownership,
+        },
+        "failure_locality": {
+            "evidence": "observed-sample",
+            "distribution": dict(sorted(locality_distribution.items())),
+            "per_lane": {
+                lane_id: dict(sorted(counts.items())) for lane_id, counts in sorted(per_lane_locality.items())
+            },
+            "representative": {class_name: samples for class_name, samples in sorted(representative.items())},
+            "sample": sample,
+        },
+        "static": static,
+        "in_process_validator_imports": _scan_in_process_validators(root),
+        "skills_without_tests": _skills_without_tests(root),
+        "collect_ignore_findings": _collect_ignore_findings(root),
+        "exclusions": excluded,
+    }
+
+
+def _replace_machine_paths(text: str) -> str:
+    normalized = text.replace(os.sep, "/")
+    root_forward = str(ROOT).replace(os.sep, "/")
+    normalized = normalized.replace(root_forward, ".")
+    tempdir = tempfile.gettempdir().replace(os.sep, "/")
+    tempdir_real = os.path.realpath(tempfile.gettempdir()).replace(os.sep, "/")
+    for candidate in (tempdir, tempdir_real):
+        normalized = normalized.replace(candidate, "%TEMP%")
+    normalized = re.sub(r"pytest-[^/]+", "pytest", normalized)
+    normalized = re.sub(r"[A-Za-z]:/{1,2}[^\r\n'\"<>]+", "<PATH>", normalized)
+    return normalized
+
+
+def _normalize_detail(detail: str) -> str:
+    return _replace_machine_paths(detail)[:300]
+
+
+def _normalize_diagnostic(diagnostic: str) -> str:
+    return _replace_machine_paths(diagnostic)[:3000]
+
+
+def _merge_recorder(run_files: Sequence[Path]) -> dict[str, Any]:
+    nodes: dict[str, dict[str, Any]] = {}
+    fixtures: Counter[str] = Counter()
+    fixture_buckets: dict[str, list[str]] = defaultdict(list)
+    boundaries: list[dict[str, Any]] = []
+    boundary_node_files: set[str] = set()
+    for path in run_files:
+        if not path.exists():
+            continue
+        data = _load_json(path)
+        for node_id, values in data.get("nodes", {}).items():
+            entry = nodes.setdefault(
+                node_id,
+                {"bucket_labels": [], "subprocess_counts": [], "copy_volume": [], "copy_counts": []},
+            )
+            entry["bucket_labels"].append(str(values.get("bucket", ">120s")))
+            entry["subprocess_counts"].append(int(values.get("subprocess", 0)))
+            entry["copy_volume"].append(int(values.get("copy_bytes", 0)))
+            entry["copy_counts"].append(int(values.get("copy_count", 0)))
+        for fixture in data.get("fixtures", []):
+            name = str(fixture.get("fixture", ""))
+            fixtures[name] += 1
+            fixture_buckets[name].append(str(fixture.get("bucket", ">120s")))
+        for boundary in data.get("boundaries", []):
+            boundaries.append(boundary)
+            boundary_node = str(boundary.get("nodeid", ""))
+            if boundary_node.startswith("tests/"):
+                boundary_node_files.add(_node_file(boundary_node))
+
+    merged: dict[str, Any] = {
+        "nodes": {},
+        "fixtures": [],
+        "representative_commands": {},
+        "boundary_files": sorted(boundary_node_files),
+    }
+    for node_id, entry in sorted(nodes.items()):
+        merged["nodes"][node_id] = {
+            "duration_bucket": median_bucket(entry["bucket_labels"]),
+            "subprocess": _median(entry["subprocess_counts"]),
+            "copy_bytes": _median(entry["copy_volume"]),
+            "copy_count": _median(entry["copy_counts"]),
+        }
+    for name, count in fixtures.most_common():
+        merged["fixtures"].append(
+            {"fixture": name, "occurrences": count, "duration_bucket": median_bucket(fixture_buckets[name])}
+        )
+    by_kind: dict[str, Counter[str]] = defaultdict(Counter)
+    for boundary in boundaries:
+        by_kind[str(boundary.get("kind", ""))][_normalize_detail(str(boundary.get("detail", "")))] += 1
+    for kind, counter in sorted(by_kind.items()):
+        merged["representative_commands"][kind] = [
+            {"detail": detail, "count": count} for detail, count in counter.most_common(10)
+        ]
+    slowest_nodes = sorted(
+        (
+            {
+                "node_id": node_id,
+                "duration_bucket": values["duration_bucket"],
+                "subprocess": values["subprocess"],
+                "copy_bytes": values["copy_bytes"],
+            }
+            for node_id, values in merged["nodes"].items()
+        ),
+        key=lambda value: (-bucket_index(value["duration_bucket"]), -value["subprocess"], value["node_id"]),
+    )
+    merged["slowest_nodes"] = slowest_nodes[:20]
+    group_stats: dict[str, dict[str, Any]] = {}
+    for node_id, values in merged["nodes"].items():
+        suite = _suite_of(node_id)
+        group = group_stats.setdefault(
+            suite,
+            {"suite": suite, "node_count": 0, "slowest_duration_bucket": "0s", "subprocess": 0},
+        )
+        group["node_count"] += 1
+        group["subprocess"] += values["subprocess"]
+        if bucket_index(values["duration_bucket"]) > bucket_index(group["slowest_duration_bucket"]):
+            group["slowest_duration_bucket"] = values["duration_bucket"]
+    merged["slowest_groups"] = sorted(
+        group_stats.values(),
+        key=lambda value: (-bucket_index(value["slowest_duration_bucket"]), -value["subprocess"], value["suite"]),
+    )[:20]
+    return merged
+
+
+def _find_failure_summary(output: str, node_id: str) -> str:
+    for line in output.splitlines():
+        stripped = line.strip()
+        if (stripped.startswith("FAILED ") or stripped.startswith("ERROR ")) and node_id in stripped:
+            return stripped
+    return ""
+
+
+def _extract_failure_excerpt(output: str, node_id: str) -> str:
+    name = node_id.split("::")[-1].split("[")[0]
+    lines = output.splitlines()
+    excerpt: list[str] = []
+    capture = False
+    for line in lines:
+        if capture:
+            if "short test summary info" in line:
+                break
+            if line.startswith("_") and name in line:
+                break
+            stripped = line.strip()
+            if stripped and len(stripped) >= 4 and stripped[0] == stripped[3] and stripped[0] in "=-_":
+                break
+            excerpt.append(line)
+        elif line.startswith("_") and name in line:
+            capture = True
+    return "\n".join(line for line in excerpt if line.strip())[:3000]
+
+
+def run_failure_samples(
+    root: Path, samples_path: Path, collected: set[str]
+) -> dict[str, str]:
+    """Run the curated representative-failure samples and return observed diagnostics.
+
+    Runs only the sample node IDs with the sample plugin loaded, so the real
+    tests fail naturally on the mutated committed data they consume. Returns
+    node_id -> normalized diagnostic (summary line plus failure excerpt) and
+    raises if a sample stops provoking a failure, because stale evidence must
+    never be committed silently.
+    """
+    manifest = _load_json(samples_path)
+    samples = manifest.get("samples", []) if isinstance(manifest, dict) else []
+    validation_errors = validate_failure_samples(manifest, collected, root)
+    if validation_errors:
+        details = "\n".join(f"- {error}" for error in validation_errors)
+        raise RuntimeError(f"failure sample manifest validation failed before pytest:\n{details}")
+    node_ids = [str(sample["node_id"]) for sample in samples]
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        *node_ids,
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        SAMPLE_PLUGIN,
+        "--color=no",
+        "-q",
+    ]
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT / "tools" / "validation") + os.pathsep + env.get("PYTHONPATH", "")
+    env["TEST_BASELINE_SAMPLES_PATH"] = str(samples_path)
+    env["TEST_BASELINE_SAMPLES_ROOT"] = str(root)
+    result = subprocess.run(
+        command, cwd=ROOT, capture_output=True, text=True, env=env, timeout=600
+    )
+    output = result.stdout + result.stderr
+    if result.returncode == 0:
+        raise RuntimeError("failure sample run passed; mutations no longer provoke failures")
+    diagnostics: dict[str, str] = {}
+    for node_id in node_ids:
+        summary = _find_failure_summary(output, node_id)
+        if not summary:
+            raise RuntimeError(f"failure sample produced no diagnostic for {node_id}:\n{output[-2000:]}")
+        diagnostics[node_id] = _normalize_diagnostic(
+            summary + "\n" + _extract_failure_excerpt(output, node_id)
+        )
+    return diagnostics
+
+
+def _parse_executed_counts(output: str) -> dict[str, int]:
+    summary = output.splitlines()[-1] if output.splitlines() else ""
+    counts: dict[str, int] = {}
+    for kind in ("passed", "failed", "skipped", "error", "xfailed", "xpassed"):
+        match = re.search(rf"(\d+)\s+{kind}", summary)
+        if match:
+            counts[kind] = int(match.group(1))
+    counts["executed"] = sum(
+        counts.get(kind, 0) for kind in ("passed", "failed", "error", "xpassed")
+    )
+    return counts
+
+
+def runtime_runs(runs: int, work_dir: Path) -> dict[str, Any]:
+    lanes_manifest = _load_json(LANES_PATH)
+    lane = next((entry for entry in lanes_manifest["lanes"] if entry["id"] == "quality.full"), None)
+    if lane is None:
+        raise RuntimeError("lane manifest is missing quality.full")
+    run_files: list[Path] = []
+    wall_buckets: list[str] = []
+    collection_buckets: list[str] = []
+    for index in range(runs):
+        out = work_dir / f"recorder_run{index}.json"
+        started = time.monotonic()
+        collect_out = work_dir / f"collect_run{index}.json"
+        collect_lane(lane, str(collect_out))
+        collection_buckets.append(bucket_seconds(time.monotonic() - started))
+        started = time.monotonic()
+        returncode, output = _run_pytest(
+            [*lane["args"], "-q"], str(out), extra_env=lane.get("env"), timeout_seconds=3600
+        )
+        wall_buckets.append(bucket_seconds(time.monotonic() - started))
+        if returncode != 0:
+            raise RuntimeError(f"baseline runtime run {index} failed:\n{output[-3000:]}")
+        run_files.append(out)
+    merged = _merge_recorder(run_files)
+    merged["runs"] = runs
+    merged["wall_duration_buckets"] = wall_buckets
+    merged["collection_duration_buckets"] = collection_buckets
+    merged["lane_executions"] = lane_executions(work_dir)
+    return merged
+
+
+def lane_executions(work_dir: Path) -> dict[str, Any]:
+    lanes_manifest = _load_json(LANES_PATH)
+    executions: dict[str, Any] = {}
+    for lane in lanes_manifest["lanes"]:
+        lane_id = lane["id"]
+        if lane_id == "quality.full":
+            continue
+        started = time.monotonic()
+        returncode, output = _run_pytest(
+            [*lane["args"], "-q"], None, extra_env=lane.get("env")
+        )
+        counts = _parse_executed_counts(output)
+        entry: dict[str, Any] = {
+            "executed": True,
+            "executed_count": counts.get("executed", 0),
+            "collected": counts,
+            "wall_duration_bucket": bucket_seconds(time.monotonic() - started),
+            "returncode": returncode,
+        }
+        if returncode != 0:
+            entry["error"] = output[-2000:]
+        executions[lane_id] = entry
+    return executions
+
+
+def validate_exceptions(
+    exceptions: dict[str, Any], collected: set[str], lane_ids: set[str]
+) -> list[str]:
+    errors: list[str] = []
+
+    def referenced(node_id: Any) -> bool:
+        return (
+            isinstance(node_id, str)
+            and node_id != ""
+            and (node_id in collected or any(node.startswith(node_id) for node in collected))
+        )
+
+    for entry in exceptions.get("excluded", []):
+        node_id = entry.get("node_id")
+        if not referenced(node_id):
+            errors.append(f"excluded node references nothing collected: {node_id!r}")
+    for node_id in exceptions.get("owner_overrides", {}):
+        if not referenced(node_id):
+            errors.append(f"owner override references nothing collected: {node_id!r}")
+    for lane_id in exceptions.get("ownership_notes", {}):
+        if lane_id not in lane_ids:
+            errors.append(f"ownership note references unknown lane: {lane_id!r}")
+    return errors
+
+
+def validate_failure_samples(
+    samples: Any, collected: set[str], root: Path
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(samples, dict):
+        return ["failure samples manifest must be an object"]
+    if samples.get("schema_version") != 1:
+        errors.append("failure samples: unsupported schema version")
+    entries = samples.get("samples", [])
+    if not isinstance(entries, list):
+        return [*errors, "failure samples: 'samples' must be a list"]
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append(f"failure sample entry must be an object: {entry!r}")
+            continue
+        node_id = entry.get("node_id")
+        if not isinstance(node_id, str) or node_id not in collected:
+            errors.append(f"failure sample references nothing collected: {node_id!r}")
+        mutation = entry.get("mutation", {})
+        if not isinstance(mutation, dict):
+            errors.append(f"failure sample {node_id!r}: mutation must be an object")
+            continue
+        try:
+            validate_failure_sample_mutation(root, mutation)
+        except MutationValidationError as exc:
+            errors.append(f"failure sample {node_id!r}: {exc}")
+    return errors
+
+
+def structural_payload(report: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in report.items() if key != "runtime"}
+
+
+def validate_runtime_evidence(report: dict[str, Any]) -> list[str]:
+    """Validate the committed runtime-evidence shape without timing thresholds."""
+    runtime = report.get("runtime")
+    if not isinstance(runtime, dict):
+        return ["committed baseline is missing runtime evidence"]
+    errors: list[str] = []
+    if runtime.get("runs") != 2:
+        errors.append("committed baseline runtime evidence must record exactly 2 runs")
+    for field in ("wall_duration_buckets", "collection_duration_buckets"):
+        value = runtime.get(field)
+        if not isinstance(value, list) or len(value) != 2:
+            errors.append(f"runtime evidence field {field!r} must contain two buckets")
+    for field, expected_type in (
+        ("nodes", dict),
+        ("fixtures", list),
+        ("boundary_files", list),
+        ("lane_executions", dict),
+    ):
+        value = runtime.get(field)
+        if not isinstance(value, expected_type) or not value:
+            errors.append(f"runtime evidence field {field!r} must be non-empty")
+    if any("map-codebase" in node_id for node_id in runtime.get("nodes", {})):
+        errors.append("runtime evidence contains a deferred map-codebase test node")
+    if any("map-codebase" in path for path in runtime.get("boundary_files", [])):
+        errors.append("runtime boundary evidence contains a deferred map-codebase file")
+    lane_ids = {lane.get("id") for lane in report.get("lanes", [])}
+    expected_lane_executions = lane_ids - {"quality.full"}
+    actual_lane_executions = set(runtime.get("lane_executions", {}))
+    if actual_lane_executions != expected_lane_executions:
+        errors.append("runtime lane executions do not match the current pytest lane manifest")
+    if any("map-codebase" in lane_id for lane_id in actual_lane_executions):
+        errors.append("runtime lane executions contain a deferred map-codebase lane")
+    return errors
+
+
+def check_report(
+    report_path: Path, root: Path, lanes_path: Path, exceptions_path: Path, samples_path: Path
+) -> int:
+    if not report_path.exists():
+        print(f"missing committed report: {report_path}", file=sys.stderr)
+        return 1
+    committed = _load_json(report_path)
+    if committed.get("schema_version") != 2:
+        print("committed report has unsupported schema_version", file=sys.stderr)
+        return 1
+    try:
+        regenerated = build_structural(root, lanes_path, exceptions_path, samples_path)
+    except RuntimeError as exc:
+        print(f"regeneration failed: {exc}", file=sys.stderr)
+        return 1
+    collected = {row["node_id"] for row in regenerated["inventory"]}
+    lane_ids = {lane["id"] for lane in regenerated["lanes"]}
+    exceptions = _load_json(exceptions_path)
+    errors = validate_runtime_evidence(committed)
+    errors.extend(validate_exceptions(exceptions, collected, lane_ids))
+    samples = _load_json(samples_path)
+    errors.extend(validate_failure_samples(samples, collected, root))
+    for error in errors:
+        print(f"exception error: {error}", file=sys.stderr)
+    committed_payload = structural_payload(committed)
+    regenerated_payload = structural_payload(regenerated)
+    if "repository" in regenerated_payload and "repository" in committed_payload:
+        regenerated_payload["repository"]["head_commit"] = committed_payload["repository"].get("head_commit", "")
+    if _canonical_json(committed_payload) != _canonical_json(regenerated_payload):
+        print("structural drift detected between committed and regenerated baseline", file=sys.stderr)
+        for key in sorted(set(committed_payload) | set(regenerated_payload)):
+            if committed_payload.get(key) != regenerated_payload.get(key):
+                print(f"  differing top-level section: {key}", file=sys.stderr)
+        return 1
+    if errors:
+        return 1
+    print("structural baseline and exceptions are consistent")
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--collect-only", action="store_true", help="build structural sections only")
+    parser.add_argument("--runs", type=int, default=1, help="runtime evidence runs (default 1, max 3)")
+    parser.add_argument("--check", action="store_true", help="verify committed report against regeneration")
+    parser.add_argument("--report-path", type=Path, default=REPORT_PATH, help="override committed report path")
+    parser.add_argument("--lanes-path", type=Path, default=LANES_PATH, help="override lane manifest path")
+    parser.add_argument("--exceptions-path", type=Path, default=EXCEPTIONS_PATH, help="override exceptions path")
+    parser.add_argument("--samples-path", type=Path, default=SAMPLES_PATH, help="override failure-samples manifest path")
+    parser.add_argument("--work-dir", type=Path, default=None, help="scratch directory for recorder outputs")
+    args = parser.parse_args(argv)
+
+    if args.check:
+        return check_report(args.report_path, ROOT, args.lanes_path, args.exceptions_path, args.samples_path)
+
+    report = build_structural(ROOT, args.lanes_path, args.exceptions_path, args.samples_path)
+    collected = {row["node_id"] for row in report["inventory"]}
+    lane_ids = {lane["id"] for lane in report["lanes"]}
+    exceptions = _load_json(args.exceptions_path)
+    errors = validate_exceptions(exceptions, collected, lane_ids)
+    errors.extend(validate_failure_samples(_load_json(args.samples_path), collected, ROOT))
+    if errors:
+        for error in errors:
+            print(f"exception error: {error}", file=sys.stderr)
+        return 1
+
+    if not args.collect_only:
+        runs = max(1, min(args.runs, 3))
+        work_dir = args.work_dir or Path(tempfile.mkdtemp(prefix="test-baseline-"))
+        work_dir.mkdir(parents=True, exist_ok=True)
+        report["runtime"] = runtime_runs(runs, work_dir)
+        unexercised: dict[str, Any] = {}
+        boundary_files = set(report["runtime"]["boundary_files"])
+        for kind, files in report["static"].items():
+            missing = [file for file in files if file not in boundary_files]
+            if missing:
+                unexercised[kind] = missing
+        report["runtime"]["static_unexercised"] = unexercised
+
+    payload = _canonical_json(report)
+    args.report_path.write_text(payload, encoding="utf-8")
+    print(f"wrote {args.report_path} ({len(payload)} bytes, {len(report['inventory'])} inventory rows)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

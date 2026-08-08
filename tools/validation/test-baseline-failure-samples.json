@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "note": "Deterministic representative-failure samples for the #218 test baseline. Each entry names a real collected test and a mutation to the committed data it consumes; the sample run intercepts reads/copies of the named path only, so the test fails naturally on its own assertions and the actual pytest diagnostics are recorded in the report's failure_locality.sample section. A mutation that stops provoking a failure fails baseline generation by design.",
+  "samples": [
+    {
+      "node_id": "tests/skills/plan-change/test_benchmark_report.py::test_committed_plan_change_benchmark_has_comparable_machine_phases_only",
+      "mutation": {
+        "type": "json-set",
+        "path": "benchmarks/reports/plan-change-v7.json",
+        "target": ["schema_version"],
+        "value": 4
+      }
+    },
+    {
+      "node_id": "tests/repository/test_context_load.py::test_report_covers_every_skill_and_every_reference_file",
+      "mutation": {
+        "type": "json-remove",
+        "path": "benchmarks/reports/context-load.json",
+        "target": ["skills", "plan-change", "worst_reference_paths", 0]
+      }
+    },
+    {
+      "node_id": "tests/integration/test_installed_skill_execution.py::test_core_skill_clis_use_packaged_runtime_when_installed_alone",
+      "mutation": {
+        "type": "file-delete",
+        "path": "skills/engineering/plan-change",
+        "delete": "scripts/cli.py"
+      }
+    }
+  ]
+}

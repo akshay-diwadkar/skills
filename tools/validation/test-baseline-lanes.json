@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "lanes": [
+    {
+      "id": "quality.full",
+      "workflow": "quality.yml",
+      "job": "quality",
+      "args": [
+        "--ignore=tests/skills/map-codebase",
+        "-m",
+        "not fixtures and not benchmark and not benchmark_slow",
+        "--deselect",
+        "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-positive]",
+        "--deselect",
+        "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-negative]",
+        "--deselect",
+        "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-ambiguous]",
+        "--deselect",
+        "tests/classification/test_classification.py::test_deterministic_classification_fixture[map-codebase-adversarial]",
+        "--deselect",
+        "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]"
+      ],
+      "matrix_cells": [],
+      "env_gated": false
+    },
+    {
+      "id": "quality.cross-platform.installed-execution",
+      "workflow": "quality.yml",
+      "job": "cross-platform",
+      "args": [
+        "tests/integration/test_installed_skill_execution.py",
+        "--deselect",
+        "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]"
+      ],
+      "matrix_cells": [
+        "ubuntu-latest py3.11",
+        "ubuntu-latest py3.12",
+        "windows-latest py3.11",
+        "windows-latest py3.12",
+        "macos-latest py3.11",
+        "macos-latest py3.12"
+      ],
+      "env_gated": false
+    },
+    {
+      "id": "plan-change-hardening.plan-change",
+      "workflow": "plan-change-hardening.yml",
+      "job": "verify",
+      "args": ["tests/skills/plan-change"],
+      "matrix_cells": [],
+      "env_gated": false
+    },
+    {
+      "id": "plan-change-hardening.implement-plan",
+      "workflow": "plan-change-hardening.yml",
+      "job": "verify",
+      "args": ["tests/skills/implement-plan"],
+      "matrix_cells": [],
+      "env_gated": false
+    },
+    {
+      "id": "plan-change-hardening.scope-issue",
+      "workflow": "plan-change-hardening.yml",
+      "job": "verify",
+      "args": ["tests/skills/scope-issue"],
+      "matrix_cells": [],
+      "env_gated": false
+    },
+    {
+      "id": "plan-change-hardening.installed-execution",
+      "workflow": "plan-change-hardening.yml",
+      "job": "verify",
+      "args": [
+        "tests/integration/test_installed_skill_execution.py",
+        "--deselect",
+        "tests/integration/test_installed_skill_execution.py::test_remaining_skill_common_cli_runs_from_standalone_install[engineering-map-codebase]"
+      ],
+      "matrix_cells": [],
+      "env_gated": false
+    },
+    {
+      "id": "plan-change-hardening.large-repo-gate",
+      "workflow": "plan-change-hardening.yml",
+      "job": "verify",
+      "args": ["tests/skills/plan-change/test_no_exploration.py::test_repository_size_does_not_change_operations"],
+      "matrix_cells": [],
+      "env_gated": true,
+      "env": {"PLAN_CHANGE_LARGE_REPO": "1"}
+    }
+  ]
+}
