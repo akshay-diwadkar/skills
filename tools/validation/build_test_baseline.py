@@ -44,8 +44,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Sequence
 
+from test_baseline_failure_mutations import (
+    MutationValidationError,
+    validate_failure_sample_mutation,
+)
 from test_baseline_utils import (
-    apply_failure_sample_text_mutation,
     bucket_seconds,
     classify_subprocess_command,
     derive_layer_from_path,
@@ -603,7 +606,12 @@ def _collect_ignore_findings(root: Path) -> list[dict[str, str]]:
 
 
 def build_structural(
-    root: Path, lanes_path: Path, exceptions_path: Path, samples_path: Path = SAMPLES_PATH
+    root: Path,
+    lanes_path: Path,
+    exceptions_path: Path,
+    samples_path: Path = SAMPLES_PATH,
+    *,
+    require_sample_nodes: bool = True,
 ) -> dict[str, Any]:
     lanes_manifest = _load_json(lanes_path)
     exceptions = _load_json(exceptions_path)
@@ -618,11 +626,11 @@ def build_structural(
     with tempfile.TemporaryDirectory() as work:
         for lane in lanes_manifest["lanes"]:
             recorder_out = os.path.join(work, "markers.json")
-            collected = collect_lane(lane, recorder_out)
-            if collected.get("error"):
-                raise RuntimeError(f"lane {lane['id']} failed: {collected['error']}")
+            collected_lane = collect_lane(lane, recorder_out)
+            if collected_lane.get("error"):
+                raise RuntimeError(f"lane {lane['id']} failed: {collected_lane['error']}")
             lane_id: str = lane["id"]
-            nodes = collected["node_ids"]
+            nodes = collected_lane["node_ids"]
             all_nodes[lane_id] = set(nodes)
             entry = {
                 "id": lane_id,
@@ -636,8 +644,8 @@ def build_structural(
             }
             if entry["matrix_cells"]:
                 entry["matrix_executions"] = len(nodes) * len(entry["matrix_cells"])
-            if "error" in collected:
-                entry["error"] = collected["error"]
+            if "error" in collected_lane:
+                entry["error"] = collected_lane["error"]
             lanes.append(entry)
             markers_path = Path(recorder_out)
             if markers_path.exists():
@@ -771,8 +779,16 @@ def build_structural(
         for lane_id in row["lanes"]:
             per_lane_locality.setdefault(lane_id, Counter())[locality] += 1
 
-    sample_diagnostics = run_failure_samples(root, samples_path)
     samples_manifest = _load_json(samples_path)
+    collected = {row["node_id"] for row in inventory}
+    sample_collected = collected
+    if not require_sample_nodes and isinstance(samples_manifest, dict):
+        sample_collected = collected | {
+            entry["node_id"]
+            for entry in samples_manifest.get("samples", [])
+            if isinstance(entry, dict) and isinstance(entry.get("node_id"), str)
+        }
+    sample_diagnostics = run_failure_samples(root, samples_path, sample_collected)
     sample: list[dict[str, Any]] = []
     for entry in samples_manifest.get("samples", []):
         node_id = entry["node_id"]
@@ -929,7 +945,9 @@ def _extract_failure_excerpt(output: str, node_id: str) -> str:
     return "\n".join(line for line in excerpt if line.strip())[:3000]
 
 
-def run_failure_samples(root: Path, samples_path: Path) -> dict[str, str]:
+def run_failure_samples(
+    root: Path, samples_path: Path, collected: set[str]
+) -> dict[str, str]:
     """Run the curated representative-failure samples and return observed diagnostics.
 
     Runs only the sample node IDs with the sample plugin loaded, so the real
@@ -938,11 +956,12 @@ def run_failure_samples(root: Path, samples_path: Path) -> dict[str, str]:
     raises if a sample stops provoking a failure, because stale evidence must
     never be committed silently.
     """
-    samples = _load_json(samples_path).get("samples", [])
-    mutation_errors = validate_failure_sample_mutations({"samples": samples}, root)
-    if mutation_errors:
-        details = "\n".join(f"- {error}" for error in mutation_errors)
-        raise RuntimeError(f"failure sample mutation validation failed before pytest:\n{details}")
+    manifest = _load_json(samples_path)
+    samples = manifest.get("samples", []) if isinstance(manifest, dict) else []
+    validation_errors = validate_failure_samples(manifest, collected, root)
+    if validation_errors:
+        details = "\n".join(f"- {error}" for error in validation_errors)
+        raise RuntimeError(f"failure sample manifest validation failed before pytest:\n{details}")
     node_ids = [str(sample["node_id"]) for sample in samples]
     command = [
         sys.executable,
@@ -1080,12 +1099,17 @@ def validate_exceptions(
 
 
 def validate_failure_samples(
-    samples: dict[str, Any], collected: set[str], root: Path
+    samples: Any, collected: set[str], root: Path
 ) -> list[str]:
     errors: list[str] = []
+    if not isinstance(samples, dict):
+        return ["failure samples manifest must be an object"]
     if samples.get("schema_version") != 1:
         errors.append("failure samples: unsupported schema version")
-    for entry in samples.get("samples", []):
+    entries = samples.get("samples", [])
+    if not isinstance(entries, list):
+        return [*errors, "failure samples: 'samples' must be a list"]
+    for entry in entries:
         if not isinstance(entry, dict):
             errors.append(f"failure sample entry must be an object: {entry!r}")
             continue
@@ -1096,70 +1120,39 @@ def validate_failure_samples(
         if not isinstance(mutation, dict):
             errors.append(f"failure sample {node_id!r}: mutation must be an object")
             continue
-        source = mutation.get("path")
-        if not isinstance(source, str) or not source or not (root / source).exists():
-            errors.append(f"failure sample {node_id!r}: mutation source does not exist: {source!r}")
-    errors.extend(validate_failure_sample_mutations(samples, root))
-    return errors
-
-
-def validate_failure_sample_mutations(samples: dict[str, Any], root: Path) -> list[str]:
-    """Prove every declared failure-sample mutation applies and changes data."""
-    errors: list[str] = []
-    for entry in samples.get("samples", []):
-        if not isinstance(entry, dict):
-            continue
-        node_id = entry.get("node_id")
-        mutation = entry.get("mutation")
-        if not isinstance(mutation, dict):
-            errors.append(f"failure sample {node_id!r}: mutation must be an object")
-            continue
-        mutation_type = mutation.get("type")
-        if mutation_type not in ("json-set", "json-remove", "replace-string", "file-delete"):
-            errors.append(f"failure sample {node_id!r}: unknown mutation type {mutation_type!r}")
-            continue
-        source_value = mutation.get("path")
-        if not isinstance(source_value, str) or not source_value:
-            continue
-        source = root / source_value
-        if not source.exists():
-            continue
         try:
-            if mutation_type in ("json-set", "json-remove"):
-                original = source.read_text(encoding="utf-8")
-                mutated = apply_failure_sample_text_mutation(original, mutation)
-                if json.loads(mutated) == json.loads(original):
-                    errors.append(
-                        f"failure sample {node_id!r}: {mutation_type} mutation is a no-op"
-                    )
-            elif mutation_type == "replace-string":
-                original = source.read_text(encoding="utf-8")
-                mutated = apply_failure_sample_text_mutation(original, mutation)
-                if mutated == original:
-                    errors.append(
-                        f"failure sample {node_id!r}: replace-string mutation does not replace a source string"
-                    )
-            elif mutation_type == "file-delete":
-                if not source.is_dir():
-                    raise NotADirectoryError(source)
-                delete_value = mutation.get("delete")
-                if not isinstance(delete_value, str) or not delete_value:
-                    raise ValueError("file-delete mutation requires a non-empty 'delete' path")
-                target = (source / delete_value).resolve()
-                source_root = source.resolve()
-                if target == source_root or source_root not in target.parents:
-                    raise ValueError("file-delete target must stay inside the copied source")
-                if not target.is_file():
-                    raise FileNotFoundError(target)
-        except (OSError, TypeError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
-            errors.append(
-                f"failure sample {node_id!r}: {mutation_type} mutation cannot be applied: {exc}"
-            )
+            validate_failure_sample_mutation(root, mutation)
+        except MutationValidationError as exc:
+            errors.append(f"failure sample {node_id!r}: {exc}")
     return errors
 
 
 def structural_payload(report: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in report.items() if key != "runtime"}
+
+
+def validate_runtime_evidence(report: dict[str, Any]) -> list[str]:
+    """Validate the committed runtime-evidence shape without timing thresholds."""
+    runtime = report.get("runtime")
+    if not isinstance(runtime, dict):
+        return ["committed baseline is missing runtime evidence"]
+    errors: list[str] = []
+    if runtime.get("runs") != 2:
+        errors.append("committed baseline runtime evidence must record exactly 2 runs")
+    for field in ("wall_duration_buckets", "collection_duration_buckets"):
+        value = runtime.get(field)
+        if not isinstance(value, list) or len(value) != 2:
+            errors.append(f"runtime evidence field {field!r} must contain two buckets")
+    for field, expected_type in (
+        ("nodes", dict),
+        ("fixtures", list),
+        ("boundary_files", list),
+        ("lane_executions", dict),
+    ):
+        value = runtime.get(field)
+        if not isinstance(value, expected_type) or not value:
+            errors.append(f"runtime evidence field {field!r} must be non-empty")
+    return errors
 
 
 def check_report(
@@ -1180,7 +1173,8 @@ def check_report(
     collected = {row["node_id"] for row in regenerated["inventory"]}
     lane_ids = {lane["id"] for lane in regenerated["lanes"]}
     exceptions = _load_json(exceptions_path)
-    errors = validate_exceptions(exceptions, collected, lane_ids)
+    errors = validate_runtime_evidence(committed)
+    errors.extend(validate_exceptions(exceptions, collected, lane_ids))
     samples = _load_json(samples_path)
     errors.extend(validate_failure_samples(samples, collected, root))
     for error in errors:

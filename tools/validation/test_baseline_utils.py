@@ -7,9 +7,8 @@ test_baseline_recorder.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Sequence, TypedDict
+from typing import Sequence, TypedDict
 
 BUCKET_EDGES = (0.0, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0)
 BUCKET_LABELS = tuple(f"{edge:g}s" for edge in BUCKET_EDGES)
@@ -49,76 +48,6 @@ class NodeMetrics(TypedDict):
     subprocess: int
     copy_bytes: int
     copy_count: int
-
-
-def _json_index(value: Any, length: int) -> int:
-    """Validate and return a JSON list index."""
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(f"JSON list index must be an integer, got {value!r}")
-    if value < 0 or value >= length:
-        raise IndexError(f"JSON list index out of range: {value}")
-    return value
-
-
-def _json_target_parent(document: Any, target: Any) -> tuple[Any, Any]:
-    """Resolve a mutation target and return its parent plus final key/index."""
-    if not isinstance(target, list) or not target:
-        raise ValueError("JSON mutation target must be a non-empty list")
-    cursor = document
-    for key in target[:-1]:
-        if isinstance(cursor, dict):
-            if not isinstance(key, str):
-                raise TypeError(f"JSON object key must be a string, got {key!r}")
-            cursor = cursor[key]
-        elif isinstance(cursor, list):
-            cursor = cursor[_json_index(key, len(cursor))]
-        else:
-            raise TypeError(f"JSON target traverses a non-container: {cursor!r}")
-    final = target[-1]
-    if isinstance(cursor, dict):
-        if not isinstance(final, str):
-            raise TypeError(f"JSON object key must be a string, got {final!r}")
-        if final not in cursor:
-            raise KeyError(final)
-    elif isinstance(cursor, list):
-        final = _json_index(final, len(cursor))
-    else:
-        raise TypeError(f"JSON target ends at a non-container: {cursor!r}")
-    return cursor, final
-
-
-def apply_failure_sample_text_mutation(text: str, mutation: dict[str, Any]) -> str:
-    """Apply a text or JSON failure-sample mutation using runtime semantics."""
-    mutation_type = mutation.get("type")
-    if mutation_type == "replace-string":
-        old = mutation["old"]
-        new = mutation["new"]
-        if not isinstance(old, str) or not isinstance(new, str):
-            raise TypeError("replace-string old/new values must be strings")
-        if not old:
-            raise ValueError("replace-string old value must not be empty")
-        return text.replace(old, new)
-    if mutation_type in ("json-set", "json-remove"):
-        document = json.loads(text)
-        cursor, final = _json_target_parent(document, mutation.get("target"))
-        if mutation_type == "json-set":
-            if "value" not in mutation:
-                raise KeyError("value")
-            cursor[final] = mutation["value"]
-        else:
-            remove = cursor[final]
-            if isinstance(remove, list):
-                index = _json_index(mutation.get("index", 0), len(remove))
-                del remove[index]
-            elif isinstance(remove, dict):
-                key = mutation.get("index", final)
-                if not isinstance(key, str):
-                    raise TypeError(f"JSON object key must be a string, got {key!r}")
-                del remove[key]
-            else:
-                raise TypeError("json-remove target must contain a list or object")
-        return json.dumps(document, sort_keys=True, separators=(",", ":"))
-    return text
 
 
 def bucket_seconds(seconds: float) -> str:

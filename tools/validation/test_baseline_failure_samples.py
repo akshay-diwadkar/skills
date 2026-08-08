@@ -11,8 +11,8 @@ Mutations are described in ``test-baseline-failure-samples.json`` (schema v1)
 and applied only to the exact committed source paths named there:
 
 - ``json-set`` / ``json-remove``: intercept ``Path.read_text`` on the named
-  JSON file, mutate the parsed document (dotted ``target`` key path), and
-  re-serialize;
+  JSON file, mutate the parsed document (the complete ``target`` leaf path),
+  and re-serialize;
 - ``replace-string``: intercept ``Path.read_text`` on the named file and
   replace one literal substring;
 - ``file-delete``: intercept ``shutil.copytree`` of the named source directory
@@ -37,7 +37,10 @@ import shutil
 from pathlib import Path
 from typing import Any, Callable
 
-from test_baseline_utils import apply_failure_sample_text_mutation
+from test_baseline_failure_mutations import (
+    apply_failure_sample_text_mutation,
+    resolve_file_delete_target,
+)
 
 _STATE: dict[str, Any] = {"by_source": {}, "root": None}
 
@@ -89,7 +92,7 @@ def _install_copytree_wrap() -> None:
         result = original(src, dst, *args, **kwargs)
         mutation = _STATE["by_source"].get(str(Path(src).resolve()))
         if mutation is not None and mutation.get("type") == "file-delete":
-            target = Path(dst) / mutation["delete"]
+            target = resolve_file_delete_target(Path(dst), mutation.get("delete"))
             if target.exists():
                 target.unlink()
         return result

@@ -4,6 +4,7 @@ import json
 import sys
 import textwrap
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -23,6 +24,11 @@ from build_test_baseline import (  # noqa: E402
     _owner_of,
     validate_exceptions,
     validate_failure_samples,
+    validate_runtime_evidence,
+)
+from test_baseline_failure_mutations import (  # noqa: E402
+    apply_failure_sample_text_mutation,
+    validate_failure_sample_mutation,
 )
 from test_baseline_utils import bucket_seconds  # noqa: E402
 
@@ -338,87 +344,179 @@ def test_validate_failure_samples_accepts_and_rejects() -> None:
          "mutation": {"type": "unknown", "path": "benchmarks/reports/does-not-exist.json"}},
     ]}
     errors = validate_failure_samples(bad, collected, REPO_ROOT)
-    assert len(errors) == 3
+    assert len(errors) == 2
     schema_errors = validate_failure_samples({"schema_version": 9, "samples": []}, collected, REPO_ROOT)
     assert len(schema_errors) == 1
 
 
-def test_validate_failure_samples_rejects_unappliable_targets_indexes_and_replacements(
-    tmp_path: Path,
-) -> None:
-    (tmp_path / "data.json").write_text('{"items":["a"],"version":3}', encoding="utf-8")
-    (tmp_path / "data.txt").write_text("expected marker\n", encoding="utf-8")
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "present.txt").write_text("fixture\n", encoding="utf-8")
-    samples = {
-        "schema_version": 1,
-        "samples": [
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "json-set", "path": "data.json", "target": ["missing"], "value": 4},
-            },
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "json-remove", "path": "data.json", "target": ["items"], "index": 4},
-            },
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "replace-string", "path": "data.txt", "old": "absent", "new": "changed"},
-            },
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "replace-string", "path": "data.txt", "old": "expected", "new": "expected"},
-            },
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "json-set", "path": "data.json", "target": ["version"], "value": 3},
-            },
-            {
-                "node_id": "tests/real.py::test_z",
-                "mutation": {"type": "file-delete", "path": "src", "delete": "missing.txt"},
-            },
-        ],
-    }
-
-    errors = validate_failure_samples(samples, {"tests/real.py::test_z"}, tmp_path)
-
-    assert len(errors) == 6
-    assert any("json-set mutation cannot be applied" in error for error in errors)
-    assert any("json-remove mutation cannot be applied" in error for error in errors)
-    assert sum("does not replace a source string" in error for error in errors) == 2
-    assert any("json-set mutation is a no-op" in error for error in errors)
-    assert any("file-delete mutation cannot be applied" in error for error in errors)
+def _mutation_fixture(tmp_path: Path) -> tuple[str, str]:
+    document = {"config": {"value": 1, "drop": "x"}, "items": ["a", "b"]}
+    json_path = tmp_path / "data.json"
+    text_path = tmp_path / "data.txt"
+    json_path.write_text(json.dumps(document), encoding="utf-8")
+    text_path.write_text("alpha beta alpha\n", encoding="utf-8")
+    source = tmp_path / "src"
+    (source / "nested").mkdir(parents=True)
+    (source / "nested" / "present.txt").write_text("fixture\n", encoding="utf-8")
+    return json_path.name, text_path.name
 
 
-def test_run_failure_samples_validates_before_launching_pytest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "data.json").write_text('{"version":3}', encoding="utf-8")
-    manifest_path = tmp_path / "samples.json"
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "samples": [
-                    {
-                        "node_id": "tests/real.py::test_z",
-                        "mutation": {
-                            "type": "json-remove",
-                            "path": "data.json",
-                            "target": ["version"],
-                            "index": 1,
-                        },
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
+def test_failure_sample_mutations_accept_valid_cases(tmp_path: Path) -> None:
+    json_name, text_name = _mutation_fixture(tmp_path)
+    original = (tmp_path / json_name).read_text(encoding="utf-8")
+
+    updated = json.loads(
+        apply_failure_sample_text_mutation(
+            original,
+            {"type": "json-set", "target": ["config", "value"], "value": 2},
+        )
+    )
+    assert updated["config"]["value"] == 2
+    validate_failure_sample_mutation(
+        tmp_path,
+        {"type": "json-set", "path": json_name, "target": ["config", "value"], "value": 2},
+    )
+    created = json.loads(
+        apply_failure_sample_text_mutation(
+            original,
+            {"type": "json-set", "target": ["config", "new_key"], "value": True},
+        )
+    )
+    assert created["config"]["new_key"] is True
+    replaced_item = json.loads(
+        apply_failure_sample_text_mutation(
+            original,
+            {"type": "json-set", "target": ["items", 1], "value": "changed"},
+        )
+    )
+    assert replaced_item["items"] == ["a", "changed"]
+    removed_key = json.loads(
+        apply_failure_sample_text_mutation(
+            original, {"type": "json-remove", "target": ["config", "drop"]}
+        )
+    )
+    assert "drop" not in removed_key["config"]
+    removed_item = json.loads(
+        apply_failure_sample_text_mutation(
+            original, {"type": "json-remove", "target": ["items", 0]}
+        )
+    )
+    assert removed_item["items"] == ["b"]
+    validate_failure_sample_mutation(
+        tmp_path,
+        {"type": "json-remove", "path": json_name, "target": ["config", "drop"]},
+    )
+    assert apply_failure_sample_text_mutation(
+        (tmp_path / text_name).read_text(encoding="utf-8"),
+        {"type": "replace-string", "old": "beta", "new": "gamma"},
+    ) == "alpha gamma alpha\n"
+    validate_failure_sample_mutation(
+        tmp_path,
+        {"type": "replace-string", "path": text_name, "old": "beta", "new": "gamma"},
+    )
+    validate_failure_sample_mutation(
+        tmp_path,
+        {"type": "file-delete", "path": "src", "delete": "nested/present.txt"},
     )
 
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    [
+        ({"type": "json-set", "path": "data.json", "target": ["missing", "value"], "value": 2}, "parent"),
+        ({"type": "json-set", "path": "data.json", "target": ["items", 2], "value": "x"}, "out of range"),
+        ({"type": "json-set", "path": "data.json", "target": ["items", True], "value": "x"}, "integer"),
+        ({"type": "json-set", "path": "data.json", "target": ["config", "value", "nested"], "value": 2}, "non-container"),
+        ({"type": "json-set", "path": "data.json", "target": ["config", "value"], "value": 1}, "would not change"),
+        ({"type": "json-set", "path": "data.json", "target": ["items", 0], "value": "a"}, "would not change"),
+        ({"type": "json-remove", "path": "data.json", "target": ["config", "missing"]}, "does not exist"),
+        ({"type": "json-remove", "path": "data.json", "target": ["items", -1]}, "out of range"),
+        ({"type": "json-remove", "path": "data.json", "target": ["items", "0"]}, "integer"),
+        ({"type": "json-remove", "path": "data.json", "target": ["items", 2]}, "out of range"),
+        ({"type": "json-remove", "path": "data.json", "target": ["items"], "index": 0}, "final key/index"),
+        ({"type": "replace-string", "path": "data.txt", "old": "", "new": "x"}, "non-empty"),
+        ({"type": "replace-string", "path": "data.txt", "old": "x", "new": ""}, "non-empty"),
+        ({"type": "replace-string", "path": "data.txt", "old": "beta", "new": "beta"}, "differ"),
+        ({"type": "replace-string", "path": "data.txt", "old": "missing", "new": "x"}, "exactly once"),
+        ({"type": "replace-string", "path": "data.txt", "old": "alpha", "new": "x"}, "exactly once"),
+        ({"type": "file-delete", "path": "src", "delete": "missing.txt"}, "does not exist"),
+        ({"type": "file-delete", "path": "src", "delete": "nested"}, "does not exist as a file"),
+        ({"type": "file-delete", "path": "src", "delete": "../data.json"}, "inside"),
+    ],
+)
+def test_failure_sample_mutations_reject_invalid_cases(
+    tmp_path: Path, mutation: dict[str, object], expected: str
+) -> None:
+    _mutation_fixture(tmp_path)
+    with pytest.raises(ValueError, match=expected):
+        validate_failure_sample_mutation(tmp_path, mutation)
+
+
+def test_invalid_failure_sample_manifest_cannot_launch_pytest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mutation_fixture(tmp_path)
+    manifest_path = tmp_path / "samples.json"
     def fail_if_pytest_starts(*args: object, **kwargs: object) -> None:
         raise AssertionError("pytest subprocess was launched")
 
     monkeypatch.setattr(baseline.subprocess, "run", fail_if_pytest_starts)
-    with pytest.raises(RuntimeError, match="before pytest"):
-        baseline.run_failure_samples(tmp_path, manifest_path)
+    valid_sample: dict[str, Any] = {
+        "node_id": "tests/real.py::test_z",
+        "mutation": {
+            "type": "replace-string",
+            "path": "data.txt",
+            "old": "alpha",
+            "new": "gamma",
+        },
+    }
+    cases = [
+        ({"schema_version": 9, "samples": [valid_sample]}, {"tests/real.py::test_z"}),
+        ({"schema_version": 1, "samples": [{**valid_sample, "node_id": "tests/missing.py::test_z"}]}, {"tests/real.py::test_z"}),
+        (
+            {
+                "schema_version": 1,
+                "samples": [
+                    {
+                        **valid_sample,
+                        "mutation": {**valid_sample["mutation"], "old": "missing"},
+                    }
+                ],
+            },
+            {"tests/real.py::test_z"},
+        ),
+    ]
+    for manifest, collected in cases:
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with pytest.raises(RuntimeError, match="before pytest"):
+            baseline.run_failure_samples(tmp_path, manifest_path, collected)
+
+
+def test_committed_failure_sample_manifest_is_applicable() -> None:
+    manifest = json.loads(
+        (REPO_ROOT / "tools" / "validation" / "test-baseline-failure-samples.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    report = json.loads((REPO_ROOT / "benchmarks" / "reports" / "test-baseline.json").read_text(encoding="utf-8"))
+    collected = {row["node_id"] for row in report["inventory"]}
+    assert validate_failure_samples(manifest, collected, REPO_ROOT) == []
+
+
+def test_runtime_evidence_contract_accepts_two_run_report() -> None:
+    valid = {
+        "runtime": {
+            "runs": 2,
+            "wall_duration_buckets": ["1s", "2s"],
+            "collection_duration_buckets": ["0.1s", "0.1s"],
+            "nodes": {"test": {}},
+            "fixtures": [{"fixture": "tmp_path"}],
+            "boundary_files": ["tests/test.py"],
+            "lane_executions": {"quality.full": {}},
+        }
+    }
+    assert validate_runtime_evidence(valid) == []
+    assert validate_runtime_evidence({"runtime": {"runs": 1}})
 
 
 def test_failure_diagnostic_parsing() -> None:
@@ -449,6 +547,7 @@ def _write_failure_sample_suite(tmp_path: Path) -> None:
     (tmp_path / "data.json").write_text(
         '{"schema_version": 3, "name": "x"}', encoding="utf-8"
     )
+    (tmp_path / "remove.json").write_text('{"items": ["remove", "keep"]}', encoding="utf-8")
     source = tmp_path / "src"
     (source / "scripts").mkdir(parents=True)
     (source / "scripts" / "seal.py").write_text("print('seal')\n", encoding="utf-8")
@@ -461,12 +560,17 @@ def _write_failure_sample_suite(tmp_path: Path) -> None:
             from pathlib import Path
 
             DATA = Path(__file__).with_name("data.json")
+            REMOVE = Path(__file__).with_name("remove.json")
             SRC = Path(__file__).with_name("src")
             TEXT = Path(__file__).with_name("src") / "data.txt"
 
             def test_json_schema_version():
                 report = json.loads(DATA.read_text(encoding="utf-8"))
                 assert report["schema_version"] == 3
+
+            def test_json_remove_item():
+                report = json.loads(REMOVE.read_text(encoding="utf-8"))
+                assert report["items"] == ["remove", "keep"]
 
             def test_copied_tree_keeps_sealer(tmp_path: Path):
                 installed = tmp_path / "installed"
@@ -502,6 +606,9 @@ def test_failure_sample_interceptions_are_scoped_and_leave_files_untouched(tmp_p
             {"node_id": "test_sample_suite.py::test_json_schema_version",
              "mutation": {"type": "json-set", "path": "data.json",
                           "target": ["schema_version"], "value": 4}},
+            {"node_id": "test_sample_suite.py::test_json_remove_item",
+             "mutation": {"type": "json-remove", "path": "remove.json",
+                          "target": ["items", 0]}},
             {"node_id": "test_sample_suite.py::test_copied_tree_keeps_sealer",
              "mutation": {"type": "file-delete", "path": "src", "delete": "scripts/seal.py"}},
             {"node_id": "test_sample_suite.py::test_workflow_profile_preserved",
@@ -512,7 +619,7 @@ def test_failure_sample_interceptions_are_scoped_and_leave_files_untouched(tmp_p
     }
     returncode, output = _run_sample_pytest(tmp_path, tmp_path / "test_sample_suite.py", manifest)
     assert returncode != 0
-    assert "3 failed" in output
+    assert "4 failed" in output
     assert "assert 4 == 3" in output
     assert "AssertionError: assert False" in output
     assert "FAILED" in output
@@ -524,8 +631,12 @@ def test_failure_sample_interceptions_are_scoped_and_leave_files_untouched(tmp_p
 def test_reduced_baseline_is_deterministic(tmp_path: Path) -> None:
     manifest_path = tmp_path / "lanes.json"
     manifest_path.write_text(json.dumps(REDUCED_MANIFEST), encoding="utf-8")
-    first = baseline.build_structural(REPO_ROOT, manifest_path, EXCEPTIONS_PATH)
-    second = baseline.build_structural(REPO_ROOT, manifest_path, EXCEPTIONS_PATH)
+    first = baseline.build_structural(
+        REPO_ROOT, manifest_path, EXCEPTIONS_PATH, require_sample_nodes=False
+    )
+    second = baseline.build_structural(
+        REPO_ROOT, manifest_path, EXCEPTIONS_PATH, require_sample_nodes=False
+    )
     assert baseline._canonical_json(first) == baseline._canonical_json(second)
     full = next(lane for lane in first["lanes"] if lane["id"] == "quality.full")
     assert full["node_count"] > 800

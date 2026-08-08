@@ -16,8 +16,7 @@
       "mutation": {
         "type": "json-remove",
         "path": "benchmarks/reports/context-load.json",
-        "target": ["skills", "plan-change", "worst_reference_paths"],
-        "index": 0
+        "target": ["skills", "plan-change", "worst_reference_paths", 0]
       }
     },
     {
@@ -25,8 +24,8 @@
       "mutation": {
         "type": "replace-string",
         "path": ".github/workflows/quality.yml",
-        "old": "not fixtures and not benchmark and not benchmark_slow",
-        "new": "not fixtures and not benchmark"
+        "old": "    timeout-minutes: 12",
+        "new": "    timeout-minutes: 13"
       }
     }
   ]
